@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Home,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -30,6 +31,7 @@ const nav = [
   { to: "/app/vault", label: "Cofre", icon: FolderLock },
   { to: "/app/categories", label: "Categorias", icon: Tags },
   { to: "/app/reports", label: "Relatórios", icon: FileBarChart },
+  { to: "/app/audit", label: "Auditoria", icon: ShieldAlert },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
