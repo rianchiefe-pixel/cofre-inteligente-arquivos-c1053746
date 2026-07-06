@@ -555,13 +555,13 @@ function CompareDialog({ receiptId, onClose, onChanged }: { receiptId: string | 
             <div className="mt-2 flex flex-wrap justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => run(() => bulkAction({ data: { receiptIds: [data.newRec.id], action: "approve" } }), "Marcado como novo e aprovado")}>Manter como novo</Button>
               <Button variant="outline" size="sm" onClick={() => run(() => reject({ data: { receiptId: data.newRec.id, reason: "duplicate" } }), "Novo marcado como duplicado")}>Marcar novo como duplicado</Button>
-              {data.oldRec && (
+              {data.oldRec && (() => { const oldRec = data.oldRec; return (
                 <Button variant="outline" size="sm" onClick={async () => {
-                  await bulkDelete({ data: { receiptIds: [data.oldRec.id] } });
+                  await bulkDelete({ data: { receiptIds: [oldRec.id] } });
                   await approve({ data: { receiptId: data.newRec.id } });
                   toast.success("Comprovante antigo substituído"); onChanged(); onClose();
                 }}>Substituir antigo pelo novo</Button>
-              )}
+              ); })()}
               <Button variant="outline" size="sm" onClick={() => run(() => bulkAction({ data: { receiptIds: [data.newRec.id], action: "archive" } }), "Novo arquivado")}>Arquivar novo</Button>
               <Button variant="destructive" size="sm" onClick={() => run(() => reject({ data: { receiptId: data.newRec.id, reason: "rejected" } }), "Novo rejeitado")}>Rejeitar novo</Button>
               <Button variant="success" size="sm" onClick={() => run(() => approve({ data: { receiptId: data.newRec.id } }), "Novo aprovado mesmo assim")}>Aprovar mesmo assim</Button>
