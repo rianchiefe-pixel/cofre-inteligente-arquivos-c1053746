@@ -275,39 +275,66 @@ export type Database = {
       }
       financial_profiles: {
         Row: {
+          accent_color: string | null
+          address: string | null
           archived: boolean
           color: string | null
           created_at: string
+          display_name: string | null
+          email: string | null
+          footer_text: string | null
           id: string
+          legal_name: string | null
           logo_url: string | null
           name: string
           notes: string | null
+          phone: string | null
+          primary_color: string | null
+          secondary_color: string | null
           tax_id: string | null
           type: Database["public"]["Enums"]["profile_type"]
           updated_at: string
           user_id: string
         }
         Insert: {
+          accent_color?: string | null
+          address?: string | null
           archived?: boolean
           color?: string | null
           created_at?: string
+          display_name?: string | null
+          email?: string | null
+          footer_text?: string | null
           id?: string
+          legal_name?: string | null
           logo_url?: string | null
           name: string
           notes?: string | null
+          phone?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
           tax_id?: string | null
           type?: Database["public"]["Enums"]["profile_type"]
           updated_at?: string
           user_id: string
         }
         Update: {
+          accent_color?: string | null
+          address?: string | null
           archived?: boolean
           color?: string | null
           created_at?: string
+          display_name?: string | null
+          email?: string | null
+          footer_text?: string | null
           id?: string
+          legal_name?: string | null
           logo_url?: string | null
           name?: string
           notes?: string | null
+          phone?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
           tax_id?: string | null
           type?: Database["public"]["Enums"]["profile_type"]
           updated_at?: string
