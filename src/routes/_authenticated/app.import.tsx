@@ -281,8 +281,8 @@ function ImportPage() {
           description: p.description,
           auth_code: p.auth_code,
           notes: p.notes,
-          ocr_status: p.matchedFile ? "queued" : "skipped",
-          status: p.matchedFile ? "pending" : "pending",
+          ocr_status: "queued",
+          status: "pending",
         });
         if (insErr) throw new Error(insErr.message);
         imported++;
