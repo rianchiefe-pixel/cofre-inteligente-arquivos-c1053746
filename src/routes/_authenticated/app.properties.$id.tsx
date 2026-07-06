@@ -50,7 +50,7 @@ function PropertyDetail() {
   const property = useQuery({
     queryKey: ["property", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("properties").select("*, financial_profiles(name, color)").eq("id", id).single();
+      const { data, error } = await supabase.from("properties").select("*, financial_profiles(*)").eq("id", id).single();
       if (error) throw error;
       return data;
     },
@@ -110,10 +110,21 @@ function PropertyDetail() {
     [rows],
   );
 
-  const buildPayload = (): ReportPayload => ({
+  const buildPayload = (): ReportPayload => {
+    const bp: any = (property.data as any)?.financial_profiles;
+    const brand = bp ? {
+      displayName: bp.display_name ?? bp.name,
+      legalName: bp.legal_name, taxId: bp.tax_id, address: bp.address,
+      phone: bp.phone, email: bp.email, logoUrl: bp.logo_url,
+      primaryColor: bp.primary_color ?? bp.color,
+      secondaryColor: bp.secondary_color, accentColor: bp.accent_color,
+      footerText: bp.footer_text,
+    } : null;
+    return {
     title: "Relatório do Imóvel",
     subtitle: property.data?.name ?? "",
     filters: { propertyId: id },
+    brand,
     summary: [
       { label: "Total gasto", value: currencyBRL(totalSpent) },
       { label: "Total investido", value: currencyBRL(totalInvested) },
@@ -135,7 +146,8 @@ function PropertyDetail() {
     rows,
     filename: `imovel-${(property.data?.name ?? id).toString().toLowerCase().replace(/\s+/g, "-")}`,
     reportKind: "imovel",
-  });
+    };
+  };
 
   if (property.isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
   if (!property.data) return <p className="text-sm text-muted-foreground">Imóvel não encontrado.</p>;

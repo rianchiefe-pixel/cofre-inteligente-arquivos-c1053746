@@ -7,6 +7,42 @@ const NAVY: [number, number, number] = [15, 32, 68];
 const GOLD: [number, number, number] = [191, 149, 63];
 const GRAY: [number, number, number] = [110, 118, 132];
 
+function hexToRgb(hex?: string | null): [number, number, number] | null {
+  if (!hex) return null;
+  const m = hex.trim().replace("#", "");
+  if (!/^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(m)) return null;
+  const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m;
+  return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
+}
+
+function luminance([r, g, b]: [number, number, number]) {
+  const [R, G, B] = [r, g, b].map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+// Enforce a minimum contrast against the header band by falling back to navy.
+function ensureReadable(color: [number, number, number] | null): [number, number, number] {
+  if (!color) return NAVY;
+  return luminance(color) > 0.75 ? NAVY : color;
+}
+
+export interface ReportBrand {
+  displayName?: string | null;
+  legalName?: string | null;
+  taxId?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  accentColor?: string | null;
+  footerText?: string | null;
+}
+
 export type ExportFormat = "csv" | "xlsx" | "pdf";
 
 export interface ExportColumn<T = any> {
@@ -33,6 +69,7 @@ export interface ReportPayload<T = any> {
   rows: T[];
   filename: string;
   reportKind: string;
+  brand?: ReportBrand | null;
 }
 
 function fmtDate(d: Date) {
@@ -97,8 +134,14 @@ export function exportXLSX<T>(payload: ReportPayload<T>) {
 
   // Summary sheet
   const summaryAoA: any[][] = [];
+  const b = payload.brand ?? null;
+  const brandName = b?.displayName || b?.legalName;
+  if (brandName) summaryAoA.push([brandName]);
   summaryAoA.push([payload.title]);
   if (payload.subtitle) summaryAoA.push([payload.subtitle]);
+  if (b?.taxId) summaryAoA.push([`CPF/CNPJ: ${b.taxId}`]);
+  if (b?.address) summaryAoA.push([b.address]);
+  if (b?.phone || b?.email) summaryAoA.push([[b?.phone, b?.email].filter(Boolean).join(" · ")]);
   if (payload.period?.from || payload.period?.to) {
     summaryAoA.push([`Período: ${payload.period?.from ?? "—"} a ${payload.period?.to ?? "—"}`]);
   }
@@ -115,6 +158,7 @@ export function exportXLSX<T>(payload: ReportPayload<T>) {
     b.rows.forEach((r) => summaryAoA.push([r.name, r.value]));
     summaryAoA.push([]);
   });
+  if (b?.footerText) { summaryAoA.push([]); summaryAoA.push([b.footerText]); }
   const wsResumo = XLSX.utils.aoa_to_sheet(summaryAoA);
   wsResumo["!cols"] = [{ wch: 40 }, { wch: 24 }];
   XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
@@ -142,22 +186,35 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 40;
+  const brand = payload.brand ?? null;
+  const headerColor = ensureReadable(hexToRgb(brand?.primaryColor)) ?? NAVY;
+  const accentColor = hexToRgb(brand?.accentColor) ?? GOLD;
+  const tableHeadColor = ensureReadable(hexToRgb(brand?.secondaryColor)) ?? headerColor;
 
   // Header band
-  doc.setFillColor(...NAVY);
+  doc.setFillColor(...headerColor);
   doc.rect(0, 0, pageWidth, 90, "F");
-  doc.setFillColor(...GOLD);
+  doc.setFillColor(...accentColor);
   doc.rect(0, 90, pageWidth, 4, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("MEU COFRE", margin, 34);
+  const brandLabel = (brand?.displayName || brand?.legalName || "MEU COFRE").toUpperCase();
+  let textLeft = margin;
+  if (brand?.logoUrl && brand.logoUrl.startsWith("data:image/")) {
+    try {
+      const fmt = brand.logoUrl.substring(11, brand.logoUrl.indexOf(";")).toUpperCase();
+      doc.addImage(brand.logoUrl, fmt === "SVG+XML" ? "PNG" : fmt, margin, 18, 56, 56);
+      textLeft = margin + 68;
+    } catch { /* invalid image */ }
+  }
+  doc.text(brandLabel, textLeft, 34);
   doc.setFontSize(18);
-  doc.text(payload.title, margin, 60);
+  doc.text(payload.title, textLeft, 60);
   if (payload.subtitle) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(payload.subtitle, margin, 78);
+    doc.text(payload.subtitle, textLeft, 78);
   }
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -166,9 +223,18 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
   if (payload.period?.from || payload.period?.to) {
     doc.text(`Período: ${payload.period?.from ?? "—"} a ${payload.period?.to ?? "—"}`, pageWidth - margin, 50, { align: "right" });
   }
+  if (brand?.taxId) doc.text(`CPF/CNPJ: ${brand.taxId}`, pageWidth - margin, 66, { align: "right" });
 
   let y = 120;
-  doc.setTextColor(...NAVY);
+  // Institutional block
+  if (brand?.address || brand?.phone || brand?.email) {
+    doc.setTextColor(...GRAY);
+    doc.setFontSize(8);
+    const parts = [brand.address, brand.phone, brand.email].filter(Boolean).join(" · ");
+    doc.text(parts, margin, y);
+    y += 16;
+  }
+  doc.setTextColor(...headerColor);
 
   // Summary cards
   if (payload.summary?.length) {
@@ -188,7 +254,7 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.text(s.label.toUpperCase(), x + 12, cy + 18);
-      doc.setTextColor(...NAVY);
+      doc.setTextColor(...headerColor);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(13);
       doc.text(s.value, x + 12, cy + 40);
@@ -205,7 +271,7 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
       body: b.rows.map((r) => [r.name, r.value]),
       theme: "grid",
       styles: { fontSize: 9, cellPadding: 6, textColor: [30, 30, 30] },
-      headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold" },
+      headStyles: { fillColor: tableHeadColor, textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 249, 252] },
       margin: { left: margin, right: margin },
     });
@@ -223,14 +289,15 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
       })),
       theme: "striped",
       styles: { fontSize: 8, cellPadding: 5, overflow: "linebreak", textColor: [30, 30, 30] },
-      headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold" },
+      headStyles: { fillColor: tableHeadColor, textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 249, 252] },
       margin: { left: margin, right: margin },
       didDrawPage: () => {
         const p = doc.getNumberOfPages();
         doc.setFontSize(8);
         doc.setTextColor(...GRAY);
-        doc.text("Relatório gerado automaticamente pelo Meu Cofre", margin, pageHeight - 20);
+        const footer = brand?.footerText || "Relatório gerado automaticamente pelo Meu Cofre";
+        doc.text(footer, margin, pageHeight - 20);
         doc.text(`${generatedAt} · Página ${p}`, pageWidth - margin, pageHeight - 20, { align: "right" });
       },
     });
