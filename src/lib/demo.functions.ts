@@ -27,10 +27,6 @@ export const ensureDemoUser = createServerFn({ method: "POST" }).handler(async (
 
 // -------------------- Demo data seed --------------------
 
-type SBClient = Parameters<Parameters<typeof requireSupabaseAuth.server>[0]>[0] extends { next: (opts: { context: infer C }) => infer _R }
-  ? C extends { supabase: infer S } ? S : never
-  : never;
-
 async function isDemoUser(supabase: any, userId: string): Promise<boolean> {
   const { data } = await supabase.auth.getUser();
   return data?.user?.id === userId && data?.user?.email?.toLowerCase() === DEMO_EMAIL;
