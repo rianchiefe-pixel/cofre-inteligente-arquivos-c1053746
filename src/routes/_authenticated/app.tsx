@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Wallet, PiggyBank, FileStack, AlertTriangle, TrendingUp, Clock, XCircle, Copy } from "lucide-react";
+import { Wallet, PiggyBank, FileStack, AlertTriangle, TrendingUp, Clock, XCircle, Copy, Home, Building2 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
@@ -44,7 +44,7 @@ function Dashboard() {
   const [propertyId, setPropertyId] = useState<string>("all");
   const [profileId, setProfileId] = useState<string>("all");
 
-  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
+  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name, status").order("name")).data ?? [] });
   const profilesList = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
 
   const { data } = useQuery({
@@ -80,6 +80,22 @@ function Dashboard() {
   const duplicates = receipts.filter((r) => r.status === "duplicate").length;
   const rejectedMonth = receipts.filter((r) => r.status === "rejected" && r.created_at && new Date(r.created_at) >= monthStart).length;
   const approvedMonth = monthReceipts.length;
+
+  // Property metrics (respect current profile filter, ignore property filter for aggregates)
+  const activeProperties = (properties.data ?? []).filter((p: any) => p.status !== "arquivado" && p.status !== "vendido").length;
+  const propertyIdToName = new Map<string, string>((properties.data ?? []).map((p: any) => [p.id, p.name]));
+  const monthByProperty = new Map<string, number>();
+  let totalInvestedProperties = 0;
+  for (const r of monthReceipts as any[]) {
+    if (!r.property_id) continue;
+    monthByProperty.set(r.property_id, (monthByProperty.get(r.property_id) ?? 0) + Number(r.amount ?? 0));
+    if (r.transaction_type === "investimento") totalInvestedProperties += Number(r.amount ?? 0);
+  }
+  let topPropertyName = "—";
+  let topPropertyAmount = 0;
+  for (const [pid, amt] of monthByProperty) {
+    if (amt > topPropertyAmount) { topPropertyAmount = amt; topPropertyName = propertyIdToName.get(pid) ?? "—"; }
+  }
 
   const byCategory = Object.entries(
     monthReceipts.reduce<Record<string, number>>((acc, r) => {
@@ -141,6 +157,12 @@ function Dashboard() {
         <StatCard label="Possíveis duplicidades" value={String(duplicates)} icon={Copy} tone="gold" />
         <StatCard label="Rejeitados no mês" value={String(rejectedMonth)} icon={XCircle} tone="warn" />
         <StatCard label="Aprovados no mês" value={String(approvedMonth)} icon={FileStack} tone="success" />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Imóveis ativos" value={String(activeProperties)} icon={Home} />
+        <StatCard label="Imóvel com maior gasto no mês" value={topPropertyAmount > 0 ? `${topPropertyName} · ${currencyBRL(topPropertyAmount)}` : "—"} icon={Building2} tone="gold" />
+        <StatCard label="Investido em imóveis (mês)" value={currencyBRL(totalInvestedProperties)} icon={PiggyBank} tone="success" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
