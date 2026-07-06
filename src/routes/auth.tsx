@@ -7,7 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, PlayCircle } from "lucide-react";
+
+const DEMO_EMAIL = "demo@meucofre.com";
+const DEMO_PASSWORD = "demo123456";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Entrar — Meu Cofre" }, { name: "robots", content: "noindex" }] }),
@@ -53,6 +56,33 @@ function AuthPage() {
   const handleGoogle = async () => {
     const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/app" });
     if (result.error) toast.error("Não foi possível entrar com Google");
+  };
+
+  const handleDemo = async () => {
+    setLoading(true);
+    let { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+    if (error) {
+      const signUp = await supabase.auth.signUp({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+        options: { emailRedirectTo: `${window.location.origin}/app` },
+      });
+      if (signUp.error && !/registered/i.test(signUp.error.message)) {
+        setLoading(false);
+        return toast.error("Não foi possível iniciar o modo teste");
+      }
+      const retry = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+      error = retry.error;
+    }
+    setLoading(false);
+    if (error) return toast.error("Modo teste indisponível. Tente novamente.");
+    try {
+      sessionStorage.setItem("meucofre:demo", "1");
+    } catch {
+      /* ignore */
+    }
+    toast.success("Modo teste ativo — explore o Meu Cofre com dados de demonstração.");
+    navigate({ to: "/app" });
   };
 
   return (
@@ -132,6 +162,22 @@ function AuthPage() {
           <p className="mt-6 text-center text-xs text-muted-foreground">
             <Link to="/" className="hover:text-foreground">← Voltar ao início</Link>
           </p>
+
+          <div className="mt-6 rounded-xl border border-dashed border-accent/50 bg-accent/5 p-4">
+            <p className="text-xs font-medium text-foreground">Só quer dar uma olhada?</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Entre com uma conta de demonstração e teste dashboard, cofre, imóveis e relatórios sem cadastro.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 w-full border-accent/60 text-foreground hover:bg-accent/10"
+              onClick={handleDemo}
+              disabled={loading}
+            >
+              <PlayCircle className="h-4 w-4" /> Entrar em modo teste
+            </Button>
+          </div>
         </div>
       </div>
     </div>
