@@ -172,6 +172,16 @@ function VaultPage() {
                     <div>Este comprovante parece duplicado de outro já enviado. Confira antes de aprovar.</div>
                   </div>
                 )}
+                {typeof selected.duplicate_score === "number" && selected.duplicate_score >= 50 && (
+                  <div className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${selected.duplicate_score >= 80 ? "border-destructive/50 bg-destructive/10 text-destructive-foreground" : "border-accent/50 bg-accent/10"}`}>
+                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                    <div>
+                      {selected.duplicate_score >= 80
+                        ? "Alta chance de comprovante repetido."
+                        : "Possível comprovante repetido."} <span className="opacity-70">(score {selected.duplicate_score}/100)</span>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1"><Label>Data</Label><Input type="date" defaultValue={selected.payment_date ?? ""} onBlur={(e) => updateReceipt.mutate({ payment_date: e.target.value || null })} /></div>
                   <div className="space-y-1"><Label>Valor</Label><Input type="number" step="0.01" defaultValue={selected.amount ?? ""} onBlur={(e) => updateReceipt.mutate({ amount: e.target.value ? Number(e.target.value) : null })} /></div>
