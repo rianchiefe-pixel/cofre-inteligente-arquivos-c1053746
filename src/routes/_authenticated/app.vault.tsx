@@ -50,6 +50,9 @@ function VaultPage() {
   const bulkAction = useServerFn(bulkReceiptAction);
   const bulkUpdate = useServerFn(bulkUpdateReceipts);
   const bulkDelete = useServerFn(deleteReceipts);
+  const canApprove = useCan("approveReceipts");
+  const canBulk = useCan("bulkActions");
+  const canDelete = useCan("deleteData");
 
   const [q, setQ] = useState("");
   const [quick, setQuick] = useState<QuickFilter>("pending");
