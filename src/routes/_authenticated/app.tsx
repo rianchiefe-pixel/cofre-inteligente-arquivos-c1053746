@@ -58,7 +58,10 @@ function Dashboard() {
 
   const receipts = data?.receipts ?? [];
   const monthStart = data?.monthStart ?? new Date();
-  const monthReceipts = receipts.filter((r) => r.payment_date && new Date(r.payment_date) >= monthStart);
+  // Regra 10: rejeitados e duplicados NÃO entram nos totais do dashboard.
+  const validReceipts = receipts.filter((r) => r.status !== "rejected" && r.status !== "duplicate");
+  const approvedReceipts = validReceipts.filter((r) => r.status === "approved");
+  const monthReceipts = approvedReceipts.filter((r) => r.payment_date && new Date(r.payment_date) >= monthStart);
   const totalMonth = monthReceipts.reduce((s, r) => s + Number(r.amount ?? 0), 0);
   const totalInvested = monthReceipts.filter((r) => r.transaction_type === "investimento").reduce((s, r) => s + Number(r.amount ?? 0), 0);
   const pending = receipts.filter((r) => r.status === "pending").length;
@@ -90,7 +93,7 @@ function Dashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Gasto no mês" value={currencyBRL(totalMonth)} icon={Wallet} />
         <StatCard label="Investido no mês" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
-        <StatCard label="Comprovantes" value={String(receipts.length)} icon={FileStack} tone="gold" />
+        <StatCard label="Comprovantes aprovados" value={String(approvedReceipts.length)} icon={FileStack} tone="gold" />
         <StatCard label={pending > 0 ? "Pendentes de conferência" : "Possíveis duplicados"} value={String(pending || duplicates)} icon={AlertTriangle} tone={pending > 0 ? "warn" : "primary"} />
       </div>
 
@@ -137,11 +140,11 @@ function Dashboard() {
 
       <Card className="p-5">
         <h2 className="mb-4 text-sm font-semibold">Últimos comprovantes</h2>
-        {receipts.length === 0 ? (
+        {validReceipts.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Envie seu primeiro comprovante pela aba <strong>Enviar comprovantes</strong>.</p>
         ) : (
           <div className="divide-y divide-border">
-            {receipts.slice(0, 8).map((r) => (
+            {validReceipts.slice(0, 8).map((r) => (
               <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{(r as any).recipient_name || (r as any).description || "Comprovante"}</p>
