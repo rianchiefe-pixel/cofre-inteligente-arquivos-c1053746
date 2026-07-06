@@ -1,0 +1,216 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { currencyBRL, dateBR, propertyStatusLabel, propertyTypeLabel, transactionTypeLabel } from "@/lib/format";
+import { ArrowLeft, Wallet, PiggyBank, Repeat, Wind, FileBarChart, MapPin, Home } from "lucide-react";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid, LineChart, Line,
+} from "recharts";
+
+export const Route = createFileRoute("/_authenticated/app/properties/$id")({
+  head: () => ({ meta: [{ title: "Imóvel — Meu Cofre" }] }),
+  component: PropertyDetail,
+});
+
+const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
+function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: string; value: string; icon: any; tone?: "primary" | "gold" | "success" | "warn" }) {
+  const tones: Record<string, string> = {
+    primary: "bg-[image:var(--gradient-primary)] text-primary-foreground",
+    gold: "bg-[image:var(--gradient-gold)] text-accent-foreground",
+    success: "bg-success text-success-foreground",
+    warn: "bg-destructive text-destructive-foreground",
+  };
+  return (
+    <Card className="p-5">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+          <p className="mt-2 truncate text-2xl font-bold text-foreground">{value}</p>
+        </div>
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function PropertyDetail() {
+  const { id } = Route.useParams();
+
+  const property = useQuery({
+    queryKey: ["property", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("properties").select("*, financial_profiles(name, color)").eq("id", id).single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const receipts = useQuery({
+    queryKey: ["property-receipts", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("receipts")
+        .select("id, amount, status, transaction_type, payment_date, bank_name, category_id, categories(name)")
+        .eq("property_id", id)
+        .eq("status", "approved")
+        .order("payment_date", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const rows = receipts.data ?? [];
+  const totalSpent = rows.filter((r: any) => r.transaction_type !== "investimento").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+  const totalInvested = rows.filter((r: any) => r.transaction_type === "investimento").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+  const totalFixed = rows.filter((r: any) => r.transaction_type === "gasto_fixo").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+  const totalVariable = rows.filter((r: any) => r.transaction_type === "gasto_variavel").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+
+  const byCategory = useMemo(() => Object.entries(
+    rows.reduce<Record<string, number>>((acc: Record<string, number>, r: any) => {
+      const name = r.categories?.name ?? "Sem categoria";
+      acc[name] = (acc[name] ?? 0) + Number(r.amount ?? 0);
+      return acc;
+    }, {}),
+  ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6), [rows]);
+
+  const byMonth = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const r of rows as any[]) {
+      if (!r.payment_date) continue;
+      const d = new Date(r.payment_date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      map[key] = (map[key] ?? 0) + Number(r.amount ?? 0);
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ month, value }));
+  }, [rows]);
+
+  const exportCsv = () => {
+    const header = ["Data", "Valor", "Categoria", "Tipo", "Banco"].join(";");
+    const lines = (rows as any[]).map((r) => [
+      dateBR(r.payment_date),
+      String(Number(r.amount ?? 0)).replace(".", ","),
+      r.categories?.name ?? "",
+      transactionTypeLabel[r.transaction_type as string] ?? "",
+      r.bank_name ?? "",
+    ].join(";"));
+    const csv = [header, ...lines].join("\n");
+    const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `imovel-${property.data?.name ?? id}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (property.isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (!property.data) return <p className="text-sm text-muted-foreground">Imóvel não encontrado.</p>;
+
+  const p = property.data;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button asChild variant="ghost" size="sm"><Link to="/app/properties"><ArrowLeft className="h-4 w-4" /> Voltar</Link></Button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Home className="h-5 w-5 text-muted-foreground" />
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{p.name}</h1>
+            <Badge variant="secondary">{propertyStatusLabel[p.status] ?? p.status}</Badge>
+            <Badge variant="outline">{propertyTypeLabel[p.type] ?? p.type}</Badge>
+          </div>
+          <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+            {(p.address || p.city) && <><MapPin className="h-3 w-3" /> {[p.address, p.city, p.state].filter(Boolean).join(", ")}</>}
+          </p>
+        </div>
+        <Button variant="premium" onClick={exportCsv} disabled={rows.length === 0}><FileBarChart className="h-4 w-4" /> Relatório do imóvel</Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total gasto" value={currencyBRL(totalSpent)} icon={Wallet} />
+        <StatCard label="Total investido" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
+        <StatCard label="Despesas fixas" value={currencyBRL(totalFixed)} icon={Repeat} tone="gold" />
+        <StatCard label="Despesas variáveis" value={currencyBRL(totalVariable)} icon={Wind} tone="warn" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-5">
+          <h2 className="mb-4 text-sm font-semibold">Gastos por categoria</h2>
+          {byCategory.length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados ainda.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={byCategory} dataKey="value" nameKey="name" outerRadius={90} label={(d: any) => d.name}>
+                  {byCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v: number) => currencyBRL(v)} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="mb-4 text-sm font-semibold">Evolução mensal</h2>
+          {byMonth.length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados ainda.</p>
+          ) : byMonth.length === 1 ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={byMonth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(v: number) => currencyBRL(v)} />
+                <Bar dataKey="value" radius={[8, 8, 0, 0]} fill="hsl(var(--chart-2))" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={byMonth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(v: number) => currencyBRL(v)} />
+                <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-2))" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+      </div>
+
+      <Card className="p-5">
+        <h2 className="mb-4 text-sm font-semibold">Comprovantes vinculados</h2>
+        {rows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Nenhum comprovante aprovado vinculado a este imóvel ainda. Vincule na tela de <Link to="/app/vault" className="text-primary underline">conferência</Link>.
+          </p>
+        ) : (
+          <div className="divide-y divide-border">
+            {(rows as any[]).slice(0, 30).map((r) => (
+              <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{r.categories?.name ?? "Sem categoria"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{dateBR(r.payment_date)} • {r.bank_name ?? "—"} • {transactionTypeLabel[r.transaction_type as string] ?? "—"}</p>
+                </div>
+                <p className="text-sm font-semibold text-foreground">{currencyBRL(Number(r.amount ?? 0))}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {p.notes && (
+        <Card className="p-5">
+          <h2 className="mb-2 text-sm font-semibold">Observações</h2>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.notes}</p>
+        </Card>
+      )}
+    </div>
+  );
+}
