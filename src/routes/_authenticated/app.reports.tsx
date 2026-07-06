@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { currencyBRL, dateBR, transactionTypeLabel } from "@/lib/format";
-import { Download } from "lucide-react";
+import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@/lib/format";
 import { useCan } from "@/lib/permissions";
+import { ExportMenu } from "@/components/export-menu";
+import type { ReportPayload } from "@/lib/exports";
 
 export const Route = createFileRoute("/_authenticated/app/reports")({
   head: () => ({ meta: [{ title: "Relatórios — Meu Cofre" }] }),
@@ -47,26 +48,51 @@ function ReportsPage() {
   const rows = data.data ?? [];
   const total = useMemo(() => rows.reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
 
-  const exportCsv = () => {
-    const header = ["Data", "Valor", "Destinatário", "Categoria", "Banco", "Perfil", "Imóvel", "Tipo", "Método", "Descrição"].join(";");
-    const lines = rows.map((r: any) => [
-      dateBR(r.payment_date),
-      String(Number(r.amount ?? 0)).replace(".", ","),
-      r.recipient_name ?? "",
-      r.categories?.name ?? "",
-      r.bank_name ?? "",
-      r.financial_profiles?.name ?? "",
-      r.properties?.name ?? "",
-      transactionTypeLabel[r.transaction_type as string] ?? "",
-      r.payment_method ?? "",
-      (r.description ?? "").replaceAll(";", ","),
-    ].join(";"));
-    const csv = [header, ...lines].join("\n");
-    const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `meu-cofre-${from}-a-${to}.csv`; a.click();
-    URL.revokeObjectURL(url);
+  const buildPayload = (): ReportPayload => {
+    const totalInvested = rows.filter((r: any) => r.transaction_type === "investimento").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalFixed = rows.filter((r: any) => r.transaction_type === "gasto_fixo").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalVariable = rows.filter((r: any) => r.transaction_type === "gasto_variavel").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const groupSum = (getKey: (r: any) => string) => {
+      const m: Record<string, number> = {};
+      for (const r of rows as any[]) { const k = getKey(r) || "—"; m[k] = (m[k] ?? 0) + Number(r.amount ?? 0); }
+      return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([name, v]) => ({ name, value: currencyBRL(v) }));
+    };
+    return {
+      title: "Relatório Financeiro",
+      subtitle: profileId !== "all" ? (profiles.data ?? []).find((p) => p.id === profileId)?.name : "Consolidado",
+      period: { from, to },
+      filters: { from, to, profileId, type, propertyId },
+      summary: [
+        { label: "Total geral", value: currencyBRL(total) },
+        { label: "Investido", value: currencyBRL(totalInvested) },
+        { label: "Gasto fixo", value: currencyBRL(totalFixed) },
+        { label: "Gasto variável", value: currencyBRL(totalVariable) },
+        { label: "Comprovantes", value: String(rows.length) },
+        { label: "Ticket médio", value: currencyBRL(rows.length ? total / rows.length : 0) },
+      ],
+      breakdowns: [
+        { title: "Por categoria", rows: groupSum((r) => r.categories?.name) },
+        { title: "Por banco", rows: groupSum((r) => r.bank_name) },
+        { title: "Por perfil", rows: groupSum((r) => r.financial_profiles?.name) },
+        { title: "Por imóvel", rows: groupSum((r) => r.properties?.name) },
+      ],
+      columns: [
+        { header: "Data", key: "payment_date", get: (r) => dateBR(r.payment_date), width: 12 },
+        { header: "Valor", key: "amount", get: (r) => currencyBRL(Number(r.amount ?? 0)), width: 14 },
+        { header: "Destinatário", key: "recipient", get: (r) => r.recipient_name ?? "", width: 26 },
+        { header: "Banco", key: "bank", get: (r) => r.bank_name ?? "", width: 16 },
+        { header: "Perfil", key: "profile", get: (r) => r.financial_profiles?.name ?? "", width: 16 },
+        { header: "Imóvel", key: "property", get: (r) => r.properties?.name ?? "", width: 18 },
+        { header: "Categoria", key: "category", get: (r) => r.categories?.name ?? "", width: 16 },
+        { header: "Tipo", key: "type", get: (r) => transactionTypeLabel[r.transaction_type as string] ?? "", width: 14 },
+        { header: "Método", key: "method", get: (r) => paymentMethodLabel[r.payment_method as string] ?? r.payment_method ?? "", width: 14 },
+        { header: "Autenticação", key: "auth", get: (r) => r.auth_code ?? "", width: 18 },
+        { header: "Observações", key: "notes", get: (r) => r.description ?? "", width: 28 },
+      ],
+      rows,
+      filename: `meu-cofre-${from}-a-${to}`,
+      reportKind: "relatorio_geral",
+    };
   };
 
   return (
@@ -110,7 +136,7 @@ function ReportsPage() {
               </SelectContent>
             </Select>
           </div>
-          {canExport && <Button variant="premium" onClick={exportCsv} disabled={rows.length === 0}><Download className="h-4 w-4" /> Exportar CSV</Button>}
+          {canExport && <ExportMenu build={buildPayload} disabled={rows.length === 0} />}
         </div>
       </Card>
 
