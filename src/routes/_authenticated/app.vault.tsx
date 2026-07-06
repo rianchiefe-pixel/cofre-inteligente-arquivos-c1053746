@@ -19,6 +19,7 @@ import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, L
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts } from "@/lib/receipts.functions";
+import { useCan } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated/app/vault")({
   head: () => ({ meta: [{ title: "Cofre de comprovantes — Meu Cofre" }] }),
