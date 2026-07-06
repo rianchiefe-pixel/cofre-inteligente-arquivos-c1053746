@@ -7,6 +7,42 @@ const NAVY: [number, number, number] = [15, 32, 68];
 const GOLD: [number, number, number] = [191, 149, 63];
 const GRAY: [number, number, number] = [110, 118, 132];
 
+function hexToRgb(hex?: string | null): [number, number, number] | null {
+  if (!hex) return null;
+  const m = hex.trim().replace("#", "");
+  if (!/^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(m)) return null;
+  const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m;
+  return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
+}
+
+function luminance([r, g, b]: [number, number, number]) {
+  const [R, G, B] = [r, g, b].map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+// Enforce a minimum contrast against the header band by falling back to navy.
+function ensureReadable(color: [number, number, number] | null): [number, number, number] {
+  if (!color) return NAVY;
+  return luminance(color) > 0.75 ? NAVY : color;
+}
+
+export interface ReportBrand {
+  displayName?: string | null;
+  legalName?: string | null;
+  taxId?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  accentColor?: string | null;
+  footerText?: string | null;
+}
+
 export type ExportFormat = "csv" | "xlsx" | "pdf";
 
 export interface ExportColumn<T = any> {
@@ -33,6 +69,7 @@ export interface ReportPayload<T = any> {
   rows: T[];
   filename: string;
   reportKind: string;
+  brand?: ReportBrand | null;
 }
 
 function fmtDate(d: Date) {
