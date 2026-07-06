@@ -407,7 +407,7 @@ function VaultPage() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
-                  <AlertDialog>
+                  {canApprove && <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline"><XCircle className="h-4 w-4" /> Rejeitar</Button>
                     </AlertDialogTrigger>
@@ -421,10 +421,10 @@ function VaultPage() {
                         <AlertDialogAction onClick={async () => { await reject({ data: { receiptId: editing.id, reason: "rejected" } }); toast.success("Comprovante rejeitado"); invalidate(); setEditing(null); }}>Confirmar</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
-                  </AlertDialog>
-                  <Button variant="success" onClick={async () => { await approve({ data: { receiptId: editing.id } }); toast.success("Aprovado"); invalidate(); setEditing(null); }}>
+                  </AlertDialog>}
+                  {canApprove && <Button variant="success" onClick={async () => { await approve({ data: { receiptId: editing.id } }); toast.success("Aprovado"); invalidate(); setEditing(null); }}>
                     <CheckCircle2 className="h-4 w-4" /> Aprovar
-                  </Button>
+                  </Button>}
                 </div>
               </div>
             </div>
