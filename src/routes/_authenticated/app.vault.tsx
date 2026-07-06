@@ -316,15 +316,15 @@ function VaultPage() {
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             </div>
             <div className="flex flex-wrap gap-2">
-              <BulkConfirm label="Aprovar" icon={CheckCircle2} tone="success" count={selectedIds.size} onConfirm={() => doBulk("approve")} disabled={busy} />
-              <BulkConfirm label="Rejeitar" icon={XCircle} tone="destructive" count={selectedIds.size} onConfirm={() => doBulk("reject")} disabled={busy} />
-              <BulkConfirm label="Marcar duplicado" icon={Copy} tone="warning" count={selectedIds.size} onConfirm={() => doBulk("duplicate")} disabled={busy} />
-              <BulkConfirm label="Arquivar" icon={Archive} tone="secondary" count={selectedIds.size} onConfirm={() => doBulk("archive")} disabled={busy} />
-              <BulkConfirm label="Excluir" icon={Trash2} tone="destructive" count={selectedIds.size} onConfirm={doBulkDelete} disabled={busy} destructive />
-              <BulkFieldSelect label="Categoria" placeholder="Alterar categoria" options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ category_id: v }, "Categoria")} disabled={busy} />
-              <BulkFieldSelect label="Perfil" placeholder="Alterar perfil" options={(profiles.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ profile_id: v }, "Perfil")} disabled={busy} />
-              <BulkFieldSelect label="Banco" placeholder="Alterar banco" options={(banks.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ bank_id: v }, "Banco")} disabled={busy} />
-              <BulkFieldSelect label="Tipo" placeholder="Alterar tipo" options={Object.entries(transactionTypeLabel).map(([v, l]) => ({ value: v, label: l }))} onPick={(v) => doBulkPatch({ transaction_type: v }, "Tipo")} disabled={busy} />
+              {canApprove && <BulkConfirm label="Aprovar" icon={CheckCircle2} tone="success" count={selectedIds.size} onConfirm={() => doBulk("approve")} disabled={busy} />}
+              {canApprove && <BulkConfirm label="Rejeitar" icon={XCircle} tone="destructive" count={selectedIds.size} onConfirm={() => doBulk("reject")} disabled={busy} />}
+              {canApprove && <BulkConfirm label="Marcar duplicado" icon={Copy} tone="warning" count={selectedIds.size} onConfirm={() => doBulk("duplicate")} disabled={busy} />}
+              {canBulk && <BulkConfirm label="Arquivar" icon={Archive} tone="secondary" count={selectedIds.size} onConfirm={() => doBulk("archive")} disabled={busy} />}
+              {canDelete && <BulkConfirm label="Excluir" icon={Trash2} tone="destructive" count={selectedIds.size} onConfirm={doBulkDelete} disabled={busy} destructive />}
+              {canBulk && <BulkFieldSelect label="Categoria" placeholder="Alterar categoria" options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ category_id: v }, "Categoria")} disabled={busy} />}
+              {canBulk && <BulkFieldSelect label="Perfil" placeholder="Alterar perfil" options={(profiles.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ profile_id: v }, "Perfil")} disabled={busy} />}
+              {canBulk && <BulkFieldSelect label="Banco" placeholder="Alterar banco" options={(banks.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ bank_id: v }, "Banco")} disabled={busy} />}
+              {canBulk && <BulkFieldSelect label="Tipo" placeholder="Alterar tipo" options={Object.entries(transactionTypeLabel).map(([v, l]) => ({ value: v, label: l }))} onPick={(v) => doBulkPatch({ transaction_type: v }, "Tipo")} disabled={busy} />}
             </div>
           </div>
         </div>
