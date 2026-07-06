@@ -23,7 +23,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRoles, hasPermission, highestRole, ROLE_LABEL, type Permission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { seedDemoData } from "@/lib/demo.functions";
-import { useState as useLocalState } from "react";
 
 const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Permission }[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
@@ -48,7 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const top = highestRole(roles);
   const visibleNav = nav.filter((item) => !item.perm || hasPermission(roles, item.perm));
   const isDemo = email === "demo@meucofre.com";
-  const [resetting, setResetting] = useLocalState(false);
+  const [resetting, setResetting] = useState(false);
 
   const resetDemo = async () => {
     if (!confirm("Isso restaurará os dados fictícios da conta demo. Deseja continuar?")) return;
