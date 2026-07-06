@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { ShieldCheck, PlayCircle } from "lucide-react";
+import { ensureDemoUser } from "@/lib/demo.functions";
 
 const DEMO_EMAIL = "demo@meucofre.com";
 const DEMO_PASSWORD = "demo123456";
@@ -60,22 +61,15 @@ function AuthPage() {
 
   const handleDemo = async () => {
     setLoading(true);
-    let { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
-    if (error) {
-      const signUp = await supabase.auth.signUp({
-        email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-        options: { emailRedirectTo: `${window.location.origin}/app` },
-      });
-      if (signUp.error && !/registered/i.test(signUp.error.message)) {
-        setLoading(false);
-        return toast.error("Não foi possível iniciar o modo teste");
-      }
-      const retry = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
-      error = retry.error;
+    try {
+      await ensureDemoUser();
+    } catch (err) {
+      setLoading(false);
+      return toast.error(err instanceof Error ? err.message : "Não foi possível iniciar o modo teste");
     }
+    const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
     setLoading(false);
-    if (error) return toast.error("Modo teste indisponível. Tente novamente.");
+    if (error) return toast.error("Modo teste indisponível: " + error.message);
     try {
       sessionStorage.setItem("meucofre:demo", "1");
     } catch {
