@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
-import { Download, ShieldAlert, Search } from "lucide-react";
-import { toast } from "sonner";
+import { ShieldAlert, Search } from "lucide-react";
 import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
+import { ExportMenu } from "@/components/export-menu";
+import type { ReportPayload } from "@/lib/exports";
 
 export const Route = createFileRoute("/_authenticated/app/audit")({
   head: () => ({ meta: [{ title: "Auditoria — Meu Cofre" }] }),
@@ -78,25 +79,36 @@ function AuditPage() {
     );
   }, [q, logs.data]);
 
-  const exportCSV = () => {
-    if (!filtered.length) { toast.error("Nada para exportar"); return; }
-    const rows = filtered.map((l: any) => ({
-      data: fmtDateTime(l.created_at),
-      acao: l.action,
-      entidade: l.entity,
-      entity_id: l.entity_id ?? "",
-      perfil_id: l.profile_id ?? "",
-      imovel_id: l.property_id ?? "",
-      observacao: l.note ?? "",
-      valor_anterior: JSON.stringify(l.old_value ?? ""),
-      valor_novo: JSON.stringify(l.new_value ?? ""),
-    }));
-    const header = Object.keys(rows[0]).join(",");
-    const body = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([header + "\n" + body], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `auditoria-${new Date().toISOString().slice(0,10)}.csv`; a.click();
-    URL.revokeObjectURL(url);
+  const buildPayload = (): ReportPayload => {
+    const byAction: Record<string, number> = {};
+    for (const l of filtered) byAction[l.action] = (byAction[l.action] ?? 0) + 1;
+    return {
+      title: "Relatório de Auditoria",
+      subtitle: "Histórico de alterações no cofre",
+      period: { from: from || undefined, to: to || undefined },
+      filters: { action, entity, profileId, propertyId, from, to, q },
+      summary: [
+        { label: "Eventos", value: String(filtered.length) },
+        { label: "Ações distintas", value: String(Object.keys(byAction).length) },
+      ],
+      breakdowns: [
+        { title: "Ações", rows: Object.entries(byAction).sort((a, b) => b[1] - a[1]).map(([name, v]) => ({ name: ACTIONS[name]?.label ?? name, value: String(v) })) },
+      ],
+      columns: [
+        { header: "Data/Hora", key: "created_at", get: (l: any) => fmtDateTime(l.created_at), width: 20 },
+        { header: "Ação", key: "action", get: (l: any) => ACTIONS[l.action]?.label ?? l.action, width: 18 },
+        { header: "Entidade", key: "entity", get: (l: any) => l.entity, width: 14 },
+        { header: "Entity ID", key: "entity_id", get: (l: any) => l.entity_id ?? "", width: 18 },
+        { header: "Perfil", key: "profile_id", get: (l: any) => l.profile_id ?? "", width: 18 },
+        { header: "Imóvel", key: "property_id", get: (l: any) => l.property_id ?? "", width: 18 },
+        { header: "Valor anterior", key: "old_value", get: (l: any) => (l.old_value ? JSON.stringify(l.old_value) : ""), width: 30 },
+        { header: "Valor novo", key: "new_value", get: (l: any) => (l.new_value ? JSON.stringify(l.new_value) : ""), width: 30 },
+        { header: "Observações", key: "note", get: (l: any) => l.note ?? "", width: 26 },
+      ],
+      rows: filtered,
+      filename: `auditoria-${new Date().toISOString().slice(0, 10)}`,
+      reportKind: "auditoria",
+    };
   };
 
   return (
@@ -106,7 +118,7 @@ function AuditPage() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Auditoria</h1>
           <p className="text-sm text-muted-foreground">Histórico completo de alterações no seu cofre.</p>
         </div>
-        {canExport && <Button onClick={exportCSV} variant="outline"><Download className="h-4 w-4" /> Exportar CSV</Button>}
+        {canExport && <ExportMenu build={buildPayload} disabled={filtered.length === 0} variant="outline" />}
       </header>
 
       <Card className="p-4">
