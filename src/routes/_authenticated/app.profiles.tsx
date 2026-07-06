@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { profileTypeLabel } from "@/lib/format";
 import { Plus, Building2, Pencil, Trash2 } from "lucide-react";
+import { useCan } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated/app/profiles")({
   head: () => ({ meta: [{ title: "Perfis — Meu Cofre" }] }),
@@ -21,6 +22,8 @@ export const Route = createFileRoute("/_authenticated/app/profiles")({
 
 function ProfilesPage() {
   const qc = useQueryClient();
+  const canManage = useCan("manageEntities");
+  const canDelete = useCan("deleteData");
   const [open, setOpen] = useState(false);
   const emptyForm = { name: "", type: "pessoa_fisica", tax_id: "", color: "#1e3a8a", notes: "" };
   const [form, setForm] = useState(emptyForm);
@@ -79,9 +82,9 @@ function ProfilesPage() {
           <p className="text-sm text-muted-foreground">Pessoal, empresa, holding, imóvel — cada perfil tem seu próprio cofre.</p>
         </div>
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
-          <DialogTrigger asChild>
+          {canManage && <DialogTrigger asChild>
             <Button variant="premium"><Plus className="h-4 w-4" /> Novo perfil</Button>
-          </DialogTrigger>
+          </DialogTrigger>}
           <DialogContent>
             <DialogHeader><DialogTitle>{editId ? "Editar perfil" : "Novo perfil"}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="space-y-4">
@@ -141,8 +144,8 @@ function ProfilesPage() {
                 {p.tax_id && <p className="text-xs text-muted-foreground">CPF/CNPJ: {p.tax_id}</p>}
                 {p.notes && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{p.notes}</p>}
                 <div className="mt-4 flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /> Editar</Button>
-                  <AlertDialog>
+                  {canManage && <Button size="sm" variant="ghost" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /> Editar</Button>}
+                  {canDelete && <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Excluir</Button>
                     </AlertDialogTrigger>
@@ -158,7 +161,7 @@ function ProfilesPage() {
                         <AlertDialogAction onClick={() => remove.mutate(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
-                  </AlertDialog>
+                  </AlertDialog>}
                 </div>
               </div>
             </Card>
