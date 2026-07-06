@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@/lib/format";
-import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, Loader2, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { approveReceipt, rejectReceipt } from "@/lib/receipts.functions";
@@ -76,6 +77,12 @@ function VaultPage() {
     return <Badge variant="secondary">Pendente</Badge>;
   };
 
+  const ocrHint = (s: string) => {
+    if (s === "processing") return <Badge variant="outline" className="gap-1 text-xs"><Loader2 className="h-3 w-3 animate-spin" /> Analisando</Badge>;
+    if (s === "failed") return <Badge variant="outline" className="text-xs text-destructive">Falha na IA</Badge>;
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -110,7 +117,13 @@ function VaultPage() {
       </Card>
 
       {filtered.length === 0 ? (
-        <Card className="p-10 text-center text-sm text-muted-foreground">Nenhum comprovante encontrado.</Card>
+        <Card className="p-10 text-center">
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
+            <Inbox className="h-6 w-6" />
+          </div>
+          <p className="text-sm font-medium text-foreground">Nenhum comprovante encontrado</p>
+          <p className="mt-1 text-xs text-muted-foreground">Ajuste os filtros ou envie novos comprovantes.</p>
+        </Card>
       ) : (
         <Card className="overflow-hidden">
           <div className="divide-y divide-border">
@@ -120,7 +133,7 @@ function VaultPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="truncate text-sm font-medium text-foreground">{r.recipient_name || r.description || r.file_name || "Comprovante"}</p>
                     {statusBadge(r.status)}
-                    {r.ocr_status !== "done" && r.ocr_status !== "queued" && <Badge variant="outline" className="text-xs">{r.ocr_status}</Badge>}
+                    {ocrHint(r.ocr_status)}
                   </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
                     {dateBR(r.payment_date)} • {r.bank_name ?? "—"} • {r.categories?.name ?? "sem categoria"} • {r.financial_profiles?.name ?? "—"}
@@ -193,9 +206,21 @@ function VaultPage() {
                 <div className="space-y-1"><Label>Descrição</Label><Textarea defaultValue={selected.description ?? ""} onBlur={(e) => updateReceipt.mutate({ description: e.target.value || null })} /></div>
 
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={async () => { await reject({ data: { receiptId: selected.id, reason: "rejected" } }); toast.success("Rejeitado"); qc.invalidateQueries({ queryKey: ["receipts"] }); setSelected(null); }}>
-                    <XCircle className="h-4 w-4" /> Rejeitar
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline"><XCircle className="h-4 w-4" /> Rejeitar</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Rejeitar este comprovante?</AlertDialogTitle>
+                        <AlertDialogDescription>Ele não entrará no dashboard nem nos relatórios. Você poderá encontrá-lo pelo filtro "Rejeitados".</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Voltar</AlertDialogCancel>
+                        <AlertDialogAction onClick={async () => { await reject({ data: { receiptId: selected.id, reason: "rejected" } }); toast.success("Comprovante rejeitado"); qc.invalidateQueries({ queryKey: ["receipts"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); setSelected(null); }}>Confirmar</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button variant="success" onClick={async () => { await approve({ data: { receiptId: selected.id } }); toast.success("Aprovado"); qc.invalidateQueries({ queryKey: ["receipts"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); setSelected(null); }}>
                     <CheckCircle2 className="h-4 w-4" /> Aprovar
                   </Button>
