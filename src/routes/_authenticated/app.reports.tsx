@@ -28,6 +28,11 @@ function ReportsPage() {
   const [propertyId, setPropertyId] = useState("all");
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+  const selectedBrand = useQuery({
+    queryKey: ["profile-brand", profileId],
+    enabled: profileId !== "all",
+    queryFn: async () => (await supabase.from("financial_profiles").select("*").eq("id", profileId).maybeSingle()).data,
+  });
   const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
 
   const data = useQuery({
@@ -49,6 +54,15 @@ function ReportsPage() {
   const total = useMemo(() => rows.reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
 
   const buildPayload = (): ReportPayload => {
+    const b = selectedBrand.data as any;
+    const brand = b ? {
+      displayName: b.display_name ?? b.name,
+      legalName: b.legal_name, taxId: b.tax_id, address: b.address,
+      phone: b.phone, email: b.email, logoUrl: b.logo_url,
+      primaryColor: b.primary_color ?? b.color,
+      secondaryColor: b.secondary_color, accentColor: b.accent_color,
+      footerText: b.footer_text,
+    } : null;
     const totalInvested = rows.filter((r: any) => r.transaction_type === "investimento").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
     const totalFixed = rows.filter((r: any) => r.transaction_type === "gasto_fixo").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
     const totalVariable = rows.filter((r: any) => r.transaction_type === "gasto_variavel").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
@@ -62,6 +76,7 @@ function ReportsPage() {
       subtitle: profileId !== "all" ? (profiles.data ?? []).find((p) => p.id === profileId)?.name : "Consolidado",
       period: { from, to },
       filters: { from, to, profileId, type, propertyId },
+      brand,
       summary: [
         { label: "Total geral", value: currencyBRL(total) },
         { label: "Investido", value: currencyBRL(totalInvested) },
