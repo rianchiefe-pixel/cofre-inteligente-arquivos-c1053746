@@ -186,22 +186,35 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 40;
+  const brand = payload.brand ?? null;
+  const headerColor = ensureReadable(hexToRgb(brand?.primaryColor)) ?? NAVY;
+  const accentColor = hexToRgb(brand?.accentColor) ?? GOLD;
+  const tableHeadColor = ensureReadable(hexToRgb(brand?.secondaryColor)) ?? headerColor;
 
   // Header band
-  doc.setFillColor(...NAVY);
+  doc.setFillColor(...headerColor);
   doc.rect(0, 0, pageWidth, 90, "F");
-  doc.setFillColor(...GOLD);
+  doc.setFillColor(...accentColor);
   doc.rect(0, 90, pageWidth, 4, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("MEU COFRE", margin, 34);
+  const brandLabel = (brand?.displayName || brand?.legalName || "MEU COFRE").toUpperCase();
+  let textLeft = margin;
+  if (brand?.logoUrl && brand.logoUrl.startsWith("data:image/")) {
+    try {
+      const fmt = brand.logoUrl.substring(11, brand.logoUrl.indexOf(";")).toUpperCase();
+      doc.addImage(brand.logoUrl, fmt === "SVG+XML" ? "PNG" : fmt, margin, 18, 56, 56);
+      textLeft = margin + 68;
+    } catch { /* invalid image */ }
+  }
+  doc.text(brandLabel, textLeft, 34);
   doc.setFontSize(18);
-  doc.text(payload.title, margin, 60);
+  doc.text(payload.title, textLeft, 60);
   if (payload.subtitle) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(payload.subtitle, margin, 78);
+    doc.text(payload.subtitle, textLeft, 78);
   }
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -210,9 +223,18 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
   if (payload.period?.from || payload.period?.to) {
     doc.text(`Período: ${payload.period?.from ?? "—"} a ${payload.period?.to ?? "—"}`, pageWidth - margin, 50, { align: "right" });
   }
+  if (brand?.taxId) doc.text(`CPF/CNPJ: ${brand.taxId}`, pageWidth - margin, 66, { align: "right" });
 
   let y = 120;
-  doc.setTextColor(...NAVY);
+  // Institutional block
+  if (brand?.address || brand?.phone || brand?.email) {
+    doc.setTextColor(...GRAY);
+    doc.setFontSize(8);
+    const parts = [brand.address, brand.phone, brand.email].filter(Boolean).join(" · ");
+    doc.text(parts, margin, y);
+    y += 16;
+  }
+  doc.setTextColor(...headerColor);
 
   // Summary cards
   if (payload.summary?.length) {
@@ -232,7 +254,7 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.text(s.label.toUpperCase(), x + 12, cy + 18);
-      doc.setTextColor(...NAVY);
+      doc.setTextColor(...headerColor);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(13);
       doc.text(s.value, x + 12, cy + 40);
@@ -249,7 +271,7 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
       body: b.rows.map((r) => [r.name, r.value]),
       theme: "grid",
       styles: { fontSize: 9, cellPadding: 6, textColor: [30, 30, 30] },
-      headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold" },
+      headStyles: { fillColor: tableHeadColor, textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 249, 252] },
       margin: { left: margin, right: margin },
     });
@@ -267,14 +289,15 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
       })),
       theme: "striped",
       styles: { fontSize: 8, cellPadding: 5, overflow: "linebreak", textColor: [30, 30, 30] },
-      headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold" },
+      headStyles: { fillColor: tableHeadColor, textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 249, 252] },
       margin: { left: margin, right: margin },
       didDrawPage: () => {
         const p = doc.getNumberOfPages();
         doc.setFontSize(8);
         doc.setTextColor(...GRAY);
-        doc.text("Relatório gerado automaticamente pelo Meu Cofre", margin, pageHeight - 20);
+        const footer = brand?.footerText || "Relatório gerado automaticamente pelo Meu Cofre";
+        doc.text(footer, margin, pageHeight - 20);
         doc.text(`${generatedAt} · Página ${p}`, pageWidth - margin, pageHeight - 20, { align: "right" });
       },
     });
