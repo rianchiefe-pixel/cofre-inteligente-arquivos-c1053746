@@ -45,6 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: roles } = useRoles();
   const top = highestRole(roles);
   const visibleNav = nav.filter((item) => !item.perm || hasPermission(roles, item.perm));
+  const isDemo = email === "demo@meucofre.com";
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
@@ -70,9 +71,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <span className="font-semibold">Meu Cofre</span>
         </Link>
-        <Button variant="ghost" size="icon" onClick={() => setOpen((v) => !v)} aria-label="Menu">
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          {isDemo && <Badge variant="outline" className="border-accent/60 text-[10px]">Modo teste</Badge>}
+          <Button variant="ghost" size="icon" onClick={() => setOpen((v) => !v)} aria-label="Menu">
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
 
       <div className="flex">
@@ -89,6 +93,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <p className="text-xs text-sidebar-foreground/60">Cofre inteligente</p>
             </div>
           </div>
+          {isDemo && (
+            <div className="mx-3 mt-3 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-[11px] font-medium text-accent-foreground">
+              Conta demo ativa
+            </div>
+          )}
           <nav className="space-y-1 p-3">
             {visibleNav.map(({ to, label, icon: Icon }) => {
               const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
