@@ -15,6 +15,9 @@ import { UploadCloud, FileSpreadsheet, Files, Loader2, CheckCircle2, AlertTriang
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCan } from "@/lib/permissions";
+import type { Database } from "@/integrations/supabase/types";
+
+type ReceiptInsert = Database["public"]["Tables"]["receipts"]["Insert"];
 import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/app/import")({
@@ -308,7 +311,7 @@ function ImportPage() {
 
     const valid = parsed.filter((p) => p.errors.length === 0 && !p.duplicate);
     let imported = 0, withReceipt = 0, errors = 0;
-    const inserts: Record<string, unknown>[] = [];
+    const inserts: ReceiptInsert[] = [];
     setProgressLabel("Enviando comprovantes…");
 
     for (let i = 0; i < valid.length; i++) {
