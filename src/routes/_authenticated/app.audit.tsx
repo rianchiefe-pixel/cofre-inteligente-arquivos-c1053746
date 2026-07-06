@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
 import { Download, ShieldAlert, Search } from "lucide-react";
 import { toast } from "sonner";
+import { useCan } from "@/lib/permissions";
+import { RestrictedArea } from "@/components/role-gate";
 
 export const Route = createFileRoute("/_authenticated/app/audit")({
   head: () => ({ meta: [{ title: "Auditoria — Meu Cofre" }] }),
@@ -34,6 +36,9 @@ function fmtDateTime(s: string) {
 }
 
 function AuditPage() {
+  const canView = useCan("viewAudit");
+  const canExport = useCan("exportReports");
+  if (!canView) return <RestrictedArea message="Somente proprietário, administrador ou contador podem visualizar a auditoria." />;
   const [q, setQ] = useState("");
   const [action, setAction] = useState<string>("all");
   const [entity, setEntity] = useState<string>("all");
