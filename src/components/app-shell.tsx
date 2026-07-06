@@ -31,6 +31,7 @@ const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Per
   { to: "/app/banks", label: "Bancos e contas", icon: Landmark, perm: "manageEntities" },
   { to: "/app/cards", label: "Cartões", icon: CreditCard, perm: "manageEntities" },
   { to: "/app/upload", label: "Enviar comprovantes", icon: Upload, perm: "uploadReceipts" },
+  { to: "/app/import", label: "Importação Inteligente", icon: Upload, perm: "importData" },
   { to: "/app/vault", label: "Cofre", icon: FolderLock },
   { to: "/app/categories", label: "Categorias", icon: Tags, perm: "manageEntities" },
   { to: "/app/reports", label: "Relatórios", icon: FileBarChart },
