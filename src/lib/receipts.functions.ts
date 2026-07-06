@@ -267,3 +267,44 @@ export const bulkReceiptAction = createServerFn({ method: "POST" })
     }
     return { ok: true, count: data.receiptIds.length };
   });
+
+export const bulkUpdateReceipts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    receiptIds: z.array(z.string().uuid()).min(1).max(500),
+    patch: z.object({
+      category_id: z.string().uuid().nullable().optional(),
+      profile_id: z.string().uuid().nullable().optional(),
+      bank_id: z.string().uuid().nullable().optional(),
+      account_id: z.string().uuid().nullable().optional(),
+      property_id: z.string().uuid().nullable().optional(),
+      transaction_type: z.enum(["despesa","investimento","gasto_fixo","gasto_variavel","pessoal","empresarial","patrimonial"]).nullable().optional(),
+    }),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("receipts").update(data.patch as any).in("id", data.receiptIds);
+    if (error) throw new Error(error.message);
+    for (const id of data.receiptIds) {
+      await logAudit(context.supabase, context.userId, {
+        action: "bulk_update", entity: "receipt", entity_id: id, new_value: data.patch,
+      });
+    }
+    return { ok: true, count: data.receiptIds.length };
+  });
+
+export const deleteReceipts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ receiptIds: z.array(z.string().uuid()).min(1).max(500) }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: rows } = await context.supabase.from("receipts").select("id, file_path").in("id", data.receiptIds);
+    const paths = (rows ?? []).map((r: any) => r.file_path).filter(Boolean);
+    if (paths.length) await context.supabase.storage.from("receipts").remove(paths);
+    const { error } = await context.supabase.from("receipts").delete().in("id", data.receiptIds);
+    if (error) throw new Error(error.message);
+    for (const id of data.receiptIds) {
+      await logAudit(context.supabase, context.userId, {
+        action: "deleted", entity: "receipt", entity_id: id,
+      });
+    }
+    return { ok: true, count: data.receiptIds.length };
+  });
