@@ -20,19 +20,21 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRoles, hasPermission, highestRole, ROLE_LABEL, type Permission } from "@/lib/permissions";
+import { Badge } from "@/components/ui/badge";
 
-const nav = [
+const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Permission }[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/app/profiles", label: "Perfis", icon: Users },
-  { to: "/app/properties", label: "Imóveis", icon: Home },
-  { to: "/app/banks", label: "Bancos e contas", icon: Landmark },
-  { to: "/app/cards", label: "Cartões", icon: CreditCard },
-  { to: "/app/upload", label: "Enviar comprovantes", icon: Upload },
+  { to: "/app/profiles", label: "Perfis", icon: Users, perm: "manageEntities" },
+  { to: "/app/properties", label: "Imóveis", icon: Home, perm: "manageEntities" },
+  { to: "/app/banks", label: "Bancos e contas", icon: Landmark, perm: "manageEntities" },
+  { to: "/app/cards", label: "Cartões", icon: CreditCard, perm: "manageEntities" },
+  { to: "/app/upload", label: "Enviar comprovantes", icon: Upload, perm: "uploadReceipts" },
   { to: "/app/vault", label: "Cofre", icon: FolderLock },
-  { to: "/app/categories", label: "Categorias", icon: Tags },
+  { to: "/app/categories", label: "Categorias", icon: Tags, perm: "manageEntities" },
   { to: "/app/reports", label: "Relatórios", icon: FileBarChart },
-  { to: "/app/audit", label: "Auditoria", icon: ShieldAlert },
-] as const;
+  { to: "/app/audit", label: "Auditoria", icon: ShieldAlert, perm: "viewAudit" },
+];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -40,6 +42,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
+  const { data: roles } = useRoles();
+  const top = highestRole(roles);
+  const visibleNav = nav.filter((item) => !item.perm || hasPermission(roles, item.perm));
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
@@ -85,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <nav className="space-y-1 p-3">
-            {nav.map(({ to, label, icon: Icon }) => {
+            {visibleNav.map(({ to, label, icon: Icon }) => {
               const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
               return (
                 <Link
@@ -104,7 +109,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="mt-auto border-t border-sidebar-border p-3">
-            <div className="mb-2 truncate px-3 py-2 text-xs text-sidebar-foreground/60">{email}</div>
+            <div className="mb-2 flex items-center justify-between gap-2 px-3 py-2">
+              <span className="truncate text-xs text-sidebar-foreground/60">{email}</span>
+              {top && <Badge variant="secondary" className="shrink-0 text-[10px]">{ROLE_LABEL[top]}</Badge>}
+            </div>
             <button
               onClick={signOut}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
