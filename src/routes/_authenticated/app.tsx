@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { currencyBRL } from "@/lib/format";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { useState } from "react";
 import { Wallet, PiggyBank, FileStack, AlertTriangle, TrendingUp } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid,
@@ -38,12 +41,21 @@ function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: strin
 }
 
 function Dashboard() {
+  const [propertyId, setPropertyId] = useState<string>("all");
+  const [profileId, setProfileId] = useState<string>("all");
+
+  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
+  const profilesList = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+
   const { data } = useQuery({
-    queryKey: ["dashboard"],
+    queryKey: ["dashboard", propertyId, profileId],
     queryFn: async () => {
       const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
+      let rq = supabase.from("receipts").select("id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, categories(name), profile_id, financial_profiles(name), property_id, properties(name)");
+      if (propertyId !== "all") rq = rq.eq("property_id", propertyId);
+      if (profileId !== "all") rq = rq.eq("profile_id", profileId);
       const [receipts, profiles, banks] = await Promise.all([
-        supabase.from("receipts").select("id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, categories(name), profile_id, financial_profiles(name)"),
+        rq,
         supabase.from("financial_profiles").select("id"),
         supabase.from("banks").select("id"),
       ]);
@@ -89,6 +101,31 @@ function Dashboard() {
         <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Visão geral do seu cofre — mês atual.</p>
       </header>
+
+      <Card className="p-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Filtrar por perfil</Label>
+            <Select value={profileId} onValueChange={setProfileId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os perfis</SelectItem>
+                {(profilesList.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Filtrar por imóvel</Label>
+            <Select value={propertyId} onValueChange={setPropertyId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os imóveis</SelectItem>
+                {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Gasto no mês" value={currencyBRL(totalMonth)} icon={Wallet} />

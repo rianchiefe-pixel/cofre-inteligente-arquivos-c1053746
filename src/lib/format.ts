@@ -48,3 +48,21 @@ export const paymentMethodLabel: Record<string, string> = {
   transferencia: "Transferência",
   outro: "Outro",
 };
+
+export const propertyTypeLabel: Record<string, string> = {
+  casa: "Casa",
+  apartamento: "Apartamento",
+  terreno: "Terreno",
+  sala_comercial: "Sala comercial",
+  fazenda: "Fazenda",
+  predio: "Prédio",
+  outro: "Outro",
+};
+
+export const propertyStatusLabel: Record<string, string> = {
+  proprio: "Próprio",
+  alugado: "Alugado",
+  em_reforma: "Em reforma",
+  vendido: "Vendido",
+  em_aquisicao: "Em aquisição",
+};

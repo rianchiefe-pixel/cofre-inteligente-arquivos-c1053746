@@ -34,6 +34,7 @@ function VaultPage() {
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const categories = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [] });
+  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
 
   const receipts = useQuery({
     queryKey: ["receipts", status, profileId],
@@ -204,6 +205,16 @@ function VaultPage() {
                   </Select>
                 </div>
                 <div className="space-y-1"><Label>Descrição</Label><Textarea defaultValue={selected.description ?? ""} onBlur={(e) => updateReceipt.mutate({ description: e.target.value || null })} /></div>
+                <div className="space-y-1">
+                  <Label>Imóvel vinculado</Label>
+                  <Select defaultValue={selected.property_id ?? "none"} onValueChange={(v) => updateReceipt.mutate({ property_id: v === "none" ? null : v })}>
+                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
                   <AlertDialog>

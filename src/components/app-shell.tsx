@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   X,
+  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 const nav = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/profiles", label: "Perfis", icon: Users },
+  { to: "/app/properties", label: "Imóveis", icon: Home },
   { to: "/app/banks", label: "Bancos e contas", icon: Landmark },
   { to: "/app/cards", label: "Cartões", icon: CreditCard },
   { to: "/app/upload", label: "Enviar comprovantes", icon: Upload },

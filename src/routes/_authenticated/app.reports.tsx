@@ -22,17 +22,20 @@ function ReportsPage() {
   const [to, setTo] = useState(today.toISOString().slice(0, 10));
   const [profileId, setProfileId] = useState("all");
   const [type, setType] = useState("all");
+  const [propertyId, setPropertyId] = useState("all");
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
 
   const data = useQuery({
-    queryKey: ["report", from, to, profileId, type],
+    queryKey: ["report", from, to, profileId, type, propertyId],
     queryFn: async () => {
-      let q = supabase.from("receipts").select("*, categories(name), financial_profiles(name)").eq("status", "approved").order("payment_date", { ascending: false });
+      let q = supabase.from("receipts").select("*, categories(name), financial_profiles(name), properties(name)").eq("status", "approved").order("payment_date", { ascending: false });
       if (from) q = q.gte("payment_date", from);
       if (to) q = q.lte("payment_date", to);
       if (profileId !== "all") q = q.eq("profile_id", profileId);
       if (type !== "all") q = q.eq("transaction_type", type as any);
+      if (propertyId !== "all") q = q.eq("property_id", propertyId);
       const { data, error } = await q.limit(1000);
       if (error) throw error;
       return data;
@@ -43,7 +46,7 @@ function ReportsPage() {
   const total = useMemo(() => rows.reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
 
   const exportCsv = () => {
-    const header = ["Data", "Valor", "Destinatário", "Categoria", "Banco", "Perfil", "Tipo", "Método", "Descrição"].join(";");
+    const header = ["Data", "Valor", "Destinatário", "Categoria", "Banco", "Perfil", "Imóvel", "Tipo", "Método", "Descrição"].join(";");
     const lines = rows.map((r: any) => [
       dateBR(r.payment_date),
       String(Number(r.amount ?? 0)).replace(".", ","),
@@ -51,6 +54,7 @@ function ReportsPage() {
       r.categories?.name ?? "",
       r.bank_name ?? "",
       r.financial_profiles?.name ?? "",
+      r.properties?.name ?? "",
       transactionTypeLabel[r.transaction_type as string] ?? "",
       r.payment_method ?? "",
       (r.description ?? "").replaceAll(";", ","),
@@ -71,7 +75,7 @@ function ReportsPage() {
       </div>
 
       <Card className="p-5">
-        <div className="grid gap-3 md:grid-cols-5 md:items-end">
+        <div className="grid gap-3 md:grid-cols-6 md:items-end">
           <div className="space-y-2"><Label>De</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div className="space-y-2"><Label>Até</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
           <div className="space-y-2">
@@ -81,6 +85,16 @@ function ReportsPage() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 {(profiles.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Imóvel</Label>
+            <Select value={propertyId} onValueChange={setPropertyId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
