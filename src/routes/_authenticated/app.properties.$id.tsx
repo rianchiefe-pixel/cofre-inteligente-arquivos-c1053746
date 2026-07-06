@@ -5,8 +5,9 @@ import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { currencyBRL, dateBR, propertyStatusLabel, propertyTypeLabel, transactionTypeLabel } from "@/lib/format";
-import { ArrowLeft, Wallet, PiggyBank, Repeat, Wind, FileBarChart, MapPin, Home } from "lucide-react";
+import { currencyBRL, dateBR, propertyPurposeLabel, propertyStatusLabel, propertyTypeLabel, transactionTypeLabel } from "@/lib/format";
+import { ArrowLeft, Wallet, PiggyBank, Repeat, Wind, FileBarChart, MapPin, Home, FileText, Landmark } from "lucide-react";
+import { useCan } from "@/lib/permissions";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid, LineChart, Line,
 } from "recharts";
@@ -42,6 +43,7 @@ function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: strin
 
 function PropertyDetail() {
   const { id } = Route.useParams();
+  const canExport = useCan("exportReports");
 
   const property = useQuery({
     queryKey: ["property", id],
@@ -92,6 +94,20 @@ function PropertyDetail() {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ month, value }));
   }, [rows]);
 
+  const byBank = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const r of rows as any[]) {
+      const key = r.bank_name || "Sem banco";
+      map[key] = (map[key] ?? 0) + Number(r.amount ?? 0);
+    }
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  }, [rows]);
+
+  const topExpenses = useMemo(
+    () => [...(rows as any[])].sort((a, b) => Number(b.amount ?? 0) - Number(a.amount ?? 0)).slice(0, 5),
+    [rows],
+  );
+
   const exportCsv = () => {
     const header = ["Data", "Valor", "Categoria", "Tipo", "Banco"].join(";");
     const lines = (rows as any[]).map((r) => [
@@ -116,6 +132,9 @@ function PropertyDetail() {
 
   return (
     <div className="space-y-6">
+      {p.cover_url && (
+        <div className="h-48 w-full overflow-hidden rounded-2xl bg-muted" style={{ backgroundImage: `url(${p.cover_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <Button asChild variant="ghost" size="sm"><Link to="/app/properties"><ArrowLeft className="h-4 w-4" /> Voltar</Link></Button>
         <div className="min-w-0 flex-1">
@@ -124,20 +143,60 @@ function PropertyDetail() {
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{p.name}</h1>
             <Badge variant="secondary">{propertyStatusLabel[p.status] ?? p.status}</Badge>
             <Badge variant="outline">{propertyTypeLabel[p.type] ?? p.type}</Badge>
+            {p.purpose && <Badge variant="outline">{propertyPurposeLabel[p.purpose] ?? p.purpose}</Badge>}
           </div>
           <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
             {(p.address || p.city) && <><MapPin className="h-3 w-3" /> {[p.address, p.city, p.state].filter(Boolean).join(", ")}</>}
           </p>
+          {(p.owner_name || p.acquisition_date || p.acquisition_value) && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {p.owner_name && <>Proprietário: {p.owner_name}</>}
+              {p.acquisition_date && <> • Aquisição: {dateBR(p.acquisition_date)}</>}
+              {p.acquisition_value != null && <> • Valor: {currencyBRL(Number(p.acquisition_value))}</>}
+            </p>
+          )}
         </div>
-        <Button variant="premium" onClick={exportCsv} disabled={rows.length === 0}><FileBarChart className="h-4 w-4" /> Relatório do imóvel</Button>
+        {canExport && <Button variant="premium" onClick={exportCsv} disabled={rows.length === 0}><FileBarChart className="h-4 w-4" /> Relatório do imóvel</Button>}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Total gasto" value={currencyBRL(totalSpent)} icon={Wallet} />
         <StatCard label="Total investido" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
         <StatCard label="Despesas fixas" value={currencyBRL(totalFixed)} icon={Repeat} tone="gold" />
         <StatCard label="Despesas variáveis" value={currencyBRL(totalVariable)} icon={Wind} tone="warn" />
+        <StatCard label="Comprovantes" value={String(rows.length)} icon={FileText} />
       </div>
+
+      {(byBank.length > 0 || topExpenses.length > 0) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold"><Landmark className="h-4 w-4" /> Por banco</h2>
+            {byBank.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Sem dados.</p> : (
+              <div className="divide-y divide-border">
+                {byBank.slice(0, 6).map((b) => (
+                  <div key={b.name} className="flex items-center justify-between py-2 text-sm">
+                    <span className="truncate text-muted-foreground">{b.name}</span>
+                    <span className="font-semibold">{currencyBRL(b.value)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+          <Card className="p-5">
+            <h2 className="mb-4 text-sm font-semibold">Maiores gastos</h2>
+            {topExpenses.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Sem dados.</p> : (
+              <div className="divide-y divide-border">
+                {topExpenses.map((r: any) => (
+                  <div key={r.id} className="flex items-center justify-between py-2 text-sm">
+                    <span className="truncate text-muted-foreground">{r.categories?.name ?? "Sem categoria"} · {dateBR(r.payment_date)}</span>
+                    <span className="font-semibold">{currencyBRL(Number(r.amount ?? 0))}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
