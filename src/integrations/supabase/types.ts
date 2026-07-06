@@ -1,0 +1,689 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      accounts: {
+        Row: {
+          agency: string | null
+          bank_id: string | null
+          color: string | null
+          created_at: string
+          holder: string | null
+          id: string
+          initial_balance: number | null
+          nickname: string
+          notes: string | null
+          number: string | null
+          profile_id: string
+          type: Database["public"]["Enums"]["account_type"]
+          user_id: string
+        }
+        Insert: {
+          agency?: string | null
+          bank_id?: string | null
+          color?: string | null
+          created_at?: string
+          holder?: string | null
+          id?: string
+          initial_balance?: number | null
+          nickname: string
+          notes?: string | null
+          number?: string | null
+          profile_id: string
+          type?: Database["public"]["Enums"]["account_type"]
+          user_id: string
+        }
+        Update: {
+          agency?: string | null
+          bank_id?: string | null
+          color?: string | null
+          created_at?: string
+          holder?: string | null
+          id?: string
+          initial_balance?: number | null
+          nickname?: string
+          notes?: string | null
+          number?: string | null
+          profile_id?: string
+          type?: Database["public"]["Enums"]["account_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      banks: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          profile_id: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          profile_id: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          profile_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banks_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cards: {
+        Row: {
+          bank_id: string | null
+          brand: Database["public"]["Enums"]["card_brand"] | null
+          closing_day: number | null
+          created_at: string
+          due_day: number | null
+          holder: string | null
+          id: string
+          last4: string | null
+          limit_amount: number | null
+          name: string
+          profile_id: string
+          user_id: string
+        }
+        Insert: {
+          bank_id?: string | null
+          brand?: Database["public"]["Enums"]["card_brand"] | null
+          closing_day?: number | null
+          created_at?: string
+          due_day?: number | null
+          holder?: string | null
+          id?: string
+          last4?: string | null
+          limit_amount?: number | null
+          name: string
+          profile_id: string
+          user_id: string
+        }
+        Update: {
+          bank_id?: string | null
+          brand?: Database["public"]["Enums"]["card_brand"] | null
+          closing_day?: number | null
+          created_at?: string
+          due_day?: number | null
+          holder?: string | null
+          id?: string
+          last4?: string | null
+          limit_amount?: number | null
+          name?: string
+          profile_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cards_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cards_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          archived: boolean
+          color: string | null
+          created_at: string
+          default_type: Database["public"]["Enums"]["transaction_type"] | null
+          id: string
+          name: string
+          parent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          color?: string | null
+          created_at?: string
+          default_type?: Database["public"]["Enums"]["transaction_type"] | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          color?: string | null
+          created_at?: string
+          default_type?: Database["public"]["Enums"]["transaction_type"] | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_profiles: {
+        Row: {
+          archived: boolean
+          color: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          notes: string | null
+          tax_id: string | null
+          type: Database["public"]["Enums"]["profile_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          color?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          notes?: string | null
+          tax_id?: string | null
+          type?: Database["public"]["Enums"]["profile_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          color?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          tax_id?: string | null
+          type?: Database["public"]["Enums"]["profile_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      receipts: {
+        Row: {
+          account_id: string | null
+          amount: number | null
+          approved_at: string | null
+          auth_code: string | null
+          bank_id: string | null
+          bank_name: string | null
+          card_id: string | null
+          category_id: string | null
+          created_at: string
+          description: string | null
+          duplicate_of: string | null
+          file_hash: string | null
+          file_mime: string | null
+          file_name: string | null
+          file_path: string
+          file_size: number | null
+          id: string
+          is_fixed: boolean | null
+          notes: string | null
+          ocr_data: Json | null
+          ocr_error: string | null
+          ocr_status: Database["public"]["Enums"]["ocr_status"]
+          payment_date: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
+          profile_id: string | null
+          recipient_id: string | null
+          recipient_name: string | null
+          recipient_tax_id: string | null
+          status: Database["public"]["Enums"]["receipt_status"]
+          transaction_type:
+            | Database["public"]["Enums"]["transaction_type"]
+            | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount?: number | null
+          approved_at?: string | null
+          auth_code?: string | null
+          bank_id?: string | null
+          bank_name?: string | null
+          card_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          duplicate_of?: string | null
+          file_hash?: string | null
+          file_mime?: string | null
+          file_name?: string | null
+          file_path: string
+          file_size?: number | null
+          id?: string
+          is_fixed?: boolean | null
+          notes?: string | null
+          ocr_data?: Json | null
+          ocr_error?: string | null
+          ocr_status?: Database["public"]["Enums"]["ocr_status"]
+          payment_date?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          profile_id?: string | null
+          recipient_id?: string | null
+          recipient_name?: string | null
+          recipient_tax_id?: string | null
+          status?: Database["public"]["Enums"]["receipt_status"]
+          transaction_type?:
+            | Database["public"]["Enums"]["transaction_type"]
+            | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number | null
+          approved_at?: string | null
+          auth_code?: string | null
+          bank_id?: string | null
+          bank_name?: string | null
+          card_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          duplicate_of?: string | null
+          file_hash?: string | null
+          file_mime?: string | null
+          file_name?: string | null
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          is_fixed?: boolean | null
+          notes?: string | null
+          ocr_data?: Json | null
+          ocr_error?: string | null
+          ocr_status?: Database["public"]["Enums"]["ocr_status"]
+          payment_date?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          profile_id?: string | null
+          recipient_id?: string | null
+          recipient_name?: string | null
+          recipient_tax_id?: string | null
+          status?: Database["public"]["Enums"]["receipt_status"]
+          transaction_type?:
+            | Database["public"]["Enums"]["transaction_type"]
+            | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "recipients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipients: {
+        Row: {
+          created_at: string
+          default_category_id: string | null
+          default_profile_id: string | null
+          default_type: Database["public"]["Enums"]["transaction_type"] | null
+          id: string
+          name: string
+          notes: string | null
+          tax_id: string | null
+          usage_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_category_id?: string | null
+          default_profile_id?: string | null
+          default_type?: Database["public"]["Enums"]["transaction_type"] | null
+          id?: string
+          name: string
+          notes?: string | null
+          tax_id?: string | null
+          usage_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_category_id?: string | null
+          default_profile_id?: string | null
+          default_type?: Database["public"]["Enums"]["transaction_type"] | null
+          id?: string
+          name?: string
+          notes?: string | null
+          tax_id?: string | null
+          usage_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipients_default_category_id_fkey"
+            columns: ["default_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipients_default_profile_id_fkey"
+            columns: ["default_profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      account_type:
+        | "corrente"
+        | "poupanca"
+        | "pj"
+        | "investimento"
+        | "cartao"
+        | "carteira_digital"
+        | "outro"
+      card_brand: "visa" | "mastercard" | "elo" | "amex" | "hipercard" | "outro"
+      ocr_status: "queued" | "processing" | "done" | "failed"
+      payment_method:
+        | "debito"
+        | "credito_vista"
+        | "credito_parcelado"
+        | "pix"
+        | "ted"
+        | "boleto"
+        | "dinheiro"
+        | "transferencia"
+        | "outro"
+      profile_type:
+        | "pessoa_fisica"
+        | "empresa"
+        | "holding"
+        | "imovel"
+        | "projeto"
+        | "outro"
+      receipt_status: "pending" | "approved" | "rejected" | "duplicate"
+      transaction_type:
+        | "despesa"
+        | "investimento"
+        | "gasto_fixo"
+        | "gasto_variavel"
+        | "pessoal"
+        | "empresarial"
+        | "patrimonial"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      account_type: [
+        "corrente",
+        "poupanca",
+        "pj",
+        "investimento",
+        "cartao",
+        "carteira_digital",
+        "outro",
+      ],
+      card_brand: ["visa", "mastercard", "elo", "amex", "hipercard", "outro"],
+      ocr_status: ["queued", "processing", "done", "failed"],
+      payment_method: [
+        "debito",
+        "credito_vista",
+        "credito_parcelado",
+        "pix",
+        "ted",
+        "boleto",
+        "dinheiro",
+        "transferencia",
+        "outro",
+      ],
+      profile_type: [
+        "pessoa_fisica",
+        "empresa",
+        "holding",
+        "imovel",
+        "projeto",
+        "outro",
+      ],
+      receipt_status: ["pending", "approved", "rejected", "duplicate"],
+      transaction_type: [
+        "despesa",
+        "investimento",
+        "gasto_fixo",
+        "gasto_variavel",
+        "pessoal",
+        "empresarial",
+        "patrimonial",
+      ],
+    },
+  },
+} as const
