@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { profileTypeLabel } from "@/lib/format";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, Pencil, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/profiles")({
   head: () => ({ meta: [{ title: "Perfis — Meu Cofre" }] }),
@@ -21,7 +22,9 @@ export const Route = createFileRoute("/_authenticated/app/profiles")({
 function ProfilesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", type: "pessoa_fisica", tax_id: "", color: "#1e3a8a", notes: "" });
+  const emptyForm = { name: "", type: "pessoa_fisica", tax_id: "", color: "#1e3a8a", notes: "" };
+  const [form, setForm] = useState(emptyForm);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["profiles"],
@@ -34,18 +37,39 @@ function ProfilesPage() {
 
   const create = useMutation({
     mutationFn: async () => {
+      if (editId) {
+        const { error } = await supabase.from("financial_profiles").update({ ...form, type: form.type as any }).eq("id", editId);
+        if (error) throw error;
+        return;
+      }
       const { data: u } = await supabase.auth.getUser();
       const { error } = await supabase.from("financial_profiles").insert({ ...form, user_id: u.user!.id, type: form.type as any });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Perfil criado");
+      toast.success(editId ? "Perfil atualizado" : "Perfil criado");
       setOpen(false);
-      setForm({ name: "", type: "pessoa_fisica", tax_id: "", color: "#1e3a8a", notes: "" });
+      setForm(emptyForm);
+      setEditId(null);
       qc.invalidateQueries({ queryKey: ["profiles"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("financial_profiles").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Perfil excluído"); qc.invalidateQueries({ queryKey: ["profiles"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const openEdit = (p: any) => {
+    setEditId(p.id);
+    setForm({ name: p.name ?? "", type: p.type ?? "pessoa_fisica", tax_id: p.tax_id ?? "", color: p.color ?? "#1e3a8a", notes: p.notes ?? "" });
+    setOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -54,12 +78,12 @@ function ProfilesPage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Perfis financeiros</h1>
           <p className="text-sm text-muted-foreground">Pessoal, empresa, holding, imóvel — cada perfil tem seu próprio cofre.</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(emptyForm); } }}>
           <DialogTrigger asChild>
             <Button variant="premium"><Plus className="h-4 w-4" /> Novo perfil</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Novo perfil</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editId ? "Editar perfil" : "Novo perfil"}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="space-y-4">
               <div className="space-y-2">
                 <Label>Nome</Label>
@@ -90,7 +114,7 @@ function ProfilesPage() {
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="premium" disabled={create.isPending}>Criar perfil</Button>
+                <Button type="submit" variant="premium" disabled={create.isPending}>{editId ? "Salvar" : "Criar perfil"}</Button>
               </div>
             </form>
           </DialogContent>
@@ -116,13 +140,37 @@ function ProfilesPage() {
                 </div>
                 {p.tax_id && <p className="text-xs text-muted-foreground">CPF/CNPJ: {p.tax_id}</p>}
                 {p.notes && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{p.notes}</p>}
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /> Editar</Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Excluir</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir perfil "{p.name}"?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Comprovantes, bancos e cartões vinculados a este perfil também podem ser afetados. Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => remove.mutate(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </Card>
           ))}
         </div>
       ) : (
         <Card className="p-10 text-center">
-          <p className="text-sm text-muted-foreground">Nenhum perfil ainda.</p>
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
+            <Building2 className="h-6 w-6" />
+          </div>
+          <p className="text-sm font-medium text-foreground">Nenhum perfil ainda</p>
+          <p className="mt-1 text-xs text-muted-foreground">Crie perfis para separar pessoa física, empresas, holdings ou imóveis.</p>
         </Card>
       )}
     </div>
