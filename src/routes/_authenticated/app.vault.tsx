@@ -73,9 +73,10 @@ function VaultPage() {
 
   const statusBadge = (s: string) => {
     if (s === "approved") return <Badge className="bg-success text-success-foreground hover:bg-success">Aprovado</Badge>;
-    if (s === "duplicate") return <Badge className="bg-accent text-accent-foreground hover:bg-accent">Duplicado</Badge>;
+    if (s === "duplicate") return <Badge className="bg-orange-500 text-white hover:bg-orange-500">Duplicado</Badge>;
     if (s === "rejected") return <Badge variant="destructive">Rejeitado</Badge>;
-    return <Badge variant="secondary">Pendente</Badge>;
+    if (s === "archived") return <Badge variant="secondary" className="bg-muted text-muted-foreground">Arquivado</Badge>;
+    return <Badge className="bg-yellow-500 text-white hover:bg-yellow-500">Pendente</Badge>;
   };
 
   const ocrHint = (s: string) => {
@@ -105,6 +106,7 @@ function VaultPage() {
               <SelectItem value="approved">Aprovados</SelectItem>
               <SelectItem value="duplicate">Duplicados</SelectItem>
               <SelectItem value="rejected">Rejeitados</SelectItem>
+              <SelectItem value="archived">Arquivados</SelectItem>
             </SelectContent>
           </Select>
           <Select value={profileId} onValueChange={setProfileId}>
