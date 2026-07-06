@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppVaultRouteImport } from './routes/_authenticated/app.vault'
 import { Route as AuthenticatedAppUploadRouteImport } from './routes/_authenticated/app.upload'
+import { Route as AuthenticatedAppReportsRouteImport } from './routes/_authenticated/app.reports'
 import { Route as AuthenticatedAppProfilesRouteImport } from './routes/_authenticated/app.profiles'
 import { Route as AuthenticatedAppCategoriesRouteImport } from './routes/_authenticated/app.categories'
 import { Route as AuthenticatedAppCardsRouteImport } from './routes/_authenticated/app.cards'
@@ -49,6 +50,11 @@ const AuthenticatedAppUploadRoute = AuthenticatedAppUploadRouteImport.update({
   path: '/upload',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppReportsRoute = AuthenticatedAppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppProfilesRoute =
   AuthenticatedAppProfilesRouteImport.update({
     id: '/profiles',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/app/cards': typeof AuthenticatedAppCardsRoute
   '/app/categories': typeof AuthenticatedAppCategoriesRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
+  '/app/reports': typeof AuthenticatedAppReportsRoute
   '/app/upload': typeof AuthenticatedAppUploadRoute
   '/app/vault': typeof AuthenticatedAppVaultRoute
 }
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/app/cards': typeof AuthenticatedAppCardsRoute
   '/app/categories': typeof AuthenticatedAppCategoriesRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
+  '/app/reports': typeof AuthenticatedAppReportsRoute
   '/app/upload': typeof AuthenticatedAppUploadRoute
   '/app/vault': typeof AuthenticatedAppVaultRoute
 }
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/_authenticated/app/cards': typeof AuthenticatedAppCardsRoute
   '/_authenticated/app/categories': typeof AuthenticatedAppCategoriesRoute
   '/_authenticated/app/profiles': typeof AuthenticatedAppProfilesRoute
+  '/_authenticated/app/reports': typeof AuthenticatedAppReportsRoute
   '/_authenticated/app/upload': typeof AuthenticatedAppUploadRoute
   '/_authenticated/app/vault': typeof AuthenticatedAppVaultRoute
 }
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/app/cards'
     | '/app/categories'
     | '/app/profiles'
+    | '/app/reports'
     | '/app/upload'
     | '/app/vault'
   fileRoutesByTo: FileRoutesByTo
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/app/cards'
     | '/app/categories'
     | '/app/profiles'
+    | '/app/reports'
     | '/app/upload'
     | '/app/vault'
   id:
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/cards'
     | '/_authenticated/app/categories'
     | '/_authenticated/app/profiles'
+    | '/_authenticated/app/reports'
     | '/_authenticated/app/upload'
     | '/_authenticated/app/vault'
   fileRoutesById: FileRoutesById
@@ -194,6 +206,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppUploadRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/reports': {
+      id: '/_authenticated/app/reports'
+      path: '/reports'
+      fullPath: '/app/reports'
+      preLoaderRoute: typeof AuthenticatedAppReportsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/profiles': {
       id: '/_authenticated/app/profiles'
       path: '/profiles'
@@ -230,6 +249,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCardsRoute: typeof AuthenticatedAppCardsRoute
   AuthenticatedAppCategoriesRoute: typeof AuthenticatedAppCategoriesRoute
   AuthenticatedAppProfilesRoute: typeof AuthenticatedAppProfilesRoute
+  AuthenticatedAppReportsRoute: typeof AuthenticatedAppReportsRoute
   AuthenticatedAppUploadRoute: typeof AuthenticatedAppUploadRoute
   AuthenticatedAppVaultRoute: typeof AuthenticatedAppVaultRoute
 }
@@ -239,6 +259,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCardsRoute: AuthenticatedAppCardsRoute,
   AuthenticatedAppCategoriesRoute: AuthenticatedAppCategoriesRoute,
   AuthenticatedAppProfilesRoute: AuthenticatedAppProfilesRoute,
+  AuthenticatedAppReportsRoute: AuthenticatedAppReportsRoute,
   AuthenticatedAppUploadRoute: AuthenticatedAppUploadRoute,
   AuthenticatedAppVaultRoute: AuthenticatedAppVaultRoute,
 }
