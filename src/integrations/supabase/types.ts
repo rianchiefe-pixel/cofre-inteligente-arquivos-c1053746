@@ -77,6 +77,63 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entity: string
+          entity_id: string | null
+          id: string
+          new_value: Json | null
+          note: string | null
+          old_value: Json | null
+          profile_id: string | null
+          property_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity: string
+          entity_id?: string | null
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          old_value?: Json | null
+          profile_id?: string | null
+          property_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          old_value?: Json | null
+          profile_id?: string | null
+          property_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       banks: {
         Row: {
           color: string | null
@@ -330,6 +387,7 @@ export type Database = {
           created_at: string
           description: string | null
           duplicate_of: string | null
+          duplicate_score: number
           file_hash: string | null
           file_mime: string | null
           file_name: string | null
@@ -367,6 +425,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           duplicate_of?: string | null
+          duplicate_score?: number
           file_hash?: string | null
           file_mime?: string | null
           file_name?: string | null
@@ -404,6 +463,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           duplicate_of?: string | null
+          duplicate_score?: number
           file_hash?: string | null
           file_mime?: string | null
           file_name?: string | null
@@ -542,12 +602,39 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       account_type:
@@ -558,6 +645,12 @@ export type Database = {
         | "cartao"
         | "carteira_digital"
         | "outro"
+      app_role:
+        | "proprietario"
+        | "administrador"
+        | "contador"
+        | "colaborador"
+        | "visualizador"
       card_brand: "visa" | "mastercard" | "elo" | "amex" | "hipercard" | "outro"
       ocr_status: "queued" | "processing" | "done" | "failed"
       payment_method:
@@ -591,7 +684,12 @@ export type Database = {
         | "fazenda"
         | "predio"
         | "outro"
-      receipt_status: "pending" | "approved" | "rejected" | "duplicate"
+      receipt_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "duplicate"
+        | "archived"
       transaction_type:
         | "despesa"
         | "investimento"
@@ -736,6 +834,13 @@ export const Constants = {
         "carteira_digital",
         "outro",
       ],
+      app_role: [
+        "proprietario",
+        "administrador",
+        "contador",
+        "colaborador",
+        "visualizador",
+      ],
       card_brand: ["visa", "mastercard", "elo", "amex", "hipercard", "outro"],
       ocr_status: ["queued", "processing", "done", "failed"],
       payment_method: [
@@ -773,7 +878,13 @@ export const Constants = {
         "predio",
         "outro",
       ],
-      receipt_status: ["pending", "approved", "rejected", "duplicate"],
+      receipt_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "duplicate",
+        "archived",
+      ],
       transaction_type: [
         "despesa",
         "investimento",

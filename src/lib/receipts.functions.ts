@@ -4,6 +4,26 @@ import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 import { generateText, Output, NoObjectGeneratedError } from "ai";
 import { z } from "zod";
 
+async function logAudit(supabase: any, userId: string, params: {
+  action: string; entity: string; entity_id?: string | null;
+  profile_id?: string | null; property_id?: string | null;
+  old_value?: any; new_value?: any; note?: string | null;
+}) {
+  try {
+    await supabase.from("audit_logs").insert({
+      user_id: userId,
+      action: params.action,
+      entity: params.entity,
+      entity_id: params.entity_id ?? null,
+      profile_id: params.profile_id ?? null,
+      property_id: params.property_id ?? null,
+      old_value: params.old_value ?? null,
+      new_value: params.new_value ?? null,
+      note: params.note ?? null,
+    });
+  } catch { /* audit failures should not break app flow */ }
+}
+
 const ExtractSchema = z.object({
   payment_date: z.string().nullable().describe("Data do pagamento no formato YYYY-MM-DD ou null"),
   amount: z.number().nullable().describe("Valor em reais como número (ex 1234.56) ou null"),
@@ -147,6 +167,28 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       if (dupes && dupes.length > 0) duplicate_of = dupes[0].id;
     }
 
+    // Compute duplicate_score 0..100
+    let score = 0;
+    if (rec.file_hash) {
+      const { data: sameHash } = await supabase.from("receipts").select("id").eq("file_hash", rec.file_hash).neq("id", rec.id).limit(1);
+      if (sameHash && sameHash.length) score = Math.max(score, 100);
+    }
+    if (extracted.auth_code) {
+      const { data: sameAuth } = await supabase.from("receipts").select("id").eq("auth_code", extracted.auth_code).neq("id", rec.id).limit(1);
+      if (sameAuth && sameAuth.length) score = Math.max(score, 95);
+    }
+    if (extracted.amount && extracted.payment_date) {
+      const { data: sameVD } = await supabase.from("receipts").select("id, recipient_name, bank_name").eq("amount", extracted.amount).eq("payment_date", extracted.payment_date).neq("id", rec.id).limit(3);
+      if (sameVD && sameVD.length) {
+        let s = 60;
+        for (const d of sameVD) {
+          if (extracted.recipient_name && d.recipient_name && d.recipient_name.toLowerCase() === extracted.recipient_name.toLowerCase()) s += 15;
+          if (extracted.bank_name && d.bank_name && d.bank_name.toLowerCase() === extracted.bank_name.toLowerCase()) s += 10;
+        }
+        score = Math.max(score, Math.min(s, 90));
+      }
+    }
+
     const update: any = {
       ocr_status: "done",
       ocr_data: extracted,
@@ -162,6 +204,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       category_id,
       recipient_id,
       duplicate_of,
+      duplicate_score: score,
       status: duplicate_of ? "duplicate" : "pending",
     };
     const { error: upErr } = await supabase.from("receipts").update(update).eq("id", rec.id);
@@ -174,11 +217,17 @@ export const approveReceipt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
+    const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id").eq("id", data.receiptId).single();
     const { error } = await context.supabase
       .from("receipts")
       .update({ status: "approved", approved_at: new Date().toISOString() })
       .eq("id", data.receiptId);
     if (error) throw new Error(error.message);
+    await logAudit(context.supabase, context.userId, {
+      action: "approved", entity: "receipt", entity_id: data.receiptId,
+      profile_id: prev?.profile_id, property_id: prev?.property_id,
+      old_value: { status: prev?.status }, new_value: { status: "approved" },
+    });
     return { ok: true };
   });
 
@@ -186,7 +235,35 @@ export const rejectReceipt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid(), reason: z.enum(["rejected", "duplicate"]).default("rejected") }).parse(data))
   .handler(async ({ data, context }) => {
+    const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id").eq("id", data.receiptId).single();
     const { error } = await context.supabase.from("receipts").update({ status: data.reason }).eq("id", data.receiptId);
     if (error) throw new Error(error.message);
+    await logAudit(context.supabase, context.userId, {
+      action: data.reason === "duplicate" ? "marked_duplicate" : "rejected", entity: "receipt", entity_id: data.receiptId,
+      profile_id: prev?.profile_id, property_id: prev?.property_id,
+      old_value: { status: prev?.status }, new_value: { status: data.reason },
+    });
     return { ok: true };
+  });
+
+export const bulkReceiptAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    receiptIds: z.array(z.string().uuid()).min(1).max(500),
+    action: z.enum(["approve", "reject", "duplicate", "archive"]),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const map = { approve: "approved", reject: "rejected", duplicate: "duplicate", archive: "archived" } as const;
+    const status = map[data.action];
+    const patch: any = { status };
+    if (data.action === "approve") patch.approved_at = new Date().toISOString();
+    const { error } = await context.supabase.from("receipts").update(patch).in("id", data.receiptIds);
+    if (error) throw new Error(error.message);
+    for (const id of data.receiptIds) {
+      await logAudit(context.supabase, context.userId, {
+        action: `bulk_${data.action}`, entity: "receipt", entity_id: id,
+        new_value: { status },
+      });
+    }
+    return { ok: true, count: data.receiptIds.length };
   });

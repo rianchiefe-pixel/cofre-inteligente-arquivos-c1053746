@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Wallet, PiggyBank, FileStack, AlertTriangle, TrendingUp } from "lucide-react";
+import { Wallet, PiggyBank, FileStack, AlertTriangle, TrendingUp, Clock, XCircle, Copy } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
@@ -78,6 +78,8 @@ function Dashboard() {
   const totalInvested = monthReceipts.filter((r) => r.transaction_type === "investimento").reduce((s, r) => s + Number(r.amount ?? 0), 0);
   const pending = receipts.filter((r) => r.status === "pending").length;
   const duplicates = receipts.filter((r) => r.status === "duplicate").length;
+  const rejectedMonth = receipts.filter((r) => r.status === "rejected" && r.created_at && new Date(r.created_at) >= monthStart).length;
+  const approvedMonth = monthReceipts.length;
 
   const byCategory = Object.entries(
     monthReceipts.reduce<Record<string, number>>((acc, r) => {
@@ -132,6 +134,13 @@ function Dashboard() {
         <StatCard label="Investido no mês" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
         <StatCard label="Comprovantes aprovados" value={String(approvedReceipts.length)} icon={FileStack} tone="gold" />
         <StatCard label={pending > 0 ? "Pendentes de conferência" : "Possíveis duplicados"} value={String(pending || duplicates)} icon={AlertTriangle} tone={pending > 0 ? "warn" : "primary"} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Pendentes de aprovação" value={String(pending)} icon={Clock} tone="warn" />
+        <StatCard label="Possíveis duplicidades" value={String(duplicates)} icon={Copy} tone="gold" />
+        <StatCard label="Rejeitados no mês" value={String(rejectedMonth)} icon={XCircle} tone="warn" />
+        <StatCard label="Aprovados no mês" value={String(approvedMonth)} icon={FileStack} tone="success" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

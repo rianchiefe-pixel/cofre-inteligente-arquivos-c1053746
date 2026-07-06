@@ -73,9 +73,10 @@ function VaultPage() {
 
   const statusBadge = (s: string) => {
     if (s === "approved") return <Badge className="bg-success text-success-foreground hover:bg-success">Aprovado</Badge>;
-    if (s === "duplicate") return <Badge className="bg-accent text-accent-foreground hover:bg-accent">Duplicado</Badge>;
+    if (s === "duplicate") return <Badge className="bg-orange-500 text-white hover:bg-orange-500">Duplicado</Badge>;
     if (s === "rejected") return <Badge variant="destructive">Rejeitado</Badge>;
-    return <Badge variant="secondary">Pendente</Badge>;
+    if (s === "archived") return <Badge variant="secondary" className="bg-muted text-muted-foreground">Arquivado</Badge>;
+    return <Badge className="bg-yellow-500 text-white hover:bg-yellow-500">Pendente</Badge>;
   };
 
   const ocrHint = (s: string) => {
@@ -105,6 +106,7 @@ function VaultPage() {
               <SelectItem value="approved">Aprovados</SelectItem>
               <SelectItem value="duplicate">Duplicados</SelectItem>
               <SelectItem value="rejected">Rejeitados</SelectItem>
+              <SelectItem value="archived">Arquivados</SelectItem>
             </SelectContent>
           </Select>
           <Select value={profileId} onValueChange={setProfileId}>
@@ -170,6 +172,16 @@ function VaultPage() {
                   <div className="flex items-start gap-2 rounded-lg border border-accent/50 bg-accent/10 p-3 text-xs">
                     <AlertTriangle className="mt-0.5 h-4 w-4 text-accent" />
                     <div>Este comprovante parece duplicado de outro já enviado. Confira antes de aprovar.</div>
+                  </div>
+                )}
+                {typeof selected.duplicate_score === "number" && selected.duplicate_score >= 50 && (
+                  <div className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${selected.duplicate_score >= 80 ? "border-destructive/50 bg-destructive/10 text-destructive-foreground" : "border-accent/50 bg-accent/10"}`}>
+                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                    <div>
+                      {selected.duplicate_score >= 80
+                        ? "Alta chance de comprovante repetido."
+                        : "Possível comprovante repetido."} <span className="opacity-70">(score {selected.duplicate_score}/100)</span>
+                    </div>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
