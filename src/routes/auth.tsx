@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { ShieldCheck, PlayCircle } from "lucide-react";
-import { ensureDemoUser } from "@/lib/demo.functions";
+import { ensureDemoUser, seedDemoData } from "@/lib/demo.functions";
 
 const DEMO_EMAIL = "demo@meucofre.com";
 const DEMO_PASSWORD = "demo123456";
@@ -70,6 +70,12 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
     setLoading(false);
     if (error) return toast.error("Modo teste indisponível: " + error.message);
+    // seed demo data (idempotente)
+    try {
+      await seedDemoData({ data: {} });
+    } catch (e) {
+      console.warn("demo seed:", e);
+    }
     try {
       sessionStorage.setItem("meucofre:demo", "1");
     } catch {
