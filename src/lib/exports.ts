@@ -134,8 +134,14 @@ export function exportXLSX<T>(payload: ReportPayload<T>) {
 
   // Summary sheet
   const summaryAoA: any[][] = [];
+  const b = payload.brand ?? null;
+  const brandName = b?.displayName || b?.legalName;
+  if (brandName) summaryAoA.push([brandName]);
   summaryAoA.push([payload.title]);
   if (payload.subtitle) summaryAoA.push([payload.subtitle]);
+  if (b?.taxId) summaryAoA.push([`CPF/CNPJ: ${b.taxId}`]);
+  if (b?.address) summaryAoA.push([b.address]);
+  if (b?.phone || b?.email) summaryAoA.push([[b?.phone, b?.email].filter(Boolean).join(" · ")]);
   if (payload.period?.from || payload.period?.to) {
     summaryAoA.push([`Período: ${payload.period?.from ?? "—"} a ${payload.period?.to ?? "—"}`]);
   }
@@ -152,6 +158,7 @@ export function exportXLSX<T>(payload: ReportPayload<T>) {
     b.rows.forEach((r) => summaryAoA.push([r.name, r.value]));
     summaryAoA.push([]);
   });
+  if (b?.footerText) { summaryAoA.push([]); summaryAoA.push([b.footerText]); }
   const wsResumo = XLSX.utils.aoa_to_sheet(summaryAoA);
   wsResumo["!cols"] = [{ wch: 40 }, { wch: 24 }];
   XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
