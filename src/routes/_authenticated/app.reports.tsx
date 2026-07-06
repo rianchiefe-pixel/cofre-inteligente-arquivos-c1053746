@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { currencyBRL, dateBR, transactionTypeLabel } from "@/lib/format";
 import { Download } from "lucide-react";
+import { useCan } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated/app/reports")({
   head: () => ({ meta: [{ title: "Relatórios — Meu Cofre" }] }),
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/app/reports")({
 });
 
 function ReportsPage() {
+  const canExport = useCan("exportReports");
   const today = new Date();
   const first = new Date(today.getFullYear(), today.getMonth(), 1);
   const [from, setFrom] = useState(first.toISOString().slice(0, 10));
@@ -108,7 +110,7 @@ function ReportsPage() {
               </SelectContent>
             </Select>
           </div>
-          <Button variant="premium" onClick={exportCsv} disabled={rows.length === 0}><Download className="h-4 w-4" /> Exportar CSV</Button>
+          {canExport && <Button variant="premium" onClick={exportCsv} disabled={rows.length === 0}><Download className="h-4 w-4" /> Exportar CSV</Button>}
         </div>
       </Card>
 

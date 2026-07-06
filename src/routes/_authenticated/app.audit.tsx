@@ -10,11 +10,19 @@ import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
 import { Download, ShieldAlert, Search } from "lucide-react";
 import { toast } from "sonner";
+import { useCan } from "@/lib/permissions";
+import { RestrictedArea } from "@/components/role-gate";
 
 export const Route = createFileRoute("/_authenticated/app/audit")({
   head: () => ({ meta: [{ title: "Auditoria — Meu Cofre" }] }),
-  component: AuditPage,
+  component: AuditGate,
 });
+
+function AuditGate() {
+  const canView = useCan("viewAudit");
+  if (!canView) return <RestrictedArea message="Somente proprietário, administrador ou contador podem visualizar a auditoria." />;
+  return <AuditPage />;
+}
 
 const ACTIONS: Record<string, { label: string; tone: string }> = {
   approved: { label: "Aprovado", tone: "bg-success text-success-foreground" },
@@ -34,6 +42,7 @@ function fmtDateTime(s: string) {
 }
 
 function AuditPage() {
+  const canExport = useCan("exportReports");
   const [q, setQ] = useState("");
   const [action, setAction] = useState<string>("all");
   const [entity, setEntity] = useState<string>("all");
@@ -97,7 +106,7 @@ function AuditPage() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Auditoria</h1>
           <p className="text-sm text-muted-foreground">Histórico completo de alterações no seu cofre.</p>
         </div>
-        <Button onClick={exportCSV} variant="outline"><Download className="h-4 w-4" /> Exportar CSV</Button>
+        {canExport && <Button onClick={exportCSV} variant="outline"><Download className="h-4 w-4" /> Exportar CSV</Button>}
       </header>
 
       <Card className="p-4">
