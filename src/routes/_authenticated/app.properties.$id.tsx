@@ -6,8 +6,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { currencyBRL, dateBR, propertyPurposeLabel, propertyStatusLabel, propertyTypeLabel, transactionTypeLabel } from "@/lib/format";
-import { ArrowLeft, Wallet, PiggyBank, Repeat, Wind, FileBarChart, MapPin, Home, FileText, Landmark } from "lucide-react";
+import { ArrowLeft, Wallet, PiggyBank, Repeat, Wind, MapPin, Home, FileText, Landmark } from "lucide-react";
 import { useCan } from "@/lib/permissions";
+import { ExportMenu } from "@/components/export-menu";
+import type { ReportPayload } from "@/lib/exports";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid, LineChart, Line,
 } from "recharts";
@@ -108,22 +110,32 @@ function PropertyDetail() {
     [rows],
   );
 
-  const exportCsv = () => {
-    const header = ["Data", "Valor", "Categoria", "Tipo", "Banco"].join(";");
-    const lines = (rows as any[]).map((r) => [
-      dateBR(r.payment_date),
-      String(Number(r.amount ?? 0)).replace(".", ","),
-      r.categories?.name ?? "",
-      transactionTypeLabel[r.transaction_type as string] ?? "",
-      r.bank_name ?? "",
-    ].join(";"));
-    const csv = [header, ...lines].join("\n");
-    const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `imovel-${property.data?.name ?? id}.csv`; a.click();
-    URL.revokeObjectURL(url);
-  };
+  const buildPayload = (): ReportPayload => ({
+    title: "Relatório do Imóvel",
+    subtitle: property.data?.name ?? "",
+    filters: { propertyId: id },
+    summary: [
+      { label: "Total gasto", value: currencyBRL(totalSpent) },
+      { label: "Total investido", value: currencyBRL(totalInvested) },
+      { label: "Despesas fixas", value: currencyBRL(totalFixed) },
+      { label: "Despesas variáveis", value: currencyBRL(totalVariable) },
+      { label: "Comprovantes", value: String(rows.length) },
+    ],
+    breakdowns: [
+      { title: "Por categoria", rows: byCategory.map((c) => ({ name: c.name, value: currencyBRL(c.value) })) },
+      { title: "Por banco", rows: byBank.map((c) => ({ name: c.name, value: currencyBRL(c.value) })) },
+    ],
+    columns: [
+      { header: "Data", key: "payment_date", get: (r: any) => dateBR(r.payment_date), width: 12 },
+      { header: "Valor", key: "amount", get: (r: any) => currencyBRL(Number(r.amount ?? 0)), width: 14 },
+      { header: "Categoria", key: "category", get: (r: any) => r.categories?.name ?? "", width: 18 },
+      { header: "Tipo", key: "type", get: (r: any) => transactionTypeLabel[r.transaction_type as string] ?? "", width: 14 },
+      { header: "Banco", key: "bank", get: (r: any) => r.bank_name ?? "", width: 16 },
+    ],
+    rows,
+    filename: `imovel-${(property.data?.name ?? id).toString().toLowerCase().replace(/\s+/g, "-")}`,
+    reportKind: "imovel",
+  });
 
   if (property.isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
   if (!property.data) return <p className="text-sm text-muted-foreground">Imóvel não encontrado.</p>;
@@ -156,7 +168,7 @@ function PropertyDetail() {
             </p>
           )}
         </div>
-        {canExport && <Button variant="premium" onClick={exportCsv} disabled={rows.length === 0}><FileBarChart className="h-4 w-4" /> Relatório do imóvel</Button>}
+        {canExport && <ExportMenu build={buildPayload} disabled={rows.length === 0} label="Relatório do imóvel" />}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
