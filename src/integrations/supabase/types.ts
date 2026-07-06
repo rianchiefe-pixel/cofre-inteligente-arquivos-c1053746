@@ -317,14 +317,21 @@ export type Database = {
       }
       properties: {
         Row: {
+          acquisition_date: string | null
+          acquisition_value: number | null
           address: string | null
+          cartorio: string | null
+          cep: string | null
           city: string | null
+          cover_url: string | null
           created_at: string
           id: string
           name: string
           notes: string | null
           owner_name: string | null
+          owner_tax_id: string | null
           profile_id: string | null
+          purpose: Database["public"]["Enums"]["property_purpose"] | null
           registration: string | null
           state: string | null
           status: Database["public"]["Enums"]["property_status"]
@@ -333,14 +340,21 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          acquisition_date?: string | null
+          acquisition_value?: number | null
           address?: string | null
+          cartorio?: string | null
+          cep?: string | null
           city?: string | null
+          cover_url?: string | null
           created_at?: string
           id?: string
           name: string
           notes?: string | null
           owner_name?: string | null
+          owner_tax_id?: string | null
           profile_id?: string | null
+          purpose?: Database["public"]["Enums"]["property_purpose"] | null
           registration?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["property_status"]
@@ -349,14 +363,21 @@ export type Database = {
           user_id: string
         }
         Update: {
+          acquisition_date?: string | null
+          acquisition_value?: number | null
           address?: string | null
+          cartorio?: string | null
+          cep?: string | null
           city?: string | null
+          cover_url?: string | null
           created_at?: string
           id?: string
           name?: string
           notes?: string | null
           owner_name?: string | null
+          owner_tax_id?: string | null
           profile_id?: string | null
+          purpose?: Database["public"]["Enums"]["property_purpose"] | null
           registration?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["property_status"]
@@ -670,12 +691,22 @@ export type Database = {
         | "imovel"
         | "projeto"
         | "outro"
+      property_purpose:
+        | "moradia"
+        | "aluguel"
+        | "venda"
+        | "investimento"
+        | "uso_empresarial"
+        | "rural"
+        | "outro"
       property_status:
         | "proprio"
         | "alugado"
         | "em_reforma"
         | "vendido"
         | "em_aquisicao"
+        | "em_inventario"
+        | "arquivado"
       property_type:
         | "casa"
         | "apartamento"
@@ -684,6 +715,10 @@ export type Database = {
         | "fazenda"
         | "predio"
         | "outro"
+        | "galpao"
+        | "lote"
+        | "terreno_urbano"
+        | "terreno_rural"
       receipt_status:
         | "pending"
         | "approved"
@@ -862,12 +897,23 @@ export const Constants = {
         "projeto",
         "outro",
       ],
+      property_purpose: [
+        "moradia",
+        "aluguel",
+        "venda",
+        "investimento",
+        "uso_empresarial",
+        "rural",
+        "outro",
+      ],
       property_status: [
         "proprio",
         "alugado",
         "em_reforma",
         "vendido",
         "em_aquisicao",
+        "em_inventario",
+        "arquivado",
       ],
       property_type: [
         "casa",
@@ -877,6 +923,10 @@ export const Constants = {
         "fazenda",
         "predio",
         "outro",
+        "galpao",
+        "lote",
+        "terreno_urbano",
+        "terreno_rural",
       ],
       receipt_status: [
         "pending",

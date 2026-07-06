@@ -54,8 +54,12 @@ export const propertyTypeLabel: Record<string, string> = {
   apartamento: "Apartamento",
   terreno: "Terreno",
   sala_comercial: "Sala comercial",
+  galpao: "Galpão",
   fazenda: "Fazenda",
   predio: "Prédio",
+  lote: "Lote",
+  terreno_urbano: "Terreno urbano",
+  terreno_rural: "Terreno rural",
   outro: "Outro",
 };
 
@@ -65,4 +69,16 @@ export const propertyStatusLabel: Record<string, string> = {
   em_reforma: "Em reforma",
   vendido: "Vendido",
   em_aquisicao: "Em aquisição",
+  em_inventario: "Em inventário",
+  arquivado: "Arquivado",
+};
+
+export const propertyPurposeLabel: Record<string, string> = {
+  moradia: "Moradia",
+  aluguel: "Aluguel",
+  venda: "Venda",
+  investimento: "Investimento",
+  uso_empresarial: "Uso empresarial",
+  rural: "Rural",
+  outro: "Outro",
 };
