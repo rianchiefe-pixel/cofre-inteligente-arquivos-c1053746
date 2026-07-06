@@ -258,6 +258,65 @@ export type Database = {
         }
         Relationships: []
       }
+      properties: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          owner_name: string | null
+          profile_id: string | null
+          registration: string | null
+          state: string | null
+          status: Database["public"]["Enums"]["property_status"]
+          type: Database["public"]["Enums"]["property_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          owner_name?: string | null
+          profile_id?: string | null
+          registration?: string | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["property_status"]
+          type?: Database["public"]["Enums"]["property_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_name?: string | null
+          profile_id?: string | null
+          registration?: string | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["property_status"]
+          type?: Database["public"]["Enums"]["property_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receipts: {
         Row: {
           account_id: string | null
@@ -285,6 +344,7 @@ export type Database = {
           payment_date: string | null
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           profile_id: string | null
+          property_id: string | null
           recipient_id: string | null
           recipient_name: string | null
           recipient_tax_id: string | null
@@ -321,6 +381,7 @@ export type Database = {
           payment_date?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           profile_id?: string | null
+          property_id?: string | null
           recipient_id?: string | null
           recipient_name?: string | null
           recipient_tax_id?: string | null
@@ -357,6 +418,7 @@ export type Database = {
           payment_date?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           profile_id?: string | null
+          property_id?: string | null
           recipient_id?: string | null
           recipient_name?: string | null
           recipient_tax_id?: string | null
@@ -408,6 +470,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
           {
@@ -507,6 +576,20 @@ export type Database = {
         | "holding"
         | "imovel"
         | "projeto"
+        | "outro"
+      property_status:
+        | "proprio"
+        | "alugado"
+        | "em_reforma"
+        | "vendido"
+        | "em_aquisicao"
+      property_type:
+        | "casa"
+        | "apartamento"
+        | "terreno"
+        | "sala_comercial"
+        | "fazenda"
+        | "predio"
         | "outro"
       receipt_status: "pending" | "approved" | "rejected" | "duplicate"
       transaction_type:
@@ -672,6 +755,22 @@ export const Constants = {
         "holding",
         "imovel",
         "projeto",
+        "outro",
+      ],
+      property_status: [
+        "proprio",
+        "alugado",
+        "em_reforma",
+        "vendido",
+        "em_aquisicao",
+      ],
+      property_type: [
+        "casa",
+        "apartamento",
+        "terreno",
+        "sala_comercial",
+        "fazenda",
+        "predio",
         "outro",
       ],
       receipt_status: ["pending", "approved", "rejected", "duplicate"],
