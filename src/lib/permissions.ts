@@ -22,19 +22,20 @@ export type Permission =
   | "manageEntities" // profiles, banks, cards, categories, properties
   | "uploadReceipts"
   | "editReceipts"
+  | "importData"
   | "viewAll";
 
 const MATRIX: Record<AppRole, Permission[]> = {
   proprietario: [
     "manageUsers", "viewAudit", "exportReports", "approveReceipts",
     "bulkActions", "deleteData", "manageEntities", "uploadReceipts",
-    "editReceipts", "viewAll",
+    "editReceipts", "importData", "viewAll",
   ],
   administrador: [
     "viewAudit", "exportReports", "approveReceipts", "bulkActions",
-    "deleteData", "manageEntities", "uploadReceipts", "editReceipts", "viewAll",
+    "deleteData", "manageEntities", "uploadReceipts", "editReceipts", "importData", "viewAll",
   ],
-  contador: ["viewAudit", "exportReports", "editReceipts", "viewAll"],
+  contador: ["viewAudit", "exportReports", "editReceipts", "importData", "viewAll"],
   colaborador: ["uploadReceipts", "editReceipts"],
   visualizador: ["viewAll"],
 };
