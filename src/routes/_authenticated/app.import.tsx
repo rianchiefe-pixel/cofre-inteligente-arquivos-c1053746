@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { UploadCloud, FileSpreadsheet, Files, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Files, Loader2, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCan } from "@/lib/permissions";
@@ -59,26 +59,42 @@ function normalize(s: string) {
 function parseAmount(v: unknown): number | null {
   if (v == null || v === "") return null;
   if (typeof v === "number") return v;
-  const s = String(v).replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  let s = String(v).trim();
+  if (!s) return null;
+  const neg = /^\(.*\)$/.test(s) || /-\s*$/.test(s);
+  s = s.replace(/[^\d,.\-]/g, "");
+  // Se tem vírgula e ponto, ponto é milhar
+  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+  // Só vírgula → decimal BR
+  else if (s.includes(",")) s = s.replace(",", ".");
   const n = Number(s);
-  return Number.isFinite(n) ? n : null;
+  if (!Number.isFinite(n)) return null;
+  return neg ? -Math.abs(n) : n;
 }
 
 function parseDate(v: unknown): string | null {
   if (v == null || v === "") return null;
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (v instanceof Date) return toISODate(v);
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
     if (d) return `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
   }
   const s = String(v).trim();
-  const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  // ISO: AAAA-MM-DD
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  // BR: DD/MM/AAAA
+  const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/);
   if (m) {
     const y = m[3].length === 2 ? `20${m[3]}` : m[3];
     return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
   }
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+  return Number.isNaN(d.getTime()) ? null : toISODate(d);
+}
+
+function toISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function autoMap(headers: string[]): Record<FieldKey, string> {
@@ -91,6 +107,7 @@ function autoMap(headers: string[]): Record<FieldKey, string> {
 }
 
 type Row = Record<string, unknown>;
+
 type ParsedRow = {
   idx: number;
   raw: Row;
@@ -105,10 +122,9 @@ type ParsedRow = {
   notes: string | null;
   matchedFile?: File;
   matchScore: number;
+  duplicate: boolean;
   errors: string[];
 };
-
-type Match = { row: ParsedRow; file?: File; score: number };
 
 async function sha256(buf: ArrayBuffer): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", buf);
@@ -126,9 +142,13 @@ function ImportPage() {
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [unusedFiles, setUnusedFiles] = useState<File[]>([]);
+  const [parsingSheet, setParsingSheet] = useState(false);
+  const [extractingZip, setExtractingZip] = useState(false);
+  const [crossing, setCrossing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [report, setReport] = useState<{ imported: number; withReceipt: number; withoutReceipt: number; unusedFiles: number; errors: number } | null>(null);
+  const [progressLabel, setProgressLabel] = useState("");
+  const [report, setReport] = useState<{ totalRows: number; imported: number; withReceipt: number; withoutReceipt: number; unusedFiles: number; duplicates: number; errors: number; validationErrors: number } | null>(null);
 
   const profiles = useQuery({
     queryKey: ["profiles"],
@@ -136,13 +156,18 @@ function ImportPage() {
   });
 
   const handleSheet = useCallback(async (f: File) => {
+    setParsingSheet(true);
     try {
       const buf = await f.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array", cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json<Row>(ws, { defval: "" });
-      if (!json.length) throw new Error("Planilha vazia");
-      const hdrs = Object.keys(json[0]);
+      if (!ws) throw new Error("Planilha sem abas");
+      // Ler cabeçalhos direto da 1ª linha para não perder colunas ausentes na 1ª linha de dados
+      const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "", blankrows: false });
+      if (matrix.length < 2) throw new Error("Planilha vazia ou sem dados");
+      const hdrs = (matrix[0] as unknown[]).map((h, i) => (h == null || String(h).trim() === "" ? `Coluna ${i + 1}` : String(h)));
+      const json = XLSX.utils.sheet_to_json<Row>(ws, { defval: "", blankrows: false });
+      if (!json.length) throw new Error("Nenhuma linha de dados");
       setFile(f);
       setHeaders(hdrs);
       setRows(json);
@@ -151,10 +176,13 @@ function ImportPage() {
       toast.success(`Planilha carregada: ${json.length} linhas, ${hdrs.length} colunas`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao ler planilha");
+    } finally {
+      setParsingSheet(false);
     }
   }, []);
 
   const handleReceipts = useCallback(async (files: File[]) => {
+    setExtractingZip(true);
     const out: File[] = [];
     for (const f of files) {
       if (f.name.toLowerCase().endsWith(".zip")) {
@@ -164,6 +192,7 @@ function ImportPage() {
             if (entry.dir) continue;
             const blob = await entry.async("blob");
             const name = entry.name.split("/").pop() ?? entry.name;
+            if (name.startsWith(".") || name === "__MACOSX") continue;
             out.push(new File([blob], name, { type: blob.type }));
           }
         } catch {
@@ -173,11 +202,22 @@ function ImportPage() {
         out.push(f);
       }
     }
-    setReceiptFiles((prev) => [...prev, ...out]);
+    // Dedup por nome+tamanho
+    setReceiptFiles((prev) => {
+      const seen = new Set(prev.map((f) => `${f.name}:${f.size}`));
+      const merged = [...prev];
+      for (const f of out) {
+        const k = `${f.name}:${f.size}`;
+        if (!seen.has(k)) { seen.add(k); merged.push(f); }
+      }
+      return merged;
+    });
+    setExtractingZip(false);
     toast.success(`${out.length} comprovantes prontos`);
   }, []);
 
-  const runCross = useCallback(() => {
+  const runCross = useCallback(async () => {
+    setCrossing(true);
     const parsedRows: ParsedRow[] = rows.map((r, idx) => {
       const get = (k: FieldKey) => (mapping[k] ? r[mapping[k]] : undefined);
       const p: ParsedRow = {
@@ -193,6 +233,7 @@ function ImportPage() {
         auth_code: get("auth_code") ? String(get("auth_code")) : null,
         notes: get("notes") ? String(get("notes")) : null,
         matchScore: 0,
+        duplicate: false,
         errors: [],
       };
       if (!p.payment_date) p.errors.push("Data inválida");
@@ -200,8 +241,24 @@ function ImportPage() {
       return p;
     });
 
+    // Detectar duplicidades com lançamentos existentes (mesmo usuário)
+    const { data: existing } = await supabase
+      .from("receipts")
+      .select("amount, payment_date, recipient_name, auth_code, file_hash")
+      .limit(5000);
+    const existingKey = new Set<string>();
+    for (const r of existing ?? []) {
+      if (r.amount != null && r.payment_date) existingKey.add(`${r.payment_date}|${Number(r.amount).toFixed(2)}|${(r.recipient_name ?? "").toLowerCase()}`);
+      if (r.auth_code) existingKey.add(`auth:${r.auth_code}`);
+    }
+    for (const p of parsedRows) {
+      if (p.auth_code && existingKey.has(`auth:${p.auth_code}`)) p.duplicate = true;
+      else if (p.payment_date && p.amount != null && existingKey.has(`${p.payment_date}|${p.amount.toFixed(2)}|${(p.recipient_name ?? "").toLowerCase()}`)) p.duplicate = true;
+    }
+
     const usedFiles = new Set<File>();
     for (const p of parsedRows) {
+      if (p.errors.length) continue;
       let best: { f: File; s: number } | undefined;
       for (const f of receiptFiles) {
         if (usedFiles.has(f)) continue;
@@ -210,7 +267,12 @@ function ImportPage() {
         if (p.file_name && normalize(p.file_name).replace(/\.[^.]+$/, "") === fname) score = 100;
         else if (p.auth_code && fname.includes(normalize(p.auth_code))) score = 100;
         else {
-          if (p.amount != null && fname.includes(String(Math.round(p.amount)))) score += 30;
+          if (p.amount != null) {
+            const cents = p.amount.toFixed(2).replace(".", "");
+            const whole = String(Math.round(p.amount));
+            if (fname.includes(cents)) score += 35;
+            else if (whole.length >= 3 && fname.includes(whole)) score += 25;
+          }
           if (p.payment_date && fname.includes(p.payment_date.replace(/-/g, ""))) score += 25;
           if (p.recipient_name && fname.includes(normalize(p.recipient_name).slice(0, 6))) score += 25;
           if (p.bank_name && fname.includes(normalize(p.bank_name).slice(0, 4))) score += 10;
@@ -225,6 +287,7 @@ function ImportPage() {
     }
     setParsed(parsedRows);
     setUnusedFiles(receiptFiles.filter((f) => !usedFiles.has(f)));
+    setCrossing(false);
     setStep(5);
   }, [rows, mapping, receiptFiles]);
 
@@ -232,17 +295,21 @@ function ImportPage() {
   const partial = useMemo(() => parsed.filter((p) => p.matchedFile && p.matchScore < 80), [parsed]);
   const noReceipt = useMemo(() => parsed.filter((p) => !p.matchedFile && p.errors.length === 0), [parsed]);
   const withErrors = useMemo(() => parsed.filter((p) => p.errors.length > 0), [parsed]);
+  const duplicates = useMemo(() => parsed.filter((p) => p.duplicate && p.errors.length === 0), [parsed]);
 
   const runImport = useCallback(async () => {
     if (!profileId) return toast.error("Selecione um perfil de destino");
     setImporting(true);
     setProgress(0);
+    setProgressLabel("Preparando…");
     const { data: u } = await supabase.auth.getUser();
     const userId = u.user?.id;
     if (!userId) { setImporting(false); return toast.error("Sessão expirada"); }
 
-    const valid = parsed.filter((p) => p.errors.length === 0);
+    const valid = parsed.filter((p) => p.errors.length === 0 && !p.duplicate);
     let imported = 0, withReceipt = 0, errors = 0;
+    const inserts: Record<string, unknown>[] = [];
+    setProgressLabel("Enviando comprovantes…");
 
     for (let i = 0; i < valid.length; i++) {
       const p = valid[i];
@@ -266,7 +333,7 @@ function ImportPage() {
           withReceipt++;
         }
 
-        const { error: insErr } = await supabase.from("receipts").insert({
+        inserts.push({
           user_id: userId,
           profile_id: profileId,
           file_path: filePath,
@@ -284,27 +351,60 @@ function ImportPage() {
           ocr_status: "queued",
           status: "pending",
         });
-        if (insErr) throw new Error(insErr.message);
-        imported++;
       } catch (e) {
         errors++;
         console.error("import row", i, e);
       }
-      setProgress(Math.round(((i + 1) / valid.length) * 100));
+      setProgress(Math.round(((i + 1) / valid.length) * 80));
+    }
+
+    // Batch insert em blocos de 100
+    setProgressLabel("Registrando lançamentos…");
+    for (let i = 0; i < inserts.length; i += 100) {
+      const chunk = inserts.slice(i, i + 100);
+      const { error, count } = await supabase.from("receipts").insert(chunk, { count: "exact" });
+      if (error) { errors += chunk.length; console.error("batch insert", error); }
+      else { imported += count ?? chunk.length; }
+      setProgress(80 + Math.round(((i + chunk.length) / Math.max(inserts.length, 1)) * 20));
     }
 
     await supabase.from("audit_logs").insert({
       user_id: userId,
       action: "import.bulk",
       entity: "receipts",
-      metadata: { imported, withReceipt, errors, total: parsed.length } as never,
+      metadata: { imported, withReceipt, errors, duplicates: duplicates.length, total: parsed.length } as never,
     });
 
-    setReport({ imported, withReceipt, withoutReceipt: imported - withReceipt, unusedFiles: unusedFiles.length, errors });
+    setReport({
+      totalRows: parsed.length,
+      imported,
+      withReceipt,
+      withoutReceipt: Math.max(imported - withReceipt, 0),
+      unusedFiles: unusedFiles.length,
+      duplicates: duplicates.length,
+      errors,
+      validationErrors: withErrors.length,
+    });
     setImporting(false);
+    setProgress(100);
+    setProgressLabel("Concluído");
     setStep(6);
     toast.success(`Importação concluída: ${imported} lançamentos`);
-  }, [parsed, profileId, unusedFiles.length]);
+  }, [parsed, profileId, unusedFiles.length, duplicates.length, withErrors.length]);
+
+  const exportPendingCSV = useCallback(() => {
+    const rows = [
+      ["data", "valor", "destinatario", "banco", "categoria", "descricao", "motivo"],
+      ...noReceipt.map((p) => [p.payment_date ?? "", String(p.amount ?? ""), p.recipient_name ?? "", p.bank_name ?? "", p.category ?? "", p.description ?? "", "sem_comprovante"]),
+      ...withErrors.map((p) => [p.payment_date ?? "", String(p.amount ?? ""), p.recipient_name ?? "", p.bank_name ?? "", p.category ?? "", p.description ?? "", p.errors.join("; ")]),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "pendencias-importacao.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }, [noReceipt, withErrors]);
 
   if (!can) {
     return (
@@ -332,7 +432,8 @@ function ImportPage() {
       {step === 1 && (
         <Card className="p-6 space-y-4">
           <div className="flex items-center gap-2 font-medium"><FileSpreadsheet className="h-4 w-4" /> Passo 1 — Envie a planilha</div>
-          <Input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => e.target.files?.[0] && handleSheet(e.target.files[0])} />
+          <Input type="file" accept=".xlsx,.xls,.csv" disabled={parsingSheet} onChange={(e) => e.target.files?.[0] && handleSheet(e.target.files[0])} />
+          {parsingSheet && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Lendo planilha…</div>}
           <p className="text-xs text-muted-foreground">Formatos aceitos: XLSX, XLS, CSV. O sistema lerá as colunas e mostrará uma prévia.</p>
         </Card>
       )}
@@ -377,17 +478,17 @@ function ImportPage() {
       {step === 3 && (
         <Card className="p-6 space-y-4">
           <div className="flex items-center gap-2 font-medium"><Files className="h-4 w-4" /> Passo 3 — Envie os comprovantes</div>
-          <Input type="file" multiple accept="image/*,application/pdf,.zip" onChange={(e) => e.target.files && handleReceipts(Array.from(e.target.files))} />
+          <Input type="file" multiple accept="image/*,application/pdf,.zip" disabled={extractingZip} onChange={(e) => e.target.files && handleReceipts(Array.from(e.target.files))} />
+          {extractingZip && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Extraindo arquivos…</div>}
           <p className="text-xs text-muted-foreground">Envie arquivos soltos (PDF, JPG, PNG, WebP) ou um ZIP com toda a pasta.</p>
           {receiptFiles.length > 0 && (
             <div className="text-sm">Total: <strong>{receiptFiles.length}</strong> arquivos ({(receiptFiles.reduce((a, f) => a + f.size, 0) / 1024 / 1024).toFixed(1)} MB)</div>
           )}
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => { setStep(4); runCross(); }}>Pular / cruzar sem novos comprovantes</Button>
-              <Button onClick={() => { setStep(4); runCross(); }}>Cruzar dados</Button>
-            </div>
+            <Button onClick={runCross} disabled={crossing}>
+              {crossing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Cruzando…</> : receiptFiles.length ? "Cruzar dados" : "Continuar sem comprovantes"}
+            </Button>
           </div>
         </Card>
       )}
@@ -401,6 +502,7 @@ function ImportPage() {
               <Badge variant="secondary">Parciais: {partial.length}</Badge>
               <Badge variant="secondary">Sem comprovante: {noReceipt.length}</Badge>
               <Badge variant="secondary">Sem lançamento: {unusedFiles.length}</Badge>
+              <Badge variant="secondary">Duplicidades: {duplicates.length}</Badge>
               <Badge variant="destructive">Erros: {withErrors.length}</Badge>
             </div>
           </div>
@@ -423,11 +525,13 @@ function ImportPage() {
               <TabsTrigger value="partial">Parciais ({partial.length})</TabsTrigger>
               <TabsTrigger value="noreceipt">Sem comprovante ({noReceipt.length})</TabsTrigger>
               <TabsTrigger value="unused">Sem lançamento ({unusedFiles.length})</TabsTrigger>
+              <TabsTrigger value="dup">Duplicidades ({duplicates.length})</TabsTrigger>
               <TabsTrigger value="err">Erros ({withErrors.length})</TabsTrigger>
             </TabsList>
             <TabsContent value="ok"><MatchTable rows={identified} /></TabsContent>
             <TabsContent value="partial"><MatchTable rows={partial} /></TabsContent>
             <TabsContent value="noreceipt"><MatchTable rows={noReceipt} /></TabsContent>
+            <TabsContent value="dup"><MatchTable rows={duplicates} /></TabsContent>
             <TabsContent value="unused">
               <ul className="text-sm divide-y">
                 {unusedFiles.map((f, i) => (
@@ -446,13 +550,31 @@ function ImportPage() {
             </TabsContent>
           </Tabs>
 
-          {importing && <Progress value={progress} />}
+          {importing && (
+            <div className="space-y-1">
+              <Progress value={progress} />
+              <div className="text-xs text-muted-foreground">{progressLabel} · {progress}%</div>
+            </div>
+          )}
+
+          <div className="rounded-md border p-3 bg-muted/30 text-xs space-y-1">
+            <div className="font-medium">Resumo antes de importar</div>
+            <div>Total na planilha: {parsed.length}</div>
+            <div>Serão importados: {parsed.length - withErrors.length - duplicates.length}</div>
+            <div>Com comprovante: {identified.length + partial.length}</div>
+            <div>Sem comprovante: {noReceipt.length}</div>
+            <div>Duplicidades ignoradas: {duplicates.length}</div>
+            <div>Erros de validação: {withErrors.length}</div>
+          </div>
 
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setStep(3)} disabled={importing}>Voltar</Button>
-            <Button onClick={runImport} disabled={importing || !profileId}>
-              {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importando…</> : <><UploadCloud className="h-4 w-4 mr-2" /> Importar {parsed.length - withErrors.length} lançamentos</>}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={exportPendingCSV} disabled={importing}><Download className="h-4 w-4 mr-2" /> Baixar pendências</Button>
+              <Button onClick={runImport} disabled={importing || !profileId || parsed.length - withErrors.length - duplicates.length === 0}>
+                {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importando…</> : <><UploadCloud className="h-4 w-4 mr-2" /> Importar {parsed.length - withErrors.length - duplicates.length} lançamentos</>}
+              </Button>
+            </div>
           </div>
         </Card>
       )}
@@ -460,14 +582,18 @@ function ImportPage() {
       {report && (
         <Card className="p-6 space-y-4">
           <div className="flex items-center gap-2 font-medium"><CheckCircle2 className="h-4 w-4 text-primary" /> Relatório de importação</div>
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <Stat label="Linhas na planilha" value={report.totalRows} />
             <Stat label="Importados" value={report.imported} />
             <Stat label="Com comprovante" value={report.withReceipt} />
             <Stat label="Sem comprovante" value={report.withoutReceipt} />
             <Stat label="Comprovantes não usados" value={report.unusedFiles} />
+            <Stat label="Duplicidades ignoradas" value={report.duplicates} />
+            <Stat label="Erros de validação" value={report.validationErrors} tone={report.validationErrors ? "warn" : undefined} />
             <Stat label="Erros" value={report.errors} tone={report.errors ? "warn" : undefined} />
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={exportPendingCSV}><Download className="h-4 w-4 mr-2" /> Baixar pendências CSV</Button>
             <Button variant="outline" onClick={() => { setStep(1); setFile(null); setRows([]); setHeaders([]); setParsed([]); setReceiptFiles([]); setUnusedFiles([]); setReport(null); }}>
               Nova importação
             </Button>
