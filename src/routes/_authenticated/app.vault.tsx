@@ -219,8 +219,13 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
         if (!cancelled) setState("ready");
       } catch (error) {
         if (!cancelled) {
-          setErrorText(error instanceof Error ? error.message : String(error));
-          setState("error");
+          const canvas = canvasRef.current;
+          if (canvas && canvas.width > 0 && canvas.height > 0) {
+            setState("ready");
+          } else {
+            setErrorText(error instanceof Error ? error.message : String(error));
+            setState("error");
+          }
         }
       }
     })();
