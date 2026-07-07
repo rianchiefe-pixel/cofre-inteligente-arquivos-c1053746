@@ -760,9 +760,13 @@ function VaultPage() {
                     <div className="grid h-[520px] place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando prévia…</div>
                   ) : preview.url ? (
                     inferMime(editing.file_name, editing.file_mime).startsWith("image/") ? (
-                      <img src={preview.url} alt="Comprovante" className="max-h-[520px] w-full rounded object-contain" onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
+                      <ZoomPanFrame>
+                        <img src={preview.url} alt="Comprovante" className="block max-w-none rounded" draggable={false} style={{ maxHeight: "none" }} onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
+                      </ZoomPanFrame>
                     ) : inferMime(editing.file_name, editing.file_mime) === "application/pdf" ? (
-                      <PdfCanvasPreview url={preview.url} fileName={editing.file_name} />
+                      <ZoomPanFrame>
+                        <PdfCanvasPreview url={preview.url} fileName={editing.file_name} />
+                      </ZoomPanFrame>
                     ) : (
                       <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
                         <div><FileText className="mx-auto mb-2 h-8 w-8" /> Este tipo de arquivo deve ser aberto ou baixado para conferência.</div>
