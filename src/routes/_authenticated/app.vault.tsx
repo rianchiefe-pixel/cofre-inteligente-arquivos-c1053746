@@ -15,10 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@/lib/format";
-import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, Loader2, Inbox, Copy, Archive, Trash2, GitCompareArrows } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, Loader2, Inbox, Copy, Archive, Trash2, GitCompareArrows, Download, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts } from "@/lib/receipts.functions";
+import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts, analyzeReceipt } from "@/lib/receipts.functions";
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
 
@@ -29,6 +29,157 @@ export const Route = createFileRoute("/_authenticated/app/vault")({
 });
 
 type QuickFilter = "all" | "pending" | "suspected" | "high_dup" | "approved" | "rejected" | "archived";
+
+type PreviewState = {
+  loading: boolean;
+  url: string | null;
+  downloadUrl: string | null;
+  error: string | null;
+  isObjectUrl?: boolean;
+};
+
+const EMPTY_PREVIEW: PreviewState = { loading: false, url: null, downloadUrl: null, error: null, isObjectUrl: false };
+
+function stripAccents(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function normalizeDateValue(value: unknown): string | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  const br = text.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})/);
+  if (br) {
+    const year = br[3].length === 2 ? `20${br[3]}` : br[3];
+    return `${year}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  }
+  return null;
+}
+
+function normalizeAmountValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const text = value.replace(/R\$/gi, "").replace(/\s/g, "").trim();
+  if (!text) return null;
+  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
+  const parsed = Number(normalized.replace(/[^\d.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizePaymentValue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = stripAccents(value);
+  if (!text) return null;
+  if (text.includes("pix") || text.includes("e2e")) return "pix";
+  if (text.includes("boleto") || text.includes("codigo de barras")) return "boleto";
+  if (text.includes("ted")) return "ted";
+  if (text.includes("deb")) return "debito";
+  if (text.includes("parcel")) return "credito_parcelado";
+  if (text.includes("cred")) return "credito_vista";
+  if (text.includes("dinheiro") || text.includes("especie")) return "dinheiro";
+  if (text.includes("transf") || text.includes("doc")) return "transferencia";
+  return "outro";
+}
+
+function normalizeTransactionValue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = stripAccents(value).replace(/[\s-]+/g, "_");
+  if (!text) return null;
+  if (text.includes("invest")) return "investimento";
+  if (text.includes("fix")) return "gasto_fixo";
+  if (text.includes("vari")) return "gasto_variavel";
+  if (text.includes("pessoal")) return "pessoal";
+  if (text.includes("empresa")) return "empresarial";
+  if (text.includes("patrim")) return "patrimonial";
+  if (text.includes("desp")) return "despesa";
+  return null;
+}
+
+function deepFind(source: unknown, aliases: string[], depth = 0): unknown {
+  if (!source || typeof source !== "object" || depth > 4) return null;
+  const record = source as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    const normalized = stripAccents(key).replace(/[\s_-]+/g, "");
+    if (aliases.some((alias) => normalized === stripAccents(alias).replace(/[\s_-]+/g, ""))) return record[key];
+  }
+  for (const value of Object.values(record)) {
+    if (value && typeof value === "object") {
+      const found = deepFind(value, aliases, depth + 1);
+      if (found != null && found !== "") return found;
+    }
+  }
+  return null;
+}
+
+function firstText(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return null;
+}
+
+function buildAutoDescription(receipt: any) {
+  if (receipt.description) return receipt.description;
+  const parts: string[] = [];
+  const recipient = receipt.recipient_name ? `para ${receipt.recipient_name}` : null;
+  const amount = receipt.amount != null ? `no valor de ${currencyBRL(Number(receipt.amount))}` : null;
+  const date = receipt.payment_date ? `realizado em ${dateBR(receipt.payment_date)}` : null;
+  const by = receipt.bank_name ? `pelo banco ${receipt.bank_name}` : receipt.payment_method ? `via ${paymentMethodLabel[receipt.payment_method as keyof typeof paymentMethodLabel] ?? receipt.payment_method}` : null;
+  if (recipient) parts.push(recipient);
+  if (amount) parts.push(amount);
+  if (date) parts.push(date);
+  if (by) parts.push(by);
+  if (parts.length) return `Pagamento ${parts.join(", ")}.`;
+  return receipt.file_name ? `Comprovante ${receipt.file_name}` : null;
+}
+
+function hydrateReceiptForConference(receipt: any, categories: any[] = [], properties: any[] = []) {
+  const ocr = receipt.ocr_data && typeof receipt.ocr_data === "object" ? receipt.ocr_data : {};
+  const hydrated = { ...receipt };
+  hydrated.payment_date = hydrated.payment_date ?? normalizeDateValue(deepFind(ocr, ["payment_date", "data_pagamento", "data", "detected_date"]));
+  hydrated.amount = hydrated.amount ?? normalizeAmountValue(deepFind(ocr, ["amount", "valor", "valor_pago", "detected_amount"]));
+  hydrated.recipient_name = hydrated.recipient_name ?? firstText(deepFind(ocr, ["recipient_name", "beneficiario", "favorecido", "destinatario", "payee", "detected_payee"]));
+  hydrated.recipient_tax_id = hydrated.recipient_tax_id ?? firstText(deepFind(ocr, ["recipient_tax_id", "cpf_cnpj", "documento"]));
+  hydrated.bank_name = hydrated.bank_name ?? firstText(deepFind(ocr, ["bank_name", "banco", "banco_origem", "detected_bank"]));
+  hydrated.auth_code = hydrated.auth_code ?? firstText(deepFind(ocr, ["auth_code", "codigo_autenticacao", "autenticacao", "id_transacao", "e2e"]));
+  hydrated.payment_method = hydrated.payment_method ?? normalizePaymentValue(deepFind(ocr, ["payment_method", "forma_pagamento", "metodo_pagamento"]));
+  hydrated.transaction_type = hydrated.transaction_type ?? normalizeTransactionValue(deepFind(ocr, ["transaction_type", "tipo_transacao", "tipo"]));
+  hydrated.description = hydrated.description ?? firstText(deepFind(ocr, ["description", "descricao", "historico"]));
+
+  const suggestedCategory = firstText(deepFind(ocr, ["suggested_category", "categoria_sugerida", "categoria", "category"]));
+  if (!hydrated.category_id && suggestedCategory) {
+    hydrated.category_id = categories.find((c) => stripAccents(c.name) === stripAccents(suggestedCategory))?.id ?? null;
+  }
+  const suggestedProperty = firstText(deepFind(ocr, ["property", "imovel", "imovel_vinculado", "property_name"]));
+  if (!hydrated.property_id && suggestedProperty) {
+    hydrated.property_id = properties.find((p) => stripAccents(p.name) === stripAccents(suggestedProperty))?.id ?? null;
+  }
+  hydrated.description = buildAutoDescription(hydrated);
+  return hydrated;
+}
+
+function getStoragePath(receipt: any) {
+  const raw = firstText(receipt.file_path, receipt.storage_path, receipt.file_url);
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) {
+    const match = raw.match(/\/object\/(?:sign|public)\/receipts\/([^?]+)/);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  }
+  return raw.replace(/^\/+/, "").replace(/^receipts\//, "");
+}
+
+function inferMime(name?: string | null, mime?: string | null) {
+  if (mime) return mime;
+  const lower = (name ?? "").toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return "application/octet-stream";
+}
 
 function statusBadge(s: string) {
   if (s === "approved") return <Badge className="bg-success text-success-foreground hover:bg-success">Aprovado</Badge>;
@@ -51,6 +202,7 @@ function VaultPage() {
   const navigate = Route.useNavigate();
   const approve = useServerFn(approveReceipt);
   const reject = useServerFn(rejectReceipt);
+  const analyze = useServerFn(analyzeReceipt);
   const bulkAction = useServerFn(bulkReceiptAction);
   const bulkUpdate = useServerFn(bulkUpdateReceipts);
   const bulkDelete = useServerFn(deleteReceipts);
@@ -65,9 +217,17 @@ function VaultPage() {
   const [categoryId, setCategoryId] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<any | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PreviewState>(EMPTY_PREVIEW);
   const [compareId, setCompareId] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [rejectNote, setRejectNote] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (preview.isObjectUrl && preview.url) URL.revokeObjectURL(preview.url);
+    };
+  }, [preview.isObjectUrl, preview.url]);
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const categories = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [] });
@@ -149,9 +309,40 @@ function VaultPage() {
   };
 
   const openEdit = async (r: any) => {
-    setEditing(r);
-    const { data } = await supabase.storage.from("receipts").createSignedUrl(r.file_path, 60 * 10);
-    setPreview(data?.signedUrl ?? null);
+    const hydrated = hydrateReceiptForConference(r, categories.data ?? [], properties.data ?? []);
+    setEditing(hydrated);
+    setRejectNote("");
+    setPreview({ ...EMPTY_PREVIEW, loading: true });
+
+    const patch: any = {};
+    for (const key of ["payment_date", "amount", "recipient_name", "recipient_tax_id", "bank_name", "auth_code", "payment_method", "transaction_type", "description", "category_id", "property_id"] as const) {
+      if ((r[key] == null || r[key] === "") && hydrated[key] != null && hydrated[key] !== "") patch[key] = hydrated[key];
+    }
+    if (Object.keys(patch).length) {
+      await supabase.from("receipts").update(patch).eq("id", r.id);
+      qc.invalidateQueries({ queryKey: ["receipts"] });
+    }
+
+    const path = getStoragePath(hydrated);
+    if (!path) {
+      setPreview({ loading: false, url: null, downloadUrl: null, error: "Este comprovante não tem caminho de arquivo salvo." });
+      return;
+    }
+    const [{ data, error }, downloadResult, downloaded] = await Promise.all([
+      supabase.storage.from("receipts").createSignedUrl(path, 60 * 10),
+      (supabase.storage.from("receipts") as any).createSignedUrl(path, 60 * 10, { download: hydrated.file_name ?? true }),
+      supabase.storage.from("receipts").download(path),
+    ]);
+    if (downloaded.error || !downloaded.data) {
+      setPreview({ loading: false, url: data?.signedUrl ?? null, downloadUrl: downloadResult?.data?.signedUrl ?? data?.signedUrl ?? null, error: downloaded.error?.message ?? "Arquivo não encontrado no storage receipts.", isObjectUrl: false });
+      return;
+    }
+    const objectUrl = URL.createObjectURL(downloaded.data);
+    if (error || !data?.signedUrl) {
+      setPreview({ loading: false, url: objectUrl, downloadUrl: objectUrl, error: error?.message ?? null, isObjectUrl: true });
+      return;
+    }
+    setPreview({ loading: false, url: objectUrl, downloadUrl: downloadResult?.data?.signedUrl ?? data.signedUrl, error: null, isObjectUrl: true });
   };
 
   // Deep-link: open a specific receipt's review dialog via ?receipt=<id>
@@ -183,10 +374,76 @@ function VaultPage() {
     mutationFn: async (patch: any) => {
       const { error } = await supabase.from("receipts").update(patch).eq("id", editing.id);
       if (error) throw error;
+      setEditing((prev: any) => (prev ? { ...prev, ...patch } : prev));
     },
     onSuccess: () => { toast.success("Salvo"); qc.invalidateQueries({ queryKey: ["receipts"] }); },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const createCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name || !editing) return;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) return toast.error("Sessão expirada");
+    const { data, error } = await supabase
+      .from("categories")
+      .insert({ user_id: userId, name, default_type: editing.transaction_type ?? "gasto_variavel" })
+      .select("id, name")
+      .single();
+    if (error || !data) return toast.error(error?.message ?? "Não foi possível criar a categoria");
+    setNewCategoryName("");
+    updateReceipt.mutate({ category_id: data.id });
+    qc.invalidateQueries({ queryKey: ["categories"] });
+    toast.success("Categoria criada");
+  };
+
+  const analyzeCurrentReceipt = async () => {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      const res = await analyze({ data: { receiptId: editing.id } });
+      if (!res.ok) throw new Error(res.error ?? "Não foi possível analisar o comprovante");
+      const { data } = await supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").eq("id", editing.id).single();
+      if (data) await openEdit(data);
+      invalidate();
+      toast.success("Comprovante analisado");
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha ao analisar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const approveCurrentReceipt = async () => {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      await approve({ data: { receiptId: editing.id } });
+      toast.success("Aprovado");
+      invalidate();
+      setEditing(null);
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha ao aprovar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const rejectCurrentReceipt = async () => {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      await reject({ data: { receiptId: editing.id, reason: "rejected", note: rejectNote || undefined } });
+      toast.success("Comprovante rejeitado");
+      invalidate();
+      setEditing(null);
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha ao rejeitar");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-6 pb-24">
@@ -363,22 +620,39 @@ function VaultPage() {
       <CompareDialog receiptId={compareId} onClose={() => setCompareId(null)} onChanged={invalidate} />
 
       {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) { setEditing(null); setPreview(null); } }}>
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) { setEditing(null); setPreview(EMPTY_PREVIEW); setRejectNote(""); } }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Conferência do comprovante</DialogTitle></DialogHeader>
           {editing && (
             <div className="grid gap-6 md:grid-cols-[1fr_1.2fr]">
               <div className="rounded-lg border border-border bg-muted/40 p-2">
-                {preview ? (
-                  editing.file_mime?.startsWith("image/") ? (
-                    <img src={preview} alt="Comprovante" className="max-h-[520px] w-full rounded object-contain" />
+                <div className="min-h-[520px] overflow-hidden rounded bg-background/50">
+                  {preview.loading ? (
+                    <div className="grid h-[520px] place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando prévia…</div>
+                  ) : preview.url ? (
+                    inferMime(editing.file_name, editing.file_mime).startsWith("image/") ? (
+                      <img src={preview.url} alt="Comprovante" className="max-h-[520px] w-full rounded object-contain" onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
+                    ) : inferMime(editing.file_name, editing.file_mime) === "application/pdf" ? (
+                      <object data={preview.url} type="application/pdf" className="h-[520px] w-full rounded">
+                        <iframe src={preview.url} title="Comprovante" className="h-[520px] w-full rounded" />
+                      </object>
+                    ) : (
+                      <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
+                        <div><FileText className="mx-auto mb-2 h-8 w-8" /> Este tipo de arquivo deve ser aberto ou baixado para conferência.</div>
+                      </div>
+                    )
                   ) : (
-                    <iframe src={preview} title="Comprovante" className="h-[520px] w-full rounded" />
-                  )
-                ) : (
-                  <div className="grid h-[520px] place-items-center text-sm text-muted-foreground"><FileText className="mr-2 h-4 w-4" /> Carregando prévia…</div>
-                )}
-                {preview && <a href={preview} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline">Abrir em nova aba <ExternalLink className="h-3 w-3" /></a>}
+                    <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
+                      <div><FileText className="mx-auto mb-2 h-8 w-8" /> {preview.error ?? "Não foi possível carregar a prévia do comprovante."}</div>
+                    </div>
+                  )}
+                </div>
+                {preview.error && preview.url && <p className="mt-2 text-xs text-destructive">{preview.error}</p>}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {preview.url && <Button asChild variant="outline" size="sm"><a href={preview.url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir em nova aba</a></Button>}
+                  {preview.downloadUrl && <Button asChild variant="outline" size="sm"><a href={preview.downloadUrl} download={editing.file_name ?? true}><Download className="h-4 w-4" /> Baixar comprovante</a></Button>}
+                  {editing.ocr_status !== "done" && <Button variant="outline" size="sm" onClick={analyzeCurrentReceipt} disabled={busy}><RefreshCw className="h-4 w-4" /> Analisar comprovante agora</Button>}
+                </div>
               </div>
 
               <div className="space-y-3 text-sm">
@@ -422,8 +696,19 @@ function VaultPage() {
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>{(categories.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
+                  <div className="flex gap-2 pt-1">
+                    <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Nova categoria" />
+                    <Button type="button" variant="outline" size="icon" onClick={createCategory} disabled={!newCategoryName.trim()} title="Criar categoria"><Plus className="h-4 w-4" /></Button>
+                  </div>
                 </div>
                 <div className="space-y-1"><Label>Descrição</Label><Textarea defaultValue={editing.description ?? ""} onBlur={(e) => updateReceipt.mutate({ description: e.target.value || null })} /></div>
+                <div className="space-y-1">
+                  <Label>Perfil financeiro</Label>
+                  <Select defaultValue={editing.profile_id ?? undefined} onValueChange={(v) => updateReceipt.mutate({ profile_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
+                    <SelectContent>{(profiles.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1">
                   <Label>Imóvel vinculado</Label>
                   <Select defaultValue={editing.property_id ?? "none"} onValueChange={(v) => updateReceipt.mutate({ property_id: v === "none" ? null : v })}>
@@ -445,15 +730,35 @@ function VaultPage() {
                         <AlertDialogTitle>Rejeitar este comprovante?</AlertDialogTitle>
                         <AlertDialogDescription>Ele não entrará no dashboard nem nos relatórios.</AlertDialogDescription>
                       </AlertDialogHeader>
+                      <div className="space-y-2 py-2">
+                        <Label>Motivo da rejeição</Label>
+                        <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="Descreva o motivo, se necessário" />
+                      </div>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Voltar</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => { await reject({ data: { receiptId: editing.id, reason: "rejected" } }); toast.success("Comprovante rejeitado"); invalidate(); setEditing(null); }}>Confirmar</AlertDialogAction>
+                        <AlertDialogAction onClick={rejectCurrentReceipt}>Confirmar</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>}
-                  {canApprove && <Button variant="success" onClick={async () => { await approve({ data: { receiptId: editing.id } }); toast.success("Aprovado"); invalidate(); setEditing(null); }}>
-                    <CheckCircle2 className="h-4 w-4" /> Aprovar
-                  </Button>}
+                  {canApprove && editing.duplicate_score >= 50 ? (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="success" disabled={busy}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Possível duplicidade detectada</AlertDialogTitle>
+                          <AlertDialogDescription>Este comprovante parece semelhante a outro já salvo. Confirme somente se revisou o arquivo, valor, data, destinatário, banco e código de autenticação.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Voltar</AlertDialogCancel>
+                          <AlertDialogAction onClick={approveCurrentReceipt}>Aprovar mesmo assim</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  ) : canApprove ? (
+                    <Button variant="success" onClick={approveCurrentReceipt} disabled={busy}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
+                  ) : null}
                 </div>
               </div>
             </div>
