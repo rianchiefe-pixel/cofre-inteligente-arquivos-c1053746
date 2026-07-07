@@ -475,6 +475,13 @@ function ImportPage() {
         <p className="text-sm text-muted-foreground">Migre planilhas antigas com centenas de lançamentos e cruze automaticamente com seus comprovantes.</p>
       </header>
 
+      <Tabs defaultValue="new" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="new"><UploadCloud className="h-4 w-4 mr-1" /> Nova importação</TabsTrigger>
+          <TabsTrigger value="history"><History className="h-4 w-4 mr-1" /> Histórico</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="new" className="space-y-6">
       <ol className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
         {["Planilha", "Mapeamento", "Comprovantes", "Cruzamento", "Revisão", "Relatório"].map((label, i) => (
           <li key={label} className={`rounded-md border px-2 py-1.5 text-center ${step >= i + 1 ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground"}`}>
@@ -656,6 +663,12 @@ function ImportPage() {
       )}
 
       {file && step < 5 && <p className="text-xs text-muted-foreground">Planilha: {file.name}</p>}
+        </TabsContent>
+
+        <TabsContent value="history">
+          <HistoryTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
