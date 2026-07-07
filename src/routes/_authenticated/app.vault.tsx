@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@/lib/format";
-import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, Loader2, Inbox, Copy, Archive, Trash2, GitCompareArrows, Download, Plus, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, Loader2, Inbox, Copy, Archive, Trash2, GitCompareArrows, Download, Plus, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts, analyzeReceipt } from "@/lib/receipts.functions";
@@ -186,9 +186,64 @@ function hasExtractedConferenceData(receipt: any) {
   return Boolean(receipt.payment_date || receipt.amount != null || receipt.recipient_name || receipt.bank_name || receipt.auth_code || receipt.payment_method || receipt.transaction_type || receipt.category_id);
 }
 
+function ZoomPanFrame({ children }: { children: React.ReactNode }) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const dragRef = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
+
+  const clamp = (v: number) => Math.min(4, Math.max(0.4, v));
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    dragRef.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+    el.style.cursor = "grabbing";
+  };
+  const onMouseMove = (e: React.MouseEvent) => {
+    const d = dragRef.current;
+    const el = scrollRef.current;
+    if (!d || !el) return;
+    el.scrollLeft = d.sl - (e.clientX - d.x);
+    el.scrollTop = d.st - (e.clientY - d.y);
+  };
+  const endDrag = () => {
+    dragRef.current = null;
+    if (scrollRef.current) scrollRef.current.style.cursor = "grab";
+  };
+  const onWheel = (e: React.WheelEvent) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    setZoom((z) => clamp(z + (e.deltaY < 0 ? 0.15 : -0.15)));
+  };
+
+  return (
+    <div className="relative h-[520px]">
+      <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md border border-border bg-background/90 p-1 shadow-sm backdrop-blur">
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom((z) => clamp(z - 0.2))} title="Diminuir zoom"><ZoomOut className="h-4 w-4" /></Button>
+        <span className="min-w-[3rem] self-center text-center text-xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom((z) => clamp(z + 0.2))} title="Aumentar zoom"><ZoomIn className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(1)} title="Redefinir zoom"><Maximize2 className="h-4 w-4" /></Button>
+      </div>
+      <div
+        ref={scrollRef}
+        className="h-full w-full select-none overflow-auto rounded bg-background"
+        style={{ cursor: "grab" }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={endDrag}
+        onMouseLeave={endDrag}
+        onWheel={onWheel}
+      >
+        <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", display: "inline-block" }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
@@ -212,14 +267,16 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
         const page = await pdf.getPage(1);
         if (cancelled || !canvasRef.current) return;
         const baseViewport = page.getViewport({ scale: 1 });
-        const availableWidth = Math.max((wrapRef.current?.clientWidth ?? 460) - 24, 280);
-        const scale = Math.min(Math.max(availableWidth / baseViewport.width, 0.8), 2.2);
+        // Render at high resolution so zooming stays sharp
+        const scale = Math.min(Math.max(900 / baseViewport.width, 1.5), 3);
         const viewport = page.getViewport({ scale });
         const canvas = canvasRef.current;
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        // Display at a comfortable base size; ZoomPanFrame handles zoom.
+        const displayWidth = Math.min(460, Math.floor(viewport.width));
+        canvas.style.width = `${displayWidth}px`;
+        canvas.style.height = "auto";
         hasCanvas = true;
         setCanvasReady(true);
         await page.render({ canvas, viewport }).promise;
@@ -245,10 +302,10 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
   }, [url]);
 
   return (
-    <div ref={wrapRef} className="relative grid h-[520px] place-items-start overflow-auto rounded bg-background p-3">
-      {state === "loading" && !canvasReady && <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando PDF…</div>}
-      {failedBeforeCanvas && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
-      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className="mx-auto rounded shadow-sm" />
+    <div className="relative p-3">
+      {state === "loading" && !canvasReady && <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando PDF…</div>}
+      {failedBeforeCanvas && <div className="p-6 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div>}
+      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className="rounded shadow-sm" draggable={false} />
     </div>
   );
 }
@@ -703,9 +760,13 @@ function VaultPage() {
                     <div className="grid h-[520px] place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando prévia…</div>
                   ) : preview.url ? (
                     inferMime(editing.file_name, editing.file_mime).startsWith("image/") ? (
-                      <img src={preview.url} alt="Comprovante" className="max-h-[520px] w-full rounded object-contain" onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
+                      <ZoomPanFrame>
+                        <img src={preview.url} alt="Comprovante" className="block max-w-none rounded" draggable={false} style={{ maxHeight: "none" }} onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
+                      </ZoomPanFrame>
                     ) : inferMime(editing.file_name, editing.file_mime) === "application/pdf" ? (
-                      <PdfCanvasPreview url={preview.url} fileName={editing.file_name} />
+                      <ZoomPanFrame>
+                        <PdfCanvasPreview url={preview.url} fileName={editing.file_name} />
+                      </ZoomPanFrame>
                     ) : (
                       <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
                         <div><FileText className="mx-auto mb-2 h-8 w-8" /> Este tipo de arquivo deve ser aberto ou baixado para conferência.</div>
