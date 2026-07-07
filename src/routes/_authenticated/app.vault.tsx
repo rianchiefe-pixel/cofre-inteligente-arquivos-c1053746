@@ -239,8 +239,8 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
   return (
     <div ref={wrapRef} className="relative grid h-[520px] place-items-start overflow-auto rounded bg-background p-3">
       {state === "loading" && <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando PDF…</div>}
-      {state === "error" && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
-      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className={state === "ready" ? "mx-auto rounded shadow-sm" : "invisible"} />
+      {state === "error" && !canvasRef.current?.width && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
+      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className={state === "loading" ? "invisible" : "mx-auto rounded shadow-sm"} />
     </div>
   );
 }
