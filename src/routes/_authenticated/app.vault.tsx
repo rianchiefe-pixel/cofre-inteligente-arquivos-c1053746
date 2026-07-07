@@ -811,7 +811,9 @@ function VaultPage() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {preview.url && <Button asChild variant="outline" size="sm"><a href={preview.url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir em nova aba</a></Button>}
                   {preview.downloadUrl && <Button asChild variant="outline" size="sm"><a href={preview.downloadUrl} download={editing.file_name ?? true}><Download className="h-4 w-4" /> Baixar comprovante</a></Button>}
-                  {(editing.ocr_status !== "done" || !hasExtractedConferenceData(editing)) && <Button variant="outline" size="sm" onClick={analyzeCurrentReceipt} disabled={busy}><RefreshCw className="h-4 w-4" /> Analisar comprovante agora</Button>}
+                  <Button variant="outline" size="sm" onClick={analyzeCurrentReceipt} disabled={busy}>
+                    <RefreshCw className="h-4 w-4" /> {hasExtractedConferenceData(editing) ? "Reanalisar com IA" : "Analisar comprovante agora"}
+                  </Button>
                 </div>
               </div>
 
