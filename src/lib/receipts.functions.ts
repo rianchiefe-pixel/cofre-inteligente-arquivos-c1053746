@@ -70,9 +70,9 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       { type: "text", text: "Extraia com precisão os dados deste comprovante financeiro brasileiro. Devolva apenas o JSON estruturado. Se um campo não estiver visível, use null." },
     ];
     if (isImage) {
-      contentBlocks.push({ type: "image", image: `data:${mime};base64,${base64}`, mediaType: mime });
+      contentBlocks.push({ type: "image", image: base64, mediaType: mime });
     } else {
-      contentBlocks.push({ type: "file", data: `data:${mime};base64,${base64}`, mediaType: mime, filename: rec.file_name ?? "receipt.pdf" });
+      contentBlocks.push({ type: "file", data: base64, mediaType: mime, filename: rec.file_name ?? "receipt.pdf" });
     }
 
     const gateway = createLovableAiGatewayProvider(key);
@@ -317,7 +317,7 @@ export const approveReceipt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id").eq("id", data.receiptId).single();
+    const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id, notes").eq("id", data.receiptId).single();
     const { error } = await context.supabase
       .from("receipts")
       .update({ status: "approved", approved_at: new Date().toISOString() })
@@ -333,15 +333,15 @@ export const approveReceipt = createServerFn({ method: "POST" })
 
 export const rejectReceipt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid(), reason: z.enum(["rejected", "duplicate"]).default("rejected") }).parse(data))
+  .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid(), reason: z.enum(["rejected", "duplicate"]).default("rejected"), note: z.string().optional() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id").eq("id", data.receiptId).single();
-    const { error } = await context.supabase.from("receipts").update({ status: data.reason }).eq("id", data.receiptId);
+    const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id, notes").eq("id", data.receiptId).single();
+    const { error } = await context.supabase.from("receipts").update({ status: data.reason, notes: data.note ?? prev?.notes ?? null }).eq("id", data.receiptId);
     if (error) throw new Error(error.message);
     await logAudit(context.supabase, context.userId, {
       action: data.reason === "duplicate" ? "marked_duplicate" : "rejected", entity: "receipt", entity_id: data.receiptId,
       profile_id: prev?.profile_id, property_id: prev?.property_id,
-      old_value: { status: prev?.status }, new_value: { status: data.reason },
+      old_value: { status: prev?.status }, new_value: { status: data.reason, note: data.note ?? null }, note: data.note ?? null,
     });
     return { ok: true };
   });
