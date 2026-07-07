@@ -14,11 +14,14 @@ import { Progress } from "@/components/ui/progress";
 import { UploadCloud, FileSpreadsheet, Files, Loader2, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useCan } from "@/lib/permissions";
+import { useCan, useRoles, hasPermission } from "@/lib/permissions";
 import type { Database } from "@/integrations/supabase/types";
 
 type ReceiptInsert = Database["public"]["Tables"]["receipts"]["Insert"];
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { History, Undo2, Eye } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/import")({
   head: () => ({ meta: [{ title: "Importação Inteligente — Meu Cofre" }] }),
@@ -312,6 +315,36 @@ function ImportPage() {
     const valid = parsed.filter((p) => p.errors.length === 0 && !p.duplicate);
     let imported = 0, withReceipt = 0, errors = 0;
     const inserts: ReceiptInsert[] = [];
+
+    // Cria o registro do lote antes de importar
+    const { data: batch, error: batchErr } = await supabase
+      .from("import_batches")
+      .insert({
+        user_id: userId,
+        profile_id: profileId,
+        file_name: file?.name ?? null,
+        total_rows: parsed.length,
+        duplicate_count: duplicates.length,
+        error_count: withErrors.length,
+        status: "running",
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+    if (batchErr || !batch) {
+      setImporting(false);
+      console.error("batch create", batchErr);
+      return toast.error("Falha ao registrar o lote de importação");
+    }
+    const batchId = batch.id;
+    await supabase.from("audit_logs").insert({
+      user_id: userId,
+      action: "import.batch.created",
+      entity: "import_batch",
+      entity_id: batchId,
+      profile_id: profileId,
+      note: `Lote iniciado: ${file?.name ?? "planilha"} · ${parsed.length} linhas`,
+    });
     setProgressLabel("Enviando comprovantes…");
 
     for (let i = 0; i < valid.length; i++) {
@@ -339,6 +372,7 @@ function ImportPage() {
         inserts.push({
           user_id: userId,
           profile_id: profileId,
+          import_batch_id: batchId,
           file_path: filePath,
           file_name: fileName,
           file_mime: fileMime,
@@ -371,14 +405,7 @@ function ImportPage() {
       setProgress(80 + Math.round(((i + chunk.length) / Math.max(inserts.length, 1)) * 20));
     }
 
-    await supabase.from("audit_logs").insert({
-      user_id: userId,
-      action: "import.bulk",
-      entity: "receipts",
-      metadata: { imported, withReceipt, errors, duplicates: duplicates.length, total: parsed.length } as never,
-    });
-
-    setReport({
+    const finalReport = {
       totalRows: parsed.length,
       imported,
       withReceipt,
@@ -387,13 +414,37 @@ function ImportPage() {
       duplicates: duplicates.length,
       errors,
       validationErrors: withErrors.length,
+    };
+
+    await supabase.from("import_batches").update({
+      status: errors > 0 ? "completed_with_errors" : "completed",
+      imported_count: imported,
+      with_receipt_count: withReceipt,
+      without_receipt_count: Math.max(imported - withReceipt, 0),
+      unused_files_count: unusedFiles.length,
+      duplicate_count: duplicates.length,
+      error_count: errors,
+      finished_at: new Date().toISOString(),
+      summary_json: finalReport as never,
+    }).eq("id", batchId);
+
+    await supabase.from("audit_logs").insert({
+      user_id: userId,
+      action: "import.batch.completed",
+      entity: "import_batch",
+      entity_id: batchId,
+      profile_id: profileId,
+      new_value: finalReport as never,
+      note: `Importação concluída · ${imported} lançamentos`,
     });
+
+    setReport(finalReport);
     setImporting(false);
     setProgress(100);
     setProgressLabel("Concluído");
     setStep(6);
     toast.success(`Importação concluída: ${imported} lançamentos`);
-  }, [parsed, profileId, unusedFiles.length, duplicates.length, withErrors.length]);
+  }, [parsed, profileId, unusedFiles.length, duplicates.length, withErrors.length, file, duplicates, withErrors]);
 
   const exportPendingCSV = useCallback(() => {
     const rows = [
@@ -424,6 +475,13 @@ function ImportPage() {
         <p className="text-sm text-muted-foreground">Migre planilhas antigas com centenas de lançamentos e cruze automaticamente com seus comprovantes.</p>
       </header>
 
+      <Tabs defaultValue="new" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="new"><UploadCloud className="h-4 w-4 mr-1" /> Nova importação</TabsTrigger>
+          <TabsTrigger value="history"><History className="h-4 w-4 mr-1" /> Histórico</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="new" className="space-y-6">
       <ol className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
         {["Planilha", "Mapeamento", "Comprovantes", "Cruzamento", "Revisão", "Relatório"].map((label, i) => (
           <li key={label} className={`rounded-md border px-2 py-1.5 text-center ${step >= i + 1 ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground"}`}>
@@ -605,6 +663,12 @@ function ImportPage() {
       )}
 
       {file && step < 5 && <p className="text-xs text-muted-foreground">Planilha: {file.name}</p>}
+        </TabsContent>
+
+        <TabsContent value="history">
+          <HistoryTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -645,6 +709,323 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "wa
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-2xl font-semibold">{value}</div>
       {tone === "warn" && value > 0 && <AlertTriangle className="h-3 w-3 text-destructive mt-1" />}
+    </div>
+  );
+}
+
+type BatchRow = {
+  id: string;
+  user_id: string;
+  profile_id: string | null;
+  file_name: string | null;
+  total_rows: number;
+  imported_count: number;
+  with_receipt_count: number;
+  without_receipt_count: number;
+  unused_files_count: number;
+  duplicate_count: number;
+  error_count: number;
+  status: string;
+  created_at: string;
+  finished_at: string | null;
+  summary_json: unknown;
+};
+
+function HistoryTab() {
+  const qc = useQueryClient();
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const batches = useQuery({
+    queryKey: ["import-batches"],
+    queryFn: async (): Promise<BatchRow[]> => {
+      const { data, error } = await supabase
+        .from("import_batches")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as unknown as BatchRow[];
+    },
+  });
+
+  const profiles = useQuery({
+    queryKey: ["profiles-map"],
+    queryFn: async () => {
+      const { data } = await supabase.from("financial_profiles").select("id, name");
+      const map = new Map<string, string>();
+      (data ?? []).forEach((p) => map.set(p.id, p.name));
+      return map;
+    },
+  });
+
+  return (
+    <Card className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="font-medium flex items-center gap-2"><History className="h-4 w-4" /> Histórico de importações</div>
+        <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["import-batches"] })}>Atualizar</Button>
+      </div>
+      {batches.isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</div>}
+      {!batches.isLoading && (batches.data ?? []).length === 0 && (
+        <p className="text-sm text-muted-foreground">Nenhuma importação registrada ainda.</p>
+      )}
+      {(batches.data ?? []).length > 0 && (
+        <div className="rounded-md border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Planilha</TableHead>
+                <TableHead>Perfil</TableHead>
+                <TableHead className="text-right">Linhas</TableHead>
+                <TableHead className="text-right">Importados</TableHead>
+                <TableHead className="text-right">C/ compr.</TableHead>
+                <TableHead className="text-right">S/ compr.</TableHead>
+                <TableHead className="text-right">Dupls</TableHead>
+                <TableHead className="text-right">Erros</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(batches.data ?? []).map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell className="text-xs whitespace-nowrap">{new Date(b.created_at).toLocaleString("pt-BR")}</TableCell>
+                  <TableCell className="text-xs">{b.file_name ?? "—"}</TableCell>
+                  <TableCell className="text-xs">{b.profile_id ? profiles.data?.get(b.profile_id) ?? "—" : "—"}</TableCell>
+                  <TableCell className="text-xs text-right">{b.total_rows}</TableCell>
+                  <TableCell className="text-xs text-right">{b.imported_count}</TableCell>
+                  <TableCell className="text-xs text-right">{b.with_receipt_count}</TableCell>
+                  <TableCell className="text-xs text-right">{b.without_receipt_count}</TableCell>
+                  <TableCell className="text-xs text-right">{b.duplicate_count}</TableCell>
+                  <TableCell className="text-xs text-right">{b.error_count}</TableCell>
+                  <TableCell><StatusBadge status={b.status} /></TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="ghost" onClick={() => setOpenId(b.id)}>
+                      <Eye className="h-4 w-4 mr-1" /> Detalhes
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      {openId && <BatchDetailDialog batchId={openId} onClose={() => setOpenId(null)} />}
+    </Card>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    running: { label: "Em andamento", variant: "secondary" },
+    completed: { label: "Concluída", variant: "default" },
+    completed_with_errors: { label: "Com erros", variant: "destructive" },
+    undone: { label: "Desfeita", variant: "outline" },
+  };
+  const s = map[status] ?? { label: status, variant: "secondary" as const };
+  return <Badge variant={s.variant}>{s.label}</Badge>;
+}
+
+function BatchDetailDialog({ batchId, onClose }: { batchId: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: roles } = useRoles();
+  const canUndo = hasPermission(roles, "manageEntities") && (roles ?? []).some((r) => r === "proprietario" || r === "administrador");
+
+  const batch = useQuery({
+    queryKey: ["import-batch", batchId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("import_batches").select("*").eq("id", batchId).maybeSingle();
+      if (error) throw error;
+      return data as unknown as BatchRow | null;
+    },
+  });
+
+  const receipts = useQuery({
+    queryKey: ["import-batch-receipts", batchId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("receipts")
+        .select("id, payment_date, amount, recipient_name, bank_name, file_name, file_path, status")
+        .eq("import_batch_id", batchId)
+        .order("payment_date", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const undo = useMutation({
+    mutationFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id;
+      if (!uid) throw new Error("Sessão expirada");
+      // Arquivar lançamentos deste batch (sem apagar arquivos do storage)
+      const { error } = await supabase
+        .from("receipts")
+        .update({ status: "archived" })
+        .eq("import_batch_id", batchId)
+        .eq("user_id", uid);
+      if (error) throw error;
+      const { error: bErr } = await supabase
+        .from("import_batches")
+        .update({ status: "undone", finished_at: new Date().toISOString() })
+        .eq("id", batchId)
+        .eq("user_id", uid);
+      if (bErr) throw bErr;
+      await supabase.from("audit_logs").insert({
+        user_id: uid,
+        action: "import.batch.undone",
+        entity: "import_batch",
+        entity_id: batchId,
+        note: "Importação desfeita: lançamentos arquivados",
+      });
+    },
+    onSuccess: async () => {
+      toast.success("Importação desfeita");
+      await qc.invalidateQueries({ queryKey: ["import-batches"] });
+      await qc.invalidateQueries({ queryKey: ["import-batch", batchId] });
+      await qc.invalidateQueries({ queryKey: ["import-batch-receipts", batchId] });
+    },
+    onError: async (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Falha ao desfazer";
+      toast.error(msg);
+      const { data: u } = await supabase.auth.getUser();
+      if (u.user?.id) {
+        await supabase.from("audit_logs").insert({
+          user_id: u.user.id,
+          action: "import.batch.undo_failed",
+          entity: "import_batch",
+          entity_id: batchId,
+          note: msg,
+        });
+      }
+    },
+  });
+
+  const rs = receipts.data ?? [];
+  const withR = rs.filter((r: any) => r.file_name);
+  const withoutR = rs.filter((r: any) => !r.file_name);
+  const b = batch.data;
+
+  const exportBatchCSV = (rows: any[], name: string, headers: string[], get: (r: any) => (string | number | null)[]) => {
+    const csv = [headers, ...rows.map(get)]
+      .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${name}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Detalhes da importação</DialogTitle>
+          <DialogDescription>
+            {b?.file_name ?? "—"} · {b && new Date(b.created_at).toLocaleString("pt-BR")}
+          </DialogDescription>
+        </DialogHeader>
+
+        {batch.isLoading && <div className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</div>}
+
+        {b && (
+          <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-4">
+              <Stat label="Linhas" value={b.total_rows} />
+              <Stat label="Importados" value={b.imported_count} />
+              <Stat label="Com comprovante" value={b.with_receipt_count} />
+              <Stat label="Sem comprovante" value={b.without_receipt_count} />
+              <Stat label="Comprovantes não usados" value={b.unused_files_count} />
+              <Stat label="Duplicidades" value={b.duplicate_count} />
+              <Stat label="Erros" value={b.error_count} tone={b.error_count ? "warn" : undefined} />
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-muted-foreground">Status</div>
+                <div className="mt-1"><StatusBadge status={b.status} /></div>
+              </div>
+            </div>
+
+            <Tabs defaultValue="all">
+              <TabsList className="flex-wrap">
+                <TabsTrigger value="all">Lançamentos ({rs.length})</TabsTrigger>
+                <TabsTrigger value="with">Com comprovante ({withR.length})</TabsTrigger>
+                <TabsTrigger value="without">Sem comprovante ({withoutR.length})</TabsTrigger>
+              </TabsList>
+              <TabsContent value="all"><ReceiptsMiniTable rows={rs} /></TabsContent>
+              <TabsContent value="with"><ReceiptsMiniTable rows={withR} /></TabsContent>
+              <TabsContent value="without"><ReceiptsMiniTable rows={withoutR} /></TabsContent>
+            </Tabs>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => exportBatchCSV(rs, "importacao-lancamentos",
+                ["data", "valor", "destinatario", "banco", "arquivo", "status"],
+                (r) => [r.payment_date, r.amount, r.recipient_name, r.bank_name, r.file_name, r.status])}>
+                <Download className="h-4 w-4 mr-1" /> CSV lançamentos
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => exportBatchCSV(withoutR, "importacao-pendencias",
+                ["data", "valor", "destinatario", "banco"],
+                (r) => [r.payment_date, r.amount, r.recipient_name, r.bank_name])}>
+                <Download className="h-4 w-4 mr-1" /> CSV pendências
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="flex-wrap gap-2">
+          {canUndo && b && b.status !== "undone" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={undo.isPending}>
+                  <Undo2 className="h-4 w-4 mr-1" /> Desfazer importação
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Desfazer esta importação?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Essa ação removerá os lançamentos e vínculos criados por esta importação. Os arquivos permanecem no cofre. Deseja continuar?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => undo.mutate()}>Confirmar</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ReceiptsMiniTable({ rows }: { rows: any[] }) {
+  if (!rows.length) return <p className="text-xs text-muted-foreground py-4">Nenhum registro</p>;
+  return (
+    <div className="rounded-md border overflow-x-auto max-h-80">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Data</TableHead><TableHead>Valor</TableHead><TableHead>Destinatário</TableHead>
+            <TableHead>Banco</TableHead><TableHead>Arquivo</TableHead><TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.slice(0, 500).map((r) => (
+            <TableRow key={r.id}>
+              <TableCell className="text-xs">{r.payment_date ?? "—"}</TableCell>
+              <TableCell className="text-xs">{r.amount != null ? Number(r.amount).toFixed(2) : "—"}</TableCell>
+              <TableCell className="text-xs">{r.recipient_name ?? "—"}</TableCell>
+              <TableCell className="text-xs">{r.bank_name ?? "—"}</TableCell>
+              <TableCell className="text-xs">{r.file_name ?? "—"}</TableCell>
+              <TableCell className="text-xs">{r.status}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {rows.length > 500 && <p className="p-2 text-xs text-muted-foreground">Mostrando primeiros 500 de {rows.length}.</p>}
     </div>
   );
 }
