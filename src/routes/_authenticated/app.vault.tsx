@@ -334,7 +334,7 @@ function VaultPage() {
       supabase.storage.from("receipts").download(path),
     ]);
     if (downloaded.error || !downloaded.data) {
-      setPreview({ loading: false, url: data?.signedUrl ?? null, downloadUrl: downloadResult?.data?.signedUrl ?? data?.signedUrl ?? null, error: downloaded.error?.message ?? "Arquivo não encontrado no storage receipts.", isObjectUrl: false });
+      setPreview({ loading: false, url: null, downloadUrl: null, error: `Arquivo não encontrado no bucket receipts para o caminho: ${path}`, isObjectUrl: false });
       return;
     }
     const objectUrl = URL.createObjectURL(downloaded.data);
