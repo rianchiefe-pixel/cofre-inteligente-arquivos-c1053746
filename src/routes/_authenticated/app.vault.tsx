@@ -193,14 +193,14 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
 
   useEffect(() => {
     let cancelled = false;
-    let task: { destroy: () => Promise<void> } | null = null;
+    let task: any = null;
 
     (async () => {
       try {
         setState("loading");
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-        task = pdfjs.getDocument(url) as unknown as { promise: Promise<any>; destroy: () => Promise<void> };
+        task = pdfjs.getDocument({ url });
         const pdf = await task.promise;
         const page = await pdf.getPage(1);
         if (cancelled || !canvasRef.current) return;
