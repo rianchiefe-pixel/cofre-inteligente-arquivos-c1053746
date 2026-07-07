@@ -209,13 +209,11 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
         const scale = Math.min(Math.max(availableWidth / baseViewport.width, 0.8), 2.2);
         const viewport = page.getViewport({ scale });
         const canvas = canvasRef.current;
-        const context = canvas.getContext("2d");
-        if (!context) throw new Error("Canvas indisponível");
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
         canvas.style.width = `${Math.floor(viewport.width)}px`;
         canvas.style.height = `${Math.floor(viewport.height)}px`;
-        await page.render({ canvasContext: context, viewport }).promise;
+        await page.render({ canvas, viewport }).promise;
         if (!cancelled) setState("ready");
       } catch {
         if (!cancelled) setState("error");
