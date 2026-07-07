@@ -68,7 +68,20 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
     // shape so PDFs and images both reach Gemini as real content.
     const isImage = mime.startsWith("image/");
     const dataUrl = `data:${mime};base64,${base64}`;
-    const promptText = "Você recebe um comprovante financeiro brasileiro (PDF ou imagem). Extraia com precisão os dados e devolva APENAS um objeto JSON com as chaves: payment_date (YYYY-MM-DD ou null), amount (número em reais ou null), recipient_name, recipient_tax_id (só dígitos), bank_name, payment_method (um de: debito, credito_vista, credito_parcelado, pix, ted, boleto, dinheiro, transferencia, outro, ou null), description, auth_code, suggested_category, transaction_type (um de: despesa, investimento, gasto_fixo, gasto_variavel, pessoal, empresarial, patrimonial, ou null). Se um campo não estiver visível, use null. Não inclua texto fora do JSON.";
+    const promptText = [
+      "Você recebe um comprovante financeiro brasileiro (PDF ou imagem). Leia o documento inteiro antes de responder e NÃO invente dados.",
+      "",
+      "Regra CRÍTICA para bancos e partes envolvidas — leia com atenção:",
+      "- O comprovante tem sempre duas partes: o PAGADOR (quem enviou o dinheiro, geralmente sob os rótulos 'De', 'Pagador', 'Origem', 'Débito em', 'Conta debitada', 'Remetente') e o DESTINATÁRIO / FAVORECIDO (quem recebeu, sob 'Para', 'Destinatário', 'Favorecido', 'Beneficiário', 'Crédito em', 'Recebedor').",
+      "- 'bank_name' = banco de ORIGEM do pagamento = banco do PAGADOR (a instituição que aparece junto ao bloco 'De/Pagador/Origem', ou o banco que emitiu o próprio comprovante — ex: se o comprovante é do Itaú e mostra o CPF do pagador, o bank_name é 'ITAÚ UNIBANCO S.A.').",
+      "- 'recipient_name' e 'recipient_tax_id' = dados do DESTINATÁRIO (bloco 'Para/Favorecido'). NUNCA copie o banco do destinatário para bank_name.",
+      "- Se houver dúvida entre dois bancos, escolha o que está associado ao PAGADOR/DÉBITO, não ao crédito.",
+      "- Se o banco de origem não estiver claramente visível, retorne null em bank_name — é melhor null do que errado.",
+      "",
+      "Devolva APENAS um objeto JSON (sem texto fora do JSON, sem markdown) com as chaves:",
+      "payment_date (YYYY-MM-DD ou null), amount (número em reais, use ponto como separador decimal e sem separador de milhar, ou null), recipient_name, recipient_tax_id (só dígitos), bank_name (banco do PAGADOR, conforme regra acima), payment_method (um de: debito, credito_vista, credito_parcelado, pix, ted, boleto, dinheiro, transferencia, outro, ou null), description, auth_code (ID da transação / autenticação / E2E), suggested_category, transaction_type (um de: despesa, investimento, gasto_fixo, gasto_variavel, pessoal, empresarial, patrimonial, ou null).",
+      "Se um campo não estiver visível, use null.",
+    ].join("\n");
     const userContent: any[] = [{ type: "text", text: promptText }];
     if (isImage) {
       userContent.push({ type: "image_url", image_url: { url: dataUrl } });
