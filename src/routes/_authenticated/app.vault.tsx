@@ -196,6 +196,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
   useEffect(() => {
     let cancelled = false;
     let task: any = null;
+    let hasCanvas = false;
 
     (async () => {
       try {
@@ -217,12 +218,13 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
         canvas.height = Math.floor(viewport.height);
         canvas.style.width = `${Math.floor(viewport.width)}px`;
         canvas.style.height = `${Math.floor(viewport.height)}px`;
+        hasCanvas = true;
         setCanvasReady(true);
         await page.render({ canvas, viewport }).promise;
         if (!cancelled) setState("ready");
       } catch (error) {
         if (!cancelled) {
-          if (canvasReady || (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0)) {
+          if (hasCanvas || (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0)) {
             setState("ready");
           } else {
             setErrorText(error instanceof Error ? error.message : String(error));
@@ -236,7 +238,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
       cancelled = true;
       task?.destroy().catch(() => undefined);
     };
-  }, [url, canvasReady]);
+  }, [url]);
 
   return (
     <div ref={wrapRef} className="relative grid h-[520px] place-items-start overflow-auto rounded bg-background p-3">
