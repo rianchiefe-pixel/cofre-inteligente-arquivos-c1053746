@@ -70,9 +70,9 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       { type: "text", text: "Extraia com precisão os dados deste comprovante financeiro brasileiro. Devolva apenas o JSON estruturado. Se um campo não estiver visível, use null." },
     ];
     if (isImage) {
-      contentBlocks.push({ type: "image", image: `data:${mime};base64,${base64}`, mediaType: mime });
+      contentBlocks.push({ type: "image", image: base64, mediaType: mime });
     } else {
-      contentBlocks.push({ type: "file", data: `data:${mime};base64,${base64}`, mediaType: mime, filename: rec.file_name ?? "receipt.pdf" });
+      contentBlocks.push({ type: "file", data: base64, mediaType: mime, filename: rec.file_name ?? "receipt.pdf" });
     }
 
     const gateway = createLovableAiGatewayProvider(key);
