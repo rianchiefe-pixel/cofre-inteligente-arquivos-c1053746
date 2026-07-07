@@ -845,7 +845,6 @@ function BatchDetailDialog({ batchId, onClose }: { batchId: string; onClose: () 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("receipts")
-        // @ts-expect-error import_batch_id was just added; types may lag
         .select("id, payment_date, amount, recipient_name, bank_name, file_name, file_path, status")
         .eq("import_batch_id", batchId)
         .order("payment_date", { ascending: false })
@@ -864,7 +863,6 @@ function BatchDetailDialog({ batchId, onClose }: { batchId: string; onClose: () 
       const { error } = await supabase
         .from("receipts")
         .update({ status: "archived" })
-        // @ts-expect-error import_batch_id was just added; types may lag
         .eq("import_batch_id", batchId)
         .eq("user_id", uid);
       if (error) throw error;
