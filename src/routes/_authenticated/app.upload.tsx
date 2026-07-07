@@ -157,12 +157,27 @@ function UploadPage() {
                   {it.status === "done" && <CheckCircle2 className="h-4 w-4 text-success" />}
                   {it.status === "duplicate" && <AlertTriangle className="h-4 w-4 text-accent" />}
                   {it.status === "error" && <AlertTriangle className="h-4 w-4 text-destructive" />}
+                  {it.receiptId && (it.status === "done" || it.status === "duplicate") && (
+                    <Button asChild variant="ghost" size="sm">
+                      <Link to="/app/vault" search={{ receipt: it.receiptId }}>Conferir</Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-4 flex justify-end">
-            <Button asChild variant="premium"><Link to="/app/vault">Ir para conferência</Link></Button>
+            <Button asChild variant="premium">
+              <Link
+                to="/app/vault"
+                search={(() => {
+                  const last = [...items].reverse().find((x) => x.receiptId && (x.status === "done" || x.status === "duplicate"));
+                  return last?.receiptId ? { receipt: last.receiptId } : {};
+                })()}
+              >
+                Ir para conferência
+              </Link>
+            </Button>
           </div>
         </Card>
       )}
