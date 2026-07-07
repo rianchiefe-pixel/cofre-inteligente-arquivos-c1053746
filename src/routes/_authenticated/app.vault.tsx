@@ -181,6 +181,10 @@ function inferMime(name?: string | null, mime?: string | null) {
   return "application/octet-stream";
 }
 
+function hasExtractedConferenceData(receipt: any) {
+  return Boolean(receipt.payment_date || receipt.amount != null || receipt.recipient_name || receipt.bank_name || receipt.auth_code || receipt.payment_method || receipt.transaction_type || receipt.category_id);
+}
+
 function statusBadge(s: string) {
   if (s === "approved") return <Badge className="bg-success text-success-foreground hover:bg-success">Aprovado</Badge>;
   if (s === "duplicate") return <Badge className="bg-orange-500 text-white hover:bg-orange-500">Duplicado</Badge>;
