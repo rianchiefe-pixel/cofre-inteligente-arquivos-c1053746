@@ -79,6 +79,102 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
     const model = gateway("google/gemini-2.5-flash");
 
     let extracted: z.infer<typeof ExtractSchema> | null = null;
+    const normalizeDate = (value: unknown): string | null => {
+      if (typeof value !== "string") return null;
+      const text = value.trim();
+      if (!text) return null;
+      const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+      const br = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+      if (br) {
+        const day = br[1].padStart(2, "0");
+        const month = br[2].padStart(2, "0");
+        const year = br[3].length === 2 ? `20${br[3]}` : br[3];
+        return `${year}-${month}-${day}`;
+      }
+      return null;
+    };
+    const normalizeAmount = (value: unknown): number | null => {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value !== "string") return null;
+      const cleaned = value.replace(/R\$/gi, "").replace(/\s/g, "").trim();
+      if (!cleaned) return null;
+      const normalized = cleaned.includes(",")
+        ? cleaned.replace(/\./g, "").replace(",", ".")
+        : cleaned;
+      const parsed = Number(normalized.replace(/[^\d.-]/g, ""));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    const normalizeString = (value: unknown): string | null => {
+      if (typeof value !== "string") return null;
+      const text = value.trim();
+      return text ? text : null;
+    };
+    const withoutAccents = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalizePaymentMethod = (value: unknown): z.infer<typeof ExtractSchema>["payment_method"] => {
+      const text = normalizeString(value);
+      if (!text) return null;
+      const normalized = withoutAccents(text);
+      if (normalized.includes("pix") || normalized.includes("e2e")) return "pix";
+      if (normalized.includes("boleto") || normalized.includes("codigo de barras")) return "boleto";
+      if (normalized.includes("ted")) return "ted";
+      if (normalized.includes("deb")) return "debito";
+      if (normalized.includes("parcel")) return "credito_parcelado";
+      if (normalized.includes("cred")) return "credito_vista";
+      if (normalized.includes("dinheiro") || normalized.includes("especie")) return "dinheiro";
+      if (normalized.includes("transf") || normalized.includes("doc")) return "transferencia";
+      return "outro";
+    };
+    const normalizeTransactionType = (value: unknown): z.infer<typeof ExtractSchema>["transaction_type"] => {
+      const text = normalizeString(value);
+      if (!text) return null;
+      const normalized = withoutAccents(text).replace(/[\s-]+/g, "_");
+      if (normalized.includes("invest")) return "investimento";
+      if (normalized.includes("fix")) return "gasto_fixo";
+      if (normalized.includes("vari")) return "gasto_variavel";
+      if (normalized.includes("pessoal")) return "pessoal";
+      if (normalized.includes("empresa")) return "empresarial";
+      if (normalized.includes("patrim")) return "patrimonial";
+      if (normalized.includes("desp")) return "despesa";
+      return null;
+    };
+    const normalizeExtracted = (raw: Record<string, unknown>): z.infer<typeof ExtractSchema> => ({
+      payment_date: normalizeDate(raw.payment_date ?? raw.data_pagamento ?? raw.data),
+      amount: normalizeAmount(raw.amount ?? raw.valor ?? raw.valor_pago),
+      recipient_name: normalizeString(raw.recipient_name ?? raw.beneficiario ?? raw.favorecido ?? raw.destinatario),
+      recipient_tax_id: normalizeString(raw.recipient_tax_id ?? raw.cpf_cnpj ?? raw.documento)?.replace(/\D/g, "") || null,
+      bank_name: normalizeString(raw.bank_name ?? raw.banco),
+      payment_method: normalizePaymentMethod(raw.payment_method ?? raw.metodo_pagamento ?? raw.forma_pagamento),
+      description: normalizeString(raw.description ?? raw.descricao ?? raw.historico),
+      auth_code: normalizeString(raw.auth_code ?? raw.codigo_autenticacao ?? raw.id_transacao ?? raw.e2e),
+      suggested_category: normalizeString(raw.suggested_category ?? raw.categoria_sugerida ?? raw.categoria),
+      transaction_type: normalizeTransactionType(raw.transaction_type ?? raw.tipo_transacao ?? raw.tipo),
+    });
+    const parseGeneratedJson = (raw: string | undefined): z.infer<typeof ExtractSchema> | null => {
+      if (!raw) return null;
+      let cleaned = raw
+        .replace(/^```json\s*/im, "")
+        .replace(/^```\s*/im, "")
+        .replace(/```\s*$/im, "")
+        .trim();
+      if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) {
+        const objStart = cleaned.indexOf("{");
+        const arrStart = cleaned.indexOf("[");
+        const isArray = arrStart !== -1 && (objStart === -1 || arrStart < objStart);
+        const start = isArray ? arrStart : objStart;
+        const end = isArray ? cleaned.lastIndexOf("]") : cleaned.lastIndexOf("}");
+        if (start === -1 || end <= start) return null;
+        cleaned = cleaned.slice(start, end + 1);
+      }
+      try {
+        const parsed = JSON.parse(cleaned);
+        const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (!obj || typeof obj !== "object") return null;
+        return normalizeExtracted(obj as Record<string, unknown>);
+      } catch {
+        return null;
+      }
+    };
     try {
       const { output } = await generateText({
         model,
@@ -89,11 +185,15 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (NoObjectGeneratedError.isInstance(e)) {
-        await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: "IA não retornou JSON válido" }).eq("id", rec.id);
+        extracted = parseGeneratedJson(e.text);
+        if (!extracted) {
+          await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente." }).eq("id", rec.id);
+          return { ok: false, duplicate_of: null, error: "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente." };
+        }
       } else {
         await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: msg }).eq("id", rec.id);
+        return { ok: false, duplicate_of: null, error: msg };
       }
-      throw new Error(msg);
     }
 
     // Look for existing category by name (case-insensitive)
