@@ -14,11 +14,14 @@ import { Progress } from "@/components/ui/progress";
 import { UploadCloud, FileSpreadsheet, Files, Loader2, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useCan } from "@/lib/permissions";
+import { useCan, useRoles, hasPermission } from "@/lib/permissions";
 import type { Database } from "@/integrations/supabase/types";
 
 type ReceiptInsert = Database["public"]["Tables"]["receipts"]["Insert"];
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { History, Undo2, Eye } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/import")({
   head: () => ({ meta: [{ title: "Importação Inteligente — Meu Cofre" }] }),
