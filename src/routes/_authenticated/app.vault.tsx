@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -183,6 +184,73 @@ function inferMime(name?: string | null, mime?: string | null) {
 
 function hasExtractedConferenceData(receipt: any) {
   return Boolean(receipt.payment_date || receipt.amount != null || receipt.recipient_name || receipt.bank_name || receipt.auth_code || receipt.payment_method || receipt.transaction_type || receipt.category_id);
+}
+
+function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | null }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [canvasReady, setCanvasReady] = useState(false);
+  const [failedBeforeCanvas, setFailedBeforeCanvas] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let task: any = null;
+    let hasCanvas = false;
+
+    (async () => {
+      try {
+        setState("loading");
+        setErrorText(null);
+        setCanvasReady(false);
+        setFailedBeforeCanvas(false);
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        task = pdfjs.getDocument({ url });
+        const pdf = await task.promise;
+        const page = await pdf.getPage(1);
+        if (cancelled || !canvasRef.current) return;
+        const baseViewport = page.getViewport({ scale: 1 });
+        const availableWidth = Math.max((wrapRef.current?.clientWidth ?? 460) - 24, 280);
+        const scale = Math.min(Math.max(availableWidth / baseViewport.width, 0.8), 2.2);
+        const viewport = page.getViewport({ scale });
+        const canvas = canvasRef.current;
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        hasCanvas = true;
+        setCanvasReady(true);
+        await page.render({ canvas, viewport }).promise;
+        if (!cancelled) setState("ready");
+      } catch (error) {
+        if (!cancelled) {
+          if (hasCanvas || (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0)) {
+            setCanvasReady(true);
+            setState("ready");
+          } else {
+            setErrorText(error instanceof Error ? error.message : String(error));
+            setFailedBeforeCanvas(true);
+            setState("error");
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      task?.destroy().catch(() => undefined);
+    };
+  }, [url]);
+
+  return (
+    <div ref={wrapRef} className="relative grid h-[520px] place-items-start overflow-auto rounded bg-background p-3">
+      {state === "loading" && !canvasReady && <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando PDF…</div>}
+      {failedBeforeCanvas && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
+      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className="mx-auto rounded shadow-sm" />
+    </div>
+  );
 }
 
 function statusBadge(s: string) {
@@ -637,9 +705,7 @@ function VaultPage() {
                     inferMime(editing.file_name, editing.file_mime).startsWith("image/") ? (
                       <img src={preview.url} alt="Comprovante" className="max-h-[520px] w-full rounded object-contain" onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
                     ) : inferMime(editing.file_name, editing.file_mime) === "application/pdf" ? (
-                      <object data={preview.url} type="application/pdf" className="h-[520px] w-full rounded">
-                        <iframe src={preview.url} title="Comprovante" className="h-[520px] w-full rounded" />
-                      </object>
+                      <PdfCanvasPreview url={preview.url} fileName={editing.file_name} />
                     ) : (
                       <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
                         <div><FileText className="mx-auto mb-2 h-8 w-8" /> Este tipo de arquivo deve ser aberto ou baixado para conferência.</div>
