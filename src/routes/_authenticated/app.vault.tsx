@@ -883,6 +883,9 @@ function VaultPage() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setEditing(null); setPreview(EMPTY_PREVIEW); setRejectNote(""); toast.info("Comprovante mantido como pendente. Você pode conferir depois."); }} disabled={busy}>
+                    <Inbox className="h-4 w-4" /> Conferir depois
+                  </Button>
                   {canApprove && <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline"><XCircle className="h-4 w-4" /> Rejeitar</Button>
