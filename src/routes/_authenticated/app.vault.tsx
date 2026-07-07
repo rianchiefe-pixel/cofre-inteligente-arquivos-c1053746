@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -183,6 +184,57 @@ function inferMime(name?: string | null, mime?: string | null) {
 
 function hasExtractedConferenceData(receipt: any) {
   return Boolean(receipt.payment_date || receipt.amount != null || receipt.recipient_name || receipt.bank_name || receipt.auth_code || receipt.payment_method || receipt.transaction_type || receipt.category_id);
+}
+
+function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | null }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    let task: { destroy: () => Promise<void> } | null = null;
+
+    (async () => {
+      try {
+        setState("loading");
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        task = pdfjs.getDocument(url) as unknown as { promise: Promise<any>; destroy: () => Promise<void> };
+        const pdf = await task.promise;
+        const page = await pdf.getPage(1);
+        if (cancelled || !canvasRef.current) return;
+        const baseViewport = page.getViewport({ scale: 1 });
+        const availableWidth = Math.max((wrapRef.current?.clientWidth ?? 460) - 24, 280);
+        const scale = Math.min(Math.max(availableWidth / baseViewport.width, 0.8), 2.2);
+        const viewport = page.getViewport({ scale });
+        const canvas = canvasRef.current;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Canvas indisponível");
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        await page.render({ canvasContext: context, viewport }).promise;
+        if (!cancelled) setState("ready");
+      } catch {
+        if (!cancelled) setState("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      task?.destroy().catch(() => undefined);
+    };
+  }, [url]);
+
+  return (
+    <div ref={wrapRef} className="relative grid h-[520px] place-items-start overflow-auto rounded bg-background p-3">
+      {state === "loading" && <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando PDF…</div>}
+      {state === "error" && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.</div></div>}
+      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className={state === "ready" ? "mx-auto rounded shadow-sm" : "invisible"} />
+    </div>
+  );
 }
 
 function statusBadge(s: string) {
