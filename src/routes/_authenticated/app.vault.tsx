@@ -190,6 +190,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -198,6 +199,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
     (async () => {
       try {
         setState("loading");
+        setErrorText(null);
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
         task = pdfjs.getDocument({ url });
@@ -215,8 +217,11 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
         canvas.style.height = `${Math.floor(viewport.height)}px`;
         await page.render({ canvas, viewport }).promise;
         if (!cancelled) setState("ready");
-      } catch {
-        if (!cancelled) setState("error");
+      } catch (error) {
+        if (!cancelled) {
+          setErrorText(error instanceof Error ? error.message : String(error));
+          setState("error");
+        }
       }
     })();
 
@@ -229,7 +234,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
   return (
     <div ref={wrapRef} className="relative grid h-[520px] place-items-start overflow-auto rounded bg-background p-3">
       {state === "loading" && <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando PDF…</div>}
-      {state === "error" && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.</div></div>}
+      {state === "error" && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
       <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className={state === "ready" ? "mx-auto rounded shadow-sm" : "invisible"} />
     </div>
   );
