@@ -188,10 +188,28 @@ function hasExtractedConferenceData(receipt: any) {
 
 function ZoomPanFrame({ children }: { children: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const sizerRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [natural, setNatural] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const dragRef = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
 
   const clamp = (v: number) => Math.min(4, Math.max(0.4, v));
+
+  useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.scrollWidth;
+      const h = el.scrollHeight;
+      if (w && h) setNatural((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    const id = window.setInterval(measure, 500);
+    return () => { ro.disconnect(); window.clearInterval(id); };
+  }, []);
 
   const onMouseDown = (e: React.MouseEvent) => {
     const el = scrollRef.current;
@@ -226,7 +244,7 @@ function ZoomPanFrame({ children }: { children: React.ReactNode }) {
       </div>
       <div
         ref={scrollRef}
-        className="h-full w-full select-none overflow-auto rounded bg-background"
+        className="h-full w-full select-none overflow-scroll rounded bg-background"
         style={{ cursor: "grab" }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
@@ -234,8 +252,19 @@ function ZoomPanFrame({ children }: { children: React.ReactNode }) {
         onMouseLeave={endDrag}
         onWheel={onWheel}
       >
-        <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", display: "inline-block" }}>
-          {children}
+        <div
+          ref={sizerRef}
+          style={{
+            width: natural.w ? natural.w * zoom : undefined,
+            height: natural.h ? natural.h * zoom : undefined,
+          }}
+        >
+          <div
+            ref={innerRef}
+            style={{ transform: `scale(${zoom})`, transformOrigin: "top left", display: "inline-block" }}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </div>
