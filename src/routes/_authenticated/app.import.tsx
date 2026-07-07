@@ -315,6 +315,36 @@ function ImportPage() {
     const valid = parsed.filter((p) => p.errors.length === 0 && !p.duplicate);
     let imported = 0, withReceipt = 0, errors = 0;
     const inserts: ReceiptInsert[] = [];
+
+    // Cria o registro do lote antes de importar
+    const { data: batch, error: batchErr } = await supabase
+      .from("import_batches")
+      .insert({
+        user_id: userId,
+        profile_id: profileId,
+        file_name: file?.name ?? null,
+        total_rows: parsed.length,
+        duplicate_count: duplicates.length,
+        error_count: withErrors.length,
+        status: "running",
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+    if (batchErr || !batch) {
+      setImporting(false);
+      console.error("batch create", batchErr);
+      return toast.error("Falha ao registrar o lote de importação");
+    }
+    const batchId = batch.id;
+    await supabase.from("audit_logs").insert({
+      user_id: userId,
+      action: "import.batch.created",
+      entity: "import_batch",
+      entity_id: batchId,
+      profile_id: profileId,
+      note: `Lote iniciado: ${file?.name ?? "planilha"} · ${parsed.length} linhas`,
+    });
     setProgressLabel("Enviando comprovantes…");
 
     for (let i = 0; i < valid.length; i++) {
@@ -342,6 +372,7 @@ function ImportPage() {
         inserts.push({
           user_id: userId,
           profile_id: profileId,
+          import_batch_id: batchId,
           file_path: filePath,
           file_name: fileName,
           file_mime: fileMime,
@@ -374,14 +405,7 @@ function ImportPage() {
       setProgress(80 + Math.round(((i + chunk.length) / Math.max(inserts.length, 1)) * 20));
     }
 
-    await supabase.from("audit_logs").insert({
-      user_id: userId,
-      action: "import.bulk",
-      entity: "receipts",
-      metadata: { imported, withReceipt, errors, duplicates: duplicates.length, total: parsed.length } as never,
-    });
-
-    setReport({
+    const finalReport = {
       totalRows: parsed.length,
       imported,
       withReceipt,
@@ -390,13 +414,37 @@ function ImportPage() {
       duplicates: duplicates.length,
       errors,
       validationErrors: withErrors.length,
+    };
+
+    await supabase.from("import_batches").update({
+      status: errors > 0 ? "completed_with_errors" : "completed",
+      imported_count: imported,
+      with_receipt_count: withReceipt,
+      without_receipt_count: Math.max(imported - withReceipt, 0),
+      unused_files_count: unusedFiles.length,
+      duplicate_count: duplicates.length,
+      error_count: errors,
+      finished_at: new Date().toISOString(),
+      summary_json: finalReport as never,
+    }).eq("id", batchId);
+
+    await supabase.from("audit_logs").insert({
+      user_id: userId,
+      action: "import.batch.completed",
+      entity: "import_batch",
+      entity_id: batchId,
+      profile_id: profileId,
+      new_value: finalReport as never,
+      note: `Importação concluída · ${imported} lançamentos`,
     });
+
+    setReport(finalReport);
     setImporting(false);
     setProgress(100);
     setProgressLabel("Concluído");
     setStep(6);
     toast.success(`Importação concluída: ${imported} lançamentos`);
-  }, [parsed, profileId, unusedFiles.length, duplicates.length, withErrors.length]);
+  }, [parsed, profileId, unusedFiles.length, duplicates.length, withErrors.length, file, duplicates, withErrors]);
 
   const exportPendingCSV = useCallback(() => {
     const rows = [
