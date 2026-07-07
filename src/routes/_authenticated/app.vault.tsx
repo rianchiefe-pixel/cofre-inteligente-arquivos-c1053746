@@ -20,9 +20,11 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts } from "@/lib/receipts.functions";
 import { useCan } from "@/lib/permissions";
+import { z } from "zod";
 
 export const Route = createFileRoute("/_authenticated/app/vault")({
   head: () => ({ meta: [{ title: "Cofre de comprovantes — Meu Cofre" }] }),
+  validateSearch: (s) => z.object({ receipt: z.string().optional() }).parse(s),
   component: VaultPage,
 });
 
@@ -45,6 +47,8 @@ function dupScoreBadge(score: number | null | undefined) {
 
 function VaultPage() {
   const qc = useQueryClient();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const approve = useServerFn(approveReceipt);
   const reject = useServerFn(rejectReceipt);
   const bulkAction = useServerFn(bulkReceiptAction);
@@ -149,6 +153,31 @@ function VaultPage() {
     const { data } = await supabase.storage.from("receipts").createSignedUrl(r.file_path, 60 * 10);
     setPreview(data?.signedUrl ?? null);
   };
+
+  // Deep-link: open a specific receipt's review dialog via ?receipt=<id>
+  useEffect(() => {
+    const id = search.receipt;
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("receipts")
+        .select("*, categories(name), financial_profiles(name), banks(name)")
+        .eq("id", id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        toast.error("Comprovante não encontrado ou sem permissão");
+      } else {
+        // ensure it shows up regardless of active filter
+        setQuick("all");
+        await openEdit(data);
+      }
+      navigate({ search: {}, replace: true });
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.receipt]);
 
   const updateReceipt = useMutation({
     mutationFn: async (patch: any) => {
