@@ -342,6 +342,74 @@ export type Database = {
         }
         Relationships: []
       }
+      import_batches: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          duplicate_count: number
+          error_count: number
+          file_name: string | null
+          finished_at: string | null
+          id: string
+          imported_count: number
+          profile_id: string | null
+          status: string
+          summary_json: Json | null
+          total_rows: number
+          unused_files_count: number
+          updated_at: string
+          user_id: string
+          with_receipt_count: number
+          without_receipt_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          duplicate_count?: number
+          error_count?: number
+          file_name?: string | null
+          finished_at?: string | null
+          id?: string
+          imported_count?: number
+          profile_id?: string | null
+          status?: string
+          summary_json?: Json | null
+          total_rows?: number
+          unused_files_count?: number
+          updated_at?: string
+          user_id: string
+          with_receipt_count?: number
+          without_receipt_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          duplicate_count?: number
+          error_count?: number
+          file_name?: string | null
+          finished_at?: string | null
+          id?: string
+          imported_count?: number
+          profile_id?: string | null
+          status?: string
+          summary_json?: Json | null
+          total_rows?: number
+          unused_files_count?: number
+          updated_at?: string
+          user_id?: string
+          with_receipt_count?: number
+          without_receipt_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           acquisition_date: string | null
@@ -442,6 +510,7 @@ export type Database = {
           file_path: string
           file_size: number | null
           id: string
+          import_batch_id: string | null
           is_fixed: boolean | null
           notes: string | null
           ocr_data: Json | null
@@ -480,6 +549,7 @@ export type Database = {
           file_path: string
           file_size?: number | null
           id?: string
+          import_batch_id?: string | null
           is_fixed?: boolean | null
           notes?: string | null
           ocr_data?: Json | null
@@ -518,6 +588,7 @@ export type Database = {
           file_path?: string
           file_size?: number | null
           id?: string
+          import_batch_id?: string | null
           is_fixed?: boolean | null
           notes?: string | null
           ocr_data?: Json | null
@@ -571,6 +642,13 @@ export type Database = {
             columns: ["duplicate_of"]
             isOneToOne: false
             referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
             referencedColumns: ["id"]
           },
           {
