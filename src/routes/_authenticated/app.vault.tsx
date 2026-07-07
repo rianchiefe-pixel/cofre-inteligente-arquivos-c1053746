@@ -192,6 +192,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [failedBeforeCanvas, setFailedBeforeCanvas] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,6 +204,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
         setState("loading");
         setErrorText(null);
         setCanvasReady(false);
+        setFailedBeforeCanvas(false);
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
         task = pdfjs.getDocument({ url });
@@ -225,9 +227,11 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
       } catch (error) {
         if (!cancelled) {
           if (hasCanvas || (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0)) {
+            setCanvasReady(true);
             setState("ready");
           } else {
             setErrorText(error instanceof Error ? error.message : String(error));
+            setFailedBeforeCanvas(true);
             setState("error");
           }
         }
@@ -243,8 +247,8 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
   return (
     <div ref={wrapRef} className="relative grid h-[520px] place-items-start overflow-auto rounded bg-background p-3">
       {state === "loading" && !canvasReady && <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando PDF…</div>}
-      {state === "error" && !canvasReady && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
-      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className={canvasReady ? "mx-auto rounded shadow-sm" : "invisible"} />
+      {failedBeforeCanvas && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
+      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className="mx-auto rounded shadow-sm" />
     </div>
   );
 }
