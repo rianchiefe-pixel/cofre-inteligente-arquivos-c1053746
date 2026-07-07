@@ -191,6 +191,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [canvasReady, setCanvasReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,6 +201,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
       try {
         setState("loading");
         setErrorText(null);
+        setCanvasReady(false);
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
         task = pdfjs.getDocument({ url });
@@ -215,12 +217,12 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
         canvas.height = Math.floor(viewport.height);
         canvas.style.width = `${Math.floor(viewport.width)}px`;
         canvas.style.height = `${Math.floor(viewport.height)}px`;
+        setCanvasReady(true);
         await page.render({ canvas, viewport }).promise;
         if (!cancelled) setState("ready");
       } catch (error) {
         if (!cancelled) {
-          const canvas = canvasRef.current;
-          if (canvas && canvas.width > 0 && canvas.height > 0) {
+          if (canvasReady || (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0)) {
             setState("ready");
           } else {
             setErrorText(error instanceof Error ? error.message : String(error));
@@ -234,13 +236,13 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
       cancelled = true;
       task?.destroy().catch(() => undefined);
     };
-  }, [url]);
+  }, [url, canvasReady]);
 
   return (
     <div ref={wrapRef} className="relative grid h-[520px] place-items-start overflow-auto rounded bg-background p-3">
-      {state === "loading" && <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando PDF…</div>}
-      {state === "error" && !canvasRef.current?.width && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
-      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className={state === "loading" ? "invisible" : "mx-auto rounded shadow-sm"} />
+      {state === "loading" && !canvasReady && <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando PDF…</div>}
+      {state === "error" && !canvasReady && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted-foreground"><div><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div></div>}
+      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className={canvasReady ? "mx-auto rounded shadow-sm" : "invisible"} />
     </div>
   );
 }
