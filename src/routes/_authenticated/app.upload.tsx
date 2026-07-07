@@ -74,6 +74,7 @@ function UploadPage() {
 
         setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: "analyzing", receiptId: inserted.id } : it)));
         const res = await analyze({ data: { receiptId: inserted.id } });
+        if (!res.ok) throw new Error(res.error ?? "Não foi possível analisar o comprovante");
         setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: res.duplicate_of ? "duplicate" : "done" } : it)));
       } catch (e: any) {
         setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: "error", message: e.message } : it)));
