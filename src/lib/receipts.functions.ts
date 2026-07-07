@@ -64,19 +64,19 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
     base64 = btoa(base64);
     const mime = rec.file_mime ?? "application/octet-stream";
 
-    // Build message with proper block type
+    // The @ai-sdk/openai-compatible converter does not forward `type:"file"` PDF parts to
+    // the gateway (it silently drops them), so the model sees only the text prompt and
+    // returns nulls. Call the gateway directly with the OpenAI-compatible multimodal
+    // shape so PDFs and images both reach Gemini as real content.
     const isImage = mime.startsWith("image/");
-    const contentBlocks: any[] = [
-      { type: "text", text: "Extraia com precisão os dados deste comprovante financeiro brasileiro. Devolva apenas o JSON estruturado. Se um campo não estiver visível, use null." },
-    ];
+    const dataUrl = `data:${mime};base64,${base64}`;
+    const promptText = "Você recebe um comprovante financeiro brasileiro (PDF ou imagem). Extraia com precisão os dados e devolva APENAS um objeto JSON com as chaves: payment_date (YYYY-MM-DD ou null), amount (número em reais ou null), recipient_name, recipient_tax_id (só dígitos), bank_name, payment_method (um de: debito, credito_vista, credito_parcelado, pix, ted, boleto, dinheiro, transferencia, outro, ou null), description, auth_code, suggested_category, transaction_type (um de: despesa, investimento, gasto_fixo, gasto_variavel, pessoal, empresarial, patrimonial, ou null). Se um campo não estiver visível, use null. Não inclua texto fora do JSON.";
+    const userContent: any[] = [{ type: "text", text: promptText }];
     if (isImage) {
-      contentBlocks.push({ type: "image", image: base64, mediaType: mime });
+      userContent.push({ type: "image_url", image_url: { url: dataUrl } });
     } else {
-      contentBlocks.push({ type: "file", data: base64, mediaType: mime, filename: rec.file_name ?? "receipt.pdf" });
+      userContent.push({ type: "file", file: { filename: rec.file_name ?? "receipt.pdf", file_data: dataUrl } });
     }
-
-    const gateway = createLovableAiGatewayProvider(key);
-    const model = gateway("google/gemini-2.5-flash");
 
     let extracted: z.infer<typeof ExtractSchema> | null = null;
     const normalizeDate = (value: unknown): string | null => {
@@ -176,24 +176,34 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     };
     try {
-      const { output } = await generateText({
-        model,
-        output: Output.object({ schema: ExtractSchema }),
-        messages: [{ role: "user", content: contentBlocks }],
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Lovable-API-Key": key,
+          "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "user", content: userContent }],
+          response_format: { type: "json_object" },
+        }),
       });
-      extracted = output;
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => "");
+        throw new Error(`Gateway ${resp.status}: ${text.slice(0, 300)}`);
+      }
+      const json: any = await resp.json();
+      const raw: string | undefined = json?.choices?.[0]?.message?.content;
+      extracted = parseGeneratedJson(raw);
+      if (!extracted) {
+        await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente." }).eq("id", rec.id);
+        return { ok: false, duplicate_of: null, error: "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente." };
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (NoObjectGeneratedError.isInstance(e)) {
-        extracted = parseGeneratedJson(e.text);
-        if (!extracted) {
-          await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente." }).eq("id", rec.id);
-          return { ok: false, duplicate_of: null, error: "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente." };
-        }
-      } else {
-        await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: msg }).eq("id", rec.id);
-        return { ok: false, duplicate_of: null, error: msg };
-      }
+      await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: msg }).eq("id", rec.id);
+      return { ok: false, duplicate_of: null, error: msg };
     }
 
     // Look for existing category by name (case-insensitive)
