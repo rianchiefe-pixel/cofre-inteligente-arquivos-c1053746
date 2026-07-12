@@ -630,65 +630,29 @@ function RowEditor({
   row,
   links,
   isDuplicate,
-  busy,
-  onApprove,
-  onReject,
-  onVerDepois,
-  onSaveOnly,
-  onUndo,
-  onReclassify,
-  onPrev,
-  onNext,
+  values,
+  setValues,
+  reason,
+  setReason,
+  showRaw,
+  setShowRaw,
 }: {
   row: any;
   links: any[];
   isDuplicate: boolean;
-  busy: boolean;
-  onApprove: (overrides: Record<string, unknown>) => void;
-  onReject: (reason: string, overrides: Record<string, unknown>) => void;
-  onVerDepois: (overrides: Record<string, unknown>) => void;
-  onSaveOnly: (overrides: Record<string, unknown>) => void;
-  onUndo: () => void;
-  onReclassify: () => void;
-  onPrev: () => void;
-  onNext: () => void;
+  values: Record<string, any>;
+  setValues: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  reason: string;
+  setReason: React.Dispatch<React.SetStateAction<string>>;
+  showRaw: boolean;
+  setShowRaw: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
-  const [values, setValues] = useState<Record<string, any>>(() => hydrateValues(row));
-  const [reason, setReason] = useState<string>("");
-  const [showRaw, setShowRaw] = useState(false);
-
-  useEffect(() => {
-    setValues(hydrateValues(row));
-    setReason("");
-  }, [row.id]);
-
-  function collectOverrides(): Record<string, unknown> {
-    const overrides: Record<string, unknown> = {};
-    for (const f of FIELDS) {
-      const v = values[f.key];
-      if (v === "" || v === undefined || v === null) continue;
-      if (f.type === "number") {
-        const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
-        if (Number.isFinite(n)) overrides[f.key] = n;
-      } else {
-        overrides[f.key] = String(v);
-      }
-    }
-    return overrides;
-  }
-
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
   const primary = links.find((l) => l.is_primary) ?? links[0];
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border p-2 text-xs">
-        <Button size="sm" variant="outline" onClick={onPrev} disabled={busy}>
-          <ChevronLeft className="h-3 w-3" />
-        </Button>
-        <Button size="sm" variant="outline" onClick={onNext} disabled={busy}>
-          <ChevronRight className="h-3 w-3" />
-        </Button>
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
         <Badge className={`text-[10px] ${STATUS_COLOR[(row.review_status ?? "pending") as ReviewStatus]}`}>
           {STATUS_LABEL[(row.review_status ?? "pending") as ReviewStatus]}
         </Badge>
@@ -697,25 +661,17 @@ function RowEditor({
             possível duplicidade
           </Badge>
         )}
-        <Button size="sm" variant="ghost" className="ml-auto" onClick={onReclassify} disabled={busy}>
-          <Sparkles className="mr-1 h-3 w-3" /> Reanalisar
-        </Button>
+        {primary && (
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            comprovante · score {primary.score} · {primary.confidence}
+          </span>
+        )}
       </div>
 
-      <div className="flex-1 space-y-3 overflow-auto p-3 text-xs">
-        <div className="rounded-md border border-border bg-muted/40 p-2">
-          <p><b>ID:</b> <span className="font-mono">{row.id}</span></p>
-          <p><b>Linha:</b> {row.row_number}</p>
-          {primary && (
-            <p>
-              <b>Comprovante:</b>{" "}
-              <span className="font-mono">
-                {primary.page_number ? `p.${primary.page_number} · ` : ""}
-                score {primary.score}
-              </span>
-            </p>
-          )}
-        </div>
+      <div className="rounded-md border border-border bg-muted/40 p-2">
+        <p><b>Linha:</b> #{row.row_number}</p>
+        <p className="truncate"><b>ID:</b> <span className="font-mono">{row.id}</span></p>
+      </div>
 
         {FIELDS.map((f) => {
           const m = meta[f.key] ?? {};
@@ -773,68 +729,29 @@ function RowEditor({
           );
         })}
 
-        <div className="rounded-md border border-border p-2">
-          <Label className="text-[11px] font-semibold">Motivo (para rejeição / anotação)</Label>
-          <Textarea
-            rows={2}
-            className="mt-1 text-xs"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Ex.: comprovante ilegível, valor divergente…"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowRaw((s) => !s)}
-          className="text-[11px] text-primary underline"
-        >
-          {showRaw ? "Ocultar" : "Ver"} dados originais preservados
-        </button>
-        {showRaw && (
-          <pre className="max-h-40 overflow-auto rounded-md border border-border bg-muted/40 p-2 text-[10px]">
-            {JSON.stringify(row.raw_data, null, 2)}
-          </pre>
-        )}
+      <div className="rounded-md border border-border p-2">
+        <Label className="text-[11px] font-semibold">Motivo (para rejeição / anotação)</Label>
+        <Textarea
+          rows={2}
+          className="mt-1 text-xs"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Ex.: comprovante ilegível, valor divergente…"
+        />
       </div>
 
-      <Separator />
-      <div className="grid gap-2 border-t border-border p-2">
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            size="sm"
-            className="bg-emerald-600 text-white hover:bg-emerald-600/90"
-            onClick={() => onApprove(collectOverrides())}
-            disabled={busy}
-          >
-            <CheckCircle2 className="mr-1 h-3 w-3" /> Aprovar
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => onReject(reason, collectOverrides())}
-            disabled={busy}
-          >
-            <XCircle className="mr-1 h-3 w-3" /> Rejeitar
-          </Button>
-          <Button
-            size="sm"
-            className="bg-amber-500 text-white hover:bg-amber-500/90"
-            onClick={() => onVerDepois(collectOverrides())}
-            disabled={busy}
-          >
-            <Clock className="mr-1 h-3 w-3" /> Ver depois
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button size="sm" variant="outline" onClick={() => onSaveOnly(collectOverrides())} disabled={busy}>
-            <Save className="mr-1 h-3 w-3" /> Salvar sem aprovar
-          </Button>
-          <Button size="sm" variant="outline" onClick={onUndo} disabled={busy}>
-            <Undo2 className="mr-1 h-3 w-3" /> Desfazer decisão
-          </Button>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={() => setShowRaw((s) => !s)}
+        className="self-start text-[11px] text-primary underline"
+      >
+        {showRaw ? "Ocultar" : "Ver"} dados originais preservados
+      </button>
+      {showRaw && (
+        <pre className="rounded-md border border-border bg-muted/40 p-2 text-[10px] whitespace-pre-wrap break-all">
+          {JSON.stringify(row.raw_data, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }
