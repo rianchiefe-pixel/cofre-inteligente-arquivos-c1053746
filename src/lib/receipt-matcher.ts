@@ -390,7 +390,7 @@ export async function matchBatchReceipts(
 
     if (top.length === 0) {
       progress.notFound++;
-    } else if (top[0].score >= 75) {
+    } else if (top[0].confidence === "very_high" || top[0].confidence === "high") {
       progress.matched++;
     } else {
       progress.needsReview++;
@@ -407,7 +407,8 @@ export async function matchBatchReceipts(
         confidence: c.confidence,
         match_reasons: c.reasons,
         is_manual: false,
-        is_primary: i === 0 && c.score >= 75,
+        // "Comprovante não confirmado" until the core trio + one complementary field match.
+        is_primary: i === 0 && (c.confidence === "very_high" || c.confidence === "high"),
       }));
       await supabase.from("import_row_files").upsert(payload as any, {
         onConflict: "row_id,file_id,page_number",
