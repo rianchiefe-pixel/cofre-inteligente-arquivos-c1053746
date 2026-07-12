@@ -15,6 +15,36 @@ function normalizeKey(v: unknown): string {
     .trim();
 }
 
+// Robust JSON extractor for LLM output — strips code fences, isolates the
+// outermost JSON object/array, and tolerates trailing commas / control chars.
+function extractJson(raw: string): any | null {
+  if (!raw) return null;
+  let s = raw
+    .replace(/^\uFEFF/, "")
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+  if (!s.startsWith("{") && !s.startsWith("[")) {
+    const o = s.indexOf("{");
+    const a = s.indexOf("[");
+    const isArr = a !== -1 && (o === -1 || a < o);
+    const start = isArr ? a : o;
+    const end = isArr ? s.lastIndexOf("]") : s.lastIndexOf("}");
+    if (start === -1 || end <= start) return null;
+    s = s.slice(start, end + 1);
+  }
+  try {
+    return JSON.parse(s);
+  } catch {}
+  try {
+    return JSON.parse(
+      s.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, " "),
+    );
+  } catch {
+    return null;
+  }
+}
+
 // ---- 1. Classify one row -------------------------------------------------
 
 export const classifyImportRow = createServerFn({ method: "POST" })
@@ -151,17 +181,16 @@ export const classifyImportRow = createServerFn({ method: "POST" })
 
     const json = await res.json();
     let content: string = json?.choices?.[0]?.message?.content ?? "";
-    content = content.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-
-    let parsed: { data?: any; meta?: any };
-    try {
-      parsed = JSON.parse(content);
-    } catch {
+    const parsed = extractJson(content) as { data?: any; meta?: any } | null;
+    if (!parsed) {
       await supabase
         .from("import_rows")
-        .update({ ai_status: "error", ai_error: "JSON inválido do modelo" })
+        .update({
+          ai_status: "error",
+          ai_error: `JSON inválido do modelo: ${(content || "").slice(0, 200)}`,
+        })
         .eq("id", row.id);
-      throw new Error("Modelo retornou JSON inválido");
+      return { ok: false as const, reason: "invalid_json" };
     }
 
     const d = parsed.data ?? {};
