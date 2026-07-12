@@ -11,14 +11,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -33,6 +31,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   CheckCircle2,
   XCircle,
   Clock,
@@ -43,14 +46,12 @@ import {
   RotateCw,
   Maximize2,
   Undo2,
-  Save,
-  RefreshCw,
   Paperclip,
   Star,
   ExternalLink,
   FileWarning,
   Sparkles,
-  X,
+  ChevronDown,
   Loader2,
   Search,
 } from "lucide-react";
@@ -140,6 +141,12 @@ export function ImportConference({
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
+
+  // Editor state lives in the parent so the fixed footer can act on it.
+  const [values, setValues] = useState<Record<string, any>>({});
+  const [reason, setReason] = useState("");
+  const [showRaw, setShowRaw] = useState(false);
+  const [showAllFilters, setShowAllFilters] = useState(false);
 
   // ---- data ----
 
@@ -271,6 +278,32 @@ export function ImportConference({
   }, [filteredRows.length, activeIdx]);
 
   const activeRow = filteredRows[activeIdx];
+
+  // Re-hydrate editor state whenever the active row changes.
+  useEffect(() => {
+    if (activeRow) {
+      setValues(hydrateValues(activeRow));
+      setReason("");
+    } else {
+      setValues({});
+      setReason("");
+    }
+  }, [activeRow?.id]);
+
+  function collectOverrides(): Record<string, unknown> {
+    const overrides: Record<string, unknown> = {};
+    for (const f of FIELDS) {
+      const v = values[f.key];
+      if (v === "" || v === undefined || v === null) continue;
+      if (f.type === "number") {
+        const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
+        if (Number.isFinite(n)) overrides[f.key] = n;
+      } else {
+        overrides[f.key] = String(v);
+      }
+    }
+    return overrides;
+  }
 
   const counts = useMemo(() => {
     const list = rowsQ.data ?? [];
@@ -416,164 +449,175 @@ export function ImportConference({
   }
 
   return (
-    <Card className="fixed inset-2 z-50 flex flex-col overflow-hidden md:inset-4">
-      {/* Header */}
-      <header className="flex flex-wrap items-center gap-3 border-b border-border p-3">
-        <div>
-          <h2 className="text-base font-semibold">
-            Importação concluída — iniciar conferência
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {counts.total} linhas · {counts.pending} pendentes · {counts.approved} aprovadas ·{" "}
-            {counts.rejected} rejeitadas · {counts.ver} ver depois · {counts.no} sem comprovante ·{" "}
-            {counts.low} baixa confiança · {counts.dup} possíveis duplicidades
-          </p>
-        </div>
-        <div className="ml-auto text-xs text-muted-foreground">
-          Linha {filteredRows.length === 0 ? 0 : activeIdx + 1} de {filteredRows.length}
-        </div>
-        <Button size="sm" variant="ghost" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </header>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border p-2 text-xs">
-        <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-          <SelectTrigger className="h-8 w-[170px] text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos ({counts.total})</SelectItem>
-            <SelectItem value="pending">Pendentes ({counts.pending})</SelectItem>
-            <SelectItem value="approved">Aprovados ({counts.approved})</SelectItem>
-            <SelectItem value="rejected">Rejeitados ({counts.rejected})</SelectItem>
-            <SelectItem value="ver_depois">Ver depois ({counts.ver})</SelectItem>
-            <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
-            <SelectItem value="low_conf">Baixa confiança ({counts.low})</SelectItem>
-            <SelectItem value="duplicate">Possíveis duplicidades ({counts.dup})</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tipos</SelectItem>
-            <SelectItem value="DESPESA">Despesa</SelectItem>
-            <SelectItem value="INVESTIMENTO">Investimento</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-8 w-48 pl-7 text-xs"
-            placeholder="Buscar descrição / favorecido"
-            value={textFilter}
-            onChange={(e) => setTextFilter(e.target.value)}
-          />
-        </div>
-        <Input className="h-8 w-28 text-xs" placeholder="Banco" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)} />
-        <Input className="h-8 w-28 text-xs" placeholder="Categoria" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} />
-        <Input className="h-8 w-28 text-xs" placeholder="Cartão" value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} />
-        <Input className="h-8 w-36 text-xs" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <Input className="h-8 w-36 text-xs" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-        <Input className="h-8 w-24 text-xs" placeholder="Min R$" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} />
-        <Input className="h-8 w-24 text-xs" placeholder="Max R$" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} />
-      </div>
-
-      {/* Body */}
-      <div className="grid min-h-0 flex-1 grid-cols-[240px_1fr_360px]">
-        {/* Row list */}
-        <aside className="min-h-0 overflow-auto border-r border-border">
-          {filteredRows.map((r: any, i: number) => {
-            const s = (r.review_status ?? "pending") as ReviewStatus;
-            const links = linksByRow.get(r.id) ?? [];
-            return (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => setActiveIdx(i)}
-                className={`block w-full border-b border-border/60 p-2 text-left text-xs transition-colors ${
-                  i === activeIdx ? "bg-primary/10" : "hover:bg-muted/50"
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">#{r.row_number}</span>
-                  <Badge className={`ml-auto text-[10px] ${STATUS_COLOR[s]}`}>
-                    {STATUS_LABEL[s]}
-                  </Badge>
-                </div>
-                <div className="mt-1 truncate font-medium">
-                  {r.description ?? r.payee ?? "—"}
-                </div>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <span>{r.transaction_date ?? "—"}</span>
-                  <span className="ml-auto tabular-nums">
-                    {typeof r.amount === "number" ? currencyBRL(r.amount) : ""}
-                  </span>
-                </div>
-                <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                  {links.length === 0 ? (
-                    <FileWarning className="h-3 w-3 text-destructive" />
-                  ) : (
-                    <Paperclip className="h-3 w-3" />
-                  )}
-                  <span>{links.length || "sem"} comprovante(s)</span>
-                  {duplicateIds.has(r.id) && (
-                    <Badge variant="outline" className="ml-auto text-[9px]">
-                      dup
-                    </Badge>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-          {filteredRows.length === 0 && (
-            <p className="p-6 text-center text-xs text-muted-foreground">
-              Nenhuma linha corresponde aos filtros.
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        className="flex max-h-[90vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {/* Sticky header */}
+        <div className="shrink-0 border-b border-border bg-background px-4 py-3">
+          <DialogHeader className="space-y-1 text-left">
+            <DialogTitle className="text-base">
+              Conferência de comprovantes
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              {counts.total} linhas · {counts.pending} pendentes · {counts.approved} aprovadas ·{" "}
+              {counts.rejected} rejeitadas · {counts.ver} ver depois · {counts.no} sem comprovante ·{" "}
+              {counts.low} baixa confiança · {counts.dup} possíveis duplicidades
             </p>
-          )}
-        </aside>
+          </DialogHeader>
 
-        {/* Viewer */}
-        <section className="min-h-0 overflow-hidden bg-muted/30">
-          {activeRow ? (
-            <ReceiptViewer
-              row={activeRow}
-              links={(linksByRow.get(activeRow.id) ?? []).slice().sort((a, b) => b.score - a.score)}
-              files={filesQ.data ?? []}
-              fileById={fileById}
-              onChanged={invalidate}
-            />
-          ) : (
-            <div className="grid h-full place-items-center text-sm text-muted-foreground">
-              Selecione uma linha à esquerda.
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <Button size="sm" variant="outline" onClick={goPrev} disabled={activeIdx <= 0}>
+              <ChevronLeft className="h-3 w-3" />
+            </Button>
+            <span className="tabular-nums">
+              Linha {filteredRows.length === 0 ? 0 : activeIdx + 1} de {filteredRows.length}
+            </span>
+            <Button size="sm" variant="outline" onClick={goNext} disabled={activeIdx >= filteredRows.length - 1}>
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+            <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+              <SelectTrigger className="h-8 w-[190px] text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos ({counts.total})</SelectItem>
+                <SelectItem value="pending">Pendentes ({counts.pending})</SelectItem>
+                <SelectItem value="approved">Aprovados ({counts.approved})</SelectItem>
+                <SelectItem value="rejected">Rejeitados ({counts.rejected})</SelectItem>
+                <SelectItem value="ver_depois">Ver depois ({counts.ver})</SelectItem>
+                <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
+                <SelectItem value="low_conf">Baixa confiança ({counts.low})</SelectItem>
+                <SelectItem value="duplicate">Duplicidades ({counts.dup})</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="DESPESA">Despesa</SelectItem>
+                <SelectItem value="INVESTIMENTO">Investimento</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto"
+              onClick={handleReclassify}
+              disabled={savingAction !== null || !activeRow}
+            >
+              <Sparkles className="mr-1 h-3 w-3" /> Reanalisar com IA
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowAllFilters((s) => !s)}
+            >
+              <ChevronDown className={`h-3 w-3 transition-transform ${showAllFilters ? "rotate-180" : ""}`} />
+              <span className="ml-1">Mais filtros</span>
+            </Button>
+          </div>
+
+          {showAllFilters && (
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="h-8 w-56 pl-7 text-xs"
+                  placeholder="Buscar descrição / favorecido"
+                  value={textFilter}
+                  onChange={(e) => setTextFilter(e.target.value)}
+                />
+              </div>
+              <Input className="h-8 w-28 text-xs" placeholder="Banco" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)} />
+              <Input className="h-8 w-32 text-xs" placeholder="Categoria" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} />
+              <Input className="h-8 w-28 text-xs" placeholder="Cartão" value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} />
+              <Input className="h-8 w-36 text-xs" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <Input className="h-8 w-36 text-xs" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <Input className="h-8 w-24 text-xs" placeholder="Min R$" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} />
+              <Input className="h-8 w-24 text-xs" placeholder="Max R$" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} />
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Editor */}
-        <aside className="min-h-0 overflow-auto border-l border-border">
+        {/* Single scrollable body */}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20">
           {activeRow ? (
-            <RowEditor
-              row={activeRow}
-              links={linksByRow.get(activeRow.id) ?? []}
-              isDuplicate={duplicateIds.has(activeRow.id)}
-              busy={savingAction !== null}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onVerDepois={handleVerDepois}
-              onSaveOnly={handleSaveOnly}
-              onUndo={handleUndo}
-              onReclassify={handleReclassify}
-              onPrev={goPrev}
-              onNext={goNext}
-            />
-          ) : null}
-        </aside>
-      </div>
-    </Card>
+            <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              <ReceiptViewer
+                row={activeRow}
+                links={(linksByRow.get(activeRow.id) ?? []).slice().sort((a, b) => b.score - a.score)}
+                files={filesQ.data ?? []}
+                fileById={fileById}
+                onChanged={invalidate}
+              />
+              <RowEditor
+                row={activeRow}
+                links={linksByRow.get(activeRow.id) ?? []}
+                isDuplicate={duplicateIds.has(activeRow.id)}
+                values={values}
+                setValues={setValues}
+                reason={reason}
+                setReason={setReason}
+                showRaw={showRaw}
+                setShowRaw={setShowRaw}
+              />
+            </div>
+          ) : (
+            <div className="grid h-64 place-items-center text-sm text-muted-foreground">
+              Nenhuma linha corresponde aos filtros.
+            </div>
+          )}
+        </div>
+
+        {/* Sticky footer */}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleUndo}
+            disabled={savingAction !== null || !activeRow}
+          >
+            <Undo2 className="mr-1 h-3 w-3" /> Desfazer
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => activeRow && handleSaveOnly(collectOverrides())}
+            disabled={savingAction !== null || !activeRow}
+          >
+            Salvar sem aprovar
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => activeRow && handleReject(reason, collectOverrides())}
+            disabled={savingAction !== null || !activeRow}
+          >
+            <XCircle className="mr-1 h-3 w-3" /> Rejeitar
+          </Button>
+          <Button
+            size="sm"
+            className="bg-amber-500 text-white hover:bg-amber-500/90"
+            onClick={() => activeRow && handleVerDepois(collectOverrides())}
+            disabled={savingAction !== null || !activeRow}
+          >
+            <Clock className="mr-1 h-3 w-3" /> Ver depois
+          </Button>
+          <Button
+            size="sm"
+            className="bg-emerald-600 text-white hover:bg-emerald-600/90"
+            onClick={() => activeRow && handleApprove(collectOverrides())}
+            disabled={savingAction !== null || !activeRow}
+          >
+            <CheckCircle2 className="mr-1 h-3 w-3" /> Aprovar e continuar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -585,65 +629,29 @@ function RowEditor({
   row,
   links,
   isDuplicate,
-  busy,
-  onApprove,
-  onReject,
-  onVerDepois,
-  onSaveOnly,
-  onUndo,
-  onReclassify,
-  onPrev,
-  onNext,
+  values,
+  setValues,
+  reason,
+  setReason,
+  showRaw,
+  setShowRaw,
 }: {
   row: any;
   links: any[];
   isDuplicate: boolean;
-  busy: boolean;
-  onApprove: (overrides: Record<string, unknown>) => void;
-  onReject: (reason: string, overrides: Record<string, unknown>) => void;
-  onVerDepois: (overrides: Record<string, unknown>) => void;
-  onSaveOnly: (overrides: Record<string, unknown>) => void;
-  onUndo: () => void;
-  onReclassify: () => void;
-  onPrev: () => void;
-  onNext: () => void;
+  values: Record<string, any>;
+  setValues: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  reason: string;
+  setReason: React.Dispatch<React.SetStateAction<string>>;
+  showRaw: boolean;
+  setShowRaw: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
-  const [values, setValues] = useState<Record<string, any>>(() => hydrateValues(row));
-  const [reason, setReason] = useState<string>("");
-  const [showRaw, setShowRaw] = useState(false);
-
-  useEffect(() => {
-    setValues(hydrateValues(row));
-    setReason("");
-  }, [row.id]);
-
-  function collectOverrides(): Record<string, unknown> {
-    const overrides: Record<string, unknown> = {};
-    for (const f of FIELDS) {
-      const v = values[f.key];
-      if (v === "" || v === undefined || v === null) continue;
-      if (f.type === "number") {
-        const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
-        if (Number.isFinite(n)) overrides[f.key] = n;
-      } else {
-        overrides[f.key] = String(v);
-      }
-    }
-    return overrides;
-  }
-
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
   const primary = links.find((l) => l.is_primary) ?? links[0];
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border p-2 text-xs">
-        <Button size="sm" variant="outline" onClick={onPrev} disabled={busy}>
-          <ChevronLeft className="h-3 w-3" />
-        </Button>
-        <Button size="sm" variant="outline" onClick={onNext} disabled={busy}>
-          <ChevronRight className="h-3 w-3" />
-        </Button>
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
         <Badge className={`text-[10px] ${STATUS_COLOR[(row.review_status ?? "pending") as ReviewStatus]}`}>
           {STATUS_LABEL[(row.review_status ?? "pending") as ReviewStatus]}
         </Badge>
@@ -652,25 +660,17 @@ function RowEditor({
             possível duplicidade
           </Badge>
         )}
-        <Button size="sm" variant="ghost" className="ml-auto" onClick={onReclassify} disabled={busy}>
-          <Sparkles className="mr-1 h-3 w-3" /> Reanalisar
-        </Button>
+        {primary && (
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            comprovante · score {primary.score} · {primary.confidence}
+          </span>
+        )}
       </div>
 
-      <div className="flex-1 space-y-3 overflow-auto p-3 text-xs">
-        <div className="rounded-md border border-border bg-muted/40 p-2">
-          <p><b>ID:</b> <span className="font-mono">{row.id}</span></p>
-          <p><b>Linha:</b> {row.row_number}</p>
-          {primary && (
-            <p>
-              <b>Comprovante:</b>{" "}
-              <span className="font-mono">
-                {primary.page_number ? `p.${primary.page_number} · ` : ""}
-                score {primary.score}
-              </span>
-            </p>
-          )}
-        </div>
+      <div className="rounded-md border border-border bg-muted/40 p-2">
+        <p><b>Linha:</b> #{row.row_number}</p>
+        <p className="truncate"><b>ID:</b> <span className="font-mono">{row.id}</span></p>
+      </div>
 
         {FIELDS.map((f) => {
           const m = meta[f.key] ?? {};
@@ -728,68 +728,29 @@ function RowEditor({
           );
         })}
 
-        <div className="rounded-md border border-border p-2">
-          <Label className="text-[11px] font-semibold">Motivo (para rejeição / anotação)</Label>
-          <Textarea
-            rows={2}
-            className="mt-1 text-xs"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Ex.: comprovante ilegível, valor divergente…"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowRaw((s) => !s)}
-          className="text-[11px] text-primary underline"
-        >
-          {showRaw ? "Ocultar" : "Ver"} dados originais preservados
-        </button>
-        {showRaw && (
-          <pre className="max-h-40 overflow-auto rounded-md border border-border bg-muted/40 p-2 text-[10px]">
-            {JSON.stringify(row.raw_data, null, 2)}
-          </pre>
-        )}
+      <div className="rounded-md border border-border p-2">
+        <Label className="text-[11px] font-semibold">Motivo (para rejeição / anotação)</Label>
+        <Textarea
+          rows={2}
+          className="mt-1 text-xs"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Ex.: comprovante ilegível, valor divergente…"
+        />
       </div>
 
-      <Separator />
-      <div className="grid gap-2 border-t border-border p-2">
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            size="sm"
-            className="bg-emerald-600 text-white hover:bg-emerald-600/90"
-            onClick={() => onApprove(collectOverrides())}
-            disabled={busy}
-          >
-            <CheckCircle2 className="mr-1 h-3 w-3" /> Aprovar
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => onReject(reason, collectOverrides())}
-            disabled={busy}
-          >
-            <XCircle className="mr-1 h-3 w-3" /> Rejeitar
-          </Button>
-          <Button
-            size="sm"
-            className="bg-amber-500 text-white hover:bg-amber-500/90"
-            onClick={() => onVerDepois(collectOverrides())}
-            disabled={busy}
-          >
-            <Clock className="mr-1 h-3 w-3" /> Ver depois
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button size="sm" variant="outline" onClick={() => onSaveOnly(collectOverrides())} disabled={busy}>
-            <Save className="mr-1 h-3 w-3" /> Salvar sem aprovar
-          </Button>
-          <Button size="sm" variant="outline" onClick={onUndo} disabled={busy}>
-            <Undo2 className="mr-1 h-3 w-3" /> Desfazer decisão
-          </Button>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={() => setShowRaw((s) => !s)}
+        className="self-start text-[11px] text-primary underline"
+      >
+        {showRaw ? "Ocultar" : "Ver"} dados originais preservados
+      </button>
+      {showRaw && (
+        <pre className="rounded-md border border-border bg-muted/40 p-2 text-[10px] whitespace-pre-wrap break-all">
+          {JSON.stringify(row.raw_data, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }
@@ -853,6 +814,9 @@ function ReceiptViewer({
   const isPdf = (primaryFile?.mime_type ?? "").includes("pdf") || (primaryFile?.extension ?? "").toLowerCase() === "pdf";
   const pageCount = primaryFile?.page_count ?? 1;
 
+  const [showAllCandidates, setShowAllCandidates] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+
   async function markUnlocated() {
     if (!primary) return;
     await detachRowFile(primary.id);
@@ -861,7 +825,7 @@ function ReceiptViewer({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background">
       <div className="flex flex-wrap items-center gap-1 border-b border-border p-2 text-xs">
         <span className="truncate font-mono text-[11px]">
           {primaryFile?.original_path ?? primaryFile?.file_name ?? "sem comprovante"}
@@ -915,9 +879,9 @@ function ReceiptViewer({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="p-3">
         {!primaryFile ? (
-          <div className="grid h-full place-items-center text-center text-sm text-muted-foreground">
+          <div className="grid h-64 place-items-center text-center text-sm text-muted-foreground">
             <div>
               <FileWarning className="mx-auto mb-2 h-8 w-8" />
               Nenhum comprovante vinculado a esta linha.
@@ -929,64 +893,106 @@ function ReceiptViewer({
             </div>
           </div>
         ) : !signedUrl ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+          <div className="grid h-64 place-items-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
           </div>
         ) : (
-          <div
-            className="mx-auto origin-top overflow-visible"
-            style={{ transform: `rotate(${rotation}deg) scale(${zoom})`, transition: "transform 120ms" }}
-          >
-            {isPdf ? (
-              <PdfPage url={signedUrl} pageNumber={page} />
-            ) : (
-              <img
-                src={signedUrl}
-                alt={primaryFile.file_name}
-                className="mx-auto max-w-[900px] rounded shadow"
-                draggable={false}
-              />
-            )}
+          <div className="overflow-x-auto">
+            <div
+              className="mx-auto origin-top"
+              style={{ transform: `rotate(${rotation}deg) scale(${zoom})`, transition: "transform 120ms" }}
+            >
+              {isPdf ? (
+                <PdfPage url={signedUrl} pageNumber={page} />
+              ) : (
+                <img
+                  src={signedUrl}
+                  alt={primaryFile.file_name}
+                  className="mx-auto max-w-full rounded shadow"
+                  draggable={false}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Candidatos */}
+      {/* Candidatos — compactos, no máximo 3, restantes em collapsible */}
       {links.length > 0 && (
-        <div className="max-h-40 overflow-auto border-t border-border p-2 text-xs">
-          <p className="mb-1 font-semibold">Outros candidatos</p>
-          <div className="grid gap-1">
-            {links.map((l) => {
+        <div className="border-t border-border p-3 text-xs">
+          <p className="mb-2 font-semibold">Comprovantes candidatos</p>
+          <div className="grid gap-2">
+            {(showAllCandidates ? links : links.slice(0, 3)).map((l) => {
               const f = fileById.get(l.file_id);
+              const reasons: string[] = Array.isArray(l.match_reasons) ? l.match_reasons : [];
               return (
-                <div key={l.id} className="flex items-center gap-2 rounded border border-border/60 p-1">
-                  {l.is_primary && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
-                  <span className="truncate font-mono text-[10px]">
-                    {f?.original_path ?? f?.file_name}
-                    {l.page_number ? ` · p.${l.page_number}` : ""}
-                  </span>
-                  <Badge variant="outline" className="ml-auto text-[9px]">
-                    {l.score} · {l.confidence}
-                  </Badge>
+                <div
+                  key={l.id}
+                  className={`rounded-md border p-2 ${l.is_primary ? "border-emerald-500/50 bg-emerald-500/5" : "border-border/60"}`}
+                >
+                  <div className="flex items-start gap-2">
+                    {l.is_primary && <Star className="mt-0.5 h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />}
+                    <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
+                      {f?.original_path ?? f?.file_name}
+                      {l.page_number ? ` · p.${l.page_number}` : ""}
+                    </span>
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      score {l.score} · {l.confidence}
+                    </Badge>
+                  </div>
+                  {reasons.length > 0 && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {reasons.slice(0, 4).join(" · ")}
+                    </p>
+                  )}
                   {!l.is_primary && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6"
-                      onClick={async () => {
-                        await setPrimaryRowFile(row.id, l.id);
-                        onChanged();
-                      }}
-                    >
-                      <Star className="h-3 w-3" />
-                    </Button>
+                    <div className="mt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                        onClick={async () => {
+                          await setPrimaryRowFile(row.id, l.id);
+                          onChanged();
+                        }}
+                      >
+                        Selecionar comprovante
+                      </Button>
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
+          {links.length > 3 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mt-2 h-7 text-[11px]"
+              onClick={() => setShowAllCandidates((s) => !s)}
+            >
+              {showAllCandidates ? "Ocultar candidatos extras" : `Ver outros candidatos (${links.length - 3})`}
+            </Button>
+          )}
         </div>
       )}
+
+      {/* Busca manual — collapsible */}
+      <div className="border-t border-border p-3 text-xs">
+        <Collapsible open={manualOpen} onOpenChange={setManualOpen}>
+          <CollapsibleTrigger asChild>
+            <button className="flex w-full items-center justify-between text-left text-[11px] font-medium text-primary hover:underline">
+              Não encontrou o comprovante correto? Associar manualmente
+              <ChevronDown className={`h-3 w-3 transition-transform ${manualOpen ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <Button size="sm" variant="outline" onClick={() => setSwapOpen(true)}>
+              <Paperclip className="mr-1 h-3 w-3" /> Buscar arquivo no lote
+            </Button>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
       {/* Fullscreen */}
       {fullscreen && signedUrl && (
