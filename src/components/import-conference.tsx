@@ -11,7 +11,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -33,6 +32,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   CheckCircle2,
   XCircle,
   Clock,
@@ -43,14 +47,12 @@ import {
   RotateCw,
   Maximize2,
   Undo2,
-  Save,
-  RefreshCw,
   Paperclip,
   Star,
   ExternalLink,
   FileWarning,
   Sparkles,
-  X,
+  ChevronDown,
   Loader2,
   Search,
 } from "lucide-react";
