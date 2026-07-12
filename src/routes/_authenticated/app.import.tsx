@@ -117,7 +117,7 @@ function ImportPage() {
 
   const updateBatch = useCallback(
     async (id: string, patch: Record<string, unknown>) => {
-      await supabase.from("import_batches").update(patch).eq("id", id);
+      await supabase.from("import_batches").update(patch as any).eq("id", id);
     },
     [],
   );
@@ -214,7 +214,7 @@ function ImportPage() {
             status: r.status,
             error_message: r.error ?? null,
           }));
-          const { error: rowErr } = await supabase.from("import_rows").insert(payload);
+          const { error: rowErr } = await supabase.from("import_rows").insert(payload as any);
           if (rowErr) throw new Error(`Linha ${slice[0].row_number}: ${rowErr.message}`);
           saved += slice.length;
           setSavedRows(saved);
