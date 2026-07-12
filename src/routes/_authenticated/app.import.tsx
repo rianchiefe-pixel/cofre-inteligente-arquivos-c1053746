@@ -25,6 +25,7 @@ import {
   type NormalizedRow,
 } from "@/lib/smart-import";
 import { dateBR } from "@/lib/format";
+import { ImportReview } from "@/components/import-review";
 
 export const Route = createFileRoute("/_authenticated/app/import")({
   head: () => ({ meta: [{ title: "Importação Inteligente — Meu Cofre" }] }),
@@ -71,6 +72,7 @@ function ImportPage() {
   const [savedRows, setSavedRows] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [reviewBatchId, setReviewBatchId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Restore any in-progress batch on mount (survives page refresh).
@@ -239,6 +241,7 @@ function ImportPage() {
         localStorage.removeItem("mc.import.currentBatch");
         toast.success(`${saved} linhas importadas de ${file.name}`);
         qc.invalidateQueries({ queryKey: ["import-batches"] });
+        setReviewBatchId(batch.id);
       } catch (e: any) {
         setPhase("error");
         setErrorMsg(e.message ?? String(e));
