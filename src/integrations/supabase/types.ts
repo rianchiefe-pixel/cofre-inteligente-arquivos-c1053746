@@ -781,6 +781,7 @@ export type Database = {
           cover_url: string | null
           created_at: string
           id: string
+          market_value: number | null
           name: string
           notes: string | null
           owner_name: string | null
@@ -804,6 +805,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           id?: string
+          market_value?: number | null
           name: string
           notes?: string | null
           owner_name?: string | null
@@ -827,6 +829,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           id?: string
+          market_value?: number | null
           name?: string
           notes?: string | null
           owner_name?: string | null
@@ -846,6 +849,233 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_credentials: {
+        Row: {
+          access_link: string | null
+          created_at: string
+          id: string
+          login: string | null
+          notes: string | null
+          password: string | null
+          property_id: string
+          recovery_email: string | null
+          service: string
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          access_link?: string | null
+          created_at?: string
+          id?: string
+          login?: string | null
+          notes?: string | null
+          password?: string | null
+          property_id: string
+          recovery_email?: string | null
+          service: string
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          access_link?: string | null
+          created_at?: string
+          id?: string
+          login?: string | null
+          notes?: string | null
+          password?: string | null
+          property_id?: string
+          recovery_email?: string | null
+          service?: string
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_credentials_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_leases: {
+        Row: {
+          contract_end: string | null
+          contract_start: string | null
+          created_at: string
+          due_day: number | null
+          id: string
+          notes: string | null
+          property_id: string
+          rent_amount: number | null
+          tenant_name: string | null
+          tenant_phone: string | null
+          tenant_tax_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contract_end?: string | null
+          contract_start?: string | null
+          created_at?: string
+          due_day?: number | null
+          id?: string
+          notes?: string | null
+          property_id: string
+          rent_amount?: number | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          tenant_tax_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contract_end?: string | null
+          contract_start?: string | null
+          created_at?: string
+          due_day?: number | null
+          id?: string
+          notes?: string | null
+          property_id?: string
+          rent_amount?: number | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          tenant_tax_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_leases_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_obligations: {
+        Row: {
+          amount: number | null
+          created_at: string
+          document_url: string | null
+          due_date: string | null
+          id: string
+          kind: string
+          label: string | null
+          notes: string | null
+          periodicity: string | null
+          property_id: string
+          status: string
+          supplier: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          document_url?: string | null
+          due_date?: string | null
+          id?: string
+          kind: string
+          label?: string | null
+          notes?: string | null
+          periodicity?: string | null
+          property_id: string
+          status?: string
+          supplier?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          document_url?: string | null
+          due_date?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          notes?: string | null
+          periodicity?: string | null
+          property_id?: string
+          status?: string
+          supplier?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_obligations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_tasks: {
+        Row: {
+          assignee: string | null
+          attachments: Json
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          notes: string | null
+          priority: string
+          property_id: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignee?: string | null
+          attachments?: Json
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string
+          property_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignee?: string | null
+          attachments?: Json
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string
+          property_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_tasks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -1172,6 +1402,13 @@ export type Database = {
         | "em_aquisicao"
         | "em_inventario"
         | "arquivado"
+        | "desocupado"
+        | "em_uso_familiar"
+        | "comodato"
+        | "a_venda"
+        | "em_leilao"
+        | "documentacao_pendente"
+        | "outro"
       property_type:
         | "casa"
         | "apartamento"
@@ -1379,6 +1616,13 @@ export const Constants = {
         "em_aquisicao",
         "em_inventario",
         "arquivado",
+        "desocupado",
+        "em_uso_familiar",
+        "comodato",
+        "a_venda",
+        "em_leilao",
+        "documentacao_pendente",
+        "outro",
       ],
       property_type: [
         "casa",
