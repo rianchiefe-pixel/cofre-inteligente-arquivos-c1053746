@@ -31,6 +31,7 @@ import {
   type MatchProgress,
   type MatchTier,
 } from "@/lib/receipt-matcher";
+import { reprocessBatchFacts } from "@/lib/zip-import";
 import { currencyBRL } from "@/lib/format";
 
 const TIER_LABEL: Record<MatchTier, string> = {
@@ -137,6 +138,12 @@ export function ImportMatches({ batchId }: { batchId: string }) {
     setBusy(true);
     setProgress({ rowsTotal: rows.data?.length ?? 0, rowsDone: 0, matched: 0, needsReview: 0, notFound: 0 });
     try {
+      // Re-normaliza valores/datas dos comprovantes com o parser BRL corrigido
+      // antes de recruzar — garante que "R$ 5.33" seja lido como 5,33.
+      const rp = await reprocessBatchFacts(batchId);
+      if (rp.total > 0) {
+        toast.message(`Comprovantes reprocessados: ${rp.updated}/${rp.total}`);
+      }
       const p = await matchBatchReceipts(batchId, { onProgress: setProgress });
       toast.success(
         `${p.matched} associados · ${p.needsReview} p/ conferir · ${p.notFound} sem comprovante`,
