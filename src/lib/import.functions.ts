@@ -15,6 +15,36 @@ function normalizeKey(v: unknown): string {
     .trim();
 }
 
+// Robust JSON extractor for LLM output — strips code fences, isolates the
+// outermost JSON object/array, and tolerates trailing commas / control chars.
+function extractJson(raw: string): any | null {
+  if (!raw) return null;
+  let s = raw
+    .replace(/^\uFEFF/, "")
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+  if (!s.startsWith("{") && !s.startsWith("[")) {
+    const o = s.indexOf("{");
+    const a = s.indexOf("[");
+    const isArr = a !== -1 && (o === -1 || a < o);
+    const start = isArr ? a : o;
+    const end = isArr ? s.lastIndexOf("]") : s.lastIndexOf("}");
+    if (start === -1 || end <= start) return null;
+    s = s.slice(start, end + 1);
+  }
+  try {
+    return JSON.parse(s);
+  } catch {}
+  try {
+    return JSON.parse(
+      s.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, " "),
+    );
+  } catch {
+    return null;
+  }
+}
+
 // ---- 1. Classify one row -------------------------------------------------
 
 export const classifyImportRow = createServerFn({ method: "POST" })
