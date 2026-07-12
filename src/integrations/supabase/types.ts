@@ -352,6 +352,9 @@ export type Database = {
           file_mime: string | null
           file_name: string | null
           file_size: number | null
+          files_errors: number
+          files_processed: number
+          files_total: number
           finished_at: string | null
           header_columns: Json | null
           header_row: number | null
@@ -359,6 +362,7 @@ export type Database = {
           imported_count: number
           normalized_rows: number
           parsed_rows: number
+          pdf_pages_processed: number
           phase: string
           profile_id: string | null
           progress_percent: number
@@ -382,6 +386,9 @@ export type Database = {
           file_mime?: string | null
           file_name?: string | null
           file_size?: number | null
+          files_errors?: number
+          files_processed?: number
+          files_total?: number
           finished_at?: string | null
           header_columns?: Json | null
           header_row?: number | null
@@ -389,6 +396,7 @@ export type Database = {
           imported_count?: number
           normalized_rows?: number
           parsed_rows?: number
+          pdf_pages_processed?: number
           phase?: string
           profile_id?: string | null
           progress_percent?: number
@@ -412,6 +420,9 @@ export type Database = {
           file_mime?: string | null
           file_name?: string | null
           file_size?: number | null
+          files_errors?: number
+          files_processed?: number
+          files_total?: number
           finished_at?: string | null
           header_columns?: Json | null
           header_row?: number | null
@@ -419,6 +430,7 @@ export type Database = {
           imported_count?: number
           normalized_rows?: number
           parsed_rows?: number
+          pdf_pages_processed?: number
           phase?: string
           profile_id?: string | null
           progress_percent?: number
@@ -439,6 +451,93 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_files: {
+        Row: {
+          batch_id: string
+          content_hash: string | null
+          created_at: string
+          duplicate_of: string | null
+          error_message: string | null
+          extension: string | null
+          extracted_text: string | null
+          file_name: string
+          folder: string | null
+          id: string
+          mime_type: string | null
+          ocr_data: Json | null
+          original_path: string
+          page_count: number | null
+          progress: number
+          size_bytes: number | null
+          status: string
+          storage_path: string | null
+          thumbnail_path: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          batch_id: string
+          content_hash?: string | null
+          created_at?: string
+          duplicate_of?: string | null
+          error_message?: string | null
+          extension?: string | null
+          extracted_text?: string | null
+          file_name: string
+          folder?: string | null
+          id?: string
+          mime_type?: string | null
+          ocr_data?: Json | null
+          original_path: string
+          page_count?: number | null
+          progress?: number
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string | null
+          thumbnail_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string
+          content_hash?: string | null
+          created_at?: string
+          duplicate_of?: string | null
+          error_message?: string | null
+          extension?: string | null
+          extracted_text?: string | null
+          file_name?: string
+          folder?: string | null
+          id?: string
+          mime_type?: string | null
+          ocr_data?: Json | null
+          original_path?: string
+          page_count?: number | null
+          progress?: number
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string | null
+          thumbnail_path?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_files_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_files_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "import_files"
             referencedColumns: ["id"]
           },
         ]
