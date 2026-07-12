@@ -180,7 +180,9 @@ function Dashboard() {
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip formatter={(v: number) => currencyBRL(v)} />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]} fill="hsl(var(--chart-1))" />
+                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                  {byCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
