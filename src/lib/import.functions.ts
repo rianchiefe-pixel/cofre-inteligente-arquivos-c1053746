@@ -151,17 +151,16 @@ export const classifyImportRow = createServerFn({ method: "POST" })
 
     const json = await res.json();
     let content: string = json?.choices?.[0]?.message?.content ?? "";
-    content = content.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-
-    let parsed: { data?: any; meta?: any };
-    try {
-      parsed = JSON.parse(content);
-    } catch {
+    const parsed = extractJson(content) as { data?: any; meta?: any } | null;
+    if (!parsed) {
       await supabase
         .from("import_rows")
-        .update({ ai_status: "error", ai_error: "JSON inválido do modelo" })
+        .update({
+          ai_status: "error",
+          ai_error: `JSON inválido do modelo: ${(content || "").slice(0, 200)}`,
+        })
         .eq("id", row.id);
-      throw new Error("Modelo retornou JSON inválido");
+      return { ok: false as const, reason: "invalid_json" };
     }
 
     const d = parsed.data ?? {};
