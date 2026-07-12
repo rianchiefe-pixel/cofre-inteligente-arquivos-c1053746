@@ -26,13 +26,14 @@ function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: strin
     warn: "bg-destructive text-destructive-foreground",
   };
   return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between">
+    <Card className="premium-card group relative overflow-hidden p-5">
+      <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[image:var(--gradient-primary)] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-10" />
+      <div className="relative flex items-start justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="mt-2 truncate text-2xl font-bold text-foreground">{value}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+          <p className="mt-2 truncate text-2xl font-bold tracking-tight text-foreground" style={{ fontFamily: "var(--font-display)" }}>{value}</p>
         </div>
-        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}>
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl shadow-[var(--shadow-soft)] transition-transform duration-500 group-hover:scale-105 ${tones[tone]}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -115,12 +116,15 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Visão geral do seu cofre — mês atual.</p>
+      <header className="animate-rise">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Meu Cofre</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
+          Dashboard
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Visão geral do seu cofre — mês atual.</p>
       </header>
 
-      <Card className="p-4">
+      <Card className="premium-card p-4">
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1">
             <Label className="text-xs">Filtrar por perfil</Label>
@@ -145,31 +149,31 @@ function Dashboard() {
         </div>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Gasto no mês" value={currencyBRL(totalMonth)} icon={Wallet} />
         <StatCard label="Investido no mês" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
         <StatCard label="Comprovantes aprovados" value={String(approvedReceipts.length)} icon={FileStack} tone="gold" />
         <StatCard label={pending > 0 ? "Pendentes de conferência" : "Possíveis duplicados"} value={String(pending || duplicates)} icon={AlertTriangle} tone={pending > 0 ? "warn" : "primary"} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Pendentes de aprovação" value={String(pending)} icon={Clock} tone="warn" />
         <StatCard label="Possíveis duplicidades" value={String(duplicates)} icon={Copy} tone="gold" />
         <StatCard label="Rejeitados no mês" value={String(rejectedMonth)} icon={XCircle} tone="warn" />
         <StatCard label="Aprovados no mês" value={String(approvedMonth)} icon={FileStack} tone="success" />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Imóveis ativos" value={String(activeProperties)} icon={Home} />
         <StatCard label="Imóvel com maior gasto no mês" value={topPropertyAmount > 0 ? `${topPropertyName} · ${currencyBRL(topPropertyAmount)}` : "—"} icon={Building2} tone="gold" />
         <StatCard label="Investido em imóveis (mês)" value={currencyBRL(totalInvestedProperties)} icon={PiggyBank} tone="success" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5">
+        <Card className="premium-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Gastos por categoria (mês)</h2>
+            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por categoria (mês)</h2>
           </div>
           {byCategory.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste mês ainda.</p>
@@ -188,10 +192,10 @@ function Dashboard() {
           )}
         </Card>
 
-        <Card className="p-5">
+        <Card className="premium-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Gastos por banco (mês)</h2>
+            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por banco (mês)</h2>
           </div>
           {byBank.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste mês ainda.</p>
@@ -208,14 +212,14 @@ function Dashboard() {
         </Card>
       </div>
 
-      <Card className="p-5">
-        <h2 className="mb-4 text-sm font-semibold">Últimos comprovantes</h2>
+      <Card className="premium-card p-5">
+        <h2 className="mb-4 text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Últimos comprovantes</h2>
         {validReceipts.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Envie seu primeiro comprovante pela aba <strong>Enviar comprovantes</strong>.</p>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border/60">
             {validReceipts.slice(0, 8).map((r) => (
-              <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
+              <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 transition-colors hover:bg-muted/40 -mx-2 px-2 rounded-lg">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{(r as any).recipient_name || (r as any).description || "Comprovante"}</p>
                   <p className="truncate text-xs text-muted-foreground">
