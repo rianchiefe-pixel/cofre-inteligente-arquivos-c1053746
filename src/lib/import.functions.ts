@@ -35,7 +35,7 @@ export const classifyImportRow = createServerFn({ method: "POST" })
     if (error || !row) throw new Error("Linha não encontrada");
 
     // Load context: existing categories + user preferences (learned aliases)
-    const [{ data: categories }, { data: prefs }] = await Promise.all([
+    const [{ data: categories }, { data: prefs }, { data: properties }, { data: banks }] = await Promise.all([
       supabase.from("categories").select("name").eq("user_id", userId),
       supabase
         .from("import_preferences")
@@ -43,9 +43,13 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         .eq("user_id", userId)
         .order("usage_count", { ascending: false })
         .limit(500),
+      supabase.from("properties").select("name").eq("user_id", userId),
+      supabase.from("banks").select("name").eq("user_id", userId),
     ]);
 
     const categoryList = (categories ?? []).map((c: any) => c.name);
+    const propertyList = (properties ?? []).map((p: any) => p.name);
+    const bankList = (banks ?? []).map((b: any) => b.name);
     const prefsByField: Record<string, Array<{ from: string; to: string }>> = {};
     for (const p of prefs ?? []) {
       (prefsByField[p.field] ??= []).push({
@@ -56,8 +60,10 @@ export const classifyImportRow = createServerFn({ method: "POST" })
 
     const promptText = [
       "Você é o assistente de classificação de lançamentos financeiros do Meu Cofre.",
-      "Analise TODOS os campos da linha (dados originais, dados normalizados e observações), não apenas a coluna em que a informação aparece.",
-      "Um banco, cartão, data, favorecido ou nome de arquivo pode estar descrito dentro das observações — você deve identificar e reorganizar.",
+      "Analise TODOS os campos da linha (dados originais, dados normalizados, descrição e observações), não apenas a coluna em que a informação aparece.",
+      "MUITAS linhas antigas têm a maioria das informações escondidas dentro do campo DESCRIÇÃO ou NOTAS em texto livre. Leia essa frase por inteiro e extraia banco, cartão, conta, valor, data, favorecido, titular/pagador, forma de pagamento, tipo (despesa/investimento), categoria e nome do IMÓVEL/PESSOA/EMPRESA relacionada.",
+      'Exemplo: "Pagamento cartão Safra referente a investimento no imóvel Casa 26 para João" → bank: "Safra", payment_method: "CREDITO", transaction_type: "INVESTIMENTO", property: "Casa 26", payee: "João".',
+      "NÃO altere nem reescreva o texto original da descrição — devolva-o inalterado em data.description. Coloque qualquer versão limpa/resumida em data.description_clean.",
       "",
       "REGRAS OBRIGATÓRIAS:",
       "1. transaction_type é sempre 'DESPESA' ou 'INVESTIMENTO'. NUNCA use 'RECEITA', 'FATURAMENTO' ou 'LUCRO' — o Meu Cofre não trabalha com receitas.",
@@ -65,10 +71,13 @@ export const classifyImportRow = createServerFn({ method: "POST" })
       "3. Para categoria, prefira uma já existente do usuário quando fizer sentido. Se realmente não houver equivalente, sugira UMA nova categoria curta.",
       "4. Mantenha SEPARADAS categorias como: Educação × Desporto, APAE × Educação, Caminhão × Caminhonete, Uber × Estacionamento, Serviços × Impostos × Seguros, Compras × Presentes × Vestuário × Tecnologia, Família × Pensão Alimentícia, Despesas × Investimentos.",
       "5. Extraia o final do cartão (últimos 4 dígitos) quando aparecer.",
-      "6. Para cada campo preenchido, informe origem (qual coluna original trouxe a informação), confiança (0.0 a 1.0) e uma justificativa curta.",
-      "7. Responda APENAS um JSON válido — sem markdown, sem texto extra, sem cercas de código.",
+      "6. Se o texto citar um imóvel (Casa X, Apto Y, Fazenda Z, Sala Comercial N), preencha data.property com o nome do imóvel — prefira um nome já existente do usuário quando houver correspondência.",
+      "7. Para cada campo preenchido, informe origem (qual coluna/frase trouxe a informação: 'descricao', 'notas', 'raw:<coluna>'), confiança (0.0 a 1.0) e uma justificativa curta.",
+      "8. Responda APENAS um JSON válido — sem markdown, sem texto extra, sem cercas de código.",
       "",
       "Categorias existentes do usuário: " + JSON.stringify(categoryList),
+      "Imóveis existentes do usuário: " + JSON.stringify(propertyList),
+      "Bancos existentes do usuário: " + JSON.stringify(bankList),
       "Aliases já aprovados pelo usuário: " + JSON.stringify(prefsByField),
       "",
       "Linha a classificar:",
@@ -92,7 +101,9 @@ export const classifyImportRow = createServerFn({ method: "POST" })
       '    "transaction_type": "DESPESA"|"INVESTIMENTO",',
       '    "category": string|null,',
       '    "subcategory": string|null,',
-      '    "description": string|null,',
+      '    "description": string|null,           // texto ORIGINAL inalterado',
+      '    "description_clean": string|null,     // versão limpa/resumida opcional',
+      '    "property": string|null,              // nome do imóvel/pessoa/empresa relacionada',
       '    "payee": string|null,',
       '    "account": string|null,',
       '    "bank": string|null,',
@@ -186,7 +197,8 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         transaction_date: d.date ?? row.transaction_date,
         category: d.category ?? row.category,
         account: d.account ?? row.account,
-        description: d.description ?? row.description,
+        // Preserve the ORIGINAL description text — never overwrite with AI output.
+        description: row.description,
         notes: d.notes ?? row.notes,
       })
       .eq("id", row.id);
