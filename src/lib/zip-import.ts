@@ -249,10 +249,9 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
       })
     : null;
 
-  let tesseract: typeof import("tesseract.js") | null = null;
-  let worker: Awaited<ReturnType<NonNullable<typeof tesseract>["createWorker"]>> | null = null;
+  let worker: any = null;
   if (runOcr) {
-    tesseract = await import("tesseract.js");
+    const tesseract = await import("tesseract.js");
     worker = await tesseract.createWorker("por+eng");
   }
 
@@ -331,7 +330,7 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
             status: "processed",
             extracted_text: extractedText.slice(0, 100_000) || null,
             page_count: pageCount ?? null,
-            ocr_data: Object.keys(ocrData).length ? ocrData : null,
+            ocr_data: (Object.keys(ocrData).length ? ocrData : null) as any,
             progress: 100,
           })
           .eq("id", f.id);
