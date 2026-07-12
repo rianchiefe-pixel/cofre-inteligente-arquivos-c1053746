@@ -80,9 +80,70 @@ function normText(s: string): string {
 }
 
 function parseBrlNumber(raw: string): number | null {
-  const s = raw.replace(/[R$\s]/gi, "").replace(/\./g, "").replace(",", ".");
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? n : null;
+  return parseBrlAmount(raw);
+}
+
+// ---------------------------------------------------------------------------
+// Robust BRL amount parser.
+//
+// Regras (padrão brasileiro):
+//   • vírgula = separador decimal
+//   • ponto   = separador de milhar
+//   • remove apenas "R$", espaços (incl. NBSP/thin) e caracteres não numéricos
+//     acessórios; preserva centavos
+//
+// Também corrige erros comuns de OCR:
+//   • "5.33"     → 5,33   (OCR trocou vírgula por ponto)
+//   • "1 700,00" → 1700,00
+//   • "1.700"    → 1700   (ponto como separador de milhar)
+//   • "533" quando o texto exibe "5,33" — não sabemos sem outra referência,
+//     então NÃO inventamos vírgula: retornamos 533 e deixamos a comparação
+//     com a planilha divergir explicitamente.
+// ---------------------------------------------------------------------------
+export function parseBrlAmount(raw: string | number | null | undefined): number | null {
+  if (raw == null) return null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  let s = String(raw).trim();
+  if (!s) return null;
+  // strip currency + all whitespace variants (regular, NBSP, thin, narrow-nbsp)
+  s = s
+    .replace(/R\$/gi, "")
+    .replace(/[\s\u00A0\u2007\u202F\u2009]/g, "")
+    .replace(/[^0-9.,\-]/g, "");
+  if (!s) return null;
+  const neg = s.startsWith("-");
+  s = s.replace(/-/g, "");
+
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+
+  let normalized: string;
+  if (hasComma && hasDot) {
+    // "1.700,00" — ponto = milhar, vírgula = decimal.
+    normalized = s.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    // "5,33" ou "1500,75" — vírgula sempre decimal.
+    // Se por engano vieram várias vírgulas, mantém a última como decimal.
+    const parts = s.split(",");
+    const dec = parts.pop()!;
+    normalized = parts.join("") + "." + dec;
+  } else if (hasDot) {
+    const parts = s.split(".");
+    const last = parts[parts.length - 1];
+    if (parts.length === 2 && (last.length === 1 || last.length === 2)) {
+      // "5.33" / "5.3" — OCR trocou vírgula por ponto → decimal.
+      normalized = parts[0] + "." + last;
+    } else {
+      // "1.700" / "1.234.567" — pontos = separador de milhar.
+      normalized = parts.join("");
+    }
+  } else {
+    normalized = s;
+  }
+
+  const n = parseFloat(normalized);
+  if (!Number.isFinite(n)) return null;
+  return neg ? -n : n;
 }
 
 function parseDateBR(raw: string): string | null {
@@ -171,10 +232,14 @@ export function extractReceiptFacts(rawText: string): ReceiptFacts {
   const text = normText(rawText);
   const facts: ReceiptFacts = {};
 
-  // Amount — pick largest "R$ x,yz" (usually the transaction total).
-  const amounts = [...text.matchAll(/R\$\s?([\d.]+,\d{2})/gi)]
-    .map((m) => ({ raw: m[0], n: parseBrlNumber(m[1]) }))
-    .filter((a): a is { raw: string; n: number } => a.n !== null);
+  // Amount — capture any BRL-looking number, prefer largest (transaction total).
+  // Aceita "R$ 5,33", "R$ 1.700,00", "R$ 5.33" (OCR errado), "R$ 1 700,00".
+  const amtRegex = /R\$\s?([\d.,\s\u00A0\u2007\u202F\u2009]{1,20}\d)/gi;
+  const amounts: Array<{ raw: string; n: number }> = [];
+  for (const m of text.matchAll(amtRegex)) {
+    const n = parseBrlAmount(m[1]);
+    if (n !== null && n > 0) amounts.push({ raw: m[0].trim(), n });
+  }
   if (amounts.length) {
     amounts.sort((a, b) => b.n - a.n);
     facts.amount = amounts[0].n;
@@ -540,4 +605,38 @@ export async function getZipSnapshot(batchId: string): Promise<ZipProgress> {
     errors,
     percent: filesFound ? Math.round((filesProcessed / filesFound) * 100) : 0,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Reprocessa OCR facts (valor, data, favorecido, banco, etc.) sobre o
+// `extracted_text` já persistido — usa o parser BRL corrigido para
+// re-normalizar valores sem precisar reler o PDF/imagem.
+// ---------------------------------------------------------------------------
+export async function reprocessBatchFacts(
+  batchId: string,
+  onProgress?: (p: { done: number; total: number }) => void,
+): Promise<{ updated: number; total: number }> {
+  const { data: files } = await supabase
+    .from("import_files")
+    .select("id, extracted_text")
+    .eq("batch_id", batchId)
+    .not("extracted_text", "is", null);
+
+  const list = files ?? [];
+  let done = 0;
+  let updated = 0;
+  for (const f of list) {
+    const text = String(f.extracted_text ?? "");
+    if (text.trim()) {
+      const facts = extractReceiptFacts(text);
+      const { error } = await supabase
+        .from("import_files")
+        .update({ ocr_data: (Object.keys(facts).length ? facts : null) as any })
+        .eq("id", f.id);
+      if (!error) updated += 1;
+    }
+    done += 1;
+    onProgress?.({ done, total: list.length });
+  }
+  return { updated, total: list.length };
 }
