@@ -450,164 +450,175 @@ export function ImportConference({
   }
 
   return (
-    <Card className="fixed inset-2 z-50 flex flex-col overflow-hidden md:inset-4">
-      {/* Header */}
-      <header className="flex flex-wrap items-center gap-3 border-b border-border p-3">
-        <div>
-          <h2 className="text-base font-semibold">
-            Importação concluída — iniciar conferência
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {counts.total} linhas · {counts.pending} pendentes · {counts.approved} aprovadas ·{" "}
-            {counts.rejected} rejeitadas · {counts.ver} ver depois · {counts.no} sem comprovante ·{" "}
-            {counts.low} baixa confiança · {counts.dup} possíveis duplicidades
-          </p>
-        </div>
-        <div className="ml-auto text-xs text-muted-foreground">
-          Linha {filteredRows.length === 0 ? 0 : activeIdx + 1} de {filteredRows.length}
-        </div>
-        <Button size="sm" variant="ghost" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </header>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border p-2 text-xs">
-        <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-          <SelectTrigger className="h-8 w-[170px] text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos ({counts.total})</SelectItem>
-            <SelectItem value="pending">Pendentes ({counts.pending})</SelectItem>
-            <SelectItem value="approved">Aprovados ({counts.approved})</SelectItem>
-            <SelectItem value="rejected">Rejeitados ({counts.rejected})</SelectItem>
-            <SelectItem value="ver_depois">Ver depois ({counts.ver})</SelectItem>
-            <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
-            <SelectItem value="low_conf">Baixa confiança ({counts.low})</SelectItem>
-            <SelectItem value="duplicate">Possíveis duplicidades ({counts.dup})</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tipos</SelectItem>
-            <SelectItem value="DESPESA">Despesa</SelectItem>
-            <SelectItem value="INVESTIMENTO">Investimento</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-8 w-48 pl-7 text-xs"
-            placeholder="Buscar descrição / favorecido"
-            value={textFilter}
-            onChange={(e) => setTextFilter(e.target.value)}
-          />
-        </div>
-        <Input className="h-8 w-28 text-xs" placeholder="Banco" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)} />
-        <Input className="h-8 w-28 text-xs" placeholder="Categoria" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} />
-        <Input className="h-8 w-28 text-xs" placeholder="Cartão" value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} />
-        <Input className="h-8 w-36 text-xs" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <Input className="h-8 w-36 text-xs" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-        <Input className="h-8 w-24 text-xs" placeholder="Min R$" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} />
-        <Input className="h-8 w-24 text-xs" placeholder="Max R$" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} />
-      </div>
-
-      {/* Body */}
-      <div className="grid min-h-0 flex-1 grid-cols-[240px_1fr_360px]">
-        {/* Row list */}
-        <aside className="min-h-0 overflow-auto border-r border-border">
-          {filteredRows.map((r: any, i: number) => {
-            const s = (r.review_status ?? "pending") as ReviewStatus;
-            const links = linksByRow.get(r.id) ?? [];
-            return (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => setActiveIdx(i)}
-                className={`block w-full border-b border-border/60 p-2 text-left text-xs transition-colors ${
-                  i === activeIdx ? "bg-primary/10" : "hover:bg-muted/50"
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">#{r.row_number}</span>
-                  <Badge className={`ml-auto text-[10px] ${STATUS_COLOR[s]}`}>
-                    {STATUS_LABEL[s]}
-                  </Badge>
-                </div>
-                <div className="mt-1 truncate font-medium">
-                  {r.description ?? r.payee ?? "—"}
-                </div>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <span>{r.transaction_date ?? "—"}</span>
-                  <span className="ml-auto tabular-nums">
-                    {typeof r.amount === "number" ? currencyBRL(r.amount) : ""}
-                  </span>
-                </div>
-                <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                  {links.length === 0 ? (
-                    <FileWarning className="h-3 w-3 text-destructive" />
-                  ) : (
-                    <Paperclip className="h-3 w-3" />
-                  )}
-                  <span>{links.length || "sem"} comprovante(s)</span>
-                  {duplicateIds.has(r.id) && (
-                    <Badge variant="outline" className="ml-auto text-[9px]">
-                      dup
-                    </Badge>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-          {filteredRows.length === 0 && (
-            <p className="p-6 text-center text-xs text-muted-foreground">
-              Nenhuma linha corresponde aos filtros.
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        className="flex max-h-[90vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {/* Sticky header */}
+        <div className="shrink-0 border-b border-border bg-background px-4 py-3">
+          <DialogHeader className="space-y-1 text-left">
+            <DialogTitle className="text-base">
+              Conferência de comprovantes
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              {counts.total} linhas · {counts.pending} pendentes · {counts.approved} aprovadas ·{" "}
+              {counts.rejected} rejeitadas · {counts.ver} ver depois · {counts.no} sem comprovante ·{" "}
+              {counts.low} baixa confiança · {counts.dup} possíveis duplicidades
             </p>
-          )}
-        </aside>
+          </DialogHeader>
 
-        {/* Viewer */}
-        <section className="min-h-0 overflow-hidden bg-muted/30">
-          {activeRow ? (
-            <ReceiptViewer
-              row={activeRow}
-              links={(linksByRow.get(activeRow.id) ?? []).slice().sort((a, b) => b.score - a.score)}
-              files={filesQ.data ?? []}
-              fileById={fileById}
-              onChanged={invalidate}
-            />
-          ) : (
-            <div className="grid h-full place-items-center text-sm text-muted-foreground">
-              Selecione uma linha à esquerda.
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <Button size="sm" variant="outline" onClick={goPrev} disabled={activeIdx <= 0}>
+              <ChevronLeft className="h-3 w-3" />
+            </Button>
+            <span className="tabular-nums">
+              Linha {filteredRows.length === 0 ? 0 : activeIdx + 1} de {filteredRows.length}
+            </span>
+            <Button size="sm" variant="outline" onClick={goNext} disabled={activeIdx >= filteredRows.length - 1}>
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+            <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+              <SelectTrigger className="h-8 w-[190px] text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos ({counts.total})</SelectItem>
+                <SelectItem value="pending">Pendentes ({counts.pending})</SelectItem>
+                <SelectItem value="approved">Aprovados ({counts.approved})</SelectItem>
+                <SelectItem value="rejected">Rejeitados ({counts.rejected})</SelectItem>
+                <SelectItem value="ver_depois">Ver depois ({counts.ver})</SelectItem>
+                <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
+                <SelectItem value="low_conf">Baixa confiança ({counts.low})</SelectItem>
+                <SelectItem value="duplicate">Duplicidades ({counts.dup})</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="DESPESA">Despesa</SelectItem>
+                <SelectItem value="INVESTIMENTO">Investimento</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto"
+              onClick={handleReclassify}
+              disabled={savingAction !== null || !activeRow}
+            >
+              <Sparkles className="mr-1 h-3 w-3" /> Reanalisar com IA
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowAllFilters((s) => !s)}
+            >
+              <ChevronDown className={`h-3 w-3 transition-transform ${showAllFilters ? "rotate-180" : ""}`} />
+              <span className="ml-1">Mais filtros</span>
+            </Button>
+          </div>
+
+          {showAllFilters && (
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="h-8 w-56 pl-7 text-xs"
+                  placeholder="Buscar descrição / favorecido"
+                  value={textFilter}
+                  onChange={(e) => setTextFilter(e.target.value)}
+                />
+              </div>
+              <Input className="h-8 w-28 text-xs" placeholder="Banco" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)} />
+              <Input className="h-8 w-32 text-xs" placeholder="Categoria" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} />
+              <Input className="h-8 w-28 text-xs" placeholder="Cartão" value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} />
+              <Input className="h-8 w-36 text-xs" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <Input className="h-8 w-36 text-xs" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <Input className="h-8 w-24 text-xs" placeholder="Min R$" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} />
+              <Input className="h-8 w-24 text-xs" placeholder="Max R$" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} />
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Editor */}
-        <aside className="min-h-0 overflow-auto border-l border-border">
+        {/* Single scrollable body */}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20">
           {activeRow ? (
-            <RowEditor
-              row={activeRow}
-              links={linksByRow.get(activeRow.id) ?? []}
-              isDuplicate={duplicateIds.has(activeRow.id)}
-              busy={savingAction !== null}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onVerDepois={handleVerDepois}
-              onSaveOnly={handleSaveOnly}
-              onUndo={handleUndo}
-              onReclassify={handleReclassify}
-              onPrev={goPrev}
-              onNext={goNext}
-            />
-          ) : null}
-        </aside>
-      </div>
-    </Card>
+            <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              <ReceiptViewer
+                row={activeRow}
+                links={(linksByRow.get(activeRow.id) ?? []).slice().sort((a, b) => b.score - a.score)}
+                files={filesQ.data ?? []}
+                fileById={fileById}
+                onChanged={invalidate}
+              />
+              <RowEditor
+                row={activeRow}
+                links={linksByRow.get(activeRow.id) ?? []}
+                isDuplicate={duplicateIds.has(activeRow.id)}
+                values={values}
+                setValues={setValues}
+                reason={reason}
+                setReason={setReason}
+                showRaw={showRaw}
+                setShowRaw={setShowRaw}
+              />
+            </div>
+          ) : (
+            <div className="grid h-64 place-items-center text-sm text-muted-foreground">
+              Nenhuma linha corresponde aos filtros.
+            </div>
+          )}
+        </div>
+
+        {/* Sticky footer */}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleUndo}
+            disabled={savingAction !== null || !activeRow}
+          >
+            <Undo2 className="mr-1 h-3 w-3" /> Desfazer
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => activeRow && handleSaveOnly(collectOverrides())}
+            disabled={savingAction !== null || !activeRow}
+          >
+            Salvar sem aprovar
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => activeRow && handleReject(reason, collectOverrides())}
+            disabled={savingAction !== null || !activeRow}
+          >
+            <XCircle className="mr-1 h-3 w-3" /> Rejeitar
+          </Button>
+          <Button
+            size="sm"
+            className="bg-amber-500 text-white hover:bg-amber-500/90"
+            onClick={() => activeRow && handleVerDepois(collectOverrides())}
+            disabled={savingAction !== null || !activeRow}
+          >
+            <Clock className="mr-1 h-3 w-3" /> Ver depois
+          </Button>
+          <Button
+            size="sm"
+            className="bg-emerald-600 text-white hover:bg-emerald-600/90"
+            onClick={() => activeRow && handleApprove(collectOverrides())}
+            disabled={savingAction !== null || !activeRow}
+          >
+            <CheckCircle2 className="mr-1 h-3 w-3" /> Aprovar e continuar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
