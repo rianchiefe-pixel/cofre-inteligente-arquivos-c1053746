@@ -280,6 +280,32 @@ export function ImportConference({
 
   const activeRow = filteredRows[activeIdx];
 
+  // Re-hydrate editor state whenever the active row changes.
+  useEffect(() => {
+    if (activeRow) {
+      setValues(hydrateValues(activeRow));
+      setReason("");
+    } else {
+      setValues({});
+      setReason("");
+    }
+  }, [activeRow?.id]);
+
+  function collectOverrides(): Record<string, unknown> {
+    const overrides: Record<string, unknown> = {};
+    for (const f of FIELDS) {
+      const v = values[f.key];
+      if (v === "" || v === undefined || v === null) continue;
+      if (f.type === "number") {
+        const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
+        if (Number.isFinite(n)) overrides[f.key] = n;
+      } else {
+        overrides[f.key] = String(v);
+      }
+    }
+    return overrides;
+  }
+
   const counts = useMemo(() => {
     const list = rowsQ.data ?? [];
     let pending = 0,
