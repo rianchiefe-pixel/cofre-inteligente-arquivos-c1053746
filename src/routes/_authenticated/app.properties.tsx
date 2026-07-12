@@ -33,7 +33,7 @@ type Form = {
   address: string; city: string; state: string; cep: string;
   registration: string; cartorio: string;
   owner_name: string; owner_tax_id: string;
-  acquisition_date: string; acquisition_value: string;
+  acquisition_date: string; acquisition_value: string; market_value: string;
   cover_url: string; notes: string;
 };
 
@@ -42,7 +42,7 @@ const emptyForm: Form = {
   address: "", city: "", state: "", cep: "",
   registration: "", cartorio: "",
   owner_name: "", owner_tax_id: "",
-  acquisition_date: "", acquisition_value: "",
+  acquisition_date: "", acquisition_value: "", market_value: "",
   cover_url: "", notes: "",
 };
 
@@ -54,6 +54,13 @@ const STATUS_TONE: Record<string, string> = {
   em_aquisicao: "bg-accent text-accent-foreground",
   em_inventario: "bg-orange-500 text-white",
   arquivado: "bg-secondary text-secondary-foreground",
+  desocupado: "bg-slate-500 text-white",
+  em_uso_familiar: "bg-emerald-600 text-white",
+  comodato: "bg-indigo-500 text-white",
+  a_venda: "bg-blue-600 text-white",
+  em_leilao: "bg-rose-600 text-white",
+  documentacao_pendente: "bg-amber-600 text-white",
+  outro: "bg-secondary text-secondary-foreground",
 };
 
 async function logAudit(action: string, entityId: string, note: string, old_value?: any, new_value?: any) {
@@ -125,6 +132,7 @@ function PropertiesPage() {
         profile_id: form.profile_id || null,
         acquisition_date: form.acquisition_date || null,
         acquisition_value: form.acquisition_value ? Number(form.acquisition_value.replace(",", ".")) : null,
+        market_value: form.market_value ? Number(form.market_value.replace(",", ".")) : null,
         cover_url: form.cover_url || null,
       };
       if (editId) {
@@ -176,6 +184,7 @@ function PropertiesPage() {
       owner_name: p.owner_name ?? "", owner_tax_id: p.owner_tax_id ?? "",
       acquisition_date: p.acquisition_date ?? "",
       acquisition_value: p.acquisition_value != null ? String(p.acquisition_value) : "",
+      market_value: (p as any).market_value != null ? String((p as any).market_value) : "",
       cover_url: p.cover_url ?? "", notes: p.notes ?? "",
     });
     setOpen(true);
@@ -302,6 +311,10 @@ function PropertiesPage() {
                   <div className="space-y-2">
                     <Label>Valor de aquisição (R$)</Label>
                     <Input inputMode="decimal" value={form.acquisition_value} onChange={(e) => setForm({ ...form, acquisition_value: e.target.value })} placeholder="0,00" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Valor do imóvel (R$)</Label>
+                    <Input inputMode="decimal" value={form.market_value} onChange={(e) => setForm({ ...form, market_value: e.target.value })} placeholder="0,00" />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
                     <Label>URL da foto (opcional)</Label>

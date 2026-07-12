@@ -1,18 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { currencyBRL, dateBR, propertyPurposeLabel, propertyStatusLabel, propertyTypeLabel, transactionTypeLabel } from "@/lib/format";
-import { ArrowLeft, Wallet, PiggyBank, Repeat, Wind, MapPin, Home, FileText, Landmark } from "lucide-react";
+import { ArrowLeft, Wallet, PiggyBank, Repeat, Wind, MapPin, Home, FileText, Landmark, KeyRound, ListTodo, Receipt, Users } from "lucide-react";
 import { useCan } from "@/lib/permissions";
 import { ExportMenu } from "@/components/export-menu";
 import type { ReportPayload } from "@/lib/exports";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid, LineChart, Line,
 } from "recharts";
+import { LeaseTab, ObligationsTab, CredentialsTab, PropertyTasksTab } from "@/components/property-tabs";
 
 export const Route = createFileRoute("/_authenticated/app/properties/$id")({
   head: () => ({ meta: [{ title: "Imóvel — Meu Cofre" }] }),
@@ -46,6 +48,8 @@ function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: strin
 function PropertyDetail() {
   const { id } = Route.useParams();
   const canExport = useCan("exportReports");
+  const [userId, setUserId] = useState<string>("");
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? "")); }, []);
 
   const property = useQuery({
     queryKey: ["property", id],
@@ -177,12 +181,23 @@ function PropertyDetail() {
               {p.owner_name && <>Proprietário: {p.owner_name}</>}
               {p.acquisition_date && <> • Aquisição: {dateBR(p.acquisition_date)}</>}
               {p.acquisition_value != null && <> • Valor: {currencyBRL(Number(p.acquisition_value))}</>}
+              {(p as any).market_value != null && <> • Valor de mercado: {currencyBRL(Number((p as any).market_value))}</>}
             </p>
           )}
         </div>
         {canExport && <ExportMenu build={buildPayload} disabled={rows.length === 0} label="Relatório do imóvel" />}
       </div>
 
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="flex flex-wrap gap-1">
+          <TabsTrigger value="overview"><Landmark className="mr-1.5 h-4 w-4" /> Visão geral</TabsTrigger>
+          {p.status === "alugado" && <TabsTrigger value="lease"><Users className="mr-1.5 h-4 w-4" /> Locação</TabsTrigger>}
+          <TabsTrigger value="obligations"><Receipt className="mr-1.5 h-4 w-4" /> Obrigações</TabsTrigger>
+          <TabsTrigger value="credentials"><KeyRound className="mr-1.5 h-4 w-4" /> Acessos</TabsTrigger>
+          <TabsTrigger value="tasks"><ListTodo className="mr-1.5 h-4 w-4" /> Tarefas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Total gasto" value={currencyBRL(totalSpent)} icon={Wallet} />
         <StatCard label="Total investido" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
@@ -294,6 +309,15 @@ function PropertyDetail() {
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.notes}</p>
         </Card>
       )}
+        </TabsContent>
+
+        {p.status === "alugado" && userId && (
+          <TabsContent value="lease"><LeaseTab propertyId={id} userId={userId} /></TabsContent>
+        )}
+        {userId && <TabsContent value="obligations"><ObligationsTab propertyId={id} userId={userId} /></TabsContent>}
+        {userId && <TabsContent value="credentials"><CredentialsTab propertyId={id} userId={userId} /></TabsContent>}
+        {userId && <TabsContent value="tasks"><PropertyTasksTab propertyId={id} userId={userId} /></TabsContent>}
+      </Tabs>
     </div>
   );
 }

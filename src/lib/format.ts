@@ -71,6 +71,13 @@ export const propertyStatusLabel: Record<string, string> = {
   em_aquisicao: "Em aquisição",
   em_inventario: "Em inventário",
   arquivado: "Arquivado",
+  desocupado: "Desocupado",
+  em_uso_familiar: "Em uso familiar",
+  comodato: "Cedido em comodato",
+  a_venda: "À venda",
+  em_leilao: "Em leilão",
+  documentacao_pendente: "Documentação pendente",
+  outro: "Outro",
 };
 
 export const propertyPurposeLabel: Record<string, string> = {
@@ -80,5 +87,50 @@ export const propertyPurposeLabel: Record<string, string> = {
   investimento: "Investimento",
   uso_empresarial: "Uso empresarial",
   rural: "Rural",
+  outro: "Outro",
+};
+
+export const taskStatusLabel: Record<string, string> = {
+  pendente: "Pendente",
+  em_andamento: "Em andamento",
+  concluida: "Concluída",
+  cancelada: "Cancelada",
+  aguardando_terceiros: "Aguardando terceiros",
+};
+
+export const taskPriorityLabel: Record<string, string> = {
+  baixa: "Baixa",
+  media: "Média",
+  alta: "Alta",
+  urgente: "Urgente",
+};
+
+export const obligationKindLabel: Record<string, string> = {
+  iptu: "IPTU",
+  lixo: "Taxa de lixo",
+  condominio: "Condomínio",
+  agua: "Água e esgoto",
+  energia: "Energia",
+  internet: "Internet",
+  limpeza: "Limpeza",
+  gas: "Gás",
+  outro: "Outra",
+};
+
+export const obligationStatusLabel: Record<string, string> = {
+  em_dia: "Em dia",
+  pendente: "Pendente",
+  atrasado: "Atrasado",
+  pago: "Pago",
+  cancelado: "Cancelado",
+};
+
+export const periodicityLabel: Record<string, string> = {
+  mensal: "Mensal",
+  bimestral: "Bimestral",
+  trimestral: "Trimestral",
+  semestral: "Semestral",
+  anual: "Anual",
+  unica: "Única",
   outro: "Outro",
 };
