@@ -308,20 +308,10 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
           }
         }
 
-        // Very light structured OCR heuristics
+        // Structured OCR extraction — everything the matcher needs to
+        // cross-check a receipt against a spreadsheet row.
         if (extractedText) {
-          const cpf = extractedText.match(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/)?.[0];
-          const cnpj = extractedText.match(
-            /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/,
-          )?.[0];
-          const date = extractedText.match(/\b\d{2}\/\d{2}\/\d{4}\b/)?.[0];
-          const value = extractedText.match(/R\$\s?[\d\.]+,\d{2}/)?.[0];
-          const auth = extractedText.match(/(autentica[çc][ãa]o|c[oó]digo)[:\s]+([A-Z0-9]{6,})/i)?.[2];
-          if (cpf) ocrData.cpf = cpf;
-          if (cnpj) ocrData.cnpj = cnpj;
-          if (date) ocrData.date = date;
-          if (value) ocrData.value = value;
-          if (auth) ocrData.auth_code = auth;
+          Object.assign(ocrData, extractReceiptFacts(extractedText));
         }
 
         await supabase
