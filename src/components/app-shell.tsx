@@ -81,12 +81,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card px-4 py-3 md:hidden">
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border/70 glass px-4 py-3 md:hidden">
         <Link to="/app" className="flex items-center gap-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-primary-foreground">
+          <div className="grid h-8 w-8 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-soft)]">
             <ShieldCheck className="h-4 w-4" />
           </div>
-          <span className="font-semibold">Meu Cofre</span>
+          <span className="font-display font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Meu Cofre</span>
         </Link>
         <div className="flex items-center gap-2">
           {isDemo && <Badge variant="outline" className="border-accent/60 text-[10px]">Modo teste</Badge>}
@@ -99,56 +99,60 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex">
         {/* Sidebar */}
         <aside
-          className={`${open ? "block" : "hidden"} md:block fixed inset-x-0 top-[57px] z-20 border-b border-sidebar-border bg-sidebar md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r`}
+          className={`${open ? "block" : "hidden"} md:block fixed inset-x-0 top-[57px] z-20 border-b border-sidebar-border bg-sidebar md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r md:border-sidebar-border/60`}
+          style={{ backgroundImage: "linear-gradient(180deg, var(--sidebar) 0%, color-mix(in oklab, var(--sidebar) 92%, black) 100%)" }}
         >
-          <div className="hidden items-center gap-2 border-b border-sidebar-border px-6 py-5 md:flex">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-accent-foreground">
+          <div className="hidden items-center gap-3 border-b border-sidebar-border/60 px-6 py-5 md:flex">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-[image:var(--gradient-gold)] text-accent-foreground shadow-[var(--shadow-gold)]">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-sidebar-foreground">Meu Cofre</p>
-              <p className="text-xs text-sidebar-foreground/60">Cofre inteligente</p>
+              <p className="text-sm font-semibold tracking-tight text-sidebar-foreground" style={{ fontFamily: "var(--font-display)" }}>Meu Cofre</p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-sidebar-foreground/50">Cofre Inteligente</p>
             </div>
           </div>
           {isDemo && (
-            <div className="mx-3 mt-3 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-[11px] font-medium text-accent-foreground">
+            <div className="mx-3 mt-3 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-[11px] font-medium text-accent-foreground animate-rise">
               Conta demo ativa
               <button
                 onClick={resetDemo}
                 disabled={resetting}
-                className="mt-2 block w-full rounded-md border border-accent/40 bg-background/50 px-2 py-1 text-[11px] font-medium text-foreground hover:bg-background disabled:opacity-60"
+                className="mt-2 block w-full rounded-md border border-accent/40 bg-background/60 px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-background disabled:opacity-60"
               >
                 {resetting ? "Restaurando..." : "Restaurar dados demo"}
               </button>
             </div>
           )}
-          <nav className="space-y-1 p-3">
+          <nav className="space-y-0.5 p-3">
             {visibleNav.map(({ to, label, icon: Icon }) => {
               const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
               return (
                 <Link
                   key={to}
                   to={to}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-300 ${
                     active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--sidebar-primary)_35%,transparent)]"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground hover:translate-x-0.5"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  {label}
+                  {active && (
+                    <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
+                  )}
+                  <Icon className={`h-4 w-4 transition-colors ${active ? "text-accent" : "text-sidebar-foreground/60 group-hover:text-accent"}`} />
+                  <span className="font-medium">{label}</span>
                 </Link>
               );
             })}
           </nav>
-          <div className="mt-auto border-t border-sidebar-border p-3">
+          <div className="mt-auto border-t border-sidebar-border/60 p-3">
             <div className="mb-2 flex items-center justify-between gap-2 px-3 py-2">
-              <span className="truncate text-xs text-sidebar-foreground/60">{email}</span>
+              <span className="truncate text-xs text-sidebar-foreground/55">{email}</span>
               {top && <Badge variant="secondary" className="shrink-0 text-[10px]">{ROLE_LABEL[top]}</Badge>}
             </div>
             <button
               onClick={signOut}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
             >
               <LogOut className="h-4 w-4" /> Sair
             </button>
@@ -156,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
 
         <main className="min-w-0 flex-1">
-          <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">{children}</div>
+          <div key={pathname} className="mx-auto max-w-7xl px-4 py-6 md:px-10 md:py-12 animate-rise">{children}</div>
         </main>
       </div>
     </div>
