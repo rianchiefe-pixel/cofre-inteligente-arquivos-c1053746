@@ -345,6 +345,6 @@ export const setImportRowStatus = createServerFn({ method: "POST" })
     };
     if (data.reason !== undefined) patch.ai_error = data.reason;
     if (data.overrides) Object.assign(patch, data.overrides);
-    await supabase.from("import_rows").update(patch).eq("id", data.rowId);
+    await supabase.from("import_rows").update(patch as any).eq("id", data.rowId);
     return { ok: true as const };
   });
