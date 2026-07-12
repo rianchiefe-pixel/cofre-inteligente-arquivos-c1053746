@@ -68,6 +68,165 @@ async function sha256Hex(buf: ArrayBuffer): Promise<string> {
 }
 
 // -----------------------------------------------------------------------------
+// Receipt fact extraction — parses OCR/PDF text into structured fields the
+// matcher can compare deterministically against a spreadsheet row.
+// -----------------------------------------------------------------------------
+
+function normText(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ \t]+/g, " ");
+}
+
+function parseBrlNumber(raw: string): number | null {
+  const s = raw.replace(/[R$\s]/gi, "").replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseDateBR(raw: string): string | null {
+  const m = raw.match(/(\d{2})[\/.-](\d{2})[\/.-](\d{2,4})/);
+  if (!m) return null;
+  const d = m[1], mo = m[2];
+  let y = m[3];
+  if (y.length === 2) y = (parseInt(y, 10) > 60 ? "19" : "20") + y;
+  return `${y}-${mo}-${d}`;
+}
+
+const BANK_ALIASES: Array<{ key: string; patterns: RegExp[] }> = [
+  { key: "itau", patterns: [/ita[uú]/i] },
+  { key: "bradesco", patterns: [/bradesco/i] },
+  { key: "santander", patterns: [/santander/i] },
+  { key: "bb", patterns: [/banco do brasil|\bbb\b|001\b/i] },
+  { key: "caixa", patterns: [/caixa econ|\bcef\b|caixa\b/i] },
+  { key: "nubank", patterns: [/nubank|nu pagamentos/i] },
+  { key: "inter", patterns: [/banco inter|\binter\b/i] },
+  { key: "safra", patterns: [/safra/i] },
+  { key: "sicredi", patterns: [/sicredi/i] },
+  { key: "sicoob", patterns: [/sicoob/i] },
+  { key: "btg", patterns: [/\bbtg\b/i] },
+  { key: "c6", patterns: [/\bc6\b/i] },
+  { key: "original", patterns: [/banco original/i] },
+  { key: "next", patterns: [/\bnext\b/i] },
+  { key: "pan", patterns: [/banco pan/i] },
+  { key: "will", patterns: [/will bank/i] },
+  { key: "mercadopago", patterns: [/mercado pago|mercadopago/i] },
+  { key: "pagseguro", patterns: [/pagseguro|pagbank/i] },
+  { key: "picpay", patterns: [/picpay/i] },
+];
+
+export function normalizeBank(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const s = String(raw);
+  for (const b of BANK_ALIASES) if (b.patterns.some((p) => p.test(s))) return b.key;
+  return null;
+}
+
+function detectBanks(text: string): string[] {
+  const found = new Set<string>();
+  for (const b of BANK_ALIASES) if (b.patterns.some((p) => p.test(text))) found.add(b.key);
+  return [...found];
+}
+
+function detectPaymentMethod(text: string): string | null {
+  const t = text.toLowerCase();
+  if (/\bpix\b/.test(t)) return "pix";
+  if (/boleto|c[oó]d(?:igo)?\s*de\s*barras/.test(t)) return "boleto";
+  if (/cart[aã]o\s+de\s+cr[eé]dito|credito/.test(t)) return "cartao_credito";
+  if (/cart[aã]o\s+de\s+d[eé]bito|debito/.test(t)) return "cartao_debito";
+  if (/ted\b|doc\b|transfer[eê]ncia/.test(t)) return "transferencia";
+  if (/dinheiro|esp[eé]cie/.test(t)) return "dinheiro";
+  return null;
+}
+
+function extractLabeled(text: string, labels: RegExp): string | null {
+  const re = new RegExp(
+    `(?:${labels.source})\\s*[:\\-]?\\s*([A-Za-zÀ-ÿ0-9 &.'\\-]{3,80})`,
+    "i",
+  );
+  const m = text.match(re);
+  return m ? m[1].trim().replace(/\s{2,}/g, " ") : null;
+}
+
+export interface ReceiptFacts {
+  amount?: number;
+  amount_raw?: string;
+  date?: string; // ISO
+  time?: string;
+  payer?: string;
+  payee?: string;
+  bank_from?: string;
+  bank_to?: string;
+  banks?: string[];
+  payment_method?: string;
+  cpf?: string[];
+  cnpj?: string[];
+  auth_code?: string;
+  transaction_id?: string;
+  description?: string;
+}
+
+export function extractReceiptFacts(rawText: string): ReceiptFacts {
+  const text = normText(rawText);
+  const facts: ReceiptFacts = {};
+
+  // Amount — pick largest "R$ x,yz" (usually the transaction total).
+  const amounts = [...text.matchAll(/R\$\s?([\d.]+,\d{2})/gi)]
+    .map((m) => ({ raw: m[0], n: parseBrlNumber(m[1]) }))
+    .filter((a): a is { raw: string; n: number } => a.n !== null);
+  if (amounts.length) {
+    amounts.sort((a, b) => b.n - a.n);
+    facts.amount = amounts[0].n;
+    facts.amount_raw = amounts[0].raw;
+  }
+
+  // Date/time
+  const date = text.match(/\b(\d{2})[\/.-](\d{2})[\/.-](\d{2,4})\b/);
+  if (date) {
+    const iso = parseDateBR(date[0]);
+    if (iso) facts.date = iso;
+  }
+  const time = text.match(/\b(\d{2}):(\d{2})(?::(\d{2}))?\b/);
+  if (time) facts.time = time[0];
+
+  // Documents
+  const cpfs = [...text.matchAll(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g)].map((m) => m[0]);
+  if (cpfs.length) facts.cpf = [...new Set(cpfs)];
+  const cnpjs = [...text.matchAll(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g)].map((m) => m[0]);
+  if (cnpjs.length) facts.cnpj = [...new Set(cnpjs)];
+
+  // Auth/transaction ids
+  const auth = text.match(/(?:autentica[cç][aã]o|c[oó]digo\s*de\s*autentica[cç][aã]o)\s*[:\-]?\s*([A-Z0-9.\-]{6,})/i);
+  if (auth) facts.auth_code = auth[1];
+  const tx = text.match(/(?:id\s*(?:da\s*)?transa[cç][aã]o|transaction\s*id|end\s*to\s*end|e2e|nsu)\s*[:\-]?\s*([A-Z0-9.\-]{6,})/i);
+  if (tx) facts.transaction_id = tx[1];
+
+  // People / institutions
+  const payee = extractLabeled(text, /favorecido|destinat[aá]rio|recebedor|para|beneficiario|beneficiário/);
+  if (payee) facts.payee = payee;
+  const payer = extractLabeled(text, /pagador|titular|origem|de|remetente|pagante/);
+  if (payer) facts.payer = payer;
+
+  const bankFromLabel = extractLabeled(text, /banco\s*(?:de\s*)?origem|institui[cç][aã]o\s*de\s*origem|banco\s*do\s*pagador/);
+  const bankToLabel = extractLabeled(text, /banco\s*(?:de\s*)?destino|institui[cç][aã]o\s*de\s*destino|banco\s*do\s*favorecido|banco\s*do\s*recebedor/);
+  const bankFrom = normalizeBank(bankFromLabel);
+  const bankTo = normalizeBank(bankToLabel);
+  if (bankFrom) facts.bank_from = bankFrom;
+  if (bankTo) facts.bank_to = bankTo;
+  const banks = detectBanks(text);
+  if (banks.length) facts.banks = banks;
+
+  const pm = detectPaymentMethod(text);
+  if (pm) facts.payment_method = pm;
+
+  const desc = extractLabeled(text, /descri[cç][aã]o|hist[oó]rico|mensagem|finalidade/);
+  if (desc) facts.description = desc;
+
+  return facts;
+}
+
+// -----------------------------------------------------------------------------
 // Progress model (persistable)
 // -----------------------------------------------------------------------------
 
