@@ -575,6 +575,76 @@ export type Database = {
         }
         Relationships: []
       }
+      import_row_files: {
+        Row: {
+          batch_id: string
+          confidence: string
+          created_at: string
+          file_id: string
+          id: string
+          is_manual: boolean
+          is_primary: boolean
+          match_reasons: Json
+          page_number: number | null
+          row_id: string
+          score: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          batch_id: string
+          confidence?: string
+          created_at?: string
+          file_id: string
+          id?: string
+          is_manual?: boolean
+          is_primary?: boolean
+          match_reasons?: Json
+          page_number?: number | null
+          row_id: string
+          score?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string
+          confidence?: string
+          created_at?: string
+          file_id?: string
+          id?: string
+          is_manual?: boolean
+          is_primary?: boolean
+          match_reasons?: Json
+          page_number?: number | null
+          row_id?: string
+          score?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_row_files_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_row_files_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "import_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_row_files_row_id_fkey"
+            columns: ["row_id"]
+            isOneToOne: false
+            referencedRelation: "import_rows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_rows: {
         Row: {
           account: string | null
