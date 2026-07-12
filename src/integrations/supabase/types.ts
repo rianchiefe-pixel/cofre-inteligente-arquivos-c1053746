@@ -344,15 +344,26 @@ export type Database = {
       }
       import_batches: {
         Row: {
+          column_mapping: Json | null
           created_at: string
           created_by: string | null
           duplicate_count: number
           error_count: number
+          file_mime: string | null
           file_name: string | null
+          file_size: number | null
           finished_at: string | null
+          header_columns: Json | null
+          header_row: number | null
           id: string
           imported_count: number
+          normalized_rows: number
+          parsed_rows: number
+          phase: string
           profile_id: string | null
+          progress_percent: number
+          saved_rows: number
+          separator: string | null
           status: string
           summary_json: Json | null
           total_rows: number
@@ -363,15 +374,26 @@ export type Database = {
           without_receipt_count: number
         }
         Insert: {
+          column_mapping?: Json | null
           created_at?: string
           created_by?: string | null
           duplicate_count?: number
           error_count?: number
+          file_mime?: string | null
           file_name?: string | null
+          file_size?: number | null
           finished_at?: string | null
+          header_columns?: Json | null
+          header_row?: number | null
           id?: string
           imported_count?: number
+          normalized_rows?: number
+          parsed_rows?: number
+          phase?: string
           profile_id?: string | null
+          progress_percent?: number
+          saved_rows?: number
+          separator?: string | null
           status?: string
           summary_json?: Json | null
           total_rows?: number
@@ -382,15 +404,26 @@ export type Database = {
           without_receipt_count?: number
         }
         Update: {
+          column_mapping?: Json | null
           created_at?: string
           created_by?: string | null
           duplicate_count?: number
           error_count?: number
+          file_mime?: string | null
           file_name?: string | null
+          file_size?: number | null
           finished_at?: string | null
+          header_columns?: Json | null
+          header_row?: number | null
           id?: string
           imported_count?: number
+          normalized_rows?: number
+          parsed_rows?: number
+          phase?: string
           profile_id?: string | null
+          progress_percent?: number
+          saved_rows?: number
+          separator?: string | null
           status?: string
           summary_json?: Json | null
           total_rows?: number
@@ -406,6 +439,74 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_rows: {
+        Row: {
+          account: string | null
+          amount: number | null
+          batch_id: string
+          category: string | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          error_message: string | null
+          id: string
+          normalized_data: Json | null
+          notes: string | null
+          parsed_notes: Json | null
+          raw_data: Json
+          row_number: number
+          status: string
+          transaction_date: string | null
+          user_id: string
+        }
+        Insert: {
+          account?: string | null
+          amount?: number | null
+          batch_id: string
+          category?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          normalized_data?: Json | null
+          notes?: string | null
+          parsed_notes?: Json | null
+          raw_data: Json
+          row_number: number
+          status?: string
+          transaction_date?: string | null
+          user_id: string
+        }
+        Update: {
+          account?: string | null
+          amount?: number | null
+          batch_id?: string
+          category?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          normalized_data?: Json | null
+          notes?: string | null
+          parsed_notes?: Json | null
+          raw_data?: Json
+          row_number?: number
+          status?: string
+          transaction_date?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
             referencedColumns: ["id"]
           },
         ]
