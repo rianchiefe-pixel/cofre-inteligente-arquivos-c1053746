@@ -25,6 +25,7 @@ import {
   type NormalizedRow,
 } from "@/lib/smart-import";
 import { dateBR } from "@/lib/format";
+import { ImportReview } from "@/components/import-review";
 
 export const Route = createFileRoute("/_authenticated/app/import")({
   head: () => ({ meta: [{ title: "Importação Inteligente — Meu Cofre" }] }),
@@ -71,6 +72,7 @@ function ImportPage() {
   const [savedRows, setSavedRows] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [reviewBatchId, setReviewBatchId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Restore any in-progress batch on mount (survives page refresh).
@@ -239,6 +241,7 @@ function ImportPage() {
         localStorage.removeItem("mc.import.currentBatch");
         toast.success(`${saved} linhas importadas de ${file.name}`);
         qc.invalidateQueries({ queryKey: ["import-batches"] });
+        setReviewBatchId(batch.id);
       } catch (e: any) {
         setPhase("error");
         setErrorMsg(e.message ?? String(e));
@@ -391,6 +394,10 @@ function ImportPage() {
         </Card>
       )}
 
+      {(reviewBatchId ?? batchId) && (
+        <ImportReview batchId={(reviewBatchId ?? batchId) as string} />
+      )}
+
       <Card className="p-5">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <History className="h-4 w-4 text-primary" />
@@ -413,9 +420,11 @@ function ImportPage() {
         ) : (
           <div className="divide-y divide-border">
             {(history.data ?? []).map((b) => (
-              <div
+              <button
+                type="button"
                 key={b.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3"
+                onClick={() => setReviewBatchId(b.id)}
+                className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 text-left hover:bg-muted/40"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">
@@ -438,7 +447,7 @@ function ImportPage() {
                 >
                   {b.status ?? "—"}
                 </Badge>
-              </div>
+              </button>
             ))}
           </div>
         )}

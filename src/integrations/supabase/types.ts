@@ -443,62 +443,152 @@ export type Database = {
           },
         ]
       }
+      import_preferences: {
+        Row: {
+          corrected_value: string
+          created_at: string
+          field: string
+          id: string
+          raw_key: string
+          updated_at: string
+          usage_count: number
+          user_id: string
+        }
+        Insert: {
+          corrected_value: string
+          created_at?: string
+          field: string
+          id?: string
+          raw_key: string
+          updated_at?: string
+          usage_count?: number
+          user_id: string
+        }
+        Update: {
+          corrected_value?: string
+          created_at?: string
+          field?: string
+          id?: string
+          raw_key?: string
+          updated_at?: string
+          usage_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       import_rows: {
         Row: {
           account: string | null
+          ai_data: Json | null
+          ai_error: string | null
+          ai_meta: Json | null
+          ai_status: string
           amount: number | null
+          bank: string | null
           batch_id: string
+          card: string | null
+          card_last4: string | null
           category: string | null
           created_at: string
           currency: string | null
           description: string | null
           error_message: string | null
+          file_name: string | null
+          folder_path: string | null
+          holder: string | null
           id: string
+          invoice_number: string | null
           normalized_data: Json | null
           notes: string | null
+          page_number: string | null
           parsed_notes: Json | null
+          payee: string | null
+          payment_method: string | null
           raw_data: Json
+          review_status: string
+          reviewed_at: string | null
           row_number: number
+          source_id: string | null
           status: string
+          subcategory: string | null
           transaction_date: string | null
+          transaction_type: string | null
           user_id: string
         }
         Insert: {
           account?: string | null
+          ai_data?: Json | null
+          ai_error?: string | null
+          ai_meta?: Json | null
+          ai_status?: string
           amount?: number | null
+          bank?: string | null
           batch_id: string
+          card?: string | null
+          card_last4?: string | null
           category?: string | null
           created_at?: string
           currency?: string | null
           description?: string | null
           error_message?: string | null
+          file_name?: string | null
+          folder_path?: string | null
+          holder?: string | null
           id?: string
+          invoice_number?: string | null
           normalized_data?: Json | null
           notes?: string | null
+          page_number?: string | null
           parsed_notes?: Json | null
+          payee?: string | null
+          payment_method?: string | null
           raw_data: Json
+          review_status?: string
+          reviewed_at?: string | null
           row_number: number
+          source_id?: string | null
           status?: string
+          subcategory?: string | null
           transaction_date?: string | null
+          transaction_type?: string | null
           user_id: string
         }
         Update: {
           account?: string | null
+          ai_data?: Json | null
+          ai_error?: string | null
+          ai_meta?: Json | null
+          ai_status?: string
           amount?: number | null
+          bank?: string | null
           batch_id?: string
+          card?: string | null
+          card_last4?: string | null
           category?: string | null
           created_at?: string
           currency?: string | null
           description?: string | null
           error_message?: string | null
+          file_name?: string | null
+          folder_path?: string | null
+          holder?: string | null
           id?: string
+          invoice_number?: string | null
           normalized_data?: Json | null
           notes?: string | null
+          page_number?: string | null
           parsed_notes?: Json | null
+          payee?: string | null
+          payment_method?: string | null
           raw_data?: Json
+          review_status?: string
+          reviewed_at?: string | null
           row_number?: number
+          source_id?: string | null
           status?: string
+          subcategory?: string | null
           transaction_date?: string | null
+          transaction_type?: string | null
           user_id?: string
         }
         Relationships: [
