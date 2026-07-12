@@ -216,3 +216,7 @@
   transform: translateY(-2px);
   box-shadow: var(--shadow-elegant);
 }
+
+#lovable-badge {
+  display: none !important;
+}
