@@ -324,3 +324,27 @@ export const rejectImportRow = createServerFn({ method: "POST" })
       .eq("id", data.rowId);
     return { ok: true as const };
   });
+
+// ---- Set arbitrary review status (ver_depois, pending/undo, save w/o approve)
+
+const StatusInput = z.object({
+  rowId: z.string().uuid(),
+  status: z.enum(["pending", "approved", "rejected", "ver_depois"]),
+  reason: z.string().optional(),
+  overrides: z.record(z.string(), z.any()).optional(),
+});
+
+export const setImportRowStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => StatusInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const patch: Record<string, unknown> = {
+      review_status: data.status,
+      reviewed_at: ["pending"].includes(data.status) ? null : new Date().toISOString(),
+    };
+    if (data.reason !== undefined) patch.ai_error = data.reason;
+    if (data.overrides) Object.assign(patch, data.overrides);
+    await supabase.from("import_rows").update(patch as any).eq("id", data.rowId);
+    return { ok: true as const };
+  });

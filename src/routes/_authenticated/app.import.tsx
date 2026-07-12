@@ -28,6 +28,7 @@ import { dateBR } from "@/lib/format";
 import { ImportReview } from "@/components/import-review";
 import { ImportZipPanel } from "@/components/import-zip";
 import { ImportMatches } from "@/components/import-matches";
+import { ImportConference } from "@/components/import-conference";
 
 export const Route = createFileRoute("/_authenticated/app/import")({
   head: () => ({ meta: [{ title: "Importação Inteligente — Meu Cofre" }] }),
@@ -75,6 +76,7 @@ function ImportPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [reviewBatchId, setReviewBatchId] = useState<string | null>(null);
+  const [conferenceOpen, setConferenceOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Restore any in-progress batch on mount (survives page refresh).
@@ -406,6 +408,27 @@ function ImportPage() {
 
       {(reviewBatchId ?? batchId) && (
         <ImportMatches batchId={(reviewBatchId ?? batchId) as string} />
+      )}
+
+      {(reviewBatchId ?? batchId) && (
+        <Card className="flex items-center gap-3 p-4">
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Importação concluída — iniciar conferência</p>
+            <p className="text-xs text-muted-foreground">
+              Revise linha por linha, aprove, rejeite ou envie para "Ver depois". Decisões ficam salvas.
+            </p>
+          </div>
+          <Button onClick={() => setConferenceOpen(true)}>
+            <Sparkles className="mr-2 h-4 w-4" /> Iniciar conferência
+          </Button>
+        </Card>
+      )}
+
+      {conferenceOpen && (reviewBatchId ?? batchId) && (
+        <ImportConference
+          batchId={(reviewBatchId ?? batchId) as string}
+          onClose={() => setConferenceOpen(false)}
+        />
       )}
 
       <Card className="p-5">
