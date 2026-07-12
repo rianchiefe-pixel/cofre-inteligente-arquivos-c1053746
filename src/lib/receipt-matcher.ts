@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeBank, type ReceiptFacts } from "@/lib/zip-import";
 
 export type MatchTier = "very_high" | "high" | "review" | "low" | "none";
 
@@ -22,6 +23,8 @@ export interface Candidate {
   score: number;
   confidence: MatchTier;
   reasons: CandidateReason[];
+  matched?: string[];
+  divergent?: string[];
 }
 
 // ---- text utils ----------------------------------------------------------
@@ -74,6 +77,18 @@ function tierFor(score: number): MatchTier {
   return "none";
 }
 
+// The receipt only earns high/very-high tiers when the *core* trio matches
+// (amount + date + payee) plus at least one complementary signal.
+function gatedTier(raw: number, matched: Set<string>): MatchTier {
+  const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
+  const complementary = ["bank", "holder", "payment_method", "auth", "txid", "card", "doc"].some((k) => matched.has(k));
+  if (raw >= 90 && coreOk && complementary) return "very_high";
+  if (raw >= 75 && coreOk) return "high";
+  if (raw >= 55) return "review";
+  if (raw > 0) return "low";
+  return "none";
+}
+
 // ---- Core scoring --------------------------------------------------------
 
 interface FileFacts {
@@ -82,7 +97,7 @@ interface FileFacts {
   folder: string | null;
   file_name: string;
   extracted_text: string;
-  ocr: Record<string, unknown> | null;
+  ocr: ReceiptFacts | null;
   page_count: number | null;
   pageHint: number | null;
   nameNorm: string;
@@ -96,7 +111,7 @@ function factsFromFile(f: any): FileFacts {
   const nameClean = stripPageHint(name);
   const path = String(f.original_path ?? "");
   const text = String(f.extracted_text ?? "");
-  const ocr = (f.ocr_data ?? null) as Record<string, unknown> | null;
+  const ocr = (f.ocr_data ?? null) as ReceiptFacts | null;
   const pageHint = extractPageHint(name) ?? extractPageHint(path);
   const bag = `${nameClean} ${path} ${text}`;
   return {
@@ -117,7 +132,10 @@ function factsFromFile(f: any): FileFacts {
 
 function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   const reasons: CandidateReason[] = [];
+  const matched = new Set<string>();
+  const divergent: string[] = [];
   let score = 0;
+  const ocr = f.ocr ?? {};
 
   const wantedName = String(row.file_name ?? "").trim();
   const wantedFolder = String(row.folder_path ?? "").trim();
@@ -153,27 +171,29 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     }
   }
 
-  // 3. Amount (25)
+  // 3. Amount (25) — prefer structured OCR amount; fall back to text scan.
   const amt = typeof row.amount === "number" ? row.amount : parseFloat(String(row.amount ?? ""));
   if (Number.isFinite(amt) && amt !== 0) {
     const cents = Math.round(Math.abs(amt) * 100).toString();
-    // R$ 1.234,56 → 1234,56 / 1.234,56 / 123456
     const withComma = Math.abs(amt).toFixed(2).replace(".", ",");
     const withDot = Math.abs(amt).toFixed(2);
     const hay = `${f.file_name} ${f.extracted_text}`;
-    const ocrAmt = f.ocr && (f.ocr as any).amount;
+    const ocrAmt = ocr.amount;
     if (
+      amountsClose(amt, ocrAmt) ||
       hay.includes(withComma) ||
       hay.includes(withDot) ||
-      hay.replace(/\D/g, "").includes(cents) ||
-      amountsClose(amt, ocrAmt)
+      hay.replace(/\D/g, "").includes(cents)
     ) {
       score += 25;
       reasons.push({ key: "amount", label: `valor R$ ${withComma}`, points: 25 });
+      matched.add("amount");
+    } else if (typeof ocrAmt === "number" && Math.abs(Math.abs(ocrAmt) - Math.abs(amt)) > 0.02) {
+      divergent.push(`valor diverge (planilha R$ ${withComma} × comprovante ${ocr.amount_raw ?? `R$ ${ocrAmt.toFixed(2)}`})`);
     }
   }
 
-  // 4. Date (20)  — YYYY-MM-DD or DDMMYYYY, plus month/folder-year check
+  // 4. Date (20) — compare against OCR-extracted ISO date first.
   const date = String(row.transaction_date ?? "").trim();
   if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
     const [y, m, d] = date.split("-");
@@ -181,32 +201,55 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     const dmy2 = `${d}/${m}/${y}`;
     const ymd = `${y}${m}${d}`;
     const hay = `${f.file_name} ${f.pathNorm} ${f.extracted_text}`;
-    if (hay.includes(date) || hay.includes(dmy) || hay.includes(dmy2) || hay.includes(ymd) || f.pathNorm.includes(`${y} ${m}`) || f.pathNorm.includes(`${m} ${y}`)) {
+    if (ocr.date === date || hay.includes(date) || hay.includes(dmy) || hay.includes(dmy2) || hay.includes(ymd) || f.pathNorm.includes(`${y} ${m}`) || f.pathNorm.includes(`${m} ${y}`)) {
       score += 20;
       reasons.push({ key: "date", label: `data ${date}`, points: 20 });
+      matched.add("date");
+    } else if (ocr.date && ocr.date !== date) {
+      divergent.push(`data diverge (planilha ${date} × comprovante ${ocr.date})`);
     }
   }
 
   // 5. Payee (15)
   const payee = String(row.payee ?? row.description ?? "").trim();
   if (payee) {
-    const ov = tokenOverlap(tokens(payee), f.tokens);
+    const payeeTokens = tokens(payee);
+    const ocrPayeeTokens = tokens(ocr.payee ?? "");
+    const ov = Math.max(
+      tokenOverlap(payeeTokens, ocrPayeeTokens),
+      tokenOverlap(payeeTokens, f.tokens),
+    );
     if (ov >= 0.5) {
       score += 15;
       reasons.push({ key: "payee", label: `favorecido semelhante: ${payee}`, points: 15 });
+      matched.add("payee");
     } else if (ov >= 0.25) {
       score += 7;
       reasons.push({ key: "payee-partial", label: `favorecido parcial: ${payee}`, points: 7 });
+    } else if (ocr.payee) {
+      divergent.push(`favorecido diverge (planilha "${payee}" × comprovante "${ocr.payee}")`);
     }
   }
 
-  // 6. Bank (8) + card (8)
+  // 6. Bank (8) + card (8) — normalize aliases (ITAÚ UNIBANCO S.A. ≡ Itaú).
   const bank = String(row.bank ?? "").trim();
   if (bank) {
-    const bn = norm(bank);
-    if (bn && (f.textNorm.includes(bn) || f.nameNorm.includes(bn) || f.pathNorm.includes(bn))) {
+    const rowBankKey = normalizeBank(bank);
+    const fileBankKeys = new Set<string>([
+      ...(ocr.banks ?? []),
+      ...(ocr.bank_from ? [ocr.bank_from] : []),
+      ...(ocr.bank_to ? [ocr.bank_to] : []),
+    ]);
+    const textHit = (() => {
+      const bn = norm(bank);
+      return !!bn && (f.textNorm.includes(bn) || f.nameNorm.includes(bn) || f.pathNorm.includes(bn));
+    })();
+    if ((rowBankKey && fileBankKeys.has(rowBankKey)) || textHit) {
       score += 8;
       reasons.push({ key: "bank", label: `mesmo banco: ${bank}`, points: 8 });
+      matched.add("bank");
+    } else if (rowBankKey && fileBankKeys.size > 0 && !fileBankKeys.has(rowBankKey)) {
+      divergent.push(`banco diverge (planilha "${bank}" × comprovante "${[...fileBankKeys].join(", ")}")`);
     }
   }
   const cardTail = String(row.card_last4 ?? "").replace(/\D/g, "");
@@ -215,16 +258,21 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     if (hay.includes(cardTail)) {
       score += 8;
       reasons.push({ key: "card", label: `final do cartão ${cardTail}`, points: 8 });
+      matched.add("card");
     }
   }
 
   // 7. Holder (8)
   const holder = String(row.holder ?? "").trim();
   if (holder) {
-    const ov = tokenOverlap(tokens(holder), f.tokens);
+    const ov = Math.max(
+      tokenOverlap(tokens(holder), tokens(ocr.payer ?? "")),
+      tokenOverlap(tokens(holder), f.tokens),
+    );
     if (ov >= 0.5) {
       score += 8;
       reasons.push({ key: "holder", label: `mesmo titular: ${holder}`, points: 8 });
+      matched.add("holder");
     }
   }
 
@@ -232,9 +280,34 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   const pm = String(row.payment_method ?? "").trim();
   if (pm) {
     const pn = norm(pm);
-    if (pn && (f.textNorm.includes(pn) || f.nameNorm.includes(pn))) {
+    const pmSame = ocr.payment_method && norm(ocr.payment_method).includes(pn.split(" ")[0]);
+    if (pmSame || (pn && (f.textNorm.includes(pn) || f.nameNorm.includes(pn)))) {
       score += 5;
       reasons.push({ key: "pm", label: `forma de pagamento ${pm}`, points: 5 });
+      matched.add("payment_method");
+    }
+  }
+
+  // 9. Auth / transaction id / CPF-CNPJ from OCR against row
+  const rowAuth = String(row.auth_code ?? "").trim();
+  if (rowAuth && ocr.auth_code && norm(rowAuth) === norm(ocr.auth_code)) {
+    score += 10;
+    reasons.push({ key: "auth", label: `autenticação ${ocr.auth_code}`, points: 10 });
+    matched.add("auth");
+  }
+  const rowTx = String(row.source_id ?? row.invoice_number ?? "").trim();
+  if (rowTx && ocr.transaction_id && digits(rowTx) && digits(ocr.transaction_id).includes(digits(rowTx))) {
+    score += 10;
+    reasons.push({ key: "txid", label: `ID transação ${ocr.transaction_id}`, points: 10 });
+    matched.add("txid");
+  }
+  const rowDoc = digits(row.tax_id ?? row.cpf ?? row.cnpj ?? "");
+  if (rowDoc.length >= 11) {
+    const docs = [...(ocr.cpf ?? []), ...(ocr.cnpj ?? [])].map(digits);
+    if (docs.some((d) => d === rowDoc)) {
+      score += 10;
+      reasons.push({ key: "doc", label: `CPF/CNPJ ${rowDoc}`, points: 10 });
+      matched.add("doc");
     }
   }
 
@@ -248,8 +321,13 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     fileId: f.id,
     pageNumber: pageHint,
     score,
-    confidence: tierFor(score),
-    reasons,
+    confidence: gatedTier(score, matched),
+    reasons: [
+      ...reasons,
+      ...divergent.map((label) => ({ key: "divergence", label, points: 0 })),
+    ],
+    matched: [...matched],
+    divergent,
   };
 }
 
@@ -312,7 +390,7 @@ export async function matchBatchReceipts(
 
     if (top.length === 0) {
       progress.notFound++;
-    } else if (top[0].score >= 75) {
+    } else if (top[0].confidence === "very_high" || top[0].confidence === "high") {
       progress.matched++;
     } else {
       progress.needsReview++;
@@ -329,7 +407,8 @@ export async function matchBatchReceipts(
         confidence: c.confidence,
         match_reasons: c.reasons,
         is_manual: false,
-        is_primary: i === 0 && c.score >= 75,
+        // "Comprovante não confirmado" until the core trio + one complementary field match.
+        is_primary: i === 0 && (c.confidence === "very_high" || c.confidence === "high"),
       }));
       await supabase.from("import_row_files").upsert(payload as any, {
         onConflict: "row_id,file_id,page_number",
