@@ -26,6 +26,7 @@ import {
 } from "@/lib/smart-import";
 import { dateBR } from "@/lib/format";
 import { ImportReview } from "@/components/import-review";
+import { ImportZipPanel } from "@/components/import-zip";
 
 export const Route = createFileRoute("/_authenticated/app/import")({
   head: () => ({ meta: [{ title: "Importação Inteligente — Meu Cofre" }] }),
@@ -396,6 +397,10 @@ function ImportPage() {
 
       {(reviewBatchId ?? batchId) && (
         <ImportReview batchId={(reviewBatchId ?? batchId) as string} />
+      )}
+
+      {(reviewBatchId ?? batchId) && (
+        <ImportZipPanel batchId={(reviewBatchId ?? batchId) as string} />
       )}
 
       <Card className="p-5">
