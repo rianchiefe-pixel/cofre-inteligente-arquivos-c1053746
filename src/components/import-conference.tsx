@@ -815,6 +815,9 @@ function ReceiptViewer({
   const isPdf = (primaryFile?.mime_type ?? "").includes("pdf") || (primaryFile?.extension ?? "").toLowerCase() === "pdf";
   const pageCount = primaryFile?.page_count ?? 1;
 
+  const [showAllCandidates, setShowAllCandidates] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+
   async function markUnlocated() {
     if (!primary) return;
     await detachRowFile(primary.id);
@@ -823,7 +826,7 @@ function ReceiptViewer({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background">
       <div className="flex flex-wrap items-center gap-1 border-b border-border p-2 text-xs">
         <span className="truncate font-mono text-[11px]">
           {primaryFile?.original_path ?? primaryFile?.file_name ?? "sem comprovante"}
@@ -877,9 +880,9 @@ function ReceiptViewer({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="p-3">
         {!primaryFile ? (
-          <div className="grid h-full place-items-center text-center text-sm text-muted-foreground">
+          <div className="grid h-64 place-items-center text-center text-sm text-muted-foreground">
             <div>
               <FileWarning className="mx-auto mb-2 h-8 w-8" />
               Nenhum comprovante vinculado a esta linha.
@@ -891,64 +894,106 @@ function ReceiptViewer({
             </div>
           </div>
         ) : !signedUrl ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+          <div className="grid h-64 place-items-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
           </div>
         ) : (
-          <div
-            className="mx-auto origin-top overflow-visible"
-            style={{ transform: `rotate(${rotation}deg) scale(${zoom})`, transition: "transform 120ms" }}
-          >
-            {isPdf ? (
-              <PdfPage url={signedUrl} pageNumber={page} />
-            ) : (
-              <img
-                src={signedUrl}
-                alt={primaryFile.file_name}
-                className="mx-auto max-w-[900px] rounded shadow"
-                draggable={false}
-              />
-            )}
+          <div className="overflow-x-auto">
+            <div
+              className="mx-auto origin-top"
+              style={{ transform: `rotate(${rotation}deg) scale(${zoom})`, transition: "transform 120ms" }}
+            >
+              {isPdf ? (
+                <PdfPage url={signedUrl} pageNumber={page} />
+              ) : (
+                <img
+                  src={signedUrl}
+                  alt={primaryFile.file_name}
+                  className="mx-auto max-w-full rounded shadow"
+                  draggable={false}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Candidatos */}
+      {/* Candidatos — compactos, no máximo 3, restantes em collapsible */}
       {links.length > 0 && (
-        <div className="max-h-40 overflow-auto border-t border-border p-2 text-xs">
-          <p className="mb-1 font-semibold">Outros candidatos</p>
-          <div className="grid gap-1">
-            {links.map((l) => {
+        <div className="border-t border-border p-3 text-xs">
+          <p className="mb-2 font-semibold">Comprovantes candidatos</p>
+          <div className="grid gap-2">
+            {(showAllCandidates ? links : links.slice(0, 3)).map((l) => {
               const f = fileById.get(l.file_id);
+              const reasons: string[] = Array.isArray(l.match_reasons) ? l.match_reasons : [];
               return (
-                <div key={l.id} className="flex items-center gap-2 rounded border border-border/60 p-1">
-                  {l.is_primary && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
-                  <span className="truncate font-mono text-[10px]">
-                    {f?.original_path ?? f?.file_name}
-                    {l.page_number ? ` · p.${l.page_number}` : ""}
-                  </span>
-                  <Badge variant="outline" className="ml-auto text-[9px]">
-                    {l.score} · {l.confidence}
-                  </Badge>
+                <div
+                  key={l.id}
+                  className={`rounded-md border p-2 ${l.is_primary ? "border-emerald-500/50 bg-emerald-500/5" : "border-border/60"}`}
+                >
+                  <div className="flex items-start gap-2">
+                    {l.is_primary && <Star className="mt-0.5 h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />}
+                    <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
+                      {f?.original_path ?? f?.file_name}
+                      {l.page_number ? ` · p.${l.page_number}` : ""}
+                    </span>
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      score {l.score} · {l.confidence}
+                    </Badge>
+                  </div>
+                  {reasons.length > 0 && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {reasons.slice(0, 4).join(" · ")}
+                    </p>
+                  )}
                   {!l.is_primary && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6"
-                      onClick={async () => {
-                        await setPrimaryRowFile(row.id, l.id);
-                        onChanged();
-                      }}
-                    >
-                      <Star className="h-3 w-3" />
-                    </Button>
+                    <div className="mt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                        onClick={async () => {
+                          await setPrimaryRowFile(row.id, l.id);
+                          onChanged();
+                        }}
+                      >
+                        Selecionar comprovante
+                      </Button>
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
+          {links.length > 3 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mt-2 h-7 text-[11px]"
+              onClick={() => setShowAllCandidates((s) => !s)}
+            >
+              {showAllCandidates ? "Ocultar candidatos extras" : `Ver outros candidatos (${links.length - 3})`}
+            </Button>
+          )}
         </div>
       )}
+
+      {/* Busca manual — collapsible */}
+      <div className="border-t border-border p-3 text-xs">
+        <Collapsible open={manualOpen} onOpenChange={setManualOpen}>
+          <CollapsibleTrigger asChild>
+            <button className="flex w-full items-center justify-between text-left text-[11px] font-medium text-primary hover:underline">
+              Não encontrou o comprovante correto? Associar manualmente
+              <ChevronDown className={`h-3 w-3 transition-transform ${manualOpen ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <Button size="sm" variant="outline" onClick={() => setSwapOpen(true)}>
+              <Paperclip className="mr-1 h-3 w-3" /> Buscar arquivo no lote
+            </Button>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
       {/* Fullscreen */}
       {fullscreen && signedUrl && (
