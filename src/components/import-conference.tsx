@@ -143,6 +143,12 @@ export function ImportConference({
   const [maxAmount, setMaxAmount] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
 
+  // Editor state lives in the parent so the fixed footer can act on it.
+  const [values, setValues] = useState<Record<string, any>>({});
+  const [reason, setReason] = useState("");
+  const [showRaw, setShowRaw] = useState(false);
+  const [showAllFilters, setShowAllFilters] = useState(false);
+
   // ---- data ----
 
   const rowsQ = useQuery({
