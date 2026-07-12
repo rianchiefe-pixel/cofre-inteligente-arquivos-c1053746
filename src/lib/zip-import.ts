@@ -606,3 +606,37 @@ export async function getZipSnapshot(batchId: string): Promise<ZipProgress> {
     percent: filesFound ? Math.round((filesProcessed / filesFound) * 100) : 0,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Reprocessa OCR facts (valor, data, favorecido, banco, etc.) sobre o
+// `extracted_text` já persistido — usa o parser BRL corrigido para
+// re-normalizar valores sem precisar reler o PDF/imagem.
+// ---------------------------------------------------------------------------
+export async function reprocessBatchFacts(
+  batchId: string,
+  onProgress?: (p: { done: number; total: number }) => void,
+): Promise<{ updated: number; total: number }> {
+  const { data: files } = await supabase
+    .from("import_files")
+    .select("id, extracted_text")
+    .eq("batch_id", batchId)
+    .not("extracted_text", "is", null);
+
+  const list = files ?? [];
+  let done = 0;
+  let updated = 0;
+  for (const f of list) {
+    const text = String(f.extracted_text ?? "");
+    if (text.trim()) {
+      const facts = extractReceiptFacts(text);
+      const { error } = await supabase
+        .from("import_files")
+        .update({ ocr_data: (Object.keys(facts).length ? facts : null) as any })
+        .eq("id", f.id);
+      if (!error) updated += 1;
+    }
+    done += 1;
+    onProgress?.({ done, total: list.length });
+  }
+  return { updated, total: list.length };
+}
