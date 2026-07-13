@@ -347,6 +347,17 @@ export function ImportConference({
         overrides[f.key] = String(v);
       }
     }
+    // vínculo imóvel / conta geral (fora do FIELDS)
+    if (values.property_id === "__general__") {
+      overrides.property_id = null;
+      overrides.general_account = true;
+    } else if (values.property_id === "__none__" || values.property_id === "") {
+      overrides.property_id = null;
+      overrides.general_account = false;
+    } else if (typeof values.property_id === "string") {
+      overrides.property_id = values.property_id;
+      overrides.general_account = false;
+    }
     return overrides;
   }
 
