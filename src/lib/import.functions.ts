@@ -402,6 +402,7 @@ const ApproveInput = z.object({
     .object({
       transaction_type: z.enum(["DESPESA", "INVESTIMENTO"]).optional(),
       category: z.string().nullable().optional(),
+      category_original: z.string().nullable().optional(),
       subcategory: z.string().nullable().optional(),
       bank: z.string().nullable().optional(),
       card: z.string().nullable().optional(),
@@ -414,6 +415,8 @@ const ApproveInput = z.object({
       currency: z.string().nullable().optional(),
       transaction_date: z.string().nullable().optional(),
       notes: z.string().nullable().optional(),
+      property_id: z.string().uuid().nullable().optional(),
+      general_account: z.boolean().optional(),
     })
     .default({}),
 });
@@ -475,10 +478,24 @@ export const approveImportRow = createServerFn({ method: "POST" })
       { field: "payee", from: row.payee, to: patch.payee },
       { field: "payment_method", from: row.payment_method, to: patch.payment_method },
     ];
+
+    // Aprende vínculo imóvel↔favorecido/categoria — só quando o usuário
+    // explicitamente escolheu um imóvel (não "conta geral", não em branco).
+    const finalProperty =
+      patch.property_id !== undefined ? patch.property_id : row.property_id;
+    if (finalProperty) {
+      const payeeKey = normalizeKey(patch.payee ?? row.payee);
+      const catKey = normalizeKey(patch.category ?? row.category);
+      if (payeeKey) prefs.push({ field: "property_link_payee", from: payeeKey, to: finalProperty });
+      if (catKey) prefs.push({ field: "property_link_category", from: catKey, to: finalProperty });
+    }
+
     for (const p of prefs) {
-      const from = normalizeKey(p.from);
+      const isPropertyLink = p.field.startsWith("property_link_");
+      const from = isPropertyLink ? String(p.from ?? "") : normalizeKey(p.from);
       const to = typeof p.to === "string" ? p.to.trim() : "";
-      if (!from || !to || normalizeKey(to) === from) continue;
+      if (!from || !to) continue;
+      if (!isPropertyLink && normalizeKey(to) === from) continue;
       const { data: existing } = await supabase
         .from("import_preferences")
         .select("id, usage_count")
