@@ -61,13 +61,14 @@ import {
   approveImportRow,
   classifyImportRow,
   setImportRowStatus,
+  reprocessBatchAmounts,
 } from "@/lib/import.functions";
 import {
   attachFileManually,
   detachRowFile,
   setPrimaryRowFile,
 } from "@/lib/receipt-matcher";
-import { currencyBRL } from "@/lib/format";
+import { currencyBRL, parseBrlAmount, formatBrlNumber } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types + constants
@@ -296,8 +297,15 @@ export function ImportConference({
       const v = values[f.key];
       if (v === "" || v === undefined || v === null) continue;
       if (f.type === "number") {
-        const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
-        if (Number.isFinite(n)) overrides[f.key] = n;
+        // Valores monetários seguem o padrão BR: "1.880,00" → 1880.00.
+        // Sempre gravamos positivo — a natureza está em transaction_type.
+        const n =
+          f.key === "amount"
+            ? parseBrlAmount(v)
+            : typeof v === "number"
+              ? v
+              : parseFloat(String(v).replace(",", "."));
+        if (n !== null && Number.isFinite(n)) overrides[f.key] = Math.abs(n);
       } else {
         overrides[f.key] = String(v);
       }
