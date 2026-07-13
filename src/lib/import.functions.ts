@@ -86,6 +86,80 @@ function extractBrlFromText(text: string | null | undefined): number | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Sugestão determinística de imóvel a partir do histórico do usuário.
+// Regras:
+//   - Só sugerimos com evidência real (>=2 usos para payee, >=3 para categoria).
+//   - Nunca escolhemos aleatoriamente. Sem evidência → sem sugestão.
+//   - Confiança = min(1, usage_count / 4).
+// ---------------------------------------------------------------------------
+
+type PrefRow = { field: string; raw_key: string; corrected_value: string; usage_count: number };
+
+export function suggestPropertyForRow(args: {
+  payee?: string | null;
+  category?: string | null;
+  description?: string | null;
+  prefs: PrefRow[];
+  propertyById: Map<string, any>;
+}): {
+  ai_property_id: string | null;
+  ai_property_confidence: number | null;
+  ai_property_reason: string | null;
+} {
+  const empty = {
+    ai_property_id: null,
+    ai_property_confidence: null,
+    ai_property_reason: null,
+  };
+  const byPayee = new Map<string, PrefRow>();
+  const byCategory = new Map<string, PrefRow>();
+  for (const p of args.prefs) {
+    if (p.field === "property_link_payee") byPayee.set(p.raw_key, p);
+    else if (p.field === "property_link_category") byCategory.set(p.raw_key, p);
+  }
+
+  const tryHit = (key: string, source: "favorecido" | "categoria", minUses: number) => {
+    const map = source === "favorecido" ? byPayee : byCategory;
+    const hit = map.get(key);
+    if (!hit) return null;
+    const prop = args.propertyById.get(hit.corrected_value);
+    if (!prop) return null;
+    if (hit.usage_count < minUses) return null;
+    return {
+      ai_property_id: prop.id as string,
+      ai_property_confidence: Math.min(1, hit.usage_count / 4),
+      ai_property_reason: `Vinculado ${hit.usage_count}× por ${source} “${key}” → ${prop.name}`,
+    };
+  };
+
+  const pk = normalizeKey(args.payee);
+  if (pk) {
+    const hit = tryHit(pk, "favorecido", 2);
+    if (hit) return hit;
+  }
+  const ck = normalizeKey(args.category);
+  if (ck) {
+    const hit = tryHit(ck, "categoria", 3);
+    if (hit) return hit;
+  }
+  // fallback textual: procura nome de imóvel dentro da descrição.
+  const desc = normalizeKey(args.description);
+  if (desc) {
+    for (const p of args.propertyById.values()) {
+      const n = normalizeKey(p.name);
+      if (n && n.length >= 4 && desc.includes(n)) {
+        return {
+          ai_property_id: p.id as string,
+          ai_property_confidence: 0.55,
+          ai_property_reason: `Nome do imóvel “${p.name}” citado na descrição`,
+        };
+      }
+    }
+  }
+  return empty;
+}
+
 // ---- 1. Classify one row -------------------------------------------------
 
 export const classifyImportRow = createServerFn({ method: "POST" })
@@ -114,7 +188,7 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         .eq("user_id", userId)
         .order("usage_count", { ascending: false })
         .limit(500),
-      supabase.from("properties").select("name").eq("user_id", userId),
+      supabase.from("properties").select("id, name, profile_id").eq("user_id", userId),
       supabase.from("banks").select("name").eq("user_id", userId),
     ]);
 
@@ -128,6 +202,20 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         to: p.corrected_value,
       });
     }
+
+    // Load batch scope so we can filter property suggestions by profile.
+    const { data: batch } = await supabase
+      .from("import_batches")
+      .select("profile_id, scope_kind")
+      .eq("id", row.batch_id)
+      .maybeSingle();
+    const eligibleProperties = (properties ?? []).filter((p: any) =>
+      batch?.scope_kind === "general" || !batch?.profile_id
+        ? true
+        : p.profile_id === batch.profile_id,
+    );
+    const propertyById = new Map<string, any>();
+    for (const p of eligibleProperties) propertyById.set(p.id, p);
 
     const promptText = [
       "Você é o assistente de classificação de lançamentos financeiros do Meu Cofre.",
@@ -275,7 +363,27 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
         currency: d.currency ?? row.currency,
         transaction_date: d.date ?? row.transaction_date,
-        category: d.category ?? row.category,
+        // NUNCA sobrescreve silenciosamente a categoria vinda da planilha.
+        // A sugestão da IA vai para ai_category_suggestion quando diferente.
+        category: row.category ?? d.category ?? null,
+        category_original: row.category_original ?? row.category ?? null,
+        ai_category_suggestion:
+          d.category && normalizeKey(d.category) !== normalizeKey(row.category ?? "")
+            ? d.category
+            : null,
+        ai_category_confidence:
+          typeof parsed.meta?.category?.confidence === "number"
+            ? parsed.meta.category.confidence
+            : null,
+        ai_category_reason: parsed.meta?.category?.rationale ?? null,
+        // Sugestão determinística de imóvel a partir do histórico do usuário.
+        ...suggestPropertyForRow({
+          payee: d.payee ?? row.payee,
+          category: d.category ?? row.category,
+          description: row.description,
+          prefs: prefs ?? [],
+          propertyById,
+        }),
         account: d.account ?? row.account,
         // Preserve the ORIGINAL description text — never overwrite with AI output.
         description: row.description,
@@ -294,6 +402,7 @@ const ApproveInput = z.object({
     .object({
       transaction_type: z.enum(["DESPESA", "INVESTIMENTO"]).optional(),
       category: z.string().nullable().optional(),
+      category_original: z.string().nullable().optional(),
       subcategory: z.string().nullable().optional(),
       bank: z.string().nullable().optional(),
       card: z.string().nullable().optional(),
@@ -306,6 +415,8 @@ const ApproveInput = z.object({
       currency: z.string().nullable().optional(),
       transaction_date: z.string().nullable().optional(),
       notes: z.string().nullable().optional(),
+      property_id: z.string().uuid().nullable().optional(),
+      general_account: z.boolean().optional(),
     })
     .default({}),
 });
@@ -367,10 +478,24 @@ export const approveImportRow = createServerFn({ method: "POST" })
       { field: "payee", from: row.payee, to: patch.payee },
       { field: "payment_method", from: row.payment_method, to: patch.payment_method },
     ];
+
+    // Aprende vínculo imóvel↔favorecido/categoria — só quando o usuário
+    // explicitamente escolheu um imóvel (não "conta geral", não em branco).
+    const finalProperty =
+      patch.property_id !== undefined ? patch.property_id : row.property_id;
+    if (finalProperty) {
+      const payeeKey = normalizeKey(patch.payee ?? row.payee);
+      const catKey = normalizeKey(patch.category ?? row.category);
+      if (payeeKey) prefs.push({ field: "property_link_payee", from: payeeKey, to: finalProperty });
+      if (catKey) prefs.push({ field: "property_link_category", from: catKey, to: finalProperty });
+    }
+
     for (const p of prefs) {
-      const from = normalizeKey(p.from);
+      const isPropertyLink = p.field.startsWith("property_link_");
+      const from = isPropertyLink ? String(p.from ?? "") : normalizeKey(p.from);
       const to = typeof p.to === "string" ? p.to.trim() : "";
-      if (!from || !to || normalizeKey(to) === from) continue;
+      if (!from || !to) continue;
+      if (!isPropertyLink && normalizeKey(to) === from) continue;
       const { data: existing } = await supabase
         .from("import_preferences")
         .select("id, usage_count")
@@ -505,4 +630,65 @@ export const reprocessBatchAmounts = createServerFn({ method: "POST" })
     }
 
     return { ok: true as const, scanned, updated };
+  });
+
+// ---- Reaplica sugestão de imóvel (histórico determinístico) --------------
+
+export const reanalyzeBatchProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ batchId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const [{ data: batch }, { data: prefs }, { data: props }, { data: rows }] = await Promise.all([
+      supabase
+        .from("import_batches")
+        .select("profile_id, scope_kind")
+        .eq("id", data.batchId)
+        .maybeSingle(),
+      supabase
+        .from("import_preferences")
+        .select("field, raw_key, corrected_value, usage_count")
+        .eq("user_id", userId)
+        .in("field", ["property_link_payee", "property_link_category"])
+        .limit(5000),
+      supabase.from("properties").select("id, name, profile_id").eq("user_id", userId),
+      supabase
+        .from("import_rows")
+        .select("id, payee, category, description, property_id, review_status")
+        .eq("batch_id", data.batchId)
+        .limit(20000),
+    ]);
+
+    const eligible = (props ?? []).filter((p: any) =>
+      batch?.scope_kind === "general" || !batch?.profile_id ? true : p.profile_id === batch.profile_id,
+    );
+    const propertyById = new Map<string, any>();
+    for (const p of eligible) propertyById.set(p.id, p);
+
+    let updated = 0;
+    for (const r of rows ?? []) {
+      // Nunca sobrescreve escolha manual em linhas aprovadas.
+      if (r.review_status === "approved" && r.property_id) continue;
+      const s = suggestPropertyForRow({
+        payee: r.payee,
+        category: r.category,
+        description: r.description,
+        prefs: prefs ?? [],
+        propertyById,
+      });
+      await supabase
+        .from("import_rows")
+        .update({
+          ai_property_id: s.ai_property_id,
+          ai_property_confidence: s.ai_property_confidence,
+          ai_property_reason: s.ai_property_reason,
+        })
+        .eq("id", r.id);
+      if (s.ai_property_id) updated++;
+    }
+
+    return { ok: true as const, scanned: (rows ?? []).length, suggested: updated };
   });

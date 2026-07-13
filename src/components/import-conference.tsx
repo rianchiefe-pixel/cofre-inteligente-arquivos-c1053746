@@ -52,6 +52,8 @@ import {
   ChevronDown,
   Loader2,
   Search,
+  Building2,
+  Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -197,6 +199,36 @@ export function ImportConference({
     },
   });
 
+  // Escopo da importação + imóveis elegíveis para vínculo
+  const batchQ = useQuery({
+    queryKey: ["conf-batch", batchId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("import_batches")
+        .select("profile_id, scope_kind")
+        .eq("id", batchId)
+        .maybeSingle();
+      return data ?? null;
+    },
+  });
+
+  const propertiesQ = useQuery({
+    queryKey: ["conf-properties", batchQ.data?.profile_id, batchQ.data?.scope_kind],
+    enabled: !!batchQ.data,
+    queryFn: async () => {
+      const isGeneral = batchQ.data?.scope_kind === "general" || !batchQ.data?.profile_id;
+      let q = supabase.from("properties").select("id, name, profile_id").order("name");
+      if (!isGeneral) q = q.eq("profile_id", batchQ.data!.profile_id!);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+  const propertyById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const p of propertiesQ.data ?? []) m.set(p.id, p);
+    return m;
+  }, [propertiesQ.data]);
+
   const linksByRow = useMemo(() => {
     const m = new Map<string, any[]>();
     for (const l of linksQ.data ?? []) {
@@ -314,6 +346,17 @@ export function ImportConference({
       } else {
         overrides[f.key] = String(v);
       }
+    }
+    // vínculo imóvel / conta geral (fora do FIELDS)
+    if (values.property_id === "__general__") {
+      overrides.property_id = null;
+      overrides.general_account = true;
+    } else if (values.property_id === "__none__" || values.property_id === "") {
+      overrides.property_id = null;
+      overrides.general_account = false;
+    } else if (typeof values.property_id === "string") {
+      overrides.property_id = values.property_id;
+      overrides.general_account = false;
     }
     return overrides;
   }
@@ -617,6 +660,9 @@ export function ImportConference({
                 setReason={setReason}
                 showRaw={showRaw}
                 setShowRaw={setShowRaw}
+                properties={propertiesQ.data ?? []}
+                propertyById={propertyById}
+                batchScope={batchQ.data?.scope_kind ?? "profile"}
               />
             </div>
           ) : (
@@ -689,6 +735,9 @@ function RowEditor({
   setReason,
   showRaw,
   setShowRaw,
+  properties,
+  propertyById,
+  batchScope,
 }: {
   row: any;
   links: any[];
@@ -699,10 +748,28 @@ function RowEditor({
   setReason: React.Dispatch<React.SetStateAction<string>>;
   showRaw: boolean;
   setShowRaw: React.Dispatch<React.SetStateAction<boolean>>;
+  properties: Array<{ id: string; name: string }>;
+  propertyById: Map<string, any>;
+  batchScope: string;
 }) {
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
   const primary = primaryReceiptLink(links);
   const status = (row.review_status ?? "pending") as ReviewStatus;
+
+  const originalCategory = row.category_original ?? row.category ?? null;
+  const aiSuggestedCategory = row.ai_category_suggestion ?? null;
+  const aiConf = row.ai_category_confidence
+    ? Math.round(Number(row.ai_category_confidence) * 100)
+    : null;
+  const aiPropertyId = row.ai_property_id ?? null;
+  const aiPropertyConf = row.ai_property_confidence
+    ? Math.round(Number(row.ai_property_confidence) * 100)
+    : null;
+  const aiProperty = aiPropertyId ? propertyById.get(aiPropertyId) : null;
+
+  const propertyValue =
+    values.property_id ??
+    (row.property_id ? row.property_id : row.general_account ? "__general__" : "__none__");
 
   // Groupings
   const HIGHLIGHT_KEYS = ["transaction_date", "amount", "transaction_type"];
@@ -839,6 +906,139 @@ function RowEditor({
         </div>
       </section>
 
+      {/* Grupo 2b — categoria: original vs sugerida */}
+      {(originalCategory || aiSuggestedCategory) && (
+        <section className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Categoria
+            </h3>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Original da planilha
+              </p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {originalCategory ?? "—"}
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-2 h-7 rounded-full px-2 text-[11px]"
+                onClick={() =>
+                  setValues((s) => ({ ...s, category: originalCategory ?? "" }))
+                }
+                disabled={!originalCategory}
+              >
+                Manter original
+              </Button>
+            </div>
+            <div
+              className={`rounded-xl border px-3 py-2.5 ${
+                aiSuggestedCategory
+                  ? "border-amber-200/60 bg-amber-50/50 dark:border-amber-500/20 dark:bg-amber-500/5"
+                  : "border-border/60 bg-muted/20"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <Lightbulb className="h-3 w-3" /> Sugerida pela IA
+                </p>
+                {aiConf !== null && (
+                  <span
+                    className={`text-[10px] font-semibold tabular-nums ${
+                      aiConf >= 75
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    }`}
+                  >
+                    {aiConf}%
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {aiSuggestedCategory ?? "Sem sugestão"}
+              </p>
+              {row.ai_category_reason && (
+                <p className="mt-1 text-[11px] text-muted-foreground">{row.ai_category_reason}</p>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-2 h-7 rounded-full px-2 text-[11px]"
+                onClick={() =>
+                  setValues((s) => ({ ...s, category: aiSuggestedCategory ?? "" }))
+                }
+                disabled={!aiSuggestedCategory}
+              >
+                Usar sugestão
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Grupo 2c — Imóvel relacionado */}
+      <section className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Building2 className="h-3.5 w-3.5" /> Imóvel relacionado
+          </h3>
+          {batchScope === "general" && (
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              lote: conta geral
+            </span>
+          )}
+        </div>
+        <Select
+          value={String(propertyValue)}
+          onValueChange={(nv) => setValues((s) => ({ ...s, property_id: nv }))}
+        >
+          <SelectTrigger className="h-10 text-sm">
+            <SelectValue placeholder="Escolher imóvel" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Imóvel não identificado</SelectItem>
+            <SelectItem value="__general__">Conta geral (sem imóvel)</SelectItem>
+            {properties.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {aiProperty && String(propertyValue) !== aiProperty.id && (
+          <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200/60 bg-amber-50/50 p-2.5 text-[11px] dark:border-amber-500/20 dark:bg-amber-500/5">
+            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-foreground">
+                Sugestão da IA: <span className="font-semibold">{aiProperty.name}</span>
+                {aiPropertyConf !== null && (
+                  <span className="ml-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    {aiPropertyConf}%
+                  </span>
+                )}
+              </p>
+              {row.ai_property_reason && (
+                <p className="mt-0.5 text-muted-foreground">{row.ai_property_reason}</p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 shrink-0 rounded-full px-2 text-[11px]"
+              onClick={() => setValues((s) => ({ ...s, property_id: aiProperty.id }))}
+            >
+              Aceitar
+            </Button>
+          </div>
+        )}
+        {!aiProperty && !row.property_id && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Sem histórico suficiente para sugerir automaticamente. Escolha manualmente ou deixe em "Imóvel não identificado".
+          </p>
+        )}
+      </section>
+
       {/* Grupo 3 — dados originais / IA */}
       <section className="rounded-2xl border border-border/60 bg-muted/20 p-4">
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -919,6 +1119,11 @@ function hydrateValues(row: any): Record<string, any> {
       out[f.key] = row[f.key] ?? "";
     }
   }
+  out.property_id = row.property_id
+    ? row.property_id
+    : row.general_account
+      ? "__general__"
+      : "__none__";
   return out;
 }
 

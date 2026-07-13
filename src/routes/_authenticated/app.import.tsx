@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -15,8 +17,11 @@ import {
   RefreshCw,
   Sparkles,
   History,
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { reanalyzeBatchProperties } from "@/lib/import.functions";
 import {
   readSpreadsheet,
   detectHeader,
@@ -77,7 +82,22 @@ function ImportPage() {
   const [dragOver, setDragOver] = useState(false);
   const [reviewBatchId, setReviewBatchId] = useState<string | null>(null);
   const [conferenceOpen, setConferenceOpen] = useState(false);
+  // "general" = conta geral (sem perfil dedicado). Caso contrário é um profile_id.
+  const [scopeChoice, setScopeChoice] = useState<string>("general");
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const profilesQ = useQuery({
+    queryKey: ["profiles-min"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("financial_profiles")
+        .select("id, name")
+        .eq("archived", false)
+        .order("name");
+      return data ?? [];
+    },
+  });
+  const reanalyzeFn = useServerFn(reanalyzeBatchProperties);
 
   // Restore any in-progress batch on mount (survives page refresh).
   useEffect(() => {
@@ -152,6 +172,8 @@ function ImportPage() {
             phase: "received",
             progress_percent: 5,
             status: "running",
+            scope_kind: scopeChoice === "general" ? "general" : "profile",
+            profile_id: scopeChoice === "general" ? null : scopeChoice,
           })
           .select("id")
           .single();
@@ -258,7 +280,7 @@ function ImportPage() {
         }
       }
     },
-    [qc, updateBatch, batchId],
+    [qc, updateBatch, batchId, scopeChoice],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -291,6 +313,30 @@ function ImportPage() {
           <Sparkles className="h-3 w-3" /> Parte 1 · Leitura Inteligente
         </Badge>
       </header>
+
+      <Card className="p-5">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+              <Building2 className="h-3.5 w-3.5" /> Escopo desta importação
+            </Label>
+            <Select value={scopeChoice} onValueChange={setScopeChoice}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Selecione o perfil ou Conta geral" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">Conta geral (sem perfil dedicado)</SelectItem>
+                {(profilesQ.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              A IA só sugerirá imóveis vinculados ao perfil escolhido. Escolha "Conta geral" para permitir qualquer imóvel do seu cadastro.
+            </p>
+          </div>
+        </div>
+      </Card>
 
       <label
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -453,22 +499,39 @@ function ImportPage() {
         ) : (
           <div className="divide-y divide-border">
             {(history.data ?? []).map((b) => (
-              <button
-                type="button"
+              <div
                 key={b.id}
-                onClick={() => setReviewBatchId(b.id)}
-                className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 text-left hover:bg-muted/40"
+                className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-3"
               >
-                <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setReviewBatchId(b.id)}
+                  className="min-w-0 text-left"
+                >
                   <p className="truncate text-sm font-medium text-foreground">
                     {b.file_name ?? "planilha"}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {dateBR(b.created_at)} · {b.saved_rows ?? 0}/{b.total_rows ?? 0} linhas
                     {b.header_row !== null ? ` · cabeçalho na linha ${(b.header_row ?? 0) + 1}` : ""}
-                    {b.separator ? ` · separador "${b.separator}"` : ""}
                   </p>
-                </div>
+                </button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 gap-1 text-xs"
+                  onClick={async () => {
+                    try {
+                      const res = await reanalyzeFn({ data: { batchId: b.id } });
+                      toast.success(`${res.suggested}/${res.scanned} lançamentos com sugestão de imóvel`);
+                    } catch (e: any) {
+                      toast.error(e?.message ?? "Falha ao reanalisar");
+                    }
+                  }}
+                  title="Reaplica as regras aprendidas sobre imóveis a este lote"
+                >
+                  <Sparkles className="h-3 w-3" /> Reanalisar imóveis
+                </Button>
                 <Badge
                   variant={
                     b.status === "completed"
@@ -480,7 +543,7 @@ function ImportPage() {
                 >
                   {b.status ?? "—"}
                 </Badge>
-              </button>
+              </div>
             ))}
           </div>
         )}
