@@ -440,3 +440,69 @@ export const setImportRowStatus = createServerFn({ method: "POST" })
     await supabase.from("import_rows").update(patch as any).eq("id", data.rowId);
     return { ok: true as const };
   });
+
+// ---- Reprocessa valores monetários salvos incorretamente ------------------
+// Ex.: R$ 1.880,00 gravado como -1.88, R$ 15,11 gravado como -1511.
+
+export const reprocessBatchAmounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ batchId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: rows, error } = await supabase
+      .from("import_rows")
+      .select("id, amount, ai_data, ai_meta, raw_data, description, notes")
+      .eq("batch_id", data.batchId)
+      .limit(10000);
+    if (error) throw error;
+
+    let updated = 0;
+    let scanned = 0;
+    for (const r of rows ?? []) {
+      scanned++;
+      const candidates: unknown[] = [];
+      const ai = (r.ai_data ?? {}) as Record<string, any>;
+      const meta = (r.ai_meta ?? {}) as Record<string, any>;
+      candidates.push(ai.amount_raw);
+      candidates.push(meta?.amount?.original);
+      // Varredura em raw_data por colunas típicas
+      const raw = (r.raw_data ?? {}) as Record<string, any>;
+      for (const [k, v] of Object.entries(raw)) {
+        if (/valor|amount|montante|quantia|vlr/i.test(k)) candidates.push(v);
+      }
+      candidates.push(ai.amount);
+
+      let picked: number | null = null;
+      for (const c of candidates) {
+        const n = parseBrlAmount(c);
+        if (n !== null && n > 0) {
+          picked = n;
+          break;
+        }
+      }
+      // Fallback: procura padrão BRL na descrição / notas
+      if (picked === null) {
+        picked = extractBrlFromText(r.description) ?? extractBrlFromText(r.notes);
+      }
+
+      if (picked === null) continue;
+      const current = typeof r.amount === "number" ? Math.abs(r.amount) : NaN;
+      // Atualiza quando o valor atual está ausente, negativo, ou diverge do
+      // valor recomputado em mais de 1 centavo.
+      const differs =
+        !Number.isFinite(current) ||
+        (r.amount as number) < 0 ||
+        Math.abs(current - picked) > 0.01;
+      if (!differs) continue;
+
+      await supabase
+        .from("import_rows")
+        .update({ amount: picked })
+        .eq("id", r.id);
+      updated++;
+    }
+
+    return { ok: true as const, scanned, updated };
+  });
