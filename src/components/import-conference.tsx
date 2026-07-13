@@ -481,34 +481,42 @@ export function ImportConference({
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="flex max-h-[90vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+        className="flex max-h-[94vh] w-[97vw] max-w-[1400px] flex-col gap-0 overflow-hidden p-0 rounded-2xl border border-border/60 shadow-2xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Sticky header */}
-        <div className="shrink-0 border-b border-border bg-background px-4 py-3">
-          <DialogHeader className="space-y-1 text-left">
-            <DialogTitle className="text-base">
+        <div className="shrink-0 border-b border-border/60 bg-background/95 px-6 py-4 backdrop-blur">
+          <DialogHeader className="space-y-2 text-left">
+            <DialogTitle className="text-lg font-semibold tracking-tight">
               Conferência de comprovantes
             </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              {counts.total} linhas · {counts.pending} pendentes · {counts.approved} aprovadas ·{" "}
-              {counts.rejected} rejeitadas · {counts.ver} ver depois · {counts.identified} com comprovante ·{" "}
-              {counts.no} não identificadas · {counts.dup} possíveis duplicidades
-            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><span className="font-semibold text-foreground">{counts.total}</span> linhas no total</span>
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {counts.pending} pendentes</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {counts.approved} aprovadas</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> {counts.rejected} rejeitadas</span>
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+              <span>{counts.no} sem comprovante</span>
+              <span>·</span>
+              <span>{counts.dup} possíveis duplicidades</span>
+            </div>
           </DialogHeader>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <Button size="sm" variant="outline" onClick={goPrev} disabled={activeIdx <= 0}>
-              <ChevronLeft className="h-3 w-3" />
-            </Button>
-            <span className="tabular-nums">
-              Linha {filteredRows.length === 0 ? 0 : activeIdx + 1} de {filteredRows.length}
-            </span>
-            <Button size="sm" variant="outline" onClick={goNext} disabled={activeIdx >= filteredRows.length - 1}>
-              <ChevronRight className="h-3 w-3" />
-            </Button>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+            <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-0.5">
+              <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={goPrev} disabled={activeIdx <= 0}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <span className="px-2 text-[11px] font-medium tabular-nums text-foreground">
+                Linha {filteredRows.length === 0 ? 0 : activeIdx + 1} de {filteredRows.length}
+              </span>
+              <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={goNext} disabled={activeIdx >= filteredRows.length - 1}>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
             <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-              <SelectTrigger className="h-8 w-[190px] text-xs">
+              <SelectTrigger className="h-8 w-[200px] rounded-full text-xs">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -522,7 +530,7 @@ export function ImportConference({
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
-              <SelectTrigger className="h-8 w-[140px] text-xs">
+              <SelectTrigger className="h-8 w-[150px] rounded-full text-xs">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -534,7 +542,7 @@ export function ImportConference({
             <Button
               size="sm"
               variant="ghost"
-              className="ml-auto"
+              className="ml-auto h-8 rounded-full"
               onClick={handleReclassify}
               disabled={savingAction !== null || !activeRow}
             >
@@ -543,6 +551,7 @@ export function ImportConference({
             <Button
               size="sm"
               variant="ghost"
+              className="h-8 rounded-full"
               onClick={handleReprocessAmounts}
               disabled={reprocessing}
               title="Recorrige valores salvos como -1.88 / -1511 usando o padrão brasileiro."
@@ -557,6 +566,7 @@ export function ImportConference({
             <Button
               size="sm"
               variant="ghost"
+              className="h-8 rounded-full"
               onClick={() => setShowAllFilters((s) => !s)}
             >
               <ChevronDown className={`h-3 w-3 transition-transform ${showAllFilters ? "rotate-180" : ""}`} />
@@ -587,9 +597,9 @@ export function ImportConference({
         </div>
 
         {/* Single scrollable body */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-muted/20 via-muted/10 to-background">
           {activeRow ? (
-            <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
               <ReceiptViewer
                 row={activeRow}
                 links={(linksByRow.get(activeRow.id) ?? []).filter(isAcceptedReceiptLink).sort((a, b) => b.score - a.score)}
@@ -617,46 +627,47 @@ export function ImportConference({
         </div>
 
         {/* Sticky footer */}
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-background/95 px-6 py-3.5 backdrop-blur">
           <Button
-            size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={handleUndo}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full px-4 text-sm"
           >
-            <Undo2 className="mr-1 h-3 w-3" /> Desfazer
+            <Undo2 className="mr-2 h-4 w-4" /> Desfazer
           </Button>
           <Button
-            size="sm"
             variant="outline"
             onClick={() => activeRow && handleSaveOnly(collectOverrides())}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full px-4 text-sm"
           >
             Salvar sem aprovar
           </Button>
+          <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
           <Button
-            size="sm"
-            variant="destructive"
+            variant="outline"
             onClick={() => activeRow && handleReject(reason, collectOverrides())}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full border-rose-200 px-4 text-sm text-rose-700 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10"
           >
-            <XCircle className="mr-1 h-3 w-3" /> Rejeitar
+            <XCircle className="mr-2 h-4 w-4" /> Rejeitar
           </Button>
           <Button
-            size="sm"
-            className="bg-amber-500 text-white hover:bg-amber-500/90"
+            variant="outline"
             onClick={() => activeRow && handleVerDepois(collectOverrides())}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full border-amber-200 px-4 text-sm text-amber-700 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
           >
-            <Clock className="mr-1 h-3 w-3" /> Ver depois
+            <Clock className="mr-2 h-4 w-4" /> Ver depois
           </Button>
           <Button
-            size="sm"
-            className="bg-emerald-600 text-white hover:bg-emerald-600/90"
             onClick={() => activeRow && handleApprove(collectOverrides())}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition-all hover:from-emerald-600 hover:to-emerald-500 hover:shadow-lg hover:shadow-emerald-600/30"
           >
-            <CheckCircle2 className="mr-1 h-3 w-3" /> Aprovar e continuar
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Aprovar e continuar
+            <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>
       </DialogContent>
