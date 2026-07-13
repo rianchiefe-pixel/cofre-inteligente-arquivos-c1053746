@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -47,7 +46,6 @@ import {
   Maximize2,
   Undo2,
   Paperclip,
-  Star,
   ExternalLink,
   FileWarning,
   Sparkles,
@@ -66,7 +64,6 @@ import {
 import {
   attachFileManually,
   detachRowFile,
-  setPrimaryRowFile,
 } from "@/lib/receipt-matcher";
 import { currencyBRL, parseBrlAmount, formatBrlNumber } from "@/lib/format";
 
@@ -89,6 +86,16 @@ const STATUS_COLOR: Record<ReviewStatus, string> = {
   rejected: "bg-destructive text-destructive-foreground",
   ver_depois: "bg-amber-500 text-white",
 };
+
+const ACCEPTED_RECEIPT_CONFIDENCES = new Set(["high", "very_high"]);
+
+function isAcceptedReceiptLink(link: any): boolean {
+  return !!link && (link.is_manual || ACCEPTED_RECEIPT_CONFIDENCES.has(String(link.confidence ?? "")));
+}
+
+function primaryReceiptLink(links: any[]): any | null {
+  return links.find((l) => l.is_primary && isAcceptedReceiptLink(l)) ?? null;
+}
 
 const FIELDS: Array<{ key: string; label: string; type?: "number" | "textarea" | "select"; options?: string[] }> = [
   { key: "transaction_date", label: "Data" },
@@ -129,7 +136,7 @@ export function ImportConference({
   const statusFn = useServerFn(setImportRowStatus);
   const classifyFn = useServerFn(classifyImportRow);
 
-  const [statusFilter, setStatusFilter] = useState<"all" | ReviewStatus | "no_receipt" | "low_conf" | "duplicate">(
+  const [statusFilter, setStatusFilter] = useState<"all" | ReviewStatus | "no_receipt" | "duplicate">(
     "pending",
   );
   const [typeFilter, setTypeFilter] = useState<"all" | "DESPESA" | "INVESTIMENTO">("all");
@@ -227,16 +234,14 @@ export function ImportConference({
     return list.filter((r: any) => {
       const status = (r.review_status ?? "pending") as ReviewStatus;
       const links = linksByRow.get(r.id) ?? [];
-      const primary = links.find((l) => l.is_primary) ?? links[0];
-      const conf = primary?.confidence as string | undefined;
+      const primary = primaryReceiptLink(links);
       // status filter
-      if (statusFilter === "no_receipt" && links.length > 0) return false;
-      if (statusFilter === "low_conf" && conf !== "low" && conf !== "review") return false;
+      if (statusFilter === "no_receipt" && primary) return false;
+      if (statusFilter !== "no_receipt" && !primary) return false;
       if (statusFilter === "duplicate" && !duplicateIds.has(r.id)) return false;
       if (
         statusFilter !== "all" &&
         statusFilter !== "no_receipt" &&
-        statusFilter !== "low_conf" &&
         statusFilter !== "duplicate" &&
         status !== statusFilter
       )
@@ -320,7 +325,7 @@ export function ImportConference({
       rejected = 0,
       ver = 0,
       no = 0,
-      low = 0;
+      identified = 0;
     for (const r of list) {
       const s = (r.review_status ?? "pending") as ReviewStatus;
       if (s === "approved") approved++;
@@ -328,8 +333,8 @@ export function ImportConference({
       else if (s === "ver_depois") ver++;
       else pending++;
       const links = linksByRow.get(r.id) ?? [];
-      if (links.length === 0) no++;
-      else if (links[0].confidence === "low" || links[0].confidence === "review") low++;
+      if (primaryReceiptLink(links)) identified++;
+      else no++;
     }
     return {
       total: list.length,
@@ -338,7 +343,7 @@ export function ImportConference({
       rejected,
       ver,
       no,
-      low,
+      identified,
       dup: duplicateIds.size,
     };
   }, [rowsQ.data, linksByRow, duplicateIds]);
@@ -487,8 +492,8 @@ export function ImportConference({
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
               {counts.total} linhas · {counts.pending} pendentes · {counts.approved} aprovadas ·{" "}
-              {counts.rejected} rejeitadas · {counts.ver} ver depois · {counts.no} sem comprovante ·{" "}
-              {counts.low} baixa confiança · {counts.dup} possíveis duplicidades
+              {counts.rejected} rejeitadas · {counts.ver} ver depois · {counts.identified} com comprovante ·{" "}
+              {counts.no} não identificadas · {counts.dup} possíveis duplicidades
             </p>
           </DialogHeader>
 
@@ -512,8 +517,7 @@ export function ImportConference({
                 <SelectItem value="approved">Aprovados ({counts.approved})</SelectItem>
                 <SelectItem value="rejected">Rejeitados ({counts.rejected})</SelectItem>
                 <SelectItem value="ver_depois">Ver depois ({counts.ver})</SelectItem>
-                <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
-                <SelectItem value="low_conf">Baixa confiança ({counts.low})</SelectItem>
+                <SelectItem value="no_receipt">Não identificadas ({counts.no})</SelectItem>
                 <SelectItem value="duplicate">Duplicidades ({counts.dup})</SelectItem>
               </SelectContent>
             </Select>
@@ -588,14 +592,14 @@ export function ImportConference({
             <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
               <ReceiptViewer
                 row={activeRow}
-                links={(linksByRow.get(activeRow.id) ?? []).slice().sort((a, b) => b.score - a.score)}
+                links={(linksByRow.get(activeRow.id) ?? []).filter(isAcceptedReceiptLink).sort((a, b) => b.score - a.score)}
                 files={filesQ.data ?? []}
                 fileById={fileById}
                 onChanged={invalidate}
               />
               <RowEditor
                 row={activeRow}
-                links={linksByRow.get(activeRow.id) ?? []}
+                links={(linksByRow.get(activeRow.id) ?? []).filter(isAcceptedReceiptLink)}
                 isDuplicate={duplicateIds.has(activeRow.id)}
                 values={values}
                 setValues={setValues}
@@ -686,7 +690,7 @@ function RowEditor({
   setShowRaw: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
-  const primary = links.find((l) => l.is_primary) ?? links[0];
+  const primary = primaryReceiptLink(links);
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 text-xs">
@@ -701,7 +705,7 @@ function RowEditor({
         )}
         {primary && (
           <span className="ml-auto text-[10px] text-muted-foreground">
-            comprovante · score {primary.score} · {primary.confidence}
+            comprovante identificado
           </span>
         )}
       </div>
@@ -835,7 +839,7 @@ function ReceiptViewer({
   fileById: Map<string, any>;
   onChanged: () => void;
 }) {
-  const primary = links.find((l) => l.is_primary) ?? links[0];
+  const primary = primaryReceiptLink(links);
   const primaryFile = primary ? fileById.get(primary.file_id) : null;
   const [page, setPage] = useState<number>(primary?.page_number ?? 1);
   const [zoom, setZoom] = useState(1);
@@ -871,7 +875,6 @@ function ReceiptViewer({
   const isPdf = (primaryFile?.mime_type ?? "").includes("pdf") || (primaryFile?.extension ?? "").toLowerCase() === "pdf";
   const pageCount = primaryFile?.page_count ?? 1;
 
-  const [showAllCandidates, setShowAllCandidates] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
 
   async function markUnlocated() {
@@ -885,7 +888,7 @@ function ReceiptViewer({
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-background">
       <div className="flex flex-wrap items-center gap-1 border-b border-border p-2 text-xs">
         <span className="truncate font-mono text-[11px]">
-          {primaryFile?.original_path ?? primaryFile?.file_name ?? "sem comprovante"}
+          {primaryFile?.original_path ?? primaryFile?.file_name ?? "Comprovante não identificado"}
         </span>
         <div className="ml-auto flex items-center gap-1">
           {isPdf && pageCount > 1 && (
@@ -941,7 +944,7 @@ function ReceiptViewer({
           <div className="grid h-64 place-items-center text-center text-sm text-muted-foreground">
             <div>
               <FileWarning className="mx-auto mb-2 h-8 w-8" />
-              Nenhum comprovante vinculado a esta linha.
+              Comprovante não identificado para esta linha.
               <div className="mt-3">
                 <Button size="sm" onClick={() => setSwapOpen(true)}>
                   <Paperclip className="mr-1 h-3 w-3" /> Associar manualmente
@@ -973,66 +976,6 @@ function ReceiptViewer({
           </div>
         )}
       </div>
-
-      {/* Candidatos — compactos, no máximo 3, restantes em collapsible */}
-      {links.length > 0 && (
-        <div className="border-t border-border p-3 text-xs">
-          <p className="mb-2 font-semibold">Comprovantes candidatos</p>
-          <div className="grid gap-2">
-            {(showAllCandidates ? links : links.slice(0, 3)).map((l) => {
-              const f = fileById.get(l.file_id);
-              const reasons: string[] = Array.isArray(l.match_reasons) ? l.match_reasons : [];
-              return (
-                <div
-                  key={l.id}
-                  className={`rounded-md border p-2 ${l.is_primary ? "border-emerald-500/50 bg-emerald-500/5" : "border-border/60"}`}
-                >
-                  <div className="flex items-start gap-2">
-                    {l.is_primary && <Star className="mt-0.5 h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />}
-                    <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
-                      {f?.original_path ?? f?.file_name}
-                      {l.page_number ? ` · p.${l.page_number}` : ""}
-                    </span>
-                    <Badge variant="outline" className="shrink-0 text-[10px]">
-                      score {l.score} · {l.confidence}
-                    </Badge>
-                  </div>
-                  {reasons.length > 0 && (
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      {reasons.slice(0, 4).join(" · ")}
-                    </p>
-                  )}
-                  {!l.is_primary && (
-                    <div className="mt-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px]"
-                        onClick={async () => {
-                          await setPrimaryRowFile(row.id, l.id);
-                          onChanged();
-                        }}
-                      >
-                        Selecionar comprovante
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {links.length > 3 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-2 h-7 text-[11px]"
-              onClick={() => setShowAllCandidates((s) => !s)}
-            >
-              {showAllCandidates ? "Ocultar candidatos extras" : `Ver outros candidatos (${links.length - 3})`}
-            </Button>
-          )}
-        </div>
-      )}
 
       {/* Busca manual — collapsible */}
       <div className="border-t border-border p-3 text-xs">
@@ -1216,11 +1159,6 @@ function SwapReceiptDialog({
             </p>
           )}
         </div>
-        {links.length > 0 && (
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            {links.length} candidato(s) já vinculado(s) a esta linha.
-          </p>
-        )}
       </DialogContent>
     </Dialog>
   );
