@@ -70,14 +70,6 @@ function amountsClose(a: unknown, b: unknown): boolean {
   return Math.abs((na ?? 0) - (nb ?? 0)) < 0.02;
 }
 
-function tierFor(score: number): MatchTier {
-  if (score >= 90) return "very_high";
-  if (score >= 75) return "high";
-  if (score >= 55) return "review";
-  if (score > 0) return "low";
-  return "none";
-}
-
 // The receipt only earns a primary association when the *core trio* matches:
 // amount + exact date + payee. Anything below that fails closed as "not found".
 function gatedTier(raw: number, matched: Set<string>): MatchTier {
@@ -364,7 +356,7 @@ export interface MatchProgress {
 
 export async function matchBatchReceipts(
   batchId: string,
-  opts: { onProgress?: (p: MatchProgress) => void; topN?: number } = {},
+  opts: { onProgress?: (p: MatchProgress) => void } = {},
 ): Promise<MatchProgress> {
   const { data: u } = await supabase.auth.getUser();
   const userId = u.user?.id;
