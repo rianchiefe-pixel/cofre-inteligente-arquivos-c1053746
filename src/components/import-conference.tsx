@@ -442,6 +442,23 @@ export function ImportConference({
     }
   }
 
+  const reprocessFn = useServerFn(reprocessBatchAmounts);
+  const [reprocessing, setReprocessing] = useState(false);
+  async function handleReprocessAmounts() {
+    setReprocessing(true);
+    try {
+      const res = await reprocessFn({ data: { batchId } });
+      toast.success(
+        `Valores recalculados: ${res.updated}/${res.scanned} lançamentos ajustados`,
+      );
+      invalidate();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao reprocessar valores");
+    } finally {
+      setReprocessing(false);
+    }
+  }
+
   async function handleReclassify() {
     if (!activeRow) return;
     setSavingAction("reclassify");
