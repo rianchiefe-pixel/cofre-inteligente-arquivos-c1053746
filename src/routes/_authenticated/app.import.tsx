@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -15,8 +17,11 @@ import {
   RefreshCw,
   Sparkles,
   History,
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { reanalyzeBatchProperties } from "@/lib/import.functions";
 import {
   readSpreadsheet,
   detectHeader,
@@ -77,7 +82,22 @@ function ImportPage() {
   const [dragOver, setDragOver] = useState(false);
   const [reviewBatchId, setReviewBatchId] = useState<string | null>(null);
   const [conferenceOpen, setConferenceOpen] = useState(false);
+  // "general" = conta geral (sem perfil dedicado). Caso contrário é um profile_id.
+  const [scopeChoice, setScopeChoice] = useState<string>("general");
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const profilesQ = useQuery({
+    queryKey: ["profiles-min"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("financial_profiles")
+        .select("id, name")
+        .eq("archived", false)
+        .order("name");
+      return data ?? [];
+    },
+  });
+  const reanalyzeFn = useServerFn(reanalyzeBatchProperties);
 
   // Restore any in-progress batch on mount (survives page refresh).
   useEffect(() => {
@@ -152,6 +172,8 @@ function ImportPage() {
             phase: "received",
             progress_percent: 5,
             status: "running",
+            scope_kind: scopeChoice === "general" ? "general" : "profile",
+            profile_id: scopeChoice === "general" ? null : scopeChoice,
           })
           .select("id")
           .single();
@@ -258,7 +280,7 @@ function ImportPage() {
         }
       }
     },
-    [qc, updateBatch, batchId],
+    [qc, updateBatch, batchId, scopeChoice],
   );
 
   const onDrop = (e: React.DragEvent) => {
