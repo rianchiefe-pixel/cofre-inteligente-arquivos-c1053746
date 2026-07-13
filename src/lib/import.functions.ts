@@ -631,3 +631,64 @@ export const reprocessBatchAmounts = createServerFn({ method: "POST" })
 
     return { ok: true as const, scanned, updated };
   });
+
+// ---- Reaplica sugestão de imóvel (histórico determinístico) --------------
+
+export const reanalyzeBatchProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ batchId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const [{ data: batch }, { data: prefs }, { data: props }, { data: rows }] = await Promise.all([
+      supabase
+        .from("import_batches")
+        .select("profile_id, scope_kind")
+        .eq("id", data.batchId)
+        .maybeSingle(),
+      supabase
+        .from("import_preferences")
+        .select("field, raw_key, corrected_value, usage_count")
+        .eq("user_id", userId)
+        .in("field", ["property_link_payee", "property_link_category"])
+        .limit(5000),
+      supabase.from("properties").select("id, name, profile_id").eq("user_id", userId),
+      supabase
+        .from("import_rows")
+        .select("id, payee, category, description, property_id, review_status")
+        .eq("batch_id", data.batchId)
+        .limit(20000),
+    ]);
+
+    const eligible = (props ?? []).filter((p: any) =>
+      batch?.scope_kind === "general" || !batch?.profile_id ? true : p.profile_id === batch.profile_id,
+    );
+    const propertyById = new Map<string, any>();
+    for (const p of eligible) propertyById.set(p.id, p);
+
+    let updated = 0;
+    for (const r of rows ?? []) {
+      // Nunca sobrescreve escolha manual em linhas aprovadas.
+      if (r.review_status === "approved" && r.property_id) continue;
+      const s = suggestPropertyForRow({
+        payee: r.payee,
+        category: r.category,
+        description: r.description,
+        prefs: prefs ?? [],
+        propertyById,
+      });
+      await supabase
+        .from("import_rows")
+        .update({
+          ai_property_id: s.ai_property_id,
+          ai_property_confidence: s.ai_property_confidence,
+          ai_property_reason: s.ai_property_reason,
+        })
+        .eq("id", r.id);
+      if (s.ai_property_id) updated++;
+    }
+
+    return { ok: true as const, scanned: (rows ?? []).length, suggested: updated };
+  });
