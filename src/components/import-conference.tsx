@@ -539,6 +539,20 @@ export function ImportConference({
             <Button
               size="sm"
               variant="ghost"
+              onClick={handleReprocessAmounts}
+              disabled={reprocessing}
+              title="Recorrige valores salvos como -1.88 / -1511 usando o padrão brasileiro."
+            >
+              {reprocessing ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1 h-3 w-3" />
+              )}
+              Recorrigir valores
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => setShowAllFilters((s) => !s)}
             >
               <ChevronDown className={`h-3 w-3 transition-transform ${showAllFilters ? "rotate-180" : ""}`} />
