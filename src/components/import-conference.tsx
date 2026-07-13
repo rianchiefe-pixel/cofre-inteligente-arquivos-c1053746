@@ -757,7 +757,19 @@ function RowEditor({
                 <Input
                   className="mt-1 h-8 text-xs"
                   value={v}
+                  inputMode={f.key === "amount" ? "decimal" : undefined}
+                  placeholder={f.key === "amount" ? "0,00" : undefined}
                   onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
+                  onBlur={
+                    f.key === "amount"
+                      ? (e) => {
+                          const n = parseBrlAmount(e.target.value);
+                          if (n !== null) {
+                            setValues((s) => ({ ...s, amount: formatBrlNumber(n) }));
+                          }
+                        }
+                      : undefined
+                  }
                 />
               )}
               {m.rationale && (
