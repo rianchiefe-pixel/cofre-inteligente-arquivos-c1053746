@@ -376,14 +376,49 @@ export async function matchBatchReceipts(
     supabase.from("import_rows").select("*").eq("batch_id", batchId).limit(5000),
     supabase
       .from("import_files")
-      .select("id, file_name, original_path, folder, extension, extracted_text, ocr_data, page_count")
+      .select("id, file_name, original_path, folder, extension, extracted_text, ocr_data, page_count, duplicate_of, status")
       .eq("batch_id", batchId)
-      .in("status", ["ready", "processed", "completed", "done"])
+      .in("status", ["ready", "processed", "completed", "done", "duplicate"])
       .limit(5000),
   ]);
 
   const rowList = rows ?? [];
-  const fileFacts = (files ?? []).map(factsFromFile);
+  const rawFiles = files ?? [];
+
+  // Duplicates carry no extracted_text/ocr_data — hydrate them from the
+  // original file (same content_hash) so the matcher can score them too.
+  const missingParents = Array.from(
+    new Set(
+      rawFiles
+        .filter((f: any) => f.duplicate_of && (!f.extracted_text || !f.ocr_data))
+        .map((f: any) => f.duplicate_of as string),
+    ),
+  );
+  const parentMap = new Map<string, { extracted_text: string | null; ocr_data: any; page_count: number | null }>();
+  if (missingParents.length) {
+    for (let i = 0; i < missingParents.length; i += 200) {
+      const chunk = missingParents.slice(i, i + 200);
+      const { data: parents } = await supabase
+        .from("import_files")
+        .select("id, extracted_text, ocr_data, page_count")
+        .in("id", chunk);
+      for (const p of parents ?? []) parentMap.set(p.id, p as any);
+    }
+  }
+  const fileFacts = rawFiles.map((f: any) => {
+    if (f.duplicate_of && (!f.extracted_text || !f.ocr_data)) {
+      const p = parentMap.get(f.duplicate_of);
+      if (p) {
+        return factsFromFile({
+          ...f,
+          extracted_text: f.extracted_text ?? p.extracted_text,
+          ocr_data: f.ocr_data ?? p.ocr_data,
+          page_count: f.page_count ?? p.page_count,
+        });
+      }
+    }
+    return factsFromFile(f);
+  });
 
   const { data: manualPrimaries } = await supabase
     .from("import_row_files")
