@@ -367,6 +367,7 @@ export type Database = {
           profile_id: string | null
           progress_percent: number
           saved_rows: number
+          scope_kind: string
           separator: string | null
           status: string
           summary_json: Json | null
@@ -401,6 +402,7 @@ export type Database = {
           profile_id?: string | null
           progress_percent?: number
           saved_rows?: number
+          scope_kind?: string
           separator?: string | null
           status?: string
           summary_json?: Json | null
@@ -435,6 +437,7 @@ export type Database = {
           profile_id?: string | null
           progress_percent?: number
           saved_rows?: number
+          scope_kind?: string
           separator?: string | null
           status?: string
           summary_json?: Json | null
@@ -648,9 +651,15 @@ export type Database = {
       import_rows: {
         Row: {
           account: string | null
+          ai_category_confidence: number | null
+          ai_category_reason: string | null
+          ai_category_suggestion: string | null
           ai_data: Json | null
           ai_error: string | null
           ai_meta: Json | null
+          ai_property_confidence: number | null
+          ai_property_id: string | null
+          ai_property_reason: string | null
           ai_status: string
           amount: number | null
           bank: string | null
@@ -658,12 +667,14 @@ export type Database = {
           card: string | null
           card_last4: string | null
           category: string | null
+          category_original: string | null
           created_at: string
           currency: string | null
           description: string | null
           error_message: string | null
           file_name: string | null
           folder_path: string | null
+          general_account: boolean
           holder: string | null
           id: string
           invoice_number: string | null
@@ -673,6 +684,7 @@ export type Database = {
           parsed_notes: Json | null
           payee: string | null
           payment_method: string | null
+          property_id: string | null
           raw_data: Json
           review_status: string
           reviewed_at: string | null
@@ -686,9 +698,15 @@ export type Database = {
         }
         Insert: {
           account?: string | null
+          ai_category_confidence?: number | null
+          ai_category_reason?: string | null
+          ai_category_suggestion?: string | null
           ai_data?: Json | null
           ai_error?: string | null
           ai_meta?: Json | null
+          ai_property_confidence?: number | null
+          ai_property_id?: string | null
+          ai_property_reason?: string | null
           ai_status?: string
           amount?: number | null
           bank?: string | null
@@ -696,12 +714,14 @@ export type Database = {
           card?: string | null
           card_last4?: string | null
           category?: string | null
+          category_original?: string | null
           created_at?: string
           currency?: string | null
           description?: string | null
           error_message?: string | null
           file_name?: string | null
           folder_path?: string | null
+          general_account?: boolean
           holder?: string | null
           id?: string
           invoice_number?: string | null
@@ -711,6 +731,7 @@ export type Database = {
           parsed_notes?: Json | null
           payee?: string | null
           payment_method?: string | null
+          property_id?: string | null
           raw_data: Json
           review_status?: string
           reviewed_at?: string | null
@@ -724,9 +745,15 @@ export type Database = {
         }
         Update: {
           account?: string | null
+          ai_category_confidence?: number | null
+          ai_category_reason?: string | null
+          ai_category_suggestion?: string | null
           ai_data?: Json | null
           ai_error?: string | null
           ai_meta?: Json | null
+          ai_property_confidence?: number | null
+          ai_property_id?: string | null
+          ai_property_reason?: string | null
           ai_status?: string
           amount?: number | null
           bank?: string | null
@@ -734,12 +761,14 @@ export type Database = {
           card?: string | null
           card_last4?: string | null
           category?: string | null
+          category_original?: string | null
           created_at?: string
           currency?: string | null
           description?: string | null
           error_message?: string | null
           file_name?: string | null
           folder_path?: string | null
+          general_account?: boolean
           holder?: string | null
           id?: string
           invoice_number?: string | null
@@ -749,6 +778,7 @@ export type Database = {
           parsed_notes?: Json | null
           payee?: string | null
           payment_method?: string | null
+          property_id?: string | null
           raw_data?: Json
           review_status?: string
           reviewed_at?: string | null
@@ -762,10 +792,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "import_rows_ai_property_id_fkey"
+            columns: ["ai_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "import_rows_batch_id_fkey"
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_rows_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
