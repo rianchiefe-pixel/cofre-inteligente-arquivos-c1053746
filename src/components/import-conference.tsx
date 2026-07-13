@@ -52,6 +52,8 @@ import {
   ChevronDown,
   Loader2,
   Search,
+  Building2,
+  Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 
