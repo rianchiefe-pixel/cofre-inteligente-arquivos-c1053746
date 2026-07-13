@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { parseBrlAmount } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Parte 2 — Classificação e organização pela IA (server functions)
@@ -125,7 +126,8 @@ export const classifyImportRow = createServerFn({ method: "POST" })
       "Formato de resposta (todos os campos são opcionais; use null quando não houver informação):",
       "{",
       '  "data": {',
-      '    "amount": number|null,',
+      '    "amount": number|null,             // valor POSITIVO em reais (ex: 1880.00 para R$ 1.880,00)',
+      '    "amount_raw": string|null,         // valor exatamente como aparece no documento (ex: "R$ 1.880,00")',
       '    "currency": "BRL"|string|null,',
       '    "date": "YYYY-MM-DD"|null,',
       '    "transaction_type": "DESPESA"|"INVESTIMENTO",',
@@ -152,6 +154,14 @@ export const classifyImportRow = createServerFn({ method: "POST" })
       '    "<field>": { "original": string|null, "source": string, "confidence": number, "rationale": string }',
       "  }",
       "}",
+      "",
+      "REGRA DE VALORES (padrão brasileiro, obrigatório):",
+      "- Vírgula = separador decimal. Ponto = separador de milhar.",
+      "- 'R$ 1.880,00' significa 1880.00 (mil oitocentos e oitenta reais). NUNCA interprete como 1.88.",
+      "- 'R$ 15,11' significa 15.11 (quinze reais e onze centavos). NUNCA como 1511.",
+      "- Nunca divida por 100. Nunca remova a vírgula transformando centavos em inteiro.",
+      "- amount é SEMPRE positivo. A natureza (DESPESA/INVESTIMENTO) vai em transaction_type, não no sinal.",
+      "- Preencha amount_raw com o texto exatamente como aparece na planilha/comprovante.",
     ].join("\n");
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
