@@ -199,6 +199,36 @@ export function ImportConference({
     },
   });
 
+  // Escopo da importação + imóveis elegíveis para vínculo
+  const batchQ = useQuery({
+    queryKey: ["conf-batch", batchId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("import_batches")
+        .select("profile_id, scope_kind")
+        .eq("id", batchId)
+        .maybeSingle();
+      return data ?? null;
+    },
+  });
+
+  const propertiesQ = useQuery({
+    queryKey: ["conf-properties", batchQ.data?.profile_id, batchQ.data?.scope_kind],
+    enabled: !!batchQ.data,
+    queryFn: async () => {
+      const isGeneral = batchQ.data?.scope_kind === "general" || !batchQ.data?.profile_id;
+      let q = supabase.from("properties").select("id, name, profile_id").order("name");
+      if (!isGeneral) q = q.eq("profile_id", batchQ.data!.profile_id!);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+  const propertyById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const p of propertiesQ.data ?? []) m.set(p.id, p);
+    return m;
+  }, [propertiesQ.data]);
+
   const linksByRow = useMemo(() => {
     const m = new Map<string, any[]>();
     for (const l of linksQ.data ?? []) {
