@@ -1119,6 +1119,11 @@ function hydrateValues(row: any): Record<string, any> {
       out[f.key] = row[f.key] ?? "";
     }
   }
+  out.property_id = row.property_id
+    ? row.property_id
+    : row.general_account
+      ? "__general__"
+      : "__none__";
   return out;
 }
 
