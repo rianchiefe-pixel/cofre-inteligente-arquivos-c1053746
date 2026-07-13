@@ -906,6 +906,139 @@ function RowEditor({
         </div>
       </section>
 
+      {/* Grupo 2b — categoria: original vs sugerida */}
+      {(originalCategory || aiSuggestedCategory) && (
+        <section className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Categoria
+            </h3>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Original da planilha
+              </p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {originalCategory ?? "—"}
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-2 h-7 rounded-full px-2 text-[11px]"
+                onClick={() =>
+                  setValues((s) => ({ ...s, category: originalCategory ?? "" }))
+                }
+                disabled={!originalCategory}
+              >
+                Manter original
+              </Button>
+            </div>
+            <div
+              className={`rounded-xl border px-3 py-2.5 ${
+                aiSuggestedCategory
+                  ? "border-amber-200/60 bg-amber-50/50 dark:border-amber-500/20 dark:bg-amber-500/5"
+                  : "border-border/60 bg-muted/20"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <Lightbulb className="h-3 w-3" /> Sugerida pela IA
+                </p>
+                {aiConf !== null && (
+                  <span
+                    className={`text-[10px] font-semibold tabular-nums ${
+                      aiConf >= 75
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    }`}
+                  >
+                    {aiConf}%
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {aiSuggestedCategory ?? "Sem sugestão"}
+              </p>
+              {row.ai_category_reason && (
+                <p className="mt-1 text-[11px] text-muted-foreground">{row.ai_category_reason}</p>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-2 h-7 rounded-full px-2 text-[11px]"
+                onClick={() =>
+                  setValues((s) => ({ ...s, category: aiSuggestedCategory ?? "" }))
+                }
+                disabled={!aiSuggestedCategory}
+              >
+                Usar sugestão
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Grupo 2c — Imóvel relacionado */}
+      <section className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Building2 className="h-3.5 w-3.5" /> Imóvel relacionado
+          </h3>
+          {batchScope === "general" && (
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              lote: conta geral
+            </span>
+          )}
+        </div>
+        <Select
+          value={String(propertyValue)}
+          onValueChange={(nv) => setValues((s) => ({ ...s, property_id: nv }))}
+        >
+          <SelectTrigger className="h-10 text-sm">
+            <SelectValue placeholder="Escolher imóvel" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Imóvel não identificado</SelectItem>
+            <SelectItem value="__general__">Conta geral (sem imóvel)</SelectItem>
+            {properties.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {aiProperty && String(propertyValue) !== aiProperty.id && (
+          <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200/60 bg-amber-50/50 p-2.5 text-[11px] dark:border-amber-500/20 dark:bg-amber-500/5">
+            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-foreground">
+                Sugestão da IA: <span className="font-semibold">{aiProperty.name}</span>
+                {aiPropertyConf !== null && (
+                  <span className="ml-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    {aiPropertyConf}%
+                  </span>
+                )}
+              </p>
+              {row.ai_property_reason && (
+                <p className="mt-0.5 text-muted-foreground">{row.ai_property_reason}</p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 shrink-0 rounded-full px-2 text-[11px]"
+              onClick={() => setValues((s) => ({ ...s, property_id: aiProperty.id }))}
+            >
+              Aceitar
+            </Button>
+          </div>
+        )}
+        {!aiProperty && !row.property_id && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Sem histórico suficiente para sugerir automaticamente. Escolha manualmente ou deixe em "Imóvel não identificado".
+          </p>
+        )}
+      </section>
+
       {/* Grupo 3 — dados originais / IA */}
       <section className="rounded-2xl border border-border/60 bg-muted/20 p-4">
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
