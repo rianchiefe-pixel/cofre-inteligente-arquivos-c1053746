@@ -46,6 +46,46 @@ function extractJson(raw: string): any | null {
   }
 }
 
+// Escolhe o valor monetário correto (sempre positivo) priorizando o texto
+// original (amount_raw) sobre o número devolvido pelo modelo — LLMs frequentemente
+// interpretam "1.880,00" como 1.88.
+function sanitizeAmount(
+  raw: unknown,
+  numeric: unknown,
+  fallback: unknown,
+): number | null {
+  const fromRaw = parseBrlAmount(raw);
+  if (fromRaw !== null && fromRaw > 0) return fromRaw;
+  if (typeof numeric === "number" && Number.isFinite(numeric)) {
+    return Math.abs(numeric);
+  }
+  const fromNumericStr = parseBrlAmount(numeric);
+  if (fromNumericStr !== null) return fromNumericStr;
+  if (typeof fallback === "number" && Number.isFinite(fallback)) {
+    return Math.abs(fallback);
+  }
+  return parseBrlAmount(fallback);
+}
+
+// Procura um valor monetário BRL dentro de um texto livre.
+function extractBrlFromText(text: string | null | undefined): number | null {
+  if (!text) return null;
+  const s = String(text);
+  // 1) Casos com "R$" + número no padrão BR (com vírgula decimal obrigatória)
+  const withCurrency = s.match(/R\$\s*(-?\(?\s*[\d.]+,\d{2}\)?)/i);
+  if (withCurrency) {
+    const v = parseBrlAmount(withCurrency[1]);
+    if (v !== null && v > 0) return v;
+  }
+  // 2) Qualquer número com vírgula decimal (ex: "1.880,00" ou "15,11")
+  const anyDecimal = s.match(/-?\(?\s*\d{1,3}(?:\.\d{3})*,\d{2}\)?/);
+  if (anyDecimal) {
+    const v = parseBrlAmount(anyDecimal[0]);
+    if (v !== null && v > 0) return v;
+  }
+  return null;
+}
+
 // ---- 1. Classify one row -------------------------------------------------
 
 export const classifyImportRow = createServerFn({ method: "POST" })
