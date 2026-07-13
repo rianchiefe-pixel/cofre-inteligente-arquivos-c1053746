@@ -81,10 +81,10 @@ const STATUS_LABEL: Record<ReviewStatus, string> = {
 };
 
 const STATUS_COLOR: Record<ReviewStatus, string> = {
-  pending: "bg-muted text-foreground",
-  approved: "bg-emerald-600 text-white",
-  rejected: "bg-destructive text-destructive-foreground",
-  ver_depois: "bg-amber-500 text-white",
+  pending: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20",
+  approved: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+  rejected: "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20",
+  ver_depois: "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/25",
 };
 
 const ACCEPTED_RECEIPT_CONFIDENCES = new Set(["high", "very_high"]);
@@ -481,34 +481,42 @@ export function ImportConference({
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="flex max-h-[90vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+        className="flex max-h-[94vh] w-[97vw] max-w-[1400px] flex-col gap-0 overflow-hidden p-0 rounded-2xl border border-border/60 shadow-2xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Sticky header */}
-        <div className="shrink-0 border-b border-border bg-background px-4 py-3">
-          <DialogHeader className="space-y-1 text-left">
-            <DialogTitle className="text-base">
+        <div className="shrink-0 border-b border-border/60 bg-background/95 px-6 py-4 backdrop-blur">
+          <DialogHeader className="space-y-2 text-left">
+            <DialogTitle className="text-lg font-semibold tracking-tight">
               Conferência de comprovantes
             </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              {counts.total} linhas · {counts.pending} pendentes · {counts.approved} aprovadas ·{" "}
-              {counts.rejected} rejeitadas · {counts.ver} ver depois · {counts.identified} com comprovante ·{" "}
-              {counts.no} não identificadas · {counts.dup} possíveis duplicidades
-            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><span className="font-semibold text-foreground">{counts.total}</span> linhas no total</span>
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {counts.pending} pendentes</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {counts.approved} aprovadas</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> {counts.rejected} rejeitadas</span>
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+              <span>{counts.no} sem comprovante</span>
+              <span>·</span>
+              <span>{counts.dup} possíveis duplicidades</span>
+            </div>
           </DialogHeader>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <Button size="sm" variant="outline" onClick={goPrev} disabled={activeIdx <= 0}>
-              <ChevronLeft className="h-3 w-3" />
-            </Button>
-            <span className="tabular-nums">
-              Linha {filteredRows.length === 0 ? 0 : activeIdx + 1} de {filteredRows.length}
-            </span>
-            <Button size="sm" variant="outline" onClick={goNext} disabled={activeIdx >= filteredRows.length - 1}>
-              <ChevronRight className="h-3 w-3" />
-            </Button>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+            <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-0.5">
+              <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={goPrev} disabled={activeIdx <= 0}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <span className="px-2 text-[11px] font-medium tabular-nums text-foreground">
+                Linha {filteredRows.length === 0 ? 0 : activeIdx + 1} de {filteredRows.length}
+              </span>
+              <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={goNext} disabled={activeIdx >= filteredRows.length - 1}>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
             <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-              <SelectTrigger className="h-8 w-[190px] text-xs">
+              <SelectTrigger className="h-8 w-[200px] rounded-full text-xs">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -522,7 +530,7 @@ export function ImportConference({
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
-              <SelectTrigger className="h-8 w-[140px] text-xs">
+              <SelectTrigger className="h-8 w-[150px] rounded-full text-xs">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -534,7 +542,7 @@ export function ImportConference({
             <Button
               size="sm"
               variant="ghost"
-              className="ml-auto"
+              className="ml-auto h-8 rounded-full"
               onClick={handleReclassify}
               disabled={savingAction !== null || !activeRow}
             >
@@ -543,6 +551,7 @@ export function ImportConference({
             <Button
               size="sm"
               variant="ghost"
+              className="h-8 rounded-full"
               onClick={handleReprocessAmounts}
               disabled={reprocessing}
               title="Recorrige valores salvos como -1.88 / -1511 usando o padrão brasileiro."
@@ -557,6 +566,7 @@ export function ImportConference({
             <Button
               size="sm"
               variant="ghost"
+              className="h-8 rounded-full"
               onClick={() => setShowAllFilters((s) => !s)}
             >
               <ChevronDown className={`h-3 w-3 transition-transform ${showAllFilters ? "rotate-180" : ""}`} />
@@ -587,9 +597,9 @@ export function ImportConference({
         </div>
 
         {/* Single scrollable body */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-muted/20 via-muted/10 to-background">
           {activeRow ? (
-            <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
               <ReceiptViewer
                 row={activeRow}
                 links={(linksByRow.get(activeRow.id) ?? []).filter(isAcceptedReceiptLink).sort((a, b) => b.score - a.score)}
@@ -617,46 +627,47 @@ export function ImportConference({
         </div>
 
         {/* Sticky footer */}
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-background/95 px-6 py-3.5 backdrop-blur">
           <Button
-            size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={handleUndo}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full px-4 text-sm"
           >
-            <Undo2 className="mr-1 h-3 w-3" /> Desfazer
+            <Undo2 className="mr-2 h-4 w-4" /> Desfazer
           </Button>
           <Button
-            size="sm"
             variant="outline"
             onClick={() => activeRow && handleSaveOnly(collectOverrides())}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full px-4 text-sm"
           >
             Salvar sem aprovar
           </Button>
+          <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
           <Button
-            size="sm"
-            variant="destructive"
+            variant="outline"
             onClick={() => activeRow && handleReject(reason, collectOverrides())}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full border-rose-200 px-4 text-sm text-rose-700 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10"
           >
-            <XCircle className="mr-1 h-3 w-3" /> Rejeitar
+            <XCircle className="mr-2 h-4 w-4" /> Rejeitar
           </Button>
           <Button
-            size="sm"
-            className="bg-amber-500 text-white hover:bg-amber-500/90"
+            variant="outline"
             onClick={() => activeRow && handleVerDepois(collectOverrides())}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full border-amber-200 px-4 text-sm text-amber-700 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10"
           >
-            <Clock className="mr-1 h-3 w-3" /> Ver depois
+            <Clock className="mr-2 h-4 w-4" /> Ver depois
           </Button>
           <Button
-            size="sm"
-            className="bg-emerald-600 text-white hover:bg-emerald-600/90"
             onClick={() => activeRow && handleApprove(collectOverrides())}
             disabled={savingAction !== null || !activeRow}
+            className="h-10 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition-all hover:from-emerald-600 hover:to-emerald-500 hover:shadow-lg hover:shadow-emerald-600/30"
           >
-            <CheckCircle2 className="mr-1 h-3 w-3" /> Aprovar e continuar
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Aprovar e continuar
+            <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>
       </DialogContent>
@@ -691,120 +702,209 @@ function RowEditor({
 }) {
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
   const primary = primaryReceiptLink(links);
+  const status = (row.review_status ?? "pending") as ReviewStatus;
+
+  // Groupings
+  const HIGHLIGHT_KEYS = ["transaction_date", "amount", "transaction_type"];
+  const MAIN_KEYS = ["currency", "category", "payee", "bank", "payment_method"];
+  const SECONDARY_KEYS = ["subcategory", "description", "card", "card_last4", "holder", "account"];
+  const NOTE_KEYS = ["notes"];
+
+  const fieldByKey = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
+
+  const renderField = (
+    key: string,
+    opts: { highlight?: boolean; wide?: boolean } = {},
+  ) => {
+    const f = fieldByKey[key];
+    if (!f) return null;
+    const m = meta[f.key] ?? {};
+    const conf = typeof m.confidence === "number" ? Math.round(m.confidence * 100) : null;
+    const v = values[f.key] ?? "";
+    const isTextarea = f.type === "textarea";
+
+    return (
+      <div
+        key={f.key}
+        className={`group relative rounded-xl border border-border/60 bg-background px-3 py-2.5 transition-colors hover:border-border ${
+          opts.highlight ? "bg-gradient-to-br from-primary/5 to-transparent" : ""
+        } ${opts.wide || isTextarea ? "col-span-2" : ""}`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {f.label}
+          </Label>
+          {conf !== null && (
+            <span
+              className={`text-[9px] font-medium tabular-nums ${
+                conf >= 80
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : conf >= 50
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-rose-600 dark:text-rose-400"
+              }`}
+            >
+              {conf}%
+            </span>
+          )}
+        </div>
+        {f.type === "textarea" ? (
+          <Textarea
+            rows={2}
+            className="mt-1.5 min-h-[56px] resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+            value={v}
+            onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
+          />
+        ) : f.type === "select" ? (
+          <Select value={String(v || "")} onValueChange={(nv) => setValues((s) => ({ ...s, [f.key]: nv }))}>
+            <SelectTrigger className="mt-1 h-8 border-0 bg-transparent px-0 text-sm font-semibold shadow-none focus:ring-0">
+              <SelectValue placeholder="—" />
+            </SelectTrigger>
+            <SelectContent>
+              {(f.options ?? []).map((o) => (
+                <SelectItem key={o} value={o}>{o}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            className={`mt-0.5 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 ${
+              opts.highlight ? "h-8 text-base font-semibold" : "h-7 text-sm"
+            }`}
+            value={v}
+            inputMode={f.key === "amount" ? "decimal" : undefined}
+            placeholder={f.key === "amount" ? "0,00" : "—"}
+            onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
+            onBlur={
+              f.key === "amount"
+                ? (e) => {
+                    const n = parseBrlAmount(e.target.value);
+                    if (n !== null) {
+                      setValues((s) => ({ ...s, amount: formatBrlNumber(n) }));
+                    }
+                  }
+                : undefined
+            }
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 text-xs">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge className={`text-[10px] ${STATUS_COLOR[(row.review_status ?? "pending") as ReviewStatus]}`}>
-          {STATUS_LABEL[(row.review_status ?? "pending") as ReviewStatus]}
-        </Badge>
-        {isDuplicate && (
-          <Badge variant="destructive" className="text-[10px]">
-            possível duplicidade
-          </Badge>
-        )}
-        {primary && (
-          <span className="ml-auto text-[10px] text-muted-foreground">
-            comprovante identificado
-          </span>
-        )}
-      </div>
-
-      <div className="rounded-md border border-border bg-muted/40 p-2">
-        <p><b>Linha:</b> #{row.row_number}</p>
-        <p className="truncate"><b>ID:</b> <span className="font-mono">{row.id}</span></p>
-      </div>
-
-        {FIELDS.map((f) => {
-          const m = meta[f.key] ?? {};
-          const conf = typeof m.confidence === "number" ? Math.round(m.confidence * 100) : null;
-          const original = m.original ?? row.raw_data?.[f.key] ?? "";
-          const v = values[f.key] ?? "";
-          return (
-            <div key={f.key} className="rounded-md border border-border p-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <Label className="text-[11px] font-semibold">{f.label}</Label>
-                {conf !== null && (
-                  <span
-                    className={`text-[10px] ${
-                      conf >= 80 ? "text-emerald-600" : conf >= 50 ? "text-amber-600" : "text-destructive"
-                    }`}
-                  >
-                    confiança {conf}%
-                  </span>
-                )}
-              </div>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">
-                Original: <span className="font-mono">{String(original || "—")}</span>
-              </p>
-              {f.type === "textarea" ? (
-                <Textarea
-                  rows={2}
-                  className="mt-1 text-xs"
-                  value={v}
-                  onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
-                />
-              ) : f.type === "select" ? (
-                <Select value={String(v || "")} onValueChange={(nv) => setValues((s) => ({ ...s, [f.key]: nv }))}>
-                  <SelectTrigger className="mt-1 h-8 text-xs">
-                    <SelectValue placeholder="—" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(f.options ?? []).map((o) => (
-                      <SelectItem key={o} value={o}>
-                        {o}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  className="mt-1 h-8 text-xs"
-                  value={v}
-                  inputMode={f.key === "amount" ? "decimal" : undefined}
-                  placeholder={f.key === "amount" ? "0,00" : undefined}
-                  onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
-                  onBlur={
-                    f.key === "amount"
-                      ? (e) => {
-                          const n = parseBrlAmount(e.target.value);
-                          if (n !== null) {
-                            setValues((s) => ({ ...s, amount: formatBrlNumber(n) }));
-                          }
-                        }
-                      : undefined
-                  }
-                />
-              )}
-              {m.rationale && (
-                <p className="mt-1 text-[10px] italic text-muted-foreground">{m.rationale}</p>
-              )}
+    <div className="flex flex-col gap-4 text-sm">
+      {/* Grupo 1 — status */}
+      <section className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Badge className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wider ${STATUS_COLOR[status]}`}>
+              {STATUS_LABEL[status]}
+            </Badge>
+            {isDuplicate && (
+              <Badge variant="outline" className="rounded-full border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                duplicidade
+              </Badge>
+            )}
+          </div>
+          {primary && (
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Comprovante identificado
             </div>
-          );
-        })}
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3 text-[11px]">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Linha</p>
+            <p className="mt-0.5 font-semibold tabular-nums text-foreground">#{row.row_number}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ID</p>
+            <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{row.id}</p>
+          </div>
+        </div>
+      </section>
 
-      <div className="rounded-md border border-border p-2">
-        <Label className="text-[11px] font-semibold">Motivo (para rejeição / anotação)</Label>
-        <Textarea
-          rows={2}
-          className="mt-1 text-xs"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Ex.: comprovante ilegível, valor divergente…"
-        />
-      </div>
+      {/* Grupo 2 — destaques + principais */}
+      <section className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Dados do lançamento
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {HIGHLIGHT_KEYS.map((k) => renderField(k, { highlight: true }))}
+          {MAIN_KEYS.map((k) => renderField(k))}
+          {SECONDARY_KEYS.map((k) => renderField(k))}
+          {NOTE_KEYS.map((k) => renderField(k, { wide: true }))}
+        </div>
+      </section>
 
-      <button
-        type="button"
-        onClick={() => setShowRaw((s) => !s)}
-        className="self-start text-[11px] text-primary underline"
-      >
-        {showRaw ? "Ocultar" : "Ver"} dados originais preservados
-      </button>
-      {showRaw && (
-        <pre className="rounded-md border border-border bg-muted/40 p-2 text-[10px] whitespace-pre-wrap break-all">
-          {JSON.stringify(row.raw_data, null, 2)}
-        </pre>
+      {/* Grupo 3 — dados originais / IA */}
+      <section className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Informações originais (extraídas da planilha)
+        </h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+          {["amount", "transaction_date", "category", "payee"].map((k) => {
+            const f = fieldByKey[k];
+            if (!f) return null;
+            const orig = meta[k]?.original ?? row.raw_data?.[k] ?? "—";
+            return (
+              <div key={k} className="min-w-0">
+                <span className="text-muted-foreground">{f.label} original: </span>
+                <span className="font-mono text-foreground">{String(orig || "—")}</span>
+              </div>
+            );
+          })}
+          {row.source_sheet && (
+            <div className="col-span-2 min-w-0">
+              <span className="text-muted-foreground">Aba origem: </span>
+              <span className="font-mono text-foreground">{row.source_sheet}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3">
+          <Label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Motivo (rejeição / anotação)
+          </Label>
+          <Textarea
+            rows={2}
+            className="mt-1.5 resize-none rounded-lg text-xs"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Ex.: comprovante ilegível, valor divergente…"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowRaw((s) => !s)}
+          className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+        >
+          <ChevronDown className={`h-3 w-3 transition-transform ${showRaw ? "rotate-180" : ""}`} />
+          {showRaw ? "Ocultar" : "Ver"} JSON original
+        </button>
+        {showRaw && (
+          <pre className="mt-2 max-h-40 overflow-auto rounded-lg border border-border/60 bg-background p-2 text-[10px] leading-relaxed whitespace-pre-wrap break-all">
+            {JSON.stringify(row.raw_data, null, 2)}
+          </pre>
+        )}
+      </section>
+
+      {/* Grupo 4 — validação */}
+      {primary && (
+        <section className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+          <div className="mb-2 flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+              Correspondência confirmada
+            </h3>
+          </div>
+          <p className="text-[11px] text-emerald-800/80 dark:text-emerald-200/80">
+            Valor, data e favorecido coincidem com o comprovante anexado.
+          </p>
+        </section>
       )}
     </div>
   );
@@ -885,82 +985,115 @@ function ReceiptViewer({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background">
-      <div className="flex flex-wrap items-center gap-1 border-b border-border p-2 text-xs">
-        <span className="truncate font-mono text-[11px]">
-          {primaryFile?.original_path ?? primaryFile?.file_name ?? "Comprovante não identificado"}
-        </span>
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-background shadow-sm">
+      {/* File name header */}
+      <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+          <FileWarning className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-foreground">
+            {primaryFile?.file_name ?? "Comprovante não identificado"}
+          </p>
+          {primaryFile?.original_path && primaryFile.original_path !== primaryFile.file_name && (
+            <p className="truncate font-mono text-[10px] text-muted-foreground">{primaryFile.original_path}</p>
+          )}
+        </div>
+        {primary ? (
+          <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+            <CheckCircle2 className="mr-1 h-3 w-3" /> Localizado
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+            Não localizado
+          </Badge>
+        )}
+        <Button size="sm" variant="ghost" className="h-8 rounded-full text-xs" onClick={() => setSwapOpen(true)}>
+          <Paperclip className="mr-1 h-3 w-3" /> Trocar
+        </Button>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-1 border-b border-border/60 bg-muted/30 px-3 py-2 text-xs">
+        <div className="flex items-center gap-0.5 rounded-full border border-border bg-background p-0.5">
+          <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}>
+            <ZoomOut className="h-3.5 w-3.5" />
+          </Button>
+          <span className="min-w-[42px] text-center text-[11px] tabular-nums">{Math.round(zoom * 100)}%</span>
+          <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={() => setZoom((z) => Math.min(4, z + 0.25))}>
+            <ZoomIn className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <Button size="sm" variant="ghost" className="h-8 rounded-full" onClick={() => setZoom(1)}>
+          Ajustar
+        </Button>
+        <Button size="sm" variant="ghost" className="h-8 w-8 rounded-full p-0" onClick={() => setRotation((r) => (r + 90) % 360)}>
+          <RotateCw className="h-3.5 w-3.5" />
+        </Button>
+        <Button size="sm" variant="ghost" className="h-8 w-8 rounded-full p-0" onClick={() => setFullscreen(true)} disabled={!signedUrl}>
+          <Maximize2 className="h-3.5 w-3.5" />
+        </Button>
+        {signedUrl && (
+          <a href={signedUrl} target="_blank" rel="noreferrer" className="inline-flex">
+            <Button size="sm" variant="ghost" className="h-8 rounded-full text-xs">
+              <ExternalLink className="mr-1 h-3.5 w-3.5" /> Abrir original
+            </Button>
+          </a>
+        )}
         <div className="ml-auto flex items-center gap-1">
           {isPdf && pageCount > 1 && (
-            <>
-              <Button size="sm" variant="ghost" className="h-7" onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                <ChevronLeft className="h-3 w-3" />
+            <div className="flex items-center gap-0.5 rounded-full border border-border bg-background p-0.5">
+              <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <span>
-                pág {page}/{pageCount}
+              <span className="px-1 text-[11px] tabular-nums">
+                {page}/{pageCount}
               </span>
-              <Button size="sm" variant="ghost" className="h-7" onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
-                <ChevronRight className="h-3 w-3" />
+              <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
-            </>
+            </div>
           )}
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}>
-            <ZoomOut className="h-3 w-3" />
-          </Button>
-          <span>{Math.round(zoom * 100)}%</span>
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setZoom((z) => Math.min(4, z + 0.25))}>
-            <ZoomIn className="h-3 w-3" />
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setRotation((r) => (r + 90) % 360)}>
-            <RotateCw className="h-3 w-3" />
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setFullscreen(true)} disabled={!signedUrl}>
-            <Maximize2 className="h-3 w-3" />
-          </Button>
-          {signedUrl && (
-            <a href={signedUrl} target="_blank" rel="noreferrer" className="inline-flex">
-              <Button size="sm" variant="ghost" className="h-7">
-                <ExternalLink className="h-3 w-3" />
-              </Button>
-            </a>
-          )}
-          <Button size="sm" variant="outline" className="h-7" onClick={() => setSwapOpen(true)}>
-            <Paperclip className="mr-1 h-3 w-3" /> Trocar
-          </Button>
           <Button
             size="sm"
-            variant="outline"
-            className="h-7"
+            variant="ghost"
+            className="h-8 rounded-full text-xs text-muted-foreground hover:text-rose-600"
             onClick={markUnlocated}
             disabled={!primary}
           >
-            <FileWarning className="mr-1 h-3 w-3" /> Não localizado
+            <FileWarning className="mr-1 h-3.5 w-3.5" /> Marcar não localizado
           </Button>
         </div>
       </div>
 
-      <div className="p-3">
+      {/* Document window */}
+      <div className="min-h-[520px] bg-[radial-gradient(circle_at_1px_1px,theme(colors.border/30)_1px,transparent_0)] [background-size:16px_16px] p-6">
         {!primaryFile ? (
-          <div className="grid h-64 place-items-center text-center text-sm text-muted-foreground">
-            <div>
-              <FileWarning className="mx-auto mb-2 h-8 w-8" />
-              Comprovante não identificado para esta linha.
-              <div className="mt-3">
-                <Button size="sm" onClick={() => setSwapOpen(true)}>
-                  <Paperclip className="mr-1 h-3 w-3" /> Associar manualmente
+          <div className="grid h-[440px] place-items-center rounded-xl border border-dashed border-border bg-background/60 text-center">
+            <div className="max-w-xs px-6">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+                <FileWarning className="h-6 w-6" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-foreground">Comprovante não identificado</p>
+              <p className="mt-1 text-xs text-muted-foreground">Nenhum arquivo do lote foi associado a esta linha com segurança.</p>
+              <div className="mt-4">
+                <Button size="sm" className="rounded-full" onClick={() => setSwapOpen(true)}>
+                  <Paperclip className="mr-1 h-3.5 w-3.5" /> Associar manualmente
                 </Button>
               </div>
             </div>
           </div>
         ) : !signedUrl ? (
-          <div className="grid h-64 place-items-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
+          <div className="grid h-[440px] place-items-center rounded-xl bg-background/60 text-sm text-muted-foreground">
+            <div className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando comprovante…
+            </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto rounded-xl">
             <div
               className="mx-auto origin-top"
-              style={{ transform: `rotate(${rotation}deg) scale(${zoom})`, transition: "transform 120ms" }}
+              style={{ transform: `rotate(${rotation}deg) scale(${zoom})`, transition: "transform 160ms ease" }}
             >
               {isPdf ? (
                 <PdfPage url={signedUrl} pageNumber={page} />
@@ -968,7 +1101,7 @@ function ReceiptViewer({
                 <img
                   src={signedUrl}
                   alt={primaryFile.file_name}
-                  className="mx-auto max-w-full rounded shadow"
+                  className="mx-auto max-w-full rounded-lg bg-white shadow-xl ring-1 ring-border/60"
                   draggable={false}
                 />
               )}
@@ -978,16 +1111,16 @@ function ReceiptViewer({
       </div>
 
       {/* Busca manual — collapsible */}
-      <div className="border-t border-border p-3 text-xs">
+      <div className="border-t border-border/60 bg-muted/20 px-4 py-2.5 text-xs">
         <Collapsible open={manualOpen} onOpenChange={setManualOpen}>
           <CollapsibleTrigger asChild>
-            <button className="flex w-full items-center justify-between text-left text-[11px] font-medium text-primary hover:underline">
+            <button className="flex w-full items-center justify-between text-left text-[11px] font-medium text-muted-foreground transition-colors hover:text-primary">
               Não encontrou o comprovante correto? Associar manualmente
               <ChevronDown className={`h-3 w-3 transition-transform ${manualOpen ? "rotate-180" : ""}`} />
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2">
-            <Button size="sm" variant="outline" onClick={() => setSwapOpen(true)}>
+            <Button size="sm" variant="outline" className="rounded-full" onClick={() => setSwapOpen(true)}>
               <Paperclip className="mr-1 h-3 w-3" /> Buscar arquivo no lote
             </Button>
           </CollapsibleContent>
