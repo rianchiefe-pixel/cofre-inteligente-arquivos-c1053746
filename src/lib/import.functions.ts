@@ -86,6 +86,80 @@ function extractBrlFromText(text: string | null | undefined): number | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Sugestão determinística de imóvel a partir do histórico do usuário.
+// Regras:
+//   - Só sugerimos com evidência real (>=2 usos para payee, >=3 para categoria).
+//   - Nunca escolhemos aleatoriamente. Sem evidência → sem sugestão.
+//   - Confiança = min(1, usage_count / 4).
+// ---------------------------------------------------------------------------
+
+type PrefRow = { field: string; raw_key: string; corrected_value: string; usage_count: number };
+
+export function suggestPropertyForRow(args: {
+  payee?: string | null;
+  category?: string | null;
+  description?: string | null;
+  prefs: PrefRow[];
+  propertyById: Map<string, any>;
+}): {
+  ai_property_id: string | null;
+  ai_property_confidence: number | null;
+  ai_property_reason: string | null;
+} {
+  const empty = {
+    ai_property_id: null,
+    ai_property_confidence: null,
+    ai_property_reason: null,
+  };
+  const byPayee = new Map<string, PrefRow>();
+  const byCategory = new Map<string, PrefRow>();
+  for (const p of args.prefs) {
+    if (p.field === "property_link_payee") byPayee.set(p.raw_key, p);
+    else if (p.field === "property_link_category") byCategory.set(p.raw_key, p);
+  }
+
+  const tryHit = (key: string, source: "favorecido" | "categoria", minUses: number) => {
+    const map = source === "favorecido" ? byPayee : byCategory;
+    const hit = map.get(key);
+    if (!hit) return null;
+    const prop = args.propertyById.get(hit.corrected_value);
+    if (!prop) return null;
+    if (hit.usage_count < minUses) return null;
+    return {
+      ai_property_id: prop.id as string,
+      ai_property_confidence: Math.min(1, hit.usage_count / 4),
+      ai_property_reason: `Vinculado ${hit.usage_count}× por ${source} “${key}” → ${prop.name}`,
+    };
+  };
+
+  const pk = normalizeKey(args.payee);
+  if (pk) {
+    const hit = tryHit(pk, "favorecido", 2);
+    if (hit) return hit;
+  }
+  const ck = normalizeKey(args.category);
+  if (ck) {
+    const hit = tryHit(ck, "categoria", 3);
+    if (hit) return hit;
+  }
+  // fallback textual: procura nome de imóvel dentro da descrição.
+  const desc = normalizeKey(args.description);
+  if (desc) {
+    for (const p of args.propertyById.values()) {
+      const n = normalizeKey(p.name);
+      if (n && n.length >= 4 && desc.includes(n)) {
+        return {
+          ai_property_id: p.id as string,
+          ai_property_confidence: 0.55,
+          ai_property_reason: `Nome do imóvel “${p.name}” citado na descrição`,
+        };
+      }
+    }
+  }
+  return empty;
+}
+
 // ---- 1. Classify one row -------------------------------------------------
 
 export const classifyImportRow = createServerFn({ method: "POST" })
