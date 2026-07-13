@@ -314,6 +314,30 @@ function ImportPage() {
         </Badge>
       </header>
 
+      <Card className="p-5">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+              <Building2 className="h-3.5 w-3.5" /> Escopo desta importação
+            </Label>
+            <Select value={scopeChoice} onValueChange={setScopeChoice}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Selecione o perfil ou Conta geral" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">Conta geral (sem perfil dedicado)</SelectItem>
+                {(profilesQ.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              A IA só sugerirá imóveis vinculados ao perfil escolhido. Escolha "Conta geral" para permitir qualquer imóvel do seu cadastro.
+            </p>
+          </div>
+        </div>
+      </Card>
+
       <label
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
