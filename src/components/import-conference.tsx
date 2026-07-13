@@ -660,6 +660,9 @@ export function ImportConference({
                 setReason={setReason}
                 showRaw={showRaw}
                 setShowRaw={setShowRaw}
+                properties={propertiesQ.data ?? []}
+                propertyById={propertyById}
+                batchScope={batchQ.data?.scope_kind ?? "profile"}
               />
             </div>
           ) : (
