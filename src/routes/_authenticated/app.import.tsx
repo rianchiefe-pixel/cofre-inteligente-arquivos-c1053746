@@ -499,22 +499,39 @@ function ImportPage() {
         ) : (
           <div className="divide-y divide-border">
             {(history.data ?? []).map((b) => (
-              <button
-                type="button"
+              <div
                 key={b.id}
-                onClick={() => setReviewBatchId(b.id)}
-                className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 text-left hover:bg-muted/40"
+                className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-3"
               >
-                <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setReviewBatchId(b.id)}
+                  className="min-w-0 text-left"
+                >
                   <p className="truncate text-sm font-medium text-foreground">
                     {b.file_name ?? "planilha"}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {dateBR(b.created_at)} · {b.saved_rows ?? 0}/{b.total_rows ?? 0} linhas
                     {b.header_row !== null ? ` · cabeçalho na linha ${(b.header_row ?? 0) + 1}` : ""}
-                    {b.separator ? ` · separador "${b.separator}"` : ""}
                   </p>
-                </div>
+                </button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 gap-1 text-xs"
+                  onClick={async () => {
+                    try {
+                      const res = await reanalyzeFn({ data: { batchId: b.id } });
+                      toast.success(`${res.suggested}/${res.scanned} lançamentos com sugestão de imóvel`);
+                    } catch (e: any) {
+                      toast.error(e?.message ?? "Falha ao reanalisar");
+                    }
+                  }}
+                  title="Reaplica as regras aprendidas sobre imóveis a este lote"
+                >
+                  <Sparkles className="h-3 w-3" /> Reanalisar imóveis
+                </Button>
                 <Badge
                   variant={
                     b.status === "completed"
@@ -526,7 +543,7 @@ function ImportPage() {
                 >
                   {b.status ?? "—"}
                 </Badge>
-              </button>
+              </div>
             ))}
           </div>
         )}
