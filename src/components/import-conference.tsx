@@ -765,7 +765,13 @@ function RowEditor({
 
 function hydrateValues(row: any): Record<string, any> {
   const out: Record<string, any> = {};
-  for (const f of FIELDS) out[f.key] = row[f.key] ?? "";
+  for (const f of FIELDS) {
+    if (f.key === "amount") {
+      out[f.key] = typeof row.amount === "number" ? formatBrlNumber(row.amount) : "";
+    } else {
+      out[f.key] = row[f.key] ?? "";
+    }
+  }
   return out;
 }
 
