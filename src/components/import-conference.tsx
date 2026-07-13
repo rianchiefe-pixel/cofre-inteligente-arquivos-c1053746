@@ -985,82 +985,115 @@ function ReceiptViewer({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background">
-      <div className="flex flex-wrap items-center gap-1 border-b border-border p-2 text-xs">
-        <span className="truncate font-mono text-[11px]">
-          {primaryFile?.original_path ?? primaryFile?.file_name ?? "Comprovante não identificado"}
-        </span>
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-background shadow-sm">
+      {/* File name header */}
+      <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+          <FileWarning className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-foreground">
+            {primaryFile?.file_name ?? "Comprovante não identificado"}
+          </p>
+          {primaryFile?.original_path && primaryFile.original_path !== primaryFile.file_name && (
+            <p className="truncate font-mono text-[10px] text-muted-foreground">{primaryFile.original_path}</p>
+          )}
+        </div>
+        {primary ? (
+          <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+            <CheckCircle2 className="mr-1 h-3 w-3" /> Localizado
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+            Não localizado
+          </Badge>
+        )}
+        <Button size="sm" variant="ghost" className="h-8 rounded-full text-xs" onClick={() => setSwapOpen(true)}>
+          <Paperclip className="mr-1 h-3 w-3" /> Trocar
+        </Button>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-1 border-b border-border/60 bg-muted/30 px-3 py-2 text-xs">
+        <div className="flex items-center gap-0.5 rounded-full border border-border bg-background p-0.5">
+          <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}>
+            <ZoomOut className="h-3.5 w-3.5" />
+          </Button>
+          <span className="min-w-[42px] text-center text-[11px] tabular-nums">{Math.round(zoom * 100)}%</span>
+          <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={() => setZoom((z) => Math.min(4, z + 0.25))}>
+            <ZoomIn className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <Button size="sm" variant="ghost" className="h-8 rounded-full" onClick={() => setZoom(1)}>
+          Ajustar
+        </Button>
+        <Button size="sm" variant="ghost" className="h-8 w-8 rounded-full p-0" onClick={() => setRotation((r) => (r + 90) % 360)}>
+          <RotateCw className="h-3.5 w-3.5" />
+        </Button>
+        <Button size="sm" variant="ghost" className="h-8 w-8 rounded-full p-0" onClick={() => setFullscreen(true)} disabled={!signedUrl}>
+          <Maximize2 className="h-3.5 w-3.5" />
+        </Button>
+        {signedUrl && (
+          <a href={signedUrl} target="_blank" rel="noreferrer" className="inline-flex">
+            <Button size="sm" variant="ghost" className="h-8 rounded-full text-xs">
+              <ExternalLink className="mr-1 h-3.5 w-3.5" /> Abrir original
+            </Button>
+          </a>
+        )}
         <div className="ml-auto flex items-center gap-1">
           {isPdf && pageCount > 1 && (
-            <>
-              <Button size="sm" variant="ghost" className="h-7" onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                <ChevronLeft className="h-3 w-3" />
+            <div className="flex items-center gap-0.5 rounded-full border border-border bg-background p-0.5">
+              <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <span>
-                pág {page}/{pageCount}
+              <span className="px-1 text-[11px] tabular-nums">
+                {page}/{pageCount}
               </span>
-              <Button size="sm" variant="ghost" className="h-7" onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
-                <ChevronRight className="h-3 w-3" />
+              <Button size="sm" variant="ghost" className="h-7 w-7 rounded-full p-0" onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
-            </>
+            </div>
           )}
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}>
-            <ZoomOut className="h-3 w-3" />
-          </Button>
-          <span>{Math.round(zoom * 100)}%</span>
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setZoom((z) => Math.min(4, z + 0.25))}>
-            <ZoomIn className="h-3 w-3" />
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setRotation((r) => (r + 90) % 360)}>
-            <RotateCw className="h-3 w-3" />
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setFullscreen(true)} disabled={!signedUrl}>
-            <Maximize2 className="h-3 w-3" />
-          </Button>
-          {signedUrl && (
-            <a href={signedUrl} target="_blank" rel="noreferrer" className="inline-flex">
-              <Button size="sm" variant="ghost" className="h-7">
-                <ExternalLink className="h-3 w-3" />
-              </Button>
-            </a>
-          )}
-          <Button size="sm" variant="outline" className="h-7" onClick={() => setSwapOpen(true)}>
-            <Paperclip className="mr-1 h-3 w-3" /> Trocar
-          </Button>
           <Button
             size="sm"
-            variant="outline"
-            className="h-7"
+            variant="ghost"
+            className="h-8 rounded-full text-xs text-muted-foreground hover:text-rose-600"
             onClick={markUnlocated}
             disabled={!primary}
           >
-            <FileWarning className="mr-1 h-3 w-3" /> Não localizado
+            <FileWarning className="mr-1 h-3.5 w-3.5" /> Marcar não localizado
           </Button>
         </div>
       </div>
 
-      <div className="p-3">
+      {/* Document window */}
+      <div className="min-h-[520px] bg-[radial-gradient(circle_at_1px_1px,theme(colors.border/30)_1px,transparent_0)] [background-size:16px_16px] p-6">
         {!primaryFile ? (
-          <div className="grid h-64 place-items-center text-center text-sm text-muted-foreground">
-            <div>
-              <FileWarning className="mx-auto mb-2 h-8 w-8" />
-              Comprovante não identificado para esta linha.
-              <div className="mt-3">
-                <Button size="sm" onClick={() => setSwapOpen(true)}>
-                  <Paperclip className="mr-1 h-3 w-3" /> Associar manualmente
+          <div className="grid h-[440px] place-items-center rounded-xl border border-dashed border-border bg-background/60 text-center">
+            <div className="max-w-xs px-6">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+                <FileWarning className="h-6 w-6" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-foreground">Comprovante não identificado</p>
+              <p className="mt-1 text-xs text-muted-foreground">Nenhum arquivo do lote foi associado a esta linha com segurança.</p>
+              <div className="mt-4">
+                <Button size="sm" className="rounded-full" onClick={() => setSwapOpen(true)}>
+                  <Paperclip className="mr-1 h-3.5 w-3.5" /> Associar manualmente
                 </Button>
               </div>
             </div>
           </div>
         ) : !signedUrl ? (
-          <div className="grid h-64 place-items-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
+          <div className="grid h-[440px] place-items-center rounded-xl bg-background/60 text-sm text-muted-foreground">
+            <div className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando comprovante…
+            </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto rounded-xl">
             <div
               className="mx-auto origin-top"
-              style={{ transform: `rotate(${rotation}deg) scale(${zoom})`, transition: "transform 120ms" }}
+              style={{ transform: `rotate(${rotation}deg) scale(${zoom})`, transition: "transform 160ms ease" }}
             >
               {isPdf ? (
                 <PdfPage url={signedUrl} pageNumber={page} />
@@ -1068,7 +1101,7 @@ function ReceiptViewer({
                 <img
                   src={signedUrl}
                   alt={primaryFile.file_name}
-                  className="mx-auto max-w-full rounded shadow"
+                  className="mx-auto max-w-full rounded-lg bg-white shadow-xl ring-1 ring-border/60"
                   draggable={false}
                 />
               )}
@@ -1078,16 +1111,16 @@ function ReceiptViewer({
       </div>
 
       {/* Busca manual — collapsible */}
-      <div className="border-t border-border p-3 text-xs">
+      <div className="border-t border-border/60 bg-muted/20 px-4 py-2.5 text-xs">
         <Collapsible open={manualOpen} onOpenChange={setManualOpen}>
           <CollapsibleTrigger asChild>
-            <button className="flex w-full items-center justify-between text-left text-[11px] font-medium text-primary hover:underline">
+            <button className="flex w-full items-center justify-between text-left text-[11px] font-medium text-muted-foreground transition-colors hover:text-primary">
               Não encontrou o comprovante correto? Associar manualmente
               <ChevronDown className={`h-3 w-3 transition-transform ${manualOpen ? "rotate-180" : ""}`} />
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2">
-            <Button size="sm" variant="outline" onClick={() => setSwapOpen(true)}>
+            <Button size="sm" variant="outline" className="rounded-full" onClick={() => setSwapOpen(true)}>
               <Paperclip className="mr-1 h-3 w-3" /> Buscar arquivo no lote
             </Button>
           </CollapsibleContent>
