@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import { supabase } from "@/integrations/supabase/client";
+import { formatBrlNumber, parseBrlAmount } from "@/lib/format";
 import { normalizeBank, type ReceiptFacts } from "@/lib/zip-import";
 
 export type MatchTier = "very_high" | "high" | "review" | "low" | "none";
@@ -63,30 +64,24 @@ function stripPageHint(raw: unknown): string {
 }
 
 function amountsClose(a: unknown, b: unknown): boolean {
-  const na = typeof a === "number" ? a : parseFloat(String(a));
-  const nb = typeof b === "number" ? b : parseFloat(String(b));
+  const na = parseBrlAmount(a);
+  const nb = parseBrlAmount(b);
   if (!Number.isFinite(na) || !Number.isFinite(nb)) return false;
-  return Math.abs(Math.abs(na) - Math.abs(nb)) < 0.02;
+  return Math.abs((na ?? 0) - (nb ?? 0)) < 0.02;
 }
 
-function tierFor(score: number): MatchTier {
-  if (score >= 90) return "very_high";
-  if (score >= 75) return "high";
-  if (score >= 55) return "review";
-  if (score > 0) return "low";
-  return "none";
-}
-
-// The receipt only earns high/very-high tiers when the *core* trio matches
-// (amount + date + payee) plus at least one complementary signal.
+// The receipt only earns a primary association when the *core trio* matches:
+// amount + exact date + payee. Anything below that fails closed as "not found".
 function gatedTier(raw: number, matched: Set<string>): MatchTier {
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
   const complementary = ["bank", "holder", "payment_method", "auth", "txid", "card", "doc"].some((k) => matched.has(k));
-  if (raw >= 90 && coreOk && complementary) return "very_high";
-  if (raw >= 75 && coreOk) return "high";
-  if (raw >= 55) return "review";
-  if (raw > 0) return "low";
+  if (coreOk && complementary && raw >= 70) return "very_high";
+  if (coreOk) return "high";
   return "none";
+}
+
+function isAcceptedTier(confidence: MatchTier): boolean {
+  return confidence === "very_high" || confidence === "high";
 }
 
 // ---- Core scoring --------------------------------------------------------
@@ -171,27 +166,33 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     }
   }
 
-  // 3. Amount (25) — prefer structured OCR amount; fall back to text scan.
-  const amt = typeof row.amount === "number" ? row.amount : parseFloat(String(row.amount ?? ""));
+  // 3. Amount (25) — exact BRL match only. Never use loose digit matching.
+  const amt = parseBrlAmount(row.amount);
   if (Number.isFinite(amt) && amt !== 0) {
-    const cents = Math.round(Math.abs(amt) * 100).toString();
-    const withComma = Math.abs(amt).toFixed(2).replace(".", ",");
-    const withDot = Math.abs(amt).toFixed(2);
+    const withComma = formatBrlNumber(amt);
+    const plainComma = (amt ?? 0).toFixed(2).replace(".", ",");
+    const withDot = (amt ?? 0).toFixed(2);
     const hay = `${f.file_name} ${f.extracted_text}`;
-    const ocrAmt = ocr.amount;
+    const ocrAmounts = [ocr.amount, ocr.amount_raw].map(parseBrlAmount).filter((n): n is number => n !== null);
     if (
-      amountsClose(amt, ocrAmt) ||
+      ocrAmounts.some((ocrAmt) => amountsClose(amt, ocrAmt)) ||
       hay.includes(withComma) ||
+      hay.includes(plainComma) ||
       hay.includes(withDot) ||
-      hay.replace(/\D/g, "").includes(cents)
+      hay.includes(`R$ ${withComma}`) ||
+      hay.includes(`R$${withComma}`)
     ) {
       score += 25;
       reasons.push({ key: "amount", label: `valor R$ ${withComma}`, points: 25 });
       matched.add("amount");
-    } else if (typeof ocrAmt === "number" && Math.abs(Math.abs(ocrAmt) - Math.abs(amt)) > 0.02) {
-      divergent.push(`valor diverge (planilha R$ ${withComma} × comprovante ${ocr.amount_raw ?? `R$ ${ocrAmt.toFixed(2)}`})`);
+    } else if (ocrAmounts.length > 0) {
+      divergent.push(`valor diverge (planilha R$ ${withComma} × comprovante ${ocr.amount_raw ?? `R$ ${ocrAmounts[0].toFixed(2)}`})`);
     }
+  } else {
+    return null;
   }
+
+  if (!matched.has("amount")) return null;
 
   // 4. Date (20) — compare against OCR-extracted ISO date first.
   const date = String(row.transaction_date ?? "").trim();
@@ -199,16 +200,22 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     const [y, m, d] = date.split("-");
     const dmy = `${d}${m}${y}`;
     const dmy2 = `${d}/${m}/${y}`;
+    const dmy3 = `${d}-${m}-${y}`;
+    const dmy4 = `${d}.${m}.${y}`;
     const ymd = `${y}${m}${d}`;
-    const hay = `${f.file_name} ${f.pathNorm} ${f.extracted_text}`;
-    if (ocr.date === date || hay.includes(date) || hay.includes(dmy) || hay.includes(dmy2) || hay.includes(ymd) || f.pathNorm.includes(`${y} ${m}`) || f.pathNorm.includes(`${m} ${y}`)) {
+    const hay = `${f.file_name} ${f.original_path} ${f.extracted_text}`;
+    if (ocr.date === date || hay.includes(date) || hay.includes(dmy) || hay.includes(dmy2) || hay.includes(dmy3) || hay.includes(dmy4) || hay.includes(ymd)) {
       score += 20;
       reasons.push({ key: "date", label: `data ${date}`, points: 20 });
       matched.add("date");
     } else if (ocr.date && ocr.date !== date) {
       divergent.push(`data diverge (planilha ${date} × comprovante ${ocr.date})`);
     }
+  } else {
+    return null;
   }
+
+  if (!matched.has("date")) return null;
 
   // 5. Payee (15)
   const payee = String(row.payee ?? row.description ?? "").trim();
@@ -219,7 +226,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       tokenOverlap(payeeTokens, ocrPayeeTokens),
       tokenOverlap(payeeTokens, f.tokens),
     );
-    if (ov >= 0.5) {
+    if (ov >= 0.55) {
       score += 15;
       reasons.push({ key: "payee", label: `favorecido semelhante: ${payee}`, points: 15 });
       matched.add("payee");
@@ -229,7 +236,11 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     } else if (ocr.payee) {
       divergent.push(`favorecido diverge (planilha "${payee}" × comprovante "${ocr.payee}")`);
     }
+  } else {
+    return null;
   }
+
+  if (!matched.has("payee")) return null;
 
   // 6. Bank (8) + card (8) — normalize aliases (ITAÚ UNIBANCO S.A. ≡ Itaú).
   const bank = String(row.bank ?? "").trim();
@@ -313,6 +324,8 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
 
   if (score <= 0) return null;
   if (score > 100) score = 100;
+  const confidence = gatedTier(score, matched);
+  if (!isAcceptedTier(confidence)) return null;
 
   // Prefer page from row hint, else file name hint
   const pageHint = extractPageHint(row.page_number) ?? f.pageHint ?? null;
@@ -321,7 +334,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     fileId: f.id,
     pageNumber: pageHint,
     score,
-    confidence: gatedTier(score, matched),
+    confidence,
     reasons: [
       ...reasons,
       ...divergent.map((label) => ({ key: "divergence", label, points: 0 })),
@@ -343,10 +356,8 @@ export interface MatchProgress {
 
 export async function matchBatchReceipts(
   batchId: string,
-  opts: { onProgress?: (p: MatchProgress) => void; topN?: number } = {},
+  opts: { onProgress?: (p: MatchProgress) => void } = {},
 ): Promise<MatchProgress> {
-  const topN = opts.topN ?? 5;
-
   const { data: u } = await supabase.auth.getUser();
   const userId = u.user?.id;
   if (!userId) throw new Error("Sessão expirada");
@@ -364,6 +375,15 @@ export async function matchBatchReceipts(
   const rowList = rows ?? [];
   const fileFacts = (files ?? []).map(factsFromFile);
 
+  const { data: manualPrimaries } = await supabase
+    .from("import_row_files")
+    .select("row_id, file_id")
+    .eq("batch_id", batchId)
+    .eq("is_manual", true)
+    .eq("is_primary", true);
+  const manualRows = new Set((manualPrimaries ?? []).map((l: any) => l.row_id));
+  const reservedFiles = new Set((manualPrimaries ?? []).map((l: any) => l.file_id));
+
   // Wipe previous auto matches for this batch (keep manual ones)
   await supabase
     .from("import_row_files")
@@ -379,44 +399,69 @@ export async function matchBatchReceipts(
     notFound: 0,
   };
 
+  const bestByRow = new Map<string, Candidate>();
+  const fileClaims = new Map<string, string[]>();
+
   for (const row of rowList) {
+    if (manualRows.has(row.id)) continue;
     const scored: Candidate[] = [];
     for (const f of fileFacts) {
       const c = scoreRowAgainstFile(row, f);
-      if (c) scored.push(c);
+      if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) scored.push(c);
     }
     scored.sort((a, b) => b.score - a.score);
-    const top = scored.slice(0, topN);
+    const top = scored[0];
+    if (top) {
+      bestByRow.set(row.id, top);
+      if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
+      fileClaims.get(top.fileId)!.push(row.id);
+    }
+  }
 
-    if (top.length === 0) {
-      progress.notFound++;
-    } else if (top[0].confidence === "very_high" || top[0].confidence === "high") {
+  const payload: any[] = [];
+
+  for (const row of rowList) {
+    if (manualRows.has(row.id)) {
       progress.matched++;
-    } else {
-      progress.needsReview++;
+      progress.rowsDone++;
+      if (opts.onProgress && progress.rowsDone % 5 === 0) opts.onProgress({ ...progress });
+      continue;
     }
 
-    if (top.length > 0) {
-      const payload = top.map((c, i) => ({
+    const top = bestByRow.get(row.id);
+    const claims = top ? (fileClaims.get(top.fileId) ?? []) : [];
+
+    if (!top) {
+      progress.notFound++;
+    } else if (claims.length > 1) {
+      // Fail closed: when the same receipt would serve more than one row,
+      // none of the competing rows receives an automatic primary link.
+      progress.needsReview++;
+    } else {
+      progress.matched++;
+      payload.push({
         user_id: userId,
         batch_id: batchId,
         row_id: row.id,
-        file_id: c.fileId,
-        page_number: c.pageNumber,
-        score: c.score,
-        confidence: c.confidence,
-        match_reasons: c.reasons,
+        file_id: top.fileId,
+        page_number: top.pageNumber,
+        score: top.score,
+        confidence: top.confidence,
+        match_reasons: top.reasons,
         is_manual: false,
-        // "Comprovante não confirmado" until the core trio + one complementary field match.
-        is_primary: i === 0 && (c.confidence === "very_high" || c.confidence === "high"),
-      }));
-      await supabase.from("import_row_files").upsert(payload as any, {
-        onConflict: "row_id,file_id,page_number",
+        is_primary: true,
       });
     }
 
     progress.rowsDone++;
     if (opts.onProgress && progress.rowsDone % 5 === 0) opts.onProgress({ ...progress });
+  }
+
+  for (let i = 0; i < payload.length; i += 500) {
+    const chunk = payload.slice(i, i + 500);
+    await supabase.from("import_row_files").upsert(chunk as any, {
+      onConflict: "row_id,file_id,page_number",
+    });
   }
 
   opts.onProgress?.({ ...progress });
@@ -439,6 +484,11 @@ export async function attachFileManually(input: {
       .from("import_row_files")
       .update({ is_primary: false })
       .eq("row_id", input.rowId);
+    await supabase
+      .from("import_row_files")
+      .update({ is_primary: false })
+      .eq("batch_id", input.batchId)
+      .eq("file_id", input.fileId);
   }
 
   await supabase.from("import_row_files").upsert(
@@ -463,6 +513,21 @@ export async function detachRowFile(id: string) {
 }
 
 export async function setPrimaryRowFile(rowId: string, linkId: string) {
+  const { data: link, error: readError } = await supabase
+    .from("import_row_files")
+    .select("id, batch_id, file_id, confidence, is_manual")
+    .eq("id", linkId)
+    .maybeSingle();
+  if (readError || !link) throw new Error(readError?.message ?? "Vínculo não encontrado");
+  if (!link.is_manual && !isAcceptedTier(link.confidence as MatchTier)) {
+    throw new Error("Este comprovante não tem confiança suficiente para associação automática.");
+  }
   await supabase.from("import_row_files").update({ is_primary: false }).eq("row_id", rowId);
-  await supabase.from("import_row_files").update({ is_primary: true }).eq("id", linkId);
+  await supabase
+    .from("import_row_files")
+    .update({ is_primary: false })
+    .eq("batch_id", link.batch_id)
+    .eq("file_id", link.file_id);
+  const { error } = await supabase.from("import_row_files").update({ is_primary: true }).eq("id", linkId);
+  if (error) throw new Error(error.message);
 }

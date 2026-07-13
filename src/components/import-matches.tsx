@@ -19,7 +19,6 @@ import {
   Link2,
   Link2Off,
   FileSearch,
-  Star,
   Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,34 +26,19 @@ import {
   matchBatchReceipts,
   attachFileManually,
   detachRowFile,
-  setPrimaryRowFile,
   type MatchProgress,
-  type MatchTier,
 } from "@/lib/receipt-matcher";
 import { reprocessBatchFacts } from "@/lib/zip-import";
 import { currencyBRL } from "@/lib/format";
 
-const TIER_LABEL: Record<MatchTier, string> = {
-  very_high: "muito alta",
-  high: "alta",
-  review: "conferir",
-  low: "baixa",
-  none: "não localizado",
-};
+const ACCEPTED_RECEIPT_CONFIDENCES = new Set(["high", "very_high"]);
 
-function tierClass(tier: MatchTier) {
-  switch (tier) {
-    case "very_high":
-      return "bg-emerald-600 text-white";
-    case "high":
-      return "bg-emerald-500/80 text-white";
-    case "review":
-      return "bg-amber-500 text-white";
-    case "low":
-      return "bg-muted text-foreground";
-    default:
-      return "bg-destructive/80 text-white";
-  }
+function isAcceptedReceiptLink(link: any): boolean {
+  return !!link && (link.is_manual || ACCEPTED_RECEIPT_CONFIDENCES.has(String(link.confidence ?? "")));
+}
+
+function primaryReceiptLink(links: any[]): any | null {
+  return links.find((l) => l.is_primary && isAcceptedReceiptLink(l)) ?? null;
 }
 
 export function ImportMatches({ batchId }: { batchId: string }) {
@@ -123,15 +107,13 @@ export function ImportMatches({ batchId }: { batchId: string }) {
   const stats = useMemo(() => {
     const list = rows.data ?? [];
     let matched = 0;
-    let review = 0;
     let missing = 0;
     for (const r of list) {
       const rl = linksByRow.get(r.id) ?? [];
-      if (rl.length === 0) missing++;
-      else if (rl.some((l) => l.confidence === "very_high" || l.confidence === "high")) matched++;
-      else review++;
+      if (primaryReceiptLink(rl)) matched++;
+      else missing++;
     }
-    return { total: list.length, matched, review, missing };
+    return { total: list.length, matched, missing };
   }, [rows.data, linksByRow]);
 
   async function runMatch() {
@@ -166,8 +148,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>{stats.total} linhas</span>
           <span>· {stats.matched} associadas</span>
-          <span>· {stats.review} p/ conferir</span>
-          <span>· {stats.missing} sem comprovante</span>
+          <span>· {stats.missing} não identificadas</span>
         </div>
         <Button size="sm" onClick={runMatch} disabled={busy || rows.isLoading}>
           {busy ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3" />}
@@ -179,7 +160,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         <div className="mb-3">
           <Progress value={(progress.rowsDone / progress.rowsTotal) * 100} />
           <p className="mt-1 text-xs text-muted-foreground">
-            {progress.rowsDone}/{progress.rowsTotal} — {progress.matched} ok · {progress.needsReview} conferir · {progress.notFound} sem comprovante
+            {progress.rowsDone}/{progress.rowsTotal} — {progress.matched} ok · {progress.needsReview} ambíguas · {progress.notFound} não identificadas
           </p>
         </div>
       )}
@@ -193,14 +174,14 @@ export function ImportMatches({ batchId }: { batchId: string }) {
               <th className="p-2">Descrição</th>
               <th className="p-2 text-right">Valor</th>
               <th className="p-2">Comprovante</th>
-              <th className="p-2 text-center">Score</th>
+              <th className="p-2 text-center">Status</th>
               <th className="p-2" />
             </tr>
           </thead>
           <tbody>
             {(rows.data ?? []).map((r) => {
               const rl = (linksByRow.get(r.id) ?? []).slice().sort((a, b) => b.score - a.score);
-              const primary = rl.find((l) => l.is_primary) ?? rl[0];
+              const primary = primaryReceiptLink(rl);
               const primaryFile = primary ? fileById.get(primary.file_id) : null;
               return (
                 <tr key={r.id} className="border-t border-border align-top">
@@ -218,23 +199,16 @@ export function ImportMatches({ batchId }: { batchId: string }) {
                           {primaryFile.file_name}
                           {primary.page_number ? ` · p.${primary.page_number}` : ""}
                         </span>
-                        {rl.length > 1 && (
-                          <Badge variant="outline" className="ml-1 text-[10px]">
-                            +{rl.length - 1}
-                          </Badge>
-                        )}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">não localizado</span>
+                      <span className="text-muted-foreground">não identificado</span>
                     )}
                   </td>
                   <td className="p-2 text-center">
                     {primary ? (
-                      <Badge className={tierClass(primary.confidence as MatchTier)}>
-                        {primary.score} · {TIER_LABEL[primary.confidence as MatchTier]}
-                      </Badge>
+                      <Badge className="bg-emerald-600 text-white">Identificado</Badge>
                     ) : (
-                      <Badge variant="outline">—</Badge>
+                      <Badge variant="outline">Não identificado</Badge>
                     )}
                   </td>
                   <td className="p-2">
@@ -260,7 +234,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         <RowMatchDialog
           row={openRow}
           batchId={batchId}
-          links={(linksByRow.get(openRow.id) ?? []).slice().sort((a, b) => b.score - a.score)}
+          links={(linksByRow.get(openRow.id) ?? []).filter(isAcceptedReceiptLink).sort((a, b) => b.score - a.score)}
           files={files.data ?? []}
           onClose={() => setOpenRowId(null)}
           onChanged={() =>
@@ -289,6 +263,8 @@ function RowMatchDialog({
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState<string>("");
+  const primary = primaryReceiptLink(links);
+  const primaryFile = primary ? files.find((x) => x.id === primary.file_id) : null;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -324,79 +300,36 @@ function RowMatchDialog({
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold">Candidatos ({links.length})</p>
-            {links.length === 0 && (
+            <p className="mb-2 text-xs font-semibold">Comprovante vinculado</p>
+            {primary && primaryFile ? (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-2 text-xs">
+                <Paperclip className="h-3 w-3 shrink-0 text-emerald-600" />
+                <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
+                  {primaryFile.original_path ?? primaryFile.file_name}
+                  {primary.page_number ? ` · p.${primary.page_number}` : ""}
+                </span>
+                {primary.is_manual && (
+                  <Badge variant="outline" className="text-[10px]">
+                    manual
+                  </Badge>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-destructive"
+                  onClick={async () => {
+                    await detachRowFile(primary.id);
+                    onChanged();
+                  }}
+                >
+                  <Link2Off className="mr-1 h-3 w-3" /> Remover
+                </Button>
+              </div>
+            ) : (
               <p className="text-xs text-muted-foreground">
-                Nenhum candidato — associe manualmente abaixo.
+                Nenhum comprovante identificado — associe manualmente abaixo.
               </p>
             )}
-            <div className="space-y-2">
-              {links.map((l) => {
-                const f = files.find((x) => x.id === l.file_id);
-                return (
-                  <div
-                    key={l.id}
-                    className="flex items-start gap-2 rounded-lg border border-border p-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        {l.is_primary && (
-                          <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-                        )}
-                        <span className="truncate font-mono text-[11px]">
-                          {f?.original_path ?? f?.file_name ?? l.file_id}
-                          {l.page_number ? ` · p.${l.page_number}` : ""}
-                        </span>
-                        {l.is_manual && (
-                          <Badge variant="outline" className="text-[10px]">
-                            manual
-                          </Badge>
-                        )}
-                        <Badge className={`ml-auto ${tierClass(l.confidence as MatchTier)}`}>
-                          {l.score} · {TIER_LABEL[l.confidence as MatchTier]}
-                        </Badge>
-                      </div>
-                      <ul className="mt-1 flex flex-wrap gap-1">
-                        {(l.match_reasons ?? []).map((r: any, i: number) => (
-                          <li
-                            key={i}
-                            className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                          >
-                            +{r.points} {r.label}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {!l.is_primary && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7"
-                          onClick={async () => {
-                            await setPrimaryRowFile(row.id, l.id);
-                            onChanged();
-                          }}
-                        >
-                          <Star className="mr-1 h-3 w-3" /> Principal
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-destructive"
-                        onClick={async () => {
-                          await detachRowFile(l.id);
-                          onChanged();
-                        }}
-                      >
-                        <Link2Off className="mr-1 h-3 w-3" /> Remover
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
 
           <div>
@@ -428,7 +361,7 @@ function RowMatchDialog({
                         rowId: row.id,
                         fileId: f.id,
                         pageNumber: page ? parseInt(page, 10) : null,
-                        makePrimary: links.length === 0,
+                        makePrimary: true,
                       });
                       toast.success("Comprovante associado");
                       onChanged();
