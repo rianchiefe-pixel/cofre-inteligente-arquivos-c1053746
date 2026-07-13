@@ -735,6 +735,9 @@ function RowEditor({
   setReason,
   showRaw,
   setShowRaw,
+  properties,
+  propertyById,
+  batchScope,
 }: {
   row: any;
   links: any[];
@@ -745,10 +748,28 @@ function RowEditor({
   setReason: React.Dispatch<React.SetStateAction<string>>;
   showRaw: boolean;
   setShowRaw: React.Dispatch<React.SetStateAction<boolean>>;
+  properties: Array<{ id: string; name: string }>;
+  propertyById: Map<string, any>;
+  batchScope: string;
 }) {
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
   const primary = primaryReceiptLink(links);
   const status = (row.review_status ?? "pending") as ReviewStatus;
+
+  const originalCategory = row.category_original ?? row.category ?? null;
+  const aiSuggestedCategory = row.ai_category_suggestion ?? null;
+  const aiConf = row.ai_category_confidence
+    ? Math.round(Number(row.ai_category_confidence) * 100)
+    : null;
+  const aiPropertyId = row.ai_property_id ?? null;
+  const aiPropertyConf = row.ai_property_confidence
+    ? Math.round(Number(row.ai_property_confidence) * 100)
+    : null;
+  const aiProperty = aiPropertyId ? propertyById.get(aiPropertyId) : null;
+
+  const propertyValue =
+    values.property_id ??
+    (row.property_id ? row.property_id : row.general_account ? "__general__" : "__none__");
 
   // Groupings
   const HIGHLIGHT_KEYS = ["transaction_date", "amount", "transaction_type"];
