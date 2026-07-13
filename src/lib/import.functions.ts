@@ -230,8 +230,9 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         source_id: d.source_id ?? null,
         invoice_number: d.invoice_number ?? null,
         page_number: d.page_number ?? null,
-        // Update the "reorganized" canonical columns too, without touching raw_data
-        amount: typeof d.amount === "number" ? d.amount : row.amount,
+        // Valor sempre positivo, no padrão BRL. Preferimos amount_raw quando
+        // presente para evitar que o modelo confunda "1.880,00" com 1.88.
+        amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
         currency: d.currency ?? row.currency,
         transaction_date: d.date ?? row.transaction_date,
         category: d.category ?? row.category,
