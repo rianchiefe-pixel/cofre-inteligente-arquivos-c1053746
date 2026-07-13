@@ -70,11 +70,18 @@ function amountsClose(a: unknown, b: unknown): boolean {
   return Math.abs((na ?? 0) - (nb ?? 0)) < 0.02;
 }
 
-// The receipt only earns a primary association when the *core trio* matches:
-// amount + exact date + payee. Anything below that fails closed as "not found".
+// Aceita o vínculo automático em duas vias:
+//   (a) a planilha indica explicitamente o arquivo/ID (coluna file_name /
+//       folder_path / source_id / invoice_number) e ele bate — determinístico,
+//       não precisa do OCR concordar em tudo.
+//   (b) trio principal: valor + data + favorecido — para quando a planilha não
+//       nomeia o arquivo, mas o conteúdo do comprovante confirma.
 function gatedTier(raw: number, matched: Set<string>): MatchTier {
+  const explicit = matched.has("path") || matched.has("id");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
   const complementary = ["bank", "holder", "payment_method", "auth", "txid", "card", "doc"].some((k) => matched.has(k));
+  if (explicit && matched.has("amount")) return "very_high";
+  if (explicit) return "high";
   if (coreOk && complementary && raw >= 70) return "very_high";
   if (coreOk) return "high";
   return "none";
@@ -143,6 +150,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     if (wn && (f.nameNorm === wn || f.pathNorm.endsWith(wn) || f.pathNorm.includes(wn))) {
       score += 40;
       reasons.push({ key: "path", label: `nome/caminho: ${wantedName}`, points: 40 });
+      matched.add("path");
     }
   }
   if (wantedFolder) {
@@ -162,11 +170,13 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
         (n && n.length >= 4 && (f.nameNorm.includes(n) || f.textNorm.includes(n)))) {
       score += 35;
       reasons.push({ key: "id", label: `ID/transação: ${id}`, points: 35 });
+      matched.add("id");
       break;
     }
   }
 
   // 3. Amount (25) — exact BRL match only. Never use loose digit matching.
+  const hasExplicit = matched.has("path") || matched.has("id");
   const amt = parseBrlAmount(row.amount);
   if (Number.isFinite(amt) && amt !== 0) {
     const withComma = formatBrlNumber(amt);
@@ -188,11 +198,11 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     } else if (ocrAmounts.length > 0) {
       divergent.push(`valor diverge (planilha R$ ${withComma} × comprovante ${ocr.amount_raw ?? `R$ ${ocrAmounts[0].toFixed(2)}`})`);
     }
-  } else {
+  } else if (!hasExplicit) {
     return null;
   }
 
-  if (!matched.has("amount")) return null;
+  if (!hasExplicit && !matched.has("amount")) return null;
 
   // 4. Date (20) — compare against OCR-extracted ISO date first.
   const date = String(row.transaction_date ?? "").trim();
@@ -211,11 +221,11 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     } else if (ocr.date && ocr.date !== date) {
       divergent.push(`data diverge (planilha ${date} × comprovante ${ocr.date})`);
     }
-  } else {
+  } else if (!hasExplicit) {
     return null;
   }
 
-  if (!matched.has("date")) return null;
+  if (!hasExplicit && !matched.has("date")) return null;
 
   // 5. Payee (15)
   const payee = String(row.payee ?? row.description ?? "").trim();
@@ -236,11 +246,11 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     } else if (ocr.payee) {
       divergent.push(`favorecido diverge (planilha "${payee}" × comprovante "${ocr.payee}")`);
     }
-  } else {
+  } else if (!hasExplicit) {
     return null;
   }
 
-  if (!matched.has("payee")) return null;
+  if (!hasExplicit && !matched.has("payee")) return null;
 
   // 6. Bank (8) + card (8) — normalize aliases (ITAÚ UNIBANCO S.A. ≡ Itaú).
   const bank = String(row.bank ?? "").trim();
