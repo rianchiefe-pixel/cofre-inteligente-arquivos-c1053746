@@ -1,6 +1,56 @@
 export const currencyBRL = (v: number | null | undefined) =>
   (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// -----------------------------------------------------------------------------
+// Padrão brasileiro de valores monetários
+//   - vírgula = separador decimal
+//   - ponto   = separador de milhar
+//   - "R$ 1.880,00" → 1880.00 (nunca 1.88, nunca 1880*100)
+//   - "R$ 15,11"    → 15.11   (nunca 1511)
+// O valor numérico é sempre positivo; a natureza (Despesa/Investimento) fica
+// no campo `transaction_type`, nunca representada pelo sinal.
+// -----------------------------------------------------------------------------
+export function parseBrlAmount(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return Math.abs(raw);
+  let s = String(raw).trim();
+  if (!s) return null;
+  // Remove somente "R$", espaços e caracteres inválidos, preservando dígitos,
+  // vírgula, ponto, sinal negativo e parênteses.
+  s = s.replace(/R\$/gi, "").replace(/\s+/g, "").replace(/[^\d,.\-()]/g, "");
+  if (!s) return null;
+  s = s.replace(/^\(([^)]*)\)$/, "-$1").replace(/^-/, "");
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) {
+    // ponto é milhar, vírgula é decimal
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    s = s.replace(",", ".");
+  } else if (hasDot) {
+    // Ponto único pode ser erro de OCR ("5.33" quando é "5,33"). Se houver
+    // exatamente 2 dígitos após o único ponto, tratamos como decimal; se houver
+    // 3 dígitos (padrão de milhar tipo "1.880"), preservamos como inteiro.
+    const parts = s.split(".");
+    if (parts.length === 2 && parts[1].length === 2) {
+      s = parts.join(".");
+    } else {
+      s = parts.join("");
+    }
+  }
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  return Math.abs(n);
+}
+
+export function formatBrlNumber(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(Number(n))) return "";
+  return Math.abs(Number(n)).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export const dateBR = (v: string | Date | null | undefined) => {
   if (!v) return "—";
   const d = typeof v === "string" ? new Date(v) : v;

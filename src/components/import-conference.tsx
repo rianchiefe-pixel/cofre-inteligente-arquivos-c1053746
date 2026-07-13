@@ -61,13 +61,14 @@ import {
   approveImportRow,
   classifyImportRow,
   setImportRowStatus,
+  reprocessBatchAmounts,
 } from "@/lib/import.functions";
 import {
   attachFileManually,
   detachRowFile,
   setPrimaryRowFile,
 } from "@/lib/receipt-matcher";
-import { currencyBRL } from "@/lib/format";
+import { currencyBRL, parseBrlAmount, formatBrlNumber } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types + constants
@@ -296,8 +297,15 @@ export function ImportConference({
       const v = values[f.key];
       if (v === "" || v === undefined || v === null) continue;
       if (f.type === "number") {
-        const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
-        if (Number.isFinite(n)) overrides[f.key] = n;
+        // Valores monetários seguem o padrão BR: "1.880,00" → 1880.00.
+        // Sempre gravamos positivo — a natureza está em transaction_type.
+        const n =
+          f.key === "amount"
+            ? parseBrlAmount(v)
+            : typeof v === "number"
+              ? v
+              : parseFloat(String(v).replace(",", "."));
+        if (n !== null && Number.isFinite(n)) overrides[f.key] = Math.abs(n);
       } else {
         overrides[f.key] = String(v);
       }
@@ -434,6 +442,23 @@ export function ImportConference({
     }
   }
 
+  const reprocessFn = useServerFn(reprocessBatchAmounts);
+  const [reprocessing, setReprocessing] = useState(false);
+  async function handleReprocessAmounts() {
+    setReprocessing(true);
+    try {
+      const res = await reprocessFn({ data: { batchId } });
+      toast.success(
+        `Valores recalculados: ${res.updated}/${res.scanned} lançamentos ajustados`,
+      );
+      invalidate();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao reprocessar valores");
+    } finally {
+      setReprocessing(false);
+    }
+  }
+
   async function handleReclassify() {
     if (!activeRow) return;
     setSavingAction("reclassify");
@@ -510,6 +535,20 @@ export function ImportConference({
               disabled={savingAction !== null || !activeRow}
             >
               <Sparkles className="mr-1 h-3 w-3" /> Reanalisar com IA
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleReprocessAmounts}
+              disabled={reprocessing}
+              title="Recorrige valores salvos como -1.88 / -1511 usando o padrão brasileiro."
+            >
+              {reprocessing ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1 h-3 w-3" />
+              )}
+              Recorrigir valores
             </Button>
             <Button
               size="sm"
@@ -718,7 +757,19 @@ function RowEditor({
                 <Input
                   className="mt-1 h-8 text-xs"
                   value={v}
+                  inputMode={f.key === "amount" ? "decimal" : undefined}
+                  placeholder={f.key === "amount" ? "0,00" : undefined}
                   onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
+                  onBlur={
+                    f.key === "amount"
+                      ? (e) => {
+                          const n = parseBrlAmount(e.target.value);
+                          if (n !== null) {
+                            setValues((s) => ({ ...s, amount: formatBrlNumber(n) }));
+                          }
+                        }
+                      : undefined
+                  }
                 />
               )}
               {m.rationale && (
@@ -757,7 +808,13 @@ function RowEditor({
 
 function hydrateValues(row: any): Record<string, any> {
   const out: Record<string, any> = {};
-  for (const f of FIELDS) out[f.key] = row[f.key] ?? "";
+  for (const f of FIELDS) {
+    if (f.key === "amount") {
+      out[f.key] = typeof row.amount === "number" ? formatBrlNumber(row.amount) : "";
+    } else {
+      out[f.key] = row[f.key] ?? "";
+    }
+  }
   return out;
 }
 

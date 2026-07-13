@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { parseBrlAmount } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Parte 2 — Classificação e organização pela IA (server functions)
@@ -43,6 +44,46 @@ function extractJson(raw: string): any | null {
   } catch {
     return null;
   }
+}
+
+// Escolhe o valor monetário correto (sempre positivo) priorizando o texto
+// original (amount_raw) sobre o número devolvido pelo modelo — LLMs frequentemente
+// interpretam "1.880,00" como 1.88.
+function sanitizeAmount(
+  raw: unknown,
+  numeric: unknown,
+  fallback: unknown,
+): number | null {
+  const fromRaw = parseBrlAmount(raw);
+  if (fromRaw !== null && fromRaw > 0) return fromRaw;
+  if (typeof numeric === "number" && Number.isFinite(numeric)) {
+    return Math.abs(numeric);
+  }
+  const fromNumericStr = parseBrlAmount(numeric);
+  if (fromNumericStr !== null) return fromNumericStr;
+  if (typeof fallback === "number" && Number.isFinite(fallback)) {
+    return Math.abs(fallback);
+  }
+  return parseBrlAmount(fallback);
+}
+
+// Procura um valor monetário BRL dentro de um texto livre.
+function extractBrlFromText(text: string | null | undefined): number | null {
+  if (!text) return null;
+  const s = String(text);
+  // 1) Casos com "R$" + número no padrão BR (com vírgula decimal obrigatória)
+  const withCurrency = s.match(/R\$\s*(-?\(?\s*[\d.]+,\d{2}\)?)/i);
+  if (withCurrency) {
+    const v = parseBrlAmount(withCurrency[1]);
+    if (v !== null && v > 0) return v;
+  }
+  // 2) Qualquer número com vírgula decimal (ex: "1.880,00" ou "15,11")
+  const anyDecimal = s.match(/-?\(?\s*\d{1,3}(?:\.\d{3})*,\d{2}\)?/);
+  if (anyDecimal) {
+    const v = parseBrlAmount(anyDecimal[0]);
+    if (v !== null && v > 0) return v;
+  }
+  return null;
 }
 
 // ---- 1. Classify one row -------------------------------------------------
@@ -125,7 +166,8 @@ export const classifyImportRow = createServerFn({ method: "POST" })
       "Formato de resposta (todos os campos são opcionais; use null quando não houver informação):",
       "{",
       '  "data": {',
-      '    "amount": number|null,',
+      '    "amount": number|null,             // valor POSITIVO em reais (ex: 1880.00 para R$ 1.880,00)',
+      '    "amount_raw": string|null,         // valor exatamente como aparece no documento (ex: "R$ 1.880,00")',
       '    "currency": "BRL"|string|null,',
       '    "date": "YYYY-MM-DD"|null,',
       '    "transaction_type": "DESPESA"|"INVESTIMENTO",',
@@ -152,6 +194,14 @@ export const classifyImportRow = createServerFn({ method: "POST" })
       '    "<field>": { "original": string|null, "source": string, "confidence": number, "rationale": string }',
       "  }",
       "}",
+      "",
+      "REGRA DE VALORES (padrão brasileiro, obrigatório):",
+      "- Vírgula = separador decimal. Ponto = separador de milhar.",
+      "- 'R$ 1.880,00' significa 1880.00 (mil oitocentos e oitenta reais). NUNCA interprete como 1.88.",
+      "- 'R$ 15,11' significa 15.11 (quinze reais e onze centavos). NUNCA como 1511.",
+      "- Nunca divida por 100. Nunca remova a vírgula transformando centavos em inteiro.",
+      "- amount é SEMPRE positivo. A natureza (DESPESA/INVESTIMENTO) vai em transaction_type, não no sinal.",
+      "- Preencha amount_raw com o texto exatamente como aparece na planilha/comprovante.",
     ].join("\n");
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -220,8 +270,9 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         source_id: d.source_id ?? null,
         invoice_number: d.invoice_number ?? null,
         page_number: d.page_number ?? null,
-        // Update the "reorganized" canonical columns too, without touching raw_data
-        amount: typeof d.amount === "number" ? d.amount : row.amount,
+        // Valor sempre positivo, no padrão BRL. Preferimos amount_raw quando
+        // presente para evitar que o modelo confunda "1.880,00" com 1.88.
+        amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
         currency: d.currency ?? row.currency,
         transaction_date: d.date ?? row.transaction_date,
         category: d.category ?? row.category,
@@ -388,4 +439,70 @@ export const setImportRowStatus = createServerFn({ method: "POST" })
     if (data.overrides) Object.assign(patch, data.overrides);
     await supabase.from("import_rows").update(patch as any).eq("id", data.rowId);
     return { ok: true as const };
+  });
+
+// ---- Reprocessa valores monetários salvos incorretamente ------------------
+// Ex.: R$ 1.880,00 gravado como -1.88, R$ 15,11 gravado como -1511.
+
+export const reprocessBatchAmounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ batchId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: rows, error } = await supabase
+      .from("import_rows")
+      .select("id, amount, ai_data, ai_meta, raw_data, description, notes")
+      .eq("batch_id", data.batchId)
+      .limit(10000);
+    if (error) throw error;
+
+    let updated = 0;
+    let scanned = 0;
+    for (const r of rows ?? []) {
+      scanned++;
+      const candidates: unknown[] = [];
+      const ai = (r.ai_data ?? {}) as Record<string, any>;
+      const meta = (r.ai_meta ?? {}) as Record<string, any>;
+      candidates.push(ai.amount_raw);
+      candidates.push(meta?.amount?.original);
+      // Varredura em raw_data por colunas típicas
+      const raw = (r.raw_data ?? {}) as Record<string, any>;
+      for (const [k, v] of Object.entries(raw)) {
+        if (/valor|amount|montante|quantia|vlr/i.test(k)) candidates.push(v);
+      }
+      candidates.push(ai.amount);
+
+      let picked: number | null = null;
+      for (const c of candidates) {
+        const n = parseBrlAmount(c);
+        if (n !== null && n > 0) {
+          picked = n;
+          break;
+        }
+      }
+      // Fallback: procura padrão BRL na descrição / notas
+      if (picked === null) {
+        picked = extractBrlFromText(r.description) ?? extractBrlFromText(r.notes);
+      }
+
+      if (picked === null) continue;
+      const current = typeof r.amount === "number" ? Math.abs(r.amount) : NaN;
+      // Atualiza quando o valor atual está ausente, negativo, ou diverge do
+      // valor recomputado em mais de 1 centavo.
+      const differs =
+        !Number.isFinite(current) ||
+        (r.amount as number) < 0 ||
+        Math.abs(current - picked) > 0.01;
+      if (!differs) continue;
+
+      await supabase
+        .from("import_rows")
+        .update({ amount: picked })
+        .eq("id", r.id);
+      updated++;
+    }
+
+    return { ok: true as const, scanned, updated };
   });
