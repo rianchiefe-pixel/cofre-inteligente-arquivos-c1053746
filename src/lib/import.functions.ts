@@ -114,7 +114,7 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         .eq("user_id", userId)
         .order("usage_count", { ascending: false })
         .limit(500),
-      supabase.from("properties").select("name").eq("user_id", userId),
+      supabase.from("properties").select("id, name, profile_id").eq("user_id", userId),
       supabase.from("banks").select("name").eq("user_id", userId),
     ]);
 
@@ -128,6 +128,20 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         to: p.corrected_value,
       });
     }
+
+    // Load batch scope so we can filter property suggestions by profile.
+    const { data: batch } = await supabase
+      .from("import_batches")
+      .select("profile_id, scope_kind")
+      .eq("id", row.batch_id)
+      .maybeSingle();
+    const eligibleProperties = (properties ?? []).filter((p: any) =>
+      batch?.scope_kind === "general" || !batch?.profile_id
+        ? true
+        : p.profile_id === batch.profile_id,
+    );
+    const propertyById = new Map<string, any>();
+    for (const p of eligibleProperties) propertyById.set(p.id, p);
 
     const promptText = [
       "Você é o assistente de classificação de lançamentos financeiros do Meu Cofre.",
@@ -275,7 +289,27 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
         currency: d.currency ?? row.currency,
         transaction_date: d.date ?? row.transaction_date,
-        category: d.category ?? row.category,
+        // NUNCA sobrescreve silenciosamente a categoria vinda da planilha.
+        // A sugestão da IA vai para ai_category_suggestion quando diferente.
+        category: row.category ?? d.category ?? null,
+        category_original: row.category_original ?? row.category ?? null,
+        ai_category_suggestion:
+          d.category && normalizeKey(d.category) !== normalizeKey(row.category ?? "")
+            ? d.category
+            : null,
+        ai_category_confidence:
+          typeof parsed.meta?.category?.confidence === "number"
+            ? parsed.meta.category.confidence
+            : null,
+        ai_category_reason: parsed.meta?.category?.rationale ?? null,
+        // Sugestão determinística de imóvel a partir do histórico do usuário.
+        ...suggestPropertyForRow({
+          payee: d.payee ?? row.payee,
+          category: d.category ?? row.category,
+          description: row.description,
+          prefs: prefs ?? [],
+          propertyById,
+        }),
         account: d.account ?? row.account,
         // Preserve the ORIGINAL description text — never overwrite with AI output.
         description: row.description,
