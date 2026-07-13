@@ -81,10 +81,10 @@ const STATUS_LABEL: Record<ReviewStatus, string> = {
 };
 
 const STATUS_COLOR: Record<ReviewStatus, string> = {
-  pending: "bg-muted text-foreground",
-  approved: "bg-emerald-600 text-white",
-  rejected: "bg-destructive text-destructive-foreground",
-  ver_depois: "bg-amber-500 text-white",
+  pending: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20",
+  approved: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+  rejected: "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20",
+  ver_depois: "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/25",
 };
 
 const ACCEPTED_RECEIPT_CONFIDENCES = new Set(["high", "very_high"]);
