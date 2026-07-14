@@ -538,10 +538,14 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
           Object.assign(ocrData, extractReceiptFacts(extractedText));
         }
 
+        // Marca legibilidade — usa mais adiante para o bucket "ilegíveis".
+        const readable = extractedText.trim().length >= 20;
+
         await supabase
           .from("import_files")
           .update({
-            status: "processed",
+            status: readable ? "processed" : "unreadable",
+            readable,
             extracted_text: extractedText.slice(0, 100_000) || null,
             page_count: pageCount ?? null,
             ocr_data: (Object.keys(ocrData).length ? ocrData : null) as any,
@@ -554,6 +558,7 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
           .from("import_files")
           .update({
             status: "error",
+            readable: false,
             error_message: e instanceof Error ? e.message : String(e),
           })
           .eq("id", f.id);
@@ -588,7 +593,11 @@ export async function getZipSnapshot(batchId: string): Promise<ZipProgress> {
   const rows = data ?? [];
   const filesFound = rows.length;
   const filesProcessed = rows.filter(
-    (r) => r.status === "processed" || r.status === "error" || r.status === "duplicate",
+    (r) =>
+      r.status === "processed" ||
+      r.status === "error" ||
+      r.status === "duplicate" ||
+      r.status === "unreadable",
   ).length;
   const errors = rows.filter((r) => r.status === "error").length;
   const pdfsRead = rows.filter((r) => (r.extension ?? "").toLowerCase() === "pdf").length;

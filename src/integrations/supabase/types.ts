@@ -475,6 +475,7 @@ export type Database = {
           original_path: string
           page_count: number | null
           progress: number
+          readable: boolean | null
           size_bytes: number | null
           status: string
           storage_path: string | null
@@ -498,6 +499,7 @@ export type Database = {
           original_path: string
           page_count?: number | null
           progress?: number
+          readable?: boolean | null
           size_bytes?: number | null
           status?: string
           storage_path?: string | null
@@ -521,6 +523,7 @@ export type Database = {
           original_path?: string
           page_count?: number | null
           progress?: number
+          readable?: boolean | null
           size_bytes?: number | null
           status?: string
           storage_path?: string | null
@@ -678,6 +681,7 @@ export type Database = {
           holder: string | null
           id: string
           invoice_number: string | null
+          kind: string | null
           normalized_data: Json | null
           notes: string | null
           page_number: string | null
@@ -725,6 +729,7 @@ export type Database = {
           holder?: string | null
           id?: string
           invoice_number?: string | null
+          kind?: string | null
           normalized_data?: Json | null
           notes?: string | null
           page_number?: string | null
@@ -772,6 +777,7 @@ export type Database = {
           holder?: string | null
           id?: string
           invoice_number?: string | null
+          kind?: string | null
           normalized_data?: Json | null
           notes?: string | null
           page_number?: string | null

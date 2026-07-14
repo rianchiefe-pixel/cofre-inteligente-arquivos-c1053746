@@ -9,6 +9,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { formatBrlNumber, parseBrlAmount } from "@/lib/format";
 import { normalizeBank, type ReceiptFacts } from "@/lib/zip-import";
+import { isCardKind } from "@/lib/import-kind";
 
 export type MatchTier = "very_high" | "high" | "review" | "low" | "none";
 
@@ -362,6 +363,11 @@ export interface MatchProgress {
   matched: number;
   needsReview: number;
   notFound: number;
+  cardRows: number;
+  cardMatched: number;
+  unreadableFiles: number;
+  unmatchedFiles: number;
+  duplicateFiles: number;
 }
 
 export async function matchBatchReceipts(
@@ -376,7 +382,7 @@ export async function matchBatchReceipts(
     supabase.from("import_rows").select("*").eq("batch_id", batchId).limit(5000),
     supabase
       .from("import_files")
-      .select("id, file_name, original_path, folder, extension, extracted_text, ocr_data, page_count, duplicate_of, status")
+      .select("id, file_name, original_path, folder, extension, extracted_text, ocr_data, page_count, duplicate_of, status, readable")
       .eq("batch_id", batchId)
       .in("status", ["ready", "processed", "completed", "done", "duplicate"])
       .limit(5000),
@@ -384,6 +390,9 @@ export async function matchBatchReceipts(
 
   const rowList = rows ?? [];
   const rawFiles = files ?? [];
+
+  const duplicateFiles = rawFiles.filter((f: any) => f.status === "duplicate").length;
+  const unreadableFiles = rawFiles.filter((f: any) => f.readable === false).length;
 
   // Duplicates carry no extracted_text/ocr_data — hydrate them from the
   // original file (same content_hash) so the matcher can score them too.
@@ -442,6 +451,11 @@ export async function matchBatchReceipts(
     matched: 0,
     needsReview: 0,
     notFound: 0,
+    cardRows: 0,
+    cardMatched: 0,
+    unreadableFiles,
+    unmatchedFiles: 0,
+    duplicateFiles,
   };
 
   const bestByRow = new Map<string, Candidate>();
@@ -449,8 +463,36 @@ export async function matchBatchReceipts(
 
   for (const row of rowList) {
     if (manualRows.has(row.id)) continue;
+    // Regra 3 — transações de cartão de crédito ficam FORA do cruzamento
+    // comum. Só recebem vínculo se o comprovante for explicitamente de
+    // cartão (marcadores "fatura", "cartão de crédito", "final XXXX").
+    if (isCardKind(row.kind)) continue;
     const scored: Candidate[] = [];
     for (const f of fileFacts) {
+      const c = scoreRowAgainstFile(row, f);
+      if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) scored.push(c);
+    }
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored[0];
+    if (top) {
+      bestByRow.set(row.id, top);
+      if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
+      fileClaims.get(top.fileId)!.push(row.id);
+    }
+  }
+
+  // Cartão de crédito: tenta vincular apenas contra comprovantes que
+  // explicitamente identificam cartão. Regra restrita — sem match → bucket.
+  const cardFileFacts = fileFacts.filter((f) => {
+    const hay = `${f.file_name} ${f.textNorm}`;
+    return /fatura|cartao de credito|cart[aã]o de cr[eé]dito|final \d{4}/i.test(hay);
+  });
+  for (const row of rowList) {
+    if (!isCardKind(row.kind)) continue;
+    progress.cardRows += 1;
+    if (manualRows.has(row.id)) { progress.cardMatched += 1; continue; }
+    const scored: Candidate[] = [];
+    for (const f of cardFileFacts) {
       const c = scoreRowAgainstFile(row, f);
       if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) scored.push(c);
     }
@@ -470,6 +512,26 @@ export async function matchBatchReceipts(
       progress.matched++;
       progress.rowsDone++;
       if (opts.onProgress && progress.rowsDone % 5 === 0) opts.onProgress({ ...progress });
+      continue;
+    }
+    if (isCardKind(row.kind)) {
+      const topCard = bestByRow.get(row.id);
+      if (topCard) {
+        progress.cardMatched += 1;
+        payload.push({
+          user_id: userId,
+          batch_id: batchId,
+          row_id: row.id,
+          file_id: topCard.fileId,
+          page_number: topCard.pageNumber,
+          score: topCard.score,
+          confidence: topCard.confidence,
+          match_reasons: topCard.reasons,
+          is_manual: false,
+          is_primary: true,
+        });
+      }
+      progress.rowsDone++;
       continue;
     }
 
@@ -508,6 +570,16 @@ export async function matchBatchReceipts(
       onConflict: "row_id,file_id,page_number",
     });
   }
+
+  // Arquivos sem vínculo (nem automático nem manual).
+  const claimedFileIds = new Set<string>([
+    ...payload.map((p) => p.file_id),
+    ...Array.from(reservedFiles),
+  ]);
+  progress.unmatchedFiles = rawFiles
+    .filter((f: any) => f.status !== "duplicate" && f.readable !== false)
+    .filter((f: any) => !claimedFileIds.has(f.id))
+    .length;
 
   opts.onProgress?.({ ...progress });
   return progress;
