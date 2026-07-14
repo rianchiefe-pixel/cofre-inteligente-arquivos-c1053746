@@ -172,12 +172,243 @@ export type Database = {
           },
         ]
       }
+      card_holders: {
+        Row: {
+          card_id: string
+          created_at: string
+          holder_name: string
+          id: string
+          is_primary: boolean
+          last4: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          holder_name: string
+          id?: string
+          is_primary?: boolean
+          last4?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          holder_name?: string
+          id?: string
+          is_primary?: boolean
+          last4?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_holders_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      card_statements: {
+        Row: {
+          bank_name: string | null
+          card_id: string
+          closing_date: string | null
+          created_at: string
+          due_date: string | null
+          error: string | null
+          id: string
+          minimum_payment: number | null
+          pages_total: number | null
+          period_end: string | null
+          period_start: string | null
+          progress_pct: number | null
+          progress_stage: string | null
+          raw_analysis: Json | null
+          source_file_name: string | null
+          source_file_path: string | null
+          source_hash: string | null
+          status: string
+          total_amount: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bank_name?: string | null
+          card_id: string
+          closing_date?: string | null
+          created_at?: string
+          due_date?: string | null
+          error?: string | null
+          id?: string
+          minimum_payment?: number | null
+          pages_total?: number | null
+          period_end?: string | null
+          period_start?: string | null
+          progress_pct?: number | null
+          progress_stage?: string | null
+          raw_analysis?: Json | null
+          source_file_name?: string | null
+          source_file_path?: string | null
+          source_hash?: string | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bank_name?: string | null
+          card_id?: string
+          closing_date?: string | null
+          created_at?: string
+          due_date?: string | null
+          error?: string | null
+          id?: string
+          minimum_payment?: number | null
+          pages_total?: number | null
+          period_end?: string | null
+          period_start?: string | null
+          progress_pct?: number | null
+          progress_stage?: string | null
+          raw_analysis?: Json | null
+          source_file_name?: string | null
+          source_file_path?: string | null
+          source_hash?: string | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_statements_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      card_transactions: {
+        Row: {
+          amount: number | null
+          card_holder_id: string | null
+          card_id: string
+          category: string | null
+          confidence: number | null
+          country: string | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          holder_name: string | null
+          id: string
+          installment_current: number | null
+          installment_total: number | null
+          kind: string | null
+          last4: string | null
+          low_confidence: boolean | null
+          notes: string | null
+          original_series_id: string | null
+          profile_id: string | null
+          property_id: string | null
+          raw: Json | null
+          statement_id: string
+          status: string
+          txn_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          card_holder_id?: string | null
+          card_id: string
+          category?: string | null
+          confidence?: number | null
+          country?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          holder_name?: string | null
+          id?: string
+          installment_current?: number | null
+          installment_total?: number | null
+          kind?: string | null
+          last4?: string | null
+          low_confidence?: boolean | null
+          notes?: string | null
+          original_series_id?: string | null
+          profile_id?: string | null
+          property_id?: string | null
+          raw?: Json | null
+          statement_id: string
+          status?: string
+          txn_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          card_holder_id?: string | null
+          card_id?: string
+          category?: string | null
+          confidence?: number | null
+          country?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          holder_name?: string | null
+          id?: string
+          installment_current?: number | null
+          installment_total?: number | null
+          kind?: string | null
+          last4?: string | null
+          low_confidence?: boolean | null
+          notes?: string | null
+          original_series_id?: string | null
+          profile_id?: string | null
+          property_id?: string | null
+          raw?: Json | null
+          statement_id?: string
+          status?: string
+          txn_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_transactions_card_holder_id_fkey"
+            columns: ["card_holder_id"]
+            isOneToOne: false
+            referencedRelation: "card_holders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_transactions_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_transactions_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "card_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cards: {
         Row: {
           bank_id: string | null
           brand: Database["public"]["Enums"]["card_brand"] | null
           closing_day: number | null
           created_at: string
+          credit_limit: number | null
           due_day: number | null
           holder: string | null
           id: string
@@ -192,6 +423,7 @@ export type Database = {
           brand?: Database["public"]["Enums"]["card_brand"] | null
           closing_day?: number | null
           created_at?: string
+          credit_limit?: number | null
           due_day?: number | null
           holder?: string | null
           id?: string
@@ -206,6 +438,7 @@ export type Database = {
           brand?: Database["public"]["Enums"]["card_brand"] | null
           closing_day?: number | null
           created_at?: string
+          credit_limit?: number | null
           due_day?: number | null
           holder?: string | null
           id?: string
