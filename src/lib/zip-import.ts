@@ -593,7 +593,11 @@ export async function getZipSnapshot(batchId: string): Promise<ZipProgress> {
   const rows = data ?? [];
   const filesFound = rows.length;
   const filesProcessed = rows.filter(
-    (r) => r.status === "processed" || r.status === "error" || r.status === "duplicate",
+    (r) =>
+      r.status === "processed" ||
+      r.status === "error" ||
+      r.status === "duplicate" ||
+      r.status === "unreadable",
   ).length;
   const errors = rows.filter((r) => r.status === "error").length;
   const pdfsRead = rows.filter((r) => (r.extension ?? "").toLowerCase() === "pdf").length;
