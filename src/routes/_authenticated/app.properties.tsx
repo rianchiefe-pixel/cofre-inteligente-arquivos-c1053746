@@ -419,11 +419,14 @@ function PropertiesPage() {
                       <p className="text-sm font-semibold">{currencyBRL(t.invested)}</p>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link to="/app/properties/$id" params={{ id: p.id }}>Ver detalhes <ChevronRight className="h-4 w-4" /></Link>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                    <Button asChild size="sm" variant="premium" className="min-w-0">
+                      <Link to="/app/properties/$id" params={{ id: p.id }}>
+                        <span>Ver detalhes</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
                     </Button>
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
                       {canManage && <Button size="sm" variant="ghost" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>}
                       {canManage && p.status !== "arquivado" && (
                         <Button size="sm" variant="ghost" onClick={() => archive.mutate(p)} title="Arquivar"><Archive className="h-4 w-4" /></Button>
