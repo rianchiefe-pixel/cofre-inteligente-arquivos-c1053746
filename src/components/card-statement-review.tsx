@@ -203,7 +203,7 @@ export function CardStatementReview({
             <Metric label="Aprovados" value={stats.approved} tone="emerald" />
             <Metric label="Duplicidades" value={stats.duplicate} tone="orange" />
             <Metric label="Baixa confiança" value={stats.low} tone="red" />
-            <Metric label="Total aprovado" value={formatBrl(stats.approvedSum)} />
+            <Metric label="Total aprovado" value={currencyBRL(stats.approvedSum)} />
           </div>
         </div>
 
@@ -285,7 +285,7 @@ export function CardStatementReview({
                     <Badge variant="outline">{KIND_LABEL[t.kind] ?? t.kind}</Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">
-                    {formatBrl(Number(t.amount ?? 0))}
+                    {currencyBRL(Number(t.amount ?? 0))}
                   </TableCell>
                   <TableCell>
                     <span
