@@ -362,7 +362,7 @@ export const updateTransaction = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        patch: z.record(z.any()),
+        patch: z.record(z.string(), z.any()),
       })
       .parse(d),
   )
