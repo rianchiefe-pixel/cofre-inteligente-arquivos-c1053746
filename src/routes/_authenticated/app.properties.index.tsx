@@ -17,7 +17,7 @@ import { Home, Plus, Pencil, Trash2, MapPin, ChevronRight, Archive, Search } fro
 import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
 
-export const Route = createFileRoute("/_authenticated/app/properties")({
+export const Route = createFileRoute("/_authenticated/app/properties/")({
   head: () => ({ meta: [{ title: "Imóveis — Meu Cofre" }] }),
   component: PropertiesGate,
 });
