@@ -20,6 +20,10 @@ import {
   Link2Off,
   FileSearch,
   Paperclip,
+  CreditCard,
+  FileWarning,
+  Copy,
+  FileQuestion,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -30,6 +34,7 @@ import {
 } from "@/lib/receipt-matcher";
 import { reprocessBatchFacts } from "@/lib/zip-import";
 import { currencyBRL } from "@/lib/format";
+import { isCardKind, ROW_KIND_LABEL, type RowKind } from "@/lib/import-kind";
 
 const ACCEPTED_RECEIPT_CONFIDENCES = new Set(["high", "very_high"]);
 
@@ -52,7 +57,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("import_rows")
-        .select("id, row_number, transaction_date, amount, payee, description, file_name, folder_path, source_id, invoice_number, bank, card, card_last4, payment_method, holder, page_number")
+        .select("id, row_number, transaction_date, amount, payee, description, file_name, folder_path, source_id, invoice_number, bank, card, card_last4, payment_method, holder, page_number, kind")
         .eq("batch_id", batchId)
         .order("row_number")
         .limit(2000);
@@ -80,7 +85,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("import_files")
-        .select("id, file_name, original_path, folder, extension, page_count")
+        .select("id, file_name, original_path, folder, extension, page_count, status, readable, duplicate_of")
         .eq("batch_id", batchId)
         .order("original_path")
         .limit(5000);
@@ -106,19 +111,50 @@ export function ImportMatches({ batchId }: { batchId: string }) {
 
   const stats = useMemo(() => {
     const list = rows.data ?? [];
+    const fs = files.data ?? [];
     let matched = 0;
     let missing = 0;
+    let cardRows = 0;
+    let cardMatched = 0;
     for (const r of list) {
       const rl = linksByRow.get(r.id) ?? [];
-      if (primaryReceiptLink(rl)) matched++;
+      const hit = !!primaryReceiptLink(rl);
+      if (isCardKind((r as any).kind)) {
+        cardRows++;
+        if (hit) cardMatched++;
+        continue;
+      }
+      if (hit) matched++;
       else missing++;
     }
-    return { total: list.length, matched, missing };
-  }, [rows.data, linksByRow]);
+    const claimed = new Set((links.data ?? []).filter((l) => l.is_primary).map((l) => l.file_id));
+    const unreadable = fs.filter((f: any) => f.readable === false || f.status === "unreadable").length;
+    const duplicates = fs.filter((f: any) => f.status === "duplicate").length;
+    const unmatchedFiles = fs.filter(
+      (f: any) =>
+        f.status !== "duplicate" &&
+        f.readable !== false &&
+        f.status !== "unreadable" &&
+        !claimed.has(f.id),
+    ).length;
+    const pendingFiles = fs.filter((f: any) => f.status === "uploaded").length;
+    return { total: list.length, matched, missing, cardRows, cardMatched, unreadable, duplicates, unmatchedFiles, pendingFiles };
+  }, [rows.data, linksByRow, links.data, files.data]);
 
   async function runMatch() {
     setBusy(true);
-    setProgress({ rowsTotal: rows.data?.length ?? 0, rowsDone: 0, matched: 0, needsReview: 0, notFound: 0 });
+    setProgress({
+      rowsTotal: rows.data?.length ?? 0,
+      rowsDone: 0,
+      matched: 0,
+      needsReview: 0,
+      notFound: 0,
+      cardRows: 0,
+      cardMatched: 0,
+      unreadableFiles: 0,
+      unmatchedFiles: 0,
+      duplicateFiles: 0,
+    });
     try {
       // Re-normaliza valores/datas dos comprovantes com o parser BRL corrigido
       // antes de recruzar — garante que "R$ 5.33" seja lido como 5,33.
@@ -128,9 +164,10 @@ export function ImportMatches({ batchId }: { batchId: string }) {
       }
       const p = await matchBatchReceipts(batchId, { onProgress: setProgress });
       toast.success(
-        `${p.matched} associados · ${p.needsReview} p/ conferir · ${p.notFound} sem comprovante`,
+        `${p.matched} associados · ${p.notFound} sem comprovante · ${p.cardMatched}/${p.cardRows} cartão · ${p.unreadableFiles} ilegíveis`,
       );
       qc.invalidateQueries({ queryKey: ["import-row-files", batchId] });
+      qc.invalidateQueries({ queryKey: ["import-files-simple", batchId] });
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao cruzar comprovantes");
     } finally {
@@ -145,16 +182,42 @@ export function ImportMatches({ batchId }: { batchId: string }) {
       <header className="mb-4 flex flex-wrap items-center gap-3">
         <FileSearch className="h-4 w-4 text-primary" />
         <h2 className="text-sm font-semibold">Localização automática dos comprovantes</h2>
-        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>{stats.total} linhas</span>
-          <span>· {stats.matched} associadas</span>
-          <span>· {stats.missing} não identificadas</span>
+        <div className="ml-auto text-xs text-muted-foreground">
+          {stats.total} linhas · {stats.pendingFiles > 0 ? `${stats.pendingFiles} arquivos ainda processando` : "análise completa"}
         </div>
-        <Button size="sm" onClick={runMatch} disabled={busy || rows.isLoading}>
+        <Button
+          size="sm"
+          onClick={runMatch}
+          disabled={busy || rows.isLoading || stats.pendingFiles > 0}
+          title={stats.pendingFiles > 0 ? "Aguarde a análise de todos os comprovantes terminar" : undefined}
+        >
           {busy ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3" />}
           Cruzar comprovantes
         </Button>
       </header>
+
+      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-6">
+        <Bucket label="Vinculados" value={stats.matched} tone="ok" />
+        <Bucket label="Sem comprovante" value={stats.missing} icon={<FileQuestion className="h-3.5 w-3.5" />} />
+        <Bucket label="Comprovantes órfãos" value={stats.unmatchedFiles} icon={<FileSearch className="h-3.5 w-3.5" />} />
+        <Bucket
+          label="Cartão de crédito"
+          value={`${stats.cardMatched}/${stats.cardRows}`}
+          icon={<CreditCard className="h-3.5 w-3.5" />}
+          tone="card"
+        />
+        <Bucket
+          label="Ilegíveis"
+          value={stats.unreadable}
+          icon={<FileWarning className="h-3.5 w-3.5" />}
+          tone={stats.unreadable ? "warn" : undefined}
+        />
+        <Bucket
+          label="Duplicidades"
+          value={stats.duplicates}
+          icon={<Copy className="h-3.5 w-3.5" />}
+        />
+      </div>
 
       {busy && progress && progress.rowsTotal > 0 && (
         <div className="mb-3">
@@ -172,6 +235,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
               <th className="p-2">#</th>
               <th className="p-2">Data</th>
               <th className="p-2">Descrição</th>
+              <th className="p-2">Tipo</th>
               <th className="p-2 text-right">Valor</th>
               <th className="p-2">Comprovante</th>
               <th className="p-2 text-center">Status</th>
@@ -183,11 +247,23 @@ export function ImportMatches({ batchId }: { batchId: string }) {
               const rl = (linksByRow.get(r.id) ?? []).slice().sort((a, b) => b.score - a.score);
               const primary = primaryReceiptLink(rl);
               const primaryFile = primary ? fileById.get(primary.file_id) : null;
+              const isCard = isCardKind((r as any).kind);
+              const kindLabel = (r as any).kind ? ROW_KIND_LABEL[(r as any).kind as RowKind] ?? "—" : "—";
               return (
                 <tr key={r.id} className="border-t border-border align-top">
                   <td className="p-2 text-muted-foreground">{r.row_number}</td>
                   <td className="p-2">{r.transaction_date ?? "—"}</td>
                   <td className="p-2 max-w-[240px] truncate">{r.description ?? r.payee ?? "—"}</td>
+                  <td className="p-2">
+                    {isCard ? (
+                      <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-700 dark:text-amber-400">
+                        <CreditCard className="h-3 w-3" />
+                        {kindLabel}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">{kindLabel}</span>
+                    )}
+                  </td>
                   <td className="p-2 text-right tabular-nums">
                     {typeof r.amount === "number" ? currencyBRL(r.amount) : "—"}
                   </td>
@@ -200,6 +276,8 @@ export function ImportMatches({ batchId }: { batchId: string }) {
                           {primary.page_number ? ` · p.${primary.page_number}` : ""}
                         </span>
                       </div>
+                    ) : isCard ? (
+                      <span className="text-muted-foreground italic">segregado — cartão</span>
                     ) : (
                       <span className="text-muted-foreground">não identificado</span>
                     )}
@@ -207,6 +285,10 @@ export function ImportMatches({ batchId }: { batchId: string }) {
                   <td className="p-2 text-center">
                     {primary ? (
                       <Badge className="bg-emerald-600 text-white">Identificado</Badge>
+                    ) : isCard ? (
+                      <Badge variant="outline" className="border-amber-500/50 text-amber-700 dark:text-amber-400">
+                        Cartão
+                      </Badge>
                     ) : (
                       <Badge variant="outline">Não identificado</Badge>
                     )}
@@ -221,7 +303,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
             })}
             {(rows.data ?? []).length === 0 && !rows.isLoading && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                <td colSpan={8} className="p-6 text-center text-muted-foreground">
                   Nenhuma linha nesta importação.
                 </td>
               </tr>
@@ -243,6 +325,36 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         />
       )}
     </Card>
+  );
+}
+
+function Bucket({
+  label,
+  value,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  icon?: React.ReactNode;
+  tone?: "ok" | "warn" | "card";
+}) {
+  const toneCls =
+    tone === "ok"
+      ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+      : tone === "warn"
+      ? "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+      : tone === "card"
+      ? "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+      : "border-border bg-card text-foreground";
+  return (
+    <div className={`rounded-xl border p-3 ${toneCls}`}>
+      <div className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wide opacity-80">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <p className="text-lg font-semibold tabular-nums">{value}</p>
+    </div>
   );
 }
 
