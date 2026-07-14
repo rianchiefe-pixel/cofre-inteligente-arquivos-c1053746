@@ -29,7 +29,7 @@ import {
   Loader2,
   AlertTriangle,
 } from "lucide-react";
-import { formatBrl } from "@/lib/format";
+import { currencyBRL } from "@/lib/format";
 import {
   setTransactionStatus,
   updateTransaction,
