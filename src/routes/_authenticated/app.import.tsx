@@ -34,6 +34,7 @@ import { ImportReview } from "@/components/import-review";
 import { ImportZipPanel } from "@/components/import-zip";
 import { ImportMatches } from "@/components/import-matches";
 import { ImportConference } from "@/components/import-conference";
+import { classifyRowKind } from "@/lib/import-kind";
 
 export const Route = createFileRoute("/_authenticated/app/import")({
   head: () => ({ meta: [{ title: "Importação Inteligente — Meu Cofre" }] }),
@@ -253,6 +254,11 @@ function ImportPage() {
             parsed_notes: r.parsed_notes,
             status: r.status,
             error_message: r.error ?? null,
+            kind: classifyRowKind(
+              r.normalized.description ?? r.normalized.notes,
+              r.parsed_notes.payment_method,
+              r.normalized.category,
+            ),
           }));
           const { error: rowErr } = await supabase.from("import_rows").insert(payload as any);
           if (rowErr) throw new Error(`Linha ${slice[0].row_number}: ${rowErr.message}`);
