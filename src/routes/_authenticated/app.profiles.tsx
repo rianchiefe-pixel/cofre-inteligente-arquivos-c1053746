@@ -129,7 +129,7 @@ function ProfilesPage() {
           {canManage && <DialogTrigger asChild>
             <Button variant="premium"><Plus className="h-4 w-4" /> Novo perfil</Button>
           </DialogTrigger>}
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
             <DialogHeader><DialogTitle>{editId ? "Editar perfil" : "Novo perfil"}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="space-y-4">
               <div className="space-y-2">
