@@ -39,6 +39,10 @@ function CardsPage() {
       const payload = {
         ...rest,
         user_id: u.user!.id,
+        bank_id: form.bank_id || null,
+        profile_id: form.profile_id || null,
+        last4: form.last4 || null,
+        holder: form.holder || null,
         closing_day: form.closing_day ? Number(form.closing_day) : null,
         due_day: form.due_day ? Number(form.due_day) : null,
         credit_limit: form.credit_limit ? Number(String(form.credit_limit).replace(",", ".")) : null,
