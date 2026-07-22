@@ -358,11 +358,16 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         source_id: d.source_id ?? null,
         invoice_number: d.invoice_number ?? null,
         page_number: d.page_number ?? null,
-        // Valor sempre positivo, no padrão BRL. Preferimos amount_raw quando
-        // presente para evitar que o modelo confunda "1.880,00" com 1.88.
-        amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
-        currency: d.currency ?? row.currency,
-        transaction_date: d.date ?? row.transaction_date,
+        // Valor é dado autoritativo da planilha — NUNCA sobrescrever.
+        amount: row.amount,
+        currency: row.currency,
+        transaction_date: row.transaction_date,
+        // AI suggestions saved separately
+        ai_suggested_amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
+        ai_suggested_date: d.date ?? null,
+        ai_suggested_payee: d.payee ?? null,
+        ai_suggestion_reason: parsed.meta?.data?.rationale ?? null,
+        ai_suggestion_confidence: typeof parsed.meta?.data?.confidence === "number" ? parsed.meta.data.confidence : null,
         // NUNCA sobrescreve silenciosamente a categoria vinda da planilha.
         // A sugestão da IA vai para ai_category_suggestion quando diferente.
         category: row.category ?? d.category ?? null,
