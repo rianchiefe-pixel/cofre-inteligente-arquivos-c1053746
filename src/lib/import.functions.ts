@@ -31,8 +31,8 @@ function extractJson(raw: string): any | null {
     const isArr = a !== -1 && (o === -1 || a < o);
     const start = isArr ? a : o;
     const end = isArr ? s.lastIndexOf("]") : s.lastIndexOf("}");
-    if (start === -1 || end <= start) return null;
-    s = s.slice(start, end + 1);
+    if (start === -1 || (end !== -1 && end <= start)) return null;
+    s = s.slice(start, end !== -1 ? end + 1 : s.length);
   }
   try {
     return JSON.parse(s);
