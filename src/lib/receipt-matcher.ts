@@ -214,7 +214,8 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       matched.add("amount");
     } else {
       // Valor é obrigatório e divergente.
-      divergent.push(`valor diverge (planilha R$ ${withComma} × comprovante ${ocr.amount_raw ?? `R$ ${ocrAmounts[0]?.toFixed(2) ?? '?'}`})`);
+      const ocrAmt = ocrAmounts[0] || 0;
+      divergent.push(`valor diverge: planilha R$ ${withComma} × comprovante R$ ${formatBrlNumber(ocrAmt)}`);
       return null; // Descarta imediatamente se o valor não bate.
     }
   } else if (!hasExplicit) {
