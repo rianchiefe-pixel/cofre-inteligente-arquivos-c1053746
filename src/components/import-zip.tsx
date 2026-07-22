@@ -114,7 +114,7 @@ export function ImportZipPanel({ batchId }: Props) {
           <Sparkles className="h-3.5 w-3.5" /> A IA está ativa para ler os comprovantes individualmente cada um? Mesmo quando enviado em lote?
         </p>
         <p className="mt-1 text-muted-foreground">
-          Sim. Cada arquivo dentro do ZIP é processado individualmente. A IA lê o conteúdo completo de cada PDF ou imagem (via OCR) para extrair valores, datas e favorecidos antes de realizar o cruzamento com a planilha.
+          Sim, a IA processa cada arquivo individualmente. Cada documento dentro do arquivo ZIP é extraído e lido por completo (via OCR e análise de linguagem natural) para garantir a extração precisa de valores, datas, CNPJs e favorecidos antes do cruzamento inteligente com a planilha.
         </p>
       </div>
 
