@@ -1093,16 +1093,28 @@ function RowEditor({
       </section>
 
       {/* Grupo 4 — validação */}
+      <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
+            Auditoria de Precisão Ativa
+          </h3>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Modo de <strong>exatidão absoluta</strong> ligado. Associações automáticas exigem correspondência idêntica (R$ 0,00 de diferença) e validação rigorosa de auditoria.
+        </p>
+      </section>
+
       {primary && (
         <section className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
           <div className="mb-2 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-              Correspondência confirmada
+              Vínculo de Alta Confiança
             </h3>
           </div>
           <p className="text-[11px] text-emerald-800/80 dark:text-emerald-200/80">
-            Valor, data e favorecido coincidem com o comprovante anexado.
+            {primary.is_manual ? "Associação manual realizada pelo usuário." : "Valor, data e favorecido validados com precisão absoluta."}
           </p>
         </section>
       )}
