@@ -107,7 +107,7 @@ export function ImportZipPanel({ batchId }: Props) {
     <Card className="p-5">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <FileArchive className="h-4 w-4 text-primary" />
-        Comprovantes (ZIP - Modo Precisão Máxima Ativo)
+        Comprovantes (ZIP - Auditoria de Precisão Ativa)
       </div>
       <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-primary/80">
         <p className="font-medium flex items-center gap-1.5">
