@@ -897,6 +897,11 @@ export type Database = {
           ai_property_id: string | null
           ai_property_reason: string | null
           ai_status: string
+          ai_suggested_amount: number | null
+          ai_suggested_date: string | null
+          ai_suggested_payee: string | null
+          ai_suggestion_confidence: number | null
+          ai_suggestion_reason: string | null
           amount: number | null
           bank: string | null
           batch_id: string
@@ -915,8 +920,13 @@ export type Database = {
           id: string
           invoice_number: string | null
           kind: string | null
+          manually_verified_amount_cents: number | null
           normalized_data: Json | null
           notes: string | null
+          original_amount_cents: number | null
+          original_payee: string | null
+          original_source_id: string | null
+          original_transaction_date: string | null
           page_number: string | null
           parsed_notes: Json | null
           payee: string | null
@@ -945,6 +955,11 @@ export type Database = {
           ai_property_id?: string | null
           ai_property_reason?: string | null
           ai_status?: string
+          ai_suggested_amount?: number | null
+          ai_suggested_date?: string | null
+          ai_suggested_payee?: string | null
+          ai_suggestion_confidence?: number | null
+          ai_suggestion_reason?: string | null
           amount?: number | null
           bank?: string | null
           batch_id: string
@@ -963,8 +978,13 @@ export type Database = {
           id?: string
           invoice_number?: string | null
           kind?: string | null
+          manually_verified_amount_cents?: number | null
           normalized_data?: Json | null
           notes?: string | null
+          original_amount_cents?: number | null
+          original_payee?: string | null
+          original_source_id?: string | null
+          original_transaction_date?: string | null
           page_number?: string | null
           parsed_notes?: Json | null
           payee?: string | null
@@ -993,6 +1013,11 @@ export type Database = {
           ai_property_id?: string | null
           ai_property_reason?: string | null
           ai_status?: string
+          ai_suggested_amount?: number | null
+          ai_suggested_date?: string | null
+          ai_suggested_payee?: string | null
+          ai_suggestion_confidence?: number | null
+          ai_suggestion_reason?: string | null
           amount?: number | null
           bank?: string | null
           batch_id?: string
@@ -1011,8 +1036,13 @@ export type Database = {
           id?: string
           invoice_number?: string | null
           kind?: string | null
+          manually_verified_amount_cents?: number | null
           normalized_data?: Json | null
           notes?: string | null
+          original_amount_cents?: number | null
+          original_payee?: string | null
+          original_source_id?: string | null
+          original_transaction_date?: string | null
           page_number?: string | null
           parsed_notes?: Json | null
           payee?: string | null
