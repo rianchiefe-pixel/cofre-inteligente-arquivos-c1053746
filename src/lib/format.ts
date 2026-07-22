@@ -20,7 +20,9 @@ export function parseBrlAmount(raw: unknown): number | null {
   s = s.replace(/R\$/gi, "").replace(/\s+/g, "").replace(/[^\d,.\-()]/g, "");
   if (!s) return null;
   
-  s = s.replace(/^\(([^)]*)\)$/, "-$1").replace(/^-/, "");
+  s = s.replace(/^\(([^)]*)\)$/, "-$1");
+  const isNegative = s.startsWith("-");
+  s = s.replace(/^-/, "");
   
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
@@ -42,9 +44,8 @@ export function parseBrlAmount(raw: unknown): number | null {
     if (parts.length > 1 && lastPart.length === 3) {
       s = parts.join("");
     } 
-    // Se tem 2 dígitos, tratamos como decimal (ex: 17.63)
-    // Se a auditoria for rigorosa (diferença 0), um erro aqui será pego no matcher.
-    else if (parts.length === 2 && lastPart.length <= 2) {
+    // Se tem exatamente 2 dígitos, tratamos como decimal (ex: 17.63)
+    else if (parts.length === 2 && lastPart.length === 2) {
       s = parts.join(".");
     }
     // Caso contrário (ex: 5.013 com 3 dígitos mas ponto único), tratamos como milhar
@@ -56,10 +57,10 @@ export function parseBrlAmount(raw: unknown): number | null {
   const n = Number(s);
   if (!Number.isFinite(n)) return null;
   
-  // Convertemos para centavos para evitar problemas de precisão de float em comparações
-  // mas retornamos number para manter compatibilidade com o resto do sistema.
-  // A comparação REAL deve ser feita com tolerância zero no matcher.
-  return Math.abs(Math.round(n * 100) / 100);
+  const result = isNegative ? -n : n;
+  // Retornamos o valor absoluto pois o sistema usa transaction_type para sinal,
+  // mas preservamos a precisão de centavos.
+  return Math.abs(Math.round(result * 100) / 100);
 }
 
 export function formatBrlNumber(n: number | null | undefined): string {
