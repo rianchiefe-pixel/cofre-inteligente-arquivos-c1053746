@@ -195,6 +195,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
 
   // 3. Amount (25) — exatidão absoluta exigida (comportamento de auditor).
   // Nunca permitir associação se os valores forem diferentes (R$ 0,00 permitida).
+  const hasExplicit = matched.has("path") || matched.has("id");
   const rowCents = toCents(row.amount);
   if (rowCents !== null && rowCents !== 0) {
     const ocrCents = toCents(ocr.amount_raw ?? ocr.amount);
@@ -203,10 +204,10 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     if (ocrCents !== null) {
       if (rowCents === ocrCents) {
         score += 25;
-        reasons.push({ key: "amount", label: `valor exato R$ ${formatBrlNumber(row.amount)}`, points: 25 });
+        reasons.push({ key: "amount", label: `valor exato R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
         matched.add("amount");
       } else {
-        divergent.push(`valor diverge: planilha R$ ${formatBrlNumber(row.amount)} × comprovante R$ ${formatBrlNumber(ocr.amount_raw ?? ocr.amount)}`);
+        divergent.push(`valor diverge: planilha R$ ${formatBrlNumber(row.amount as number)} × comprovante R$ ${formatBrlNumber((ocr.amount_raw ?? ocr.amount) as number)}`);
         return null;
       }
     } else {
@@ -229,13 +230,13 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
 
       if (foundExact && !foundOther) {
         score += 25;
-        reasons.push({ key: "amount", label: `valor encontrado R$ ${formatBrlNumber(row.amount)}`, points: 25 });
+        reasons.push({ key: "amount", label: `valor encontrado R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
         matched.add("amount");
       } else if (foundExact && foundOther) {
         divergent.push("Valor ambíguo — múltiplos valores financeiros no comprovante");
         return null;
       } else {
-        divergent.push(`valor não encontrado no texto: R$ ${formatBrlNumber(row.amount)}`);
+        divergent.push(`valor não encontrado no texto: R$ ${formatBrlNumber(row.amount as number)}`);
         return null;
       }
     }
