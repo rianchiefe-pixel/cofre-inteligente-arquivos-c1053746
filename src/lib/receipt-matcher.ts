@@ -222,7 +222,8 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     return null;
   }
 
-  if (!hasExplicit && !matched.has("amount")) return null;
+  // O valor é obrigatório para qualquer vínculo. Se não houver valor na linha ou não der match, já interrompemos aqui.
+  if (!matched.has("amount")) return null;
 
   // 4. Date (20) — validação rigorosa contra OCR. Somente datas compatíveis são aceitas.
   const date = String(row.transaction_date ?? "").trim();
@@ -248,6 +249,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     return null;
   }
 
+  // A data é um critério de auditoria. Se a data for divergente e não for ID explícito, desconsiderar.
   if (!hasExplicit && !matched.has("date")) return null;
 
   // 5. Payee (15)
@@ -273,6 +275,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     return null;
   }
 
+  // Favorecido é desejável para aumentar confiança.
   if (!hasExplicit && !matched.has("payee")) return null;
 
   // 6. Bank (8) + card (8) — normalize aliases (ITAÚ UNIBANCO S.A. ≡ Itaú).
