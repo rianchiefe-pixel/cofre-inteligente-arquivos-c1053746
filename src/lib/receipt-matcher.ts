@@ -64,15 +64,19 @@ function stripPageHint(raw: unknown): string {
   return String(raw ?? "").replace(/\s*(?:[|,-]\s*)?(?:p[aá]gs?\.?|p\.?)\s*\d+(?:\s*[-–]\s*\d+)?/gi, "");
 }
 
+function toCents(value: unknown): number | null {
+  const parsed = parseBrlAmount(value);
+  if (parsed === null || !Number.isFinite(parsed)) return null;
+  return Math.round(parsed * 100);
+}
+
 // Normalização absoluta de valores monetários.
 // O sistema é terminantemente proibido de vincular quando houver qualquer diferença (R$ 0,00 permitida).
 function amountsIdentical(a: unknown, b: unknown): boolean {
-  const na = parseBrlAmount(a);
-  const nb = parseBrlAmount(b);
-  if (na === null || nb === null) return false;
-  // Comparação em centavos para evitar imprecisão de float (0.1 + 0.2 !== 0.3)
-  // Diferença deve ser exatamente zero. Jamais utilizar aproximação.
-  return Math.round(na * 100) === Math.round(nb * 100);
+  const ca = toCents(a);
+  const cb = toCents(b);
+  if (ca === null || cb === null) return false;
+  return ca === cb;
 }
 
 // Hierarquia rigorosa de associação (Precisão Máxima).
@@ -192,37 +196,55 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   // 3. Amount (25) — exatidão absoluta exigida (comportamento de auditor).
   // Nunca permitir associação se os valores forem diferentes (R$ 0,00 permitida).
   const hasExplicit = matched.has("path") || matched.has("id");
-  const amt = parseBrlAmount(row.amount);
-  if (Number.isFinite(amt) && amt !== 0) {
-    const withComma = formatBrlNumber(amt);
-    const plainComma = (amt ?? 0).toFixed(2).replace(".", ",");
-    const withDot = (amt ?? 0).toFixed(2);
-    const hay = `${f.file_name} ${f.extracted_text}`;
-    const ocrAmounts = [ocr.amount, ocr.amount_raw].map(parseBrlAmount).filter((n): n is number => n !== null);
+  const rowCents = toCents(row.amount);
+  if (rowCents !== null && rowCents !== 0) {
+    const ocrCents = toCents(ocr.amount_raw ?? ocr.amount);
     
-    // O valor deve ser idêntico a pelo menos um dos valores extraídos pela IA ou estar contido no texto.
-    const hasMatch = ocrAmounts.some((ocrAmt) => amountsIdentical(amt, ocrAmt)) ||
-      hay.includes(withComma) ||
-      hay.includes(plainComma) ||
-      hay.includes(withDot) ||
-      hay.includes(`R$ ${withComma}`) ||
-      hay.includes(`R$${withComma}`);
-
-    if (hasMatch) {
-      score += 25;
-      reasons.push({ key: "amount", label: `valor R$ ${withComma}`, points: 25 });
-      matched.add("amount");
+    // Se o OCR identificou um valor, ele DEVE ser idêntico.
+    if (ocrCents !== null) {
+      if (rowCents === ocrCents) {
+        score += 25;
+        reasons.push({ key: "amount", label: `valor exato R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
+        matched.add("amount");
+      } else {
+        divergent.push(`valor diverge: planilha R$ ${formatBrlNumber(row.amount as number)} × comprovante R$ ${formatBrlNumber((ocr.amount_raw ?? ocr.amount) as number)}`);
+        return null;
+      }
     } else {
-      // Valor é obrigatório e divergente.
-      const ocrAmt = ocrAmounts[0] || 0;
-      divergent.push(`valor diverge: planilha R$ ${withComma} × comprovante R$ ${formatBrlNumber(ocrAmt)}`);
-      return null; // Descarta imediatamente se o valor não bate.
+      // Fallback: Busca exaustiva por valores monetários no texto bruto via regex.
+      // Deve respeitar fronteiras de palavra para evitar correspondência parcial.
+      const rawText = `${f.file_name} ${f.extracted_text}`;
+      const moneyRegex = /(?:R\$?\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/g;
+      let match;
+      let foundExact = false;
+      let foundOther = false;
+
+      while ((match = moneyRegex.exec(rawText)) !== null) {
+        const foundCents = toCents(match[1]);
+        if (foundCents === rowCents) {
+          foundExact = true;
+        } else if (foundCents !== null) {
+          foundOther = true;
+        }
+      }
+
+      if (foundExact && !foundOther) {
+        score += 25;
+        reasons.push({ key: "amount", label: `valor encontrado R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
+        matched.add("amount");
+      } else if (foundExact && foundOther) {
+        divergent.push("Valor ambíguo — múltiplos valores financeiros no comprovante");
+        return null;
+      } else {
+        divergent.push(`valor não encontrado no texto: R$ ${formatBrlNumber(row.amount as number)}`);
+        return null;
+      }
     }
-  } else if (!hasExplicit) {
+  } else {
+    // Linha sem valor não pode ser associada automaticamente por este motor.
     return null;
   }
 
-  // O valor é obrigatório para qualquer vínculo. Se não houver valor na linha ou não der match, já interrompemos aqui.
   if (!matched.has("amount")) return null;
 
   // 4. Date (20) — validação rigorosa contra OCR. Somente datas compatíveis são aceitas.
