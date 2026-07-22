@@ -15,32 +15,51 @@ export function parseBrlAmount(raw: unknown): number | null {
   if (typeof raw === "number" && Number.isFinite(raw)) return Math.abs(raw);
   let s = String(raw).trim();
   if (!s) return null;
-  // Remove somente "R$", espaços e caracteres inválidos, preservando dígitos,
-  // vírgula, ponto, sinal negativo e parênteses.
+  
+  // Remove R$, espaços e lixo, mantendo dígitos, vírgula, ponto e sinais básicos
   s = s.replace(/R\$/gi, "").replace(/\s+/g, "").replace(/[^\d,.\-()]/g, "");
   if (!s) return null;
+  
   s = s.replace(/^\(([^)]*)\)$/, "-$1").replace(/^-/, "");
+  
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
+  
   if (hasComma && hasDot) {
-    // ponto é milhar, vírgula é decimal
+    // Caso padrão: "1.234,56" -> 1234.56
     s = s.replace(/\./g, "").replace(",", ".");
   } else if (hasComma) {
+    // "1234,56" -> 1234.56
     s = s.replace(",", ".");
   } else if (hasDot) {
-    // Ponto único pode ser erro de OCR ("5.33" quando é "5,33"). Se houver
-    // exatamente 2 dígitos após o único ponto, tratamos como decimal; se houver
-    // 3 dígitos (padrão de milhar tipo "1.880"), preservamos como inteiro.
+    // Caso perigoso: "5.013" ou "17.63"
+    // Em BRL, se só tem ponto, ele costuma ser separador de milhar.
+    // Mas OCR pode ler "17,63" como "17.63".
     const parts = s.split(".");
-    if (parts.length === 2 && parts[1].length === 2) {
+    const lastPart = parts[parts.length - 1];
+    
+    // Se a última parte tem exatamente 3 dígitos, é quase certo que é milhar (ex: 1.000)
+    if (parts.length > 1 && lastPart.length === 3) {
+      s = parts.join("");
+    } 
+    // Se tem 2 dígitos, tratamos como decimal (ex: 17.63)
+    // Se a auditoria for rigorosa (diferença 0), um erro aqui será pego no matcher.
+    else if (parts.length === 2 && lastPart.length <= 2) {
       s = parts.join(".");
-    } else {
+    }
+    // Caso contrário (ex: 5.013 com 3 dígitos mas ponto único), tratamos como milhar
+    else {
       s = parts.join("");
     }
   }
+
   const n = Number(s);
   if (!Number.isFinite(n)) return null;
-  return Math.abs(n);
+  
+  // Convertemos para centavos para evitar problemas de precisão de float em comparações
+  // mas retornamos number para manter compatibilidade com o resto do sistema.
+  // A comparação REAL deve ser feita com tolerância zero no matcher.
+  return Math.abs(Math.round(n * 100) / 100);
 }
 
 export function formatBrlNumber(n: number | null | undefined): string {

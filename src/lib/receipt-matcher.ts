@@ -64,22 +64,21 @@ function stripPageHint(raw: unknown): string {
   return String(raw ?? "").replace(/\s*(?:[|,-]\s*)?(?:p[aá]gs?\.?|p\.?)\s*\d+(?:\s*[-–]\s*\d+)?/gi, "");
 }
 
-// Normalização absoluta de valores monetários. 
-// O sistema é terminantemente proibido de vincular quando houver qualquer diferença (R$ 0,00 permitida).
-// Normalização absoluta de valores monetários. 
+// Normalização absoluta de valores monetários.
 // O sistema é terminantemente proibido de vincular quando houver qualquer diferença (R$ 0,00 permitida).
 function amountsIdentical(a: unknown, b: unknown): boolean {
   const na = parseBrlAmount(a);
   const nb = parseBrlAmount(b);
   if (na === null || nb === null) return false;
+  // Comparação em centavos para evitar imprecisão de float (0.1 + 0.2 !== 0.3)
   // Diferença deve ser exatamente zero. Jamais utilizar aproximação.
-  return Math.abs(na - nb) === 0;
+  return Math.round(na * 100) === Math.round(nb * 100);
 }
 
 // Hierarquia rigorosa de associação (Precisão Máxima).
 // Nenhuma associação ocorre sem evidência clara e determinística.
 function gatedTier(raw: number, matched: Set<string>, divergent: string[]): MatchTier {
-  // Se houver qualquer divergência explícita (data diferente, favorecido diferente, etc), 
+  // Se houver qualquer divergência explícita (data diferente, favorecido diferente, etc),
   // a associação deve ser imediatamente descartada.
   if (divergent.length > 0) return "none";
 
@@ -215,7 +214,8 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       matched.add("amount");
     } else {
       // Valor é obrigatório e divergente.
-      divergent.push(`valor diverge (planilha R$ ${withComma} × comprovante ${ocr.amount_raw ?? `R$ ${ocrAmounts[0]?.toFixed(2) ?? '?'}`})`);
+      const ocrAmt = ocrAmounts[0] || 0;
+      divergent.push(`valor diverge: planilha R$ ${withComma} × comprovante R$ ${formatBrlNumber(ocrAmt)}`);
       return null; // Descarta imediatamente se o valor não bate.
     }
   } else if (!hasExplicit) {

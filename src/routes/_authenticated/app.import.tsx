@@ -18,7 +18,9 @@ import {
   Sparkles,
   History,
   Building2,
+  Beaker,
 } from "lucide-react";
+import { runTests } from "@/lib/matcher.test";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { reanalyzeBatchProperties } from "@/lib/import.functions";
@@ -317,8 +319,8 @@ function ImportPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-4">
-        <div>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex-1 min-w-[280px]">
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
             Importação Inteligente
           </h1>
@@ -327,9 +329,20 @@ function ImportPage() {
             automaticamente, mesmo quando existem títulos ou linhas em branco no início.
           </p>
         </div>
-        <Badge variant="secondary" className="hidden sm:inline-flex gap-1">
-          <Sparkles className="h-3 w-3" /> Parte 1 · Leitura Inteligente
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+            onClick={() => runTests()}
+          >
+            <Beaker className="h-3.5 w-3.5" />
+            Validar Motor
+          </Button>
+          <Badge variant="secondary" className="hidden sm:inline-flex gap-1">
+            <Sparkles className="h-3 w-3" /> Parte 1 · Leitura Inteligente
+          </Badge>
+        </div>
       </header>
 
       <Card className="p-5">
