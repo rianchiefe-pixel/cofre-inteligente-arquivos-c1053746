@@ -79,71 +79,20 @@ function normText(s: string): string {
     .replace(/[ \t]+/g, " ");
 }
 
+import { parseMoneyToCents } from "@/lib/format";
+
 function parseBrlNumber(raw: string): number | null {
-  return parseBrlAmount(raw);
+  const cents = parseMoneyToCents(raw);
+  return cents !== null ? cents / 100 : null;
 }
 
-// ---------------------------------------------------------------------------
-// Robust BRL amount parser.
-//
-// Regras (padrão brasileiro):
-//   • vírgula = separador decimal
-//   • ponto   = separador de milhar
-//   • remove apenas "R$", espaços (incl. NBSP/thin) e caracteres não numéricos
-//     acessórios; preserva centavos
-//
-// Também corrige erros comuns de OCR:
-//   • "5.33"     → 5,33   (OCR trocou vírgula por ponto)
-//   • "1 700,00" → 1700,00
-//   • "1.700"    → 1700   (ponto como separador de milhar)
-//   • "533" quando o texto exibe "5,33" — não sabemos sem outra referência,
-//     então NÃO inventamos vírgula: retornamos 533 e deixamos a comparação
-//     com a planilha divergir explicitamente.
-// ---------------------------------------------------------------------------
+/**
+ * Robust BRL amount parser.
+ * Centralizado para retornar floats (mantido para compatibilidade onde necessário).
+ */
 export function parseBrlAmount(raw: string | number | null | undefined): number | null {
-  if (raw == null) return null;
-  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-  let s = String(raw).trim();
-  if (!s) return null;
-  // strip currency + all whitespace variants (regular, NBSP, thin, narrow-nbsp)
-  s = s
-    .replace(/R\$/gi, "")
-    .replace(/[\s\u00A0\u2007\u202F\u2009]/g, "")
-    .replace(/[^0-9.,\-]/g, "");
-  if (!s) return null;
-  const neg = s.startsWith("-");
-  s = s.replace(/-/g, "");
-
-  const hasComma = s.includes(",");
-  const hasDot = s.includes(".");
-
-  let normalized: string;
-  if (hasComma && hasDot) {
-    // "1.700,00" — ponto = milhar, vírgula = decimal.
-    normalized = s.replace(/\./g, "").replace(",", ".");
-  } else if (hasComma) {
-    // "5,33" ou "1500,75" — vírgula sempre decimal.
-    // Se por engano vieram várias vírgulas, mantém a última como decimal.
-    const parts = s.split(",");
-    const dec = parts.pop()!;
-    normalized = parts.join("") + "." + dec;
-  } else if (hasDot) {
-    const parts = s.split(".");
-    const last = parts[parts.length - 1];
-    if (parts.length === 2 && (last.length === 1 || last.length === 2)) {
-      // "5.33" / "5.3" — OCR trocou vírgula por ponto → decimal.
-      normalized = parts[0] + "." + last;
-    } else {
-      // "1.700" / "1.234.567" — pontos = separador de milhar.
-      normalized = parts.join("");
-    }
-  } else {
-    normalized = s;
-  }
-
-  const n = parseFloat(normalized);
-  if (!Number.isFinite(n)) return null;
-  return neg ? -n : n;
+  const cents = parseMoneyToCents(raw);
+  return cents !== null ? cents / 100 : null;
 }
 
 function parseDateBR(raw: string): string | null {

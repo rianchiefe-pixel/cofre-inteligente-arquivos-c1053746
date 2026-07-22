@@ -31,8 +31,8 @@ function extractJson(raw: string): any | null {
     const isArr = a !== -1 && (o === -1 || a < o);
     const start = isArr ? a : o;
     const end = isArr ? s.lastIndexOf("]") : s.lastIndexOf("}");
-    if (start === -1 || end <= start) return null;
-    s = s.slice(start, end + 1);
+    if (start === -1 || (end !== -1 && end <= start)) return null;
+    s = s.slice(start, end !== -1 ? end + 1 : s.length);
   }
   try {
     return JSON.parse(s);
@@ -358,13 +358,18 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         source_id: d.source_id ?? null,
         invoice_number: d.invoice_number ?? null,
         page_number: d.page_number ?? null,
-        // Valor sempre positivo, no padrão BRL. Preferimos amount_raw quando
-        // presente para evitar que o modelo confunda "1.880,00" com 1.88.
-        amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
-        currency: d.currency ?? row.currency,
-        transaction_date: d.date ?? row.transaction_date,
+        // NUNCA sobrescreve silenciosamente os dados financeiros da planilha.
+        amount: row.amount,
+        currency: row.currency,
+        transaction_date: row.transaction_date,
+        // Sugestões da IA salvos separadamente (auditáveis)
+        ai_suggested_amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
+        ai_suggested_date: d.date ?? null,
+        ai_suggested_payee: d.payee ?? null,
+        ai_suggestion_reason: parsed.meta?.data?.rationale ?? null,
+        ai_suggestion_confidence:
+          typeof parsed.meta?.data?.confidence === "number" ? parsed.meta.data.confidence : null,
         // NUNCA sobrescreve silenciosamente a categoria vinda da planilha.
-        // A sugestão da IA vai para ai_category_suggestion quando diferente.
         category: row.category ?? d.category ?? null,
         category_original: row.category_original ?? row.category ?? null,
         ai_category_suggestion:
@@ -388,7 +393,7 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         // Preserve the ORIGINAL description text — never overwrite with AI output.
         description: row.description,
         notes: d.notes ?? row.notes,
-      })
+      } as any)
       .eq("id", row.id);
 
     return { ok: true as const, rowId: row.id };

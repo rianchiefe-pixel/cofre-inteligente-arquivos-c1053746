@@ -595,16 +595,23 @@ export function ImportConference({
               size="sm"
               variant="ghost"
               className="h-8 rounded-full"
-              onClick={handleReprocessAmounts}
-              disabled={reprocessing}
-              title="Recorrige valores salvos como -1.88 / -1511 usando o padrão brasileiro."
+              onClick={async () => {
+                try {
+                  setReprocessing(true);
+                  await reprocessFn({ data: { batchId } });
+                  toast.success("Dados restaurados a partir dos originais");
+                  invalidate();
+                } catch (e: any) {
+                  toast.error(e?.message ?? "Falha ao restaurar");
+                } finally {
+                  setReprocessing(false);
+                }
+              }}
+              disabled={reprocessing || !activeRow}
+              title="Restaura os valores monetários originais da planilha (imuláveis)."
             >
-              {reprocessing ? (
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-              ) : (
-                <Sparkles className="mr-1 h-3 w-3" />
-              )}
-              Recorrigir valores
+              <RotateCw className={`mr-1 h-3 w-3 ${reprocessing ? "animate-spin" : ""}`} />
+              Restaurar originais
             </Button>
             <Button
               size="sm"

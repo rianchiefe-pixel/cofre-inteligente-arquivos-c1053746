@@ -1,66 +1,64 @@
 export const currencyBRL = (v: number | null | undefined) =>
   (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-// -----------------------------------------------------------------------------
-// Padrão brasileiro de valores monetários
-//   - vírgula = separador decimal
-//   - ponto   = separador de milhar
-//   - "R$ 1.880,00" → 1880.00 (nunca 1.88, nunca 1880*100)
-//   - "R$ 15,11"    → 15.11   (nunca 1511)
-// O valor numérico é sempre positivo; a natureza (Despesa/Investimento) fica
-// no campo `transaction_type`, nunca representada pelo sinal.
-// -----------------------------------------------------------------------------
-export function parseBrlAmount(raw: unknown): number | null {
+/**
+ * Função central de parsing monetário para centavos.
+ * NUNCA use floats para comparações financeiras.
+ * parseMoneyToCents("R$ 5.013,00") === 501300
+ * parseMoneyToCents("R$ 5,01") === 501
+ */
+export function parseMoneyToCents(raw: unknown): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
-  if (typeof raw === "number" && Number.isFinite(raw)) return Math.abs(raw);
+  if (typeof raw === "number") return Math.round(Math.abs(raw) * 100);
+
   let s = String(raw).trim();
   if (!s) return null;
-  
+
   // Remove R$, espaços e lixo, mantendo dígitos, vírgula, ponto e sinais básicos
   s = s.replace(/R\$/gi, "").replace(/\s+/g, "").replace(/[^\d,.\-()]/g, "");
   if (!s) return null;
-  
+
   s = s.replace(/^\(([^)]*)\)$/, "-$1");
   const isNegative = s.startsWith("-");
   s = s.replace(/^-/, "");
-  
+
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
-  
+
   if (hasComma && hasDot) {
-    // Caso padrão: "1.234,56" -> 1234.56
-    s = s.replace(/\./g, "").replace(",", ".");
+    // Caso padrão: "1.234,56" -> 123456
+    s = s.replace(/\./g, "").replace(",", "");
   } else if (hasComma) {
-    // "1234,56" -> 1234.56
-    s = s.replace(",", ".");
+    // "1234,56" -> 123456
+    s = s.replace(",", "");
   } else if (hasDot) {
     // Caso perigoso: "5.013" ou "17.63"
-    // Em BRL, se só tem ponto, ele costuma ser separador de milhar.
-    // Mas OCR pode ler "17,63" como "17.63".
     const parts = s.split(".");
     const lastPart = parts[parts.length - 1];
-    
-    // Se a última parte tem exatamente 3 dígitos, é quase certo que é milhar (ex: 1.000)
-    if (parts.length > 1 && lastPart.length === 3) {
+
+    // Em BRL, se só tem ponto e a última parte tem 2 dígitos, é decimal (ex: 17.63)
+    if (parts.length === 2 && lastPart.length === 2) {
       s = parts.join("");
-    } 
-    // Se tem exatamente 2 dígitos, tratamos como decimal (ex: 17.63)
-    else if (parts.length === 2 && lastPart.length === 2) {
-      s = parts.join(".");
     }
-    // Caso contrário (ex: 5.013 com 3 dígitos mas ponto único), tratamos como milhar
+    // Se tem 3 dígitos ou mais de um ponto, é milhar
     else {
-      s = parts.join("");
+      s = parts.join("") + "00";
     }
+  } else {
+    // Sem separadores: "1234" -> 123400 (assume-se valor inteiro se não houver indicação de centavos)
+    s = s + "00";
   }
 
-  const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  
-  const result = isNegative ? -n : n;
-  // Retornamos o valor absoluto pois o sistema usa transaction_type para sinal,
-  // mas preservamos a precisão de centavos.
-  return Math.abs(Math.round(result * 100) / 100);
+  const n = parseInt(s, 10);
+  if (Number.isNaN(n)) return null;
+
+  return Math.abs(n);
+}
+
+/** @deprecated Use parseMoneyToCents instead for accuracy */
+export function parseBrlAmount(raw: unknown): number | null {
+  const cents = parseMoneyToCents(raw);
+  return cents !== null ? cents / 100 : null;
 }
 
 export function formatBrlNumber(n: number | null | undefined): string {
