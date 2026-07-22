@@ -358,18 +358,18 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         source_id: d.source_id ?? null,
         invoice_number: d.invoice_number ?? null,
         page_number: d.page_number ?? null,
-        // Valor é dado autoritativo da planilha — NUNCA sobrescrever.
+        // NUNCA sobrescreve silenciosamente os dados financeiros da planilha.
         amount: row.amount,
         currency: row.currency,
         transaction_date: row.transaction_date,
-        // AI suggestions saved separately
+        // Sugestões da IA salvos separadamente (auditáveis)
         ai_suggested_amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
         ai_suggested_date: d.date ?? null,
         ai_suggested_payee: d.payee ?? null,
         ai_suggestion_reason: parsed.meta?.data?.rationale ?? null,
-        ai_suggestion_confidence: typeof parsed.meta?.data?.confidence === "number" ? parsed.meta.data.confidence : null,
+        ai_suggestion_confidence:
+          typeof parsed.meta?.data?.confidence === "number" ? parsed.meta.data.confidence : null,
         // NUNCA sobrescreve silenciosamente a categoria vinda da planilha.
-        // A sugestão da IA vai para ai_category_suggestion quando diferente.
         category: row.category ?? d.category ?? null,
         category_original: row.category_original ?? row.category ?? null,
         ai_category_suggestion:
@@ -393,7 +393,7 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         // Preserve the ORIGINAL description text — never overwrite with AI output.
         description: row.description,
         notes: d.notes ?? row.notes,
-      })
+      } as any)
       .eq("id", row.id);
 
     return { ok: true as const, rowId: row.id };
