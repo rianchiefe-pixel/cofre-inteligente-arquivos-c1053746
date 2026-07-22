@@ -66,6 +66,8 @@ function stripPageHint(raw: unknown): string {
 
 // Normalização absoluta de valores monetários. 
 // O sistema é terminantemente proibido de vincular quando houver qualquer diferença (R$ 0,00 permitida).
+// Normalização absoluta de valores monetários. 
+// O sistema é terminantemente proibido de vincular quando houver qualquer diferença (R$ 0,00 permitida).
 function amountsIdentical(a: unknown, b: unknown): boolean {
   const na = parseBrlAmount(a);
   const nb = parseBrlAmount(b);
@@ -75,8 +77,12 @@ function amountsIdentical(a: unknown, b: unknown): boolean {
 }
 
 // Hierarquia rigorosa de associação (Precisão Máxima).
-// Nenhuma associação ocorre sem evidência clara.
-function gatedTier(raw: number, matched: Set<string>): MatchTier {
+// Nenhuma associação ocorre sem evidência clara e determinística.
+function gatedTier(raw: number, matched: Set<string>, divergent: string[]): MatchTier {
+  // Se houver qualquer divergência explícita (data diferente, favorecido diferente, etc), 
+  // a associação deve ser imediatamente descartada.
+  if (divergent.length > 0) return "none";
+
   const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
   
@@ -84,7 +90,8 @@ function gatedTier(raw: number, matched: Set<string>): MatchTier {
   if (hasId && matched.has("amount")) return "very_high";
   
   // 2. Trio Principal (Valor + Data + Favorecido) é Confiança Alta (High)
-  if (coreOk) return "high";
+  // O valor é obrigatório para qualquer vínculo automático.
+  if (coreOk && matched.has("amount")) return "high";
   
   // 3. Valor + Data + Complementar (Banco ou Documento) é Confiança de Revisão (Review)
   if (matched.has("amount") && matched.has("date") && (matched.has("bank") || matched.has("doc"))) {
@@ -193,25 +200,30 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     const withDot = (amt ?? 0).toFixed(2);
     const hay = `${f.file_name} ${f.extracted_text}`;
     const ocrAmounts = [ocr.amount, ocr.amount_raw].map(parseBrlAmount).filter((n): n is number => n !== null);
-    if (
-      ocrAmounts.some((ocrAmt) => amountsIdentical(amt, ocrAmt)) ||
+    
+    // O valor deve ser idêntico a pelo menos um dos valores extraídos pela IA ou estar contido no texto.
+    const hasMatch = ocrAmounts.some((ocrAmt) => amountsIdentical(amt, ocrAmt)) ||
       hay.includes(withComma) ||
       hay.includes(plainComma) ||
       hay.includes(withDot) ||
       hay.includes(`R$ ${withComma}`) ||
-      hay.includes(`R$${withComma}`)
-    ) {
+      hay.includes(`R$${withComma}`);
+
+    if (hasMatch) {
       score += 25;
       reasons.push({ key: "amount", label: `valor R$ ${withComma}`, points: 25 });
       matched.add("amount");
-    } else if (ocrAmounts.length > 0) {
-      divergent.push(`valor diverge (planilha R$ ${withComma} × comprovante ${ocr.amount_raw ?? `R$ ${ocrAmounts[0].toFixed(2)}`})`);
+    } else {
+      // Valor é obrigatório e divergente.
+      divergent.push(`valor diverge (planilha R$ ${withComma} × comprovante ${ocr.amount_raw ?? `R$ ${ocrAmounts[0]?.toFixed(2) ?? '?'}`})`);
+      return null; // Descarta imediatamente se o valor não bate.
     }
   } else if (!hasExplicit) {
     return null;
   }
 
-  if (!hasExplicit && !matched.has("amount")) return null;
+  // O valor é obrigatório para qualquer vínculo. Se não houver valor na linha ou não der match, já interrompemos aqui.
+  if (!matched.has("amount")) return null;
 
   // 4. Date (20) — validação rigorosa contra OCR. Somente datas compatíveis são aceitas.
   const date = String(row.transaction_date ?? "").trim();
@@ -223,17 +235,21 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     const dmy4 = `${d}.${m}.${y}`;
     const ymd = `${y}${m}${d}`;
     const hay = `${f.file_name} ${f.original_path} ${f.extracted_text}`;
-    if (ocr.date === date || hay.includes(date) || hay.includes(dmy) || hay.includes(dmy2) || hay.includes(dmy3) || hay.includes(dmy4) || hay.includes(ymd)) {
+    
+    const dateHit = ocr.date === date || hay.includes(date) || hay.includes(dmy) || hay.includes(dmy2) || hay.includes(dmy3) || hay.includes(dmy4) || hay.includes(ymd);
+
+    if (dateHit) {
       score += 20;
       reasons.push({ key: "date", label: `data ${date}`, points: 20 });
       matched.add("date");
     } else if (ocr.date && ocr.date !== date) {
       divergent.push(`data diverge (planilha ${date} × comprovante ${ocr.date})`);
     }
-  } else if (!hasExplicit) {
+  } else if (!hasExplicit && !matched.has("amount")) {
     return null;
   }
 
+  // A data é um critério de auditoria. Se a data for divergente e não for ID explícito, desconsiderar.
   if (!hasExplicit && !matched.has("date")) return null;
 
   // 5. Payee (15)
@@ -259,6 +275,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     return null;
   }
 
+  // Favorecido é desejável para aumentar confiança.
   if (!hasExplicit && !matched.has("payee")) return null;
 
   // 6. Bank (8) + card (8) — normalize aliases (ITAÚ UNIBANCO S.A. ≡ Itaú).
@@ -343,7 +360,11 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
 
   if (score <= 0) return null;
   if (score > 100) score = 100;
-  const confidence = gatedTier(score, matched);
+
+  // REGRA DE OURO: Se o valor não bateu exatamente, nunca vincular automaticamente.
+  if (!matched.has("amount")) return null;
+
+  const confidence = gatedTier(score, matched, divergent);
   if (confidence === "none") return null;
 
   // Prefer page from row hint, else file name hint
@@ -481,8 +502,17 @@ export async function matchBatchReceipts(
       if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) scored.push(c);
     }
     scored.sort((a, b) => b.score - a.score);
+    
+    // Filtro final de segurança: Se houver mais de uma opção com a mesma pontuação máxima,
+    // não vincular nenhuma automaticamente (conflito de ambiguos).
     const top = scored[0];
     if (top) {
+      const ties = scored.filter(s => s.score === top.score).length;
+      if (ties > 1) {
+        // Ambiguidade detectada: duas ou mais opções são igualmente boas.
+        // O sistema deve privilegiar a segurança e não associar nenhuma.
+        continue;
+      }
       bestByRow.set(row.id, top);
       if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
       fileClaims.get(top.fileId)!.push(row.id);
