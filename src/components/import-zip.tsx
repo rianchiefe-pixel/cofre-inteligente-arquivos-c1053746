@@ -116,6 +116,7 @@ export function ImportZipPanel({ batchId }: Props) {
         <p className="mt-1 text-muted-foreground">
           Sim. Cada arquivo dentro do ZIP é processado individualmente. A IA lê o conteúdo completo de cada PDF ou imagem (via OCR) para extrair valores, datas e favorecidos antes de realizar o cruzamento com a planilha.
         </p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <input
