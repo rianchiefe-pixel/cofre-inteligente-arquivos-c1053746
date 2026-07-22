@@ -1,5 +1,5 @@
-import { parseBrlAmount, formatBrlNumber } from "./format";
-import { matchBatchReceipts } from "./receipt-matcher";
+import { parseBrlAmount, formatBrlNumber } from "./format.ts";
+import { matchBatchReceipts } from "./receipt-matcher.ts";
 
 export function runTests() {
   console.log("🚀 Iniciando suíte de testes do Motor de Conciliação...");
@@ -66,4 +66,9 @@ export function runTests() {
   }
   
   return failed === 0;
+}
+
+// Executa se chamado diretamente
+if (import.meta.main || process.argv[1]?.includes('matcher.test.ts')) {
+  runTests();
 }

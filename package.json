@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:matcher": "node -e 'import(\"./src/lib/matcher.test.ts\").then(m => m.runTests())'"
+    "test:matcher": "bun src/lib/matcher.test.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.5",
