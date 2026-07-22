@@ -234,14 +234,17 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     const dmy4 = `${d}.${m}.${y}`;
     const ymd = `${y}${m}${d}`;
     const hay = `${f.file_name} ${f.original_path} ${f.extracted_text}`;
-    if (ocr.date === date || hay.includes(date) || hay.includes(dmy) || hay.includes(dmy2) || hay.includes(dmy3) || hay.includes(dmy4) || hay.includes(ymd)) {
+    
+    const dateHit = ocr.date === date || hay.includes(date) || hay.includes(dmy) || hay.includes(dmy2) || hay.includes(dmy3) || hay.includes(dmy4) || hay.includes(ymd);
+
+    if (dateHit) {
       score += 20;
       reasons.push({ key: "date", label: `data ${date}`, points: 20 });
       matched.add("date");
     } else if (ocr.date && ocr.date !== date) {
       divergent.push(`data diverge (planilha ${date} × comprovante ${ocr.date})`);
     }
-  } else if (!hasExplicit) {
+  } else if (!hasExplicit && !matched.has("amount")) {
     return null;
   }
 
