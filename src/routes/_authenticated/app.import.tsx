@@ -18,7 +18,9 @@ import {
   Sparkles,
   History,
   Building2,
+  Beaker,
 } from "lucide-react";
+import { runTests } from "@/lib/matcher.test";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { reanalyzeBatchProperties } from "@/lib/import.functions";
