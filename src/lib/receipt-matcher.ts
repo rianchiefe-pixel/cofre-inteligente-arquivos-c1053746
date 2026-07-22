@@ -64,10 +64,10 @@ function stripPageHint(raw: unknown): string {
   return String(raw ?? "").replace(/\s*(?:[|,-]\s*)?(?:p[aá]gs?\.?|p\.?)\s*\d+(?:\s*[-–]\s*\d+)?/gi, "");
 }
 
+import { parseMoneyToCents } from "@/lib/format";
+
 function toCents(value: unknown): number | null {
-  const parsed = parseBrlAmount(value);
-  if (parsed === null || !Number.isFinite(parsed)) return null;
-  return Math.round(parsed * 100);
+  return parseMoneyToCents(value);
 }
 
 // Normalização absoluta de valores monetários.
@@ -184,8 +184,8 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   for (const id of ids) {
     const d = digits(id);
     const n = norm(id);
-    if ((d && d.length >= 4 && (f.nameNorm.includes(d) || f.pathNorm.includes(d) || f.textNorm.includes(d))) ||
-        (n && n.length >= 4 && (f.nameNorm.includes(n) || f.textNorm.includes(n)))) {
+    if ((d && d.length >= 4 && (f.nameNorm === d || f.pathNorm === d || f.textNorm === d)) ||
+        (n && n.length >= 4 && (f.nameNorm === n || f.textNorm === n))) {
       score += 35;
       reasons.push({ key: "id", label: `ID/transação: ${id}`, points: 35 });
       matched.add("id");

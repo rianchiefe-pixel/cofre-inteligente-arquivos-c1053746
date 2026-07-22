@@ -268,33 +268,11 @@ export function detectHeader(matrix: unknown[][]): HeaderDetection {
 // Value parsing
 // ---------------------------------------------------------------------------
 
+import { parseMoneyToCents } from "@/lib/format";
+
 export function parseBRLNumber(raw: unknown): number | null {
-  if (raw === null || raw === undefined || raw === "") return null;
-  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
-  let s = String(raw).trim();
-  if (!s) return null;
-  let negative = false;
-  if (s.startsWith("(") && s.endsWith(")")) {
-    negative = true;
-    s = s.slice(1, -1);
-  }
-  s = s.replace(/r\$\s*/i, "").replace(/\s/g, "");
-  if (s.startsWith("-")) {
-    negative = true;
-    s = s.slice(1);
-  }
-  // Format: "1.234.567,89" -> "1234567.89"; "1234.56" -> "1234.56"; "1234,56" -> "1234.56"
-  const hasComma = s.includes(",");
-  const hasDot = s.includes(".");
-  if (hasComma && hasDot) {
-    // dot is thousands separator
-    s = s.replace(/\./g, "").replace(",", ".");
-  } else if (hasComma) {
-    s = s.replace(",", ".");
-  }
-  const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  return negative ? -n : n;
+  const cents = parseMoneyToCents(raw);
+  return cents !== null ? cents / 100 : null;
 }
 
 export function parseBRDate(raw: unknown): string | null {
