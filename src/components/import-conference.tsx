@@ -341,7 +341,7 @@ export function ImportConference({
             ? parseBrlAmount(v)
             : typeof v === "number"
               ? v
-              : parseFloat(String(v).replace(",", "."));
+              : parseFloat(String(v).replace(/\./g, "").replace(",", "."));
         if (n !== null && Number.isFinite(n)) overrides[f.key] = Math.abs(n);
       } else {
         overrides[f.key] = String(v);
