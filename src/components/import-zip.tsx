@@ -109,6 +109,13 @@ export function ImportZipPanel({ batchId }: Props) {
         <FileArchive className="h-4 w-4 text-primary" />
         Comprovantes (ZIP com PDFs e imagens)
       </div>
+      <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-primary/80">
+        <p className="font-medium flex items-center gap-1.5">
+          <Sparkles className="h-3.5 w-3.5" /> A IA está ativa para ler os comprovantes individualmente cada um? Mesmo quando enviado em lote?
+        </p>
+        <p className="mt-1 text-muted-foreground">
+          Sim. Cada arquivo dentro do ZIP é processado individualmente. A IA lê o conteúdo completo de cada PDF ou imagem (via OCR) para extrair valores, datas e favorecidos antes de realizar o cruzamento com a planilha.
+        </p>
 
       <div className="flex flex-wrap items-center gap-3">
         <input
