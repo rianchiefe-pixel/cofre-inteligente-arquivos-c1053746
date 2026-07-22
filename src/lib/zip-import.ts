@@ -480,9 +480,15 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
   }
 
   try {
+    // Processamento sequencial e individual para precisão máxima (comportamento de auditor)
     for (const f of list) {
       if (signal?.aborted) break;
       onProgress?.({ processed, total, pages, errors, current: f.original_path });
+      
+      // Delay artificial para garantir que o sistema não tente "correr" e errar
+      // e para dar tempo de limpeza de memória se necessário
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       try {
         const path = f.storage_path;
         if (!path) throw new Error("Sem caminho no storage");

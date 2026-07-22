@@ -80,18 +80,18 @@ function gatedTier(raw: number, matched: Set<string>): MatchTier {
   const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
   
-  // 1. Identificador único (E2E, NSU, Autenticação) + Valor
+  // 1. Identificador único (E2E, NSU, Autenticação) + Valor é a confiança absoluta (Very High)
   if (hasId && matched.has("amount")) return "very_high";
   
-  // 2. Valor + Data + Favorecido (Trio Principal)
+  // 2. Trio Principal (Valor + Data + Favorecido) é Confiança Alta (High)
   if (coreOk) return "high";
   
-  // 3. Valor + Data (Apenas se houver complementar de alta confiança)
+  // 3. Valor + Data + Complementar (Banco ou Documento) é Confiança de Revisão (Review)
   if (matched.has("amount") && matched.has("date") && (matched.has("bank") || matched.has("doc"))) {
     return "review";
   }
 
-  // Se houver dúvida ou múltiplas possibilidades, permanece pendente (none).
+  // Qualquer outra combinação que gere dúvida permanece na lista de "Não Associados" (none).
   return "none";
 }
 
@@ -183,7 +183,8 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     }
   }
 
-  // 3. Amount (25) — exact BRL match only. Never use loose digit matching.
+  // 3. Amount (25) — exatidão absoluta exigida (comportamento de auditor).
+  // Nunca permitir associação se os valores forem diferentes (R$ 0,00 permitida).
   const hasExplicit = matched.has("path") || matched.has("id");
   const amt = parseBrlAmount(row.amount);
   if (Number.isFinite(amt) && amt !== 0) {
@@ -212,7 +213,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
 
   if (!hasExplicit && !matched.has("amount")) return null;
 
-  // 4. Date (20) — compare against OCR-extracted ISO date first.
+  // 4. Date (20) — validação rigorosa contra OCR. Somente datas compatíveis são aceitas.
   const date = String(row.transaction_date ?? "").trim();
   if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
     const [y, m, d] = date.split("-");
@@ -548,8 +549,8 @@ export async function matchBatchReceipts(
     if (!top) {
       progress.notFound++;
     } else if (claims.length > 1) {
-      // Fail closed: when the same receipt would serve more than one row,
-      // none of the competing rows receives an automatic primary link.
+      // Regra Conservadora: se existir mais de uma possibilidade compatível, 
+      // cancela a associação automática para evitar suposições.
       progress.needsReview++;
     } else {
       progress.matched++;
