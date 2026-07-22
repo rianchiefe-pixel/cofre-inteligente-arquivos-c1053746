@@ -102,6 +102,12 @@ function gatedTier(raw: number, matched: Set<string>, divergent: string[]): Matc
   return "none";
 }
 
+function amountsIdentical(a: number | null, b: number | null): boolean {
+  if (a === null || b === null) return false;
+  // Comparação em centavos para evitar imprecisão de float
+  return Math.round(a * 100) === Math.round(b * 100);
+}
+
 function isAcceptedTier(confidence: MatchTier): boolean {
   return confidence === "very_high" || confidence === "high";
 }
