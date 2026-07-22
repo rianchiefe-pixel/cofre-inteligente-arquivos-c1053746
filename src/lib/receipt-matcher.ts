@@ -64,27 +64,34 @@ function stripPageHint(raw: unknown): string {
   return String(raw ?? "").replace(/\s*(?:[|,-]\s*)?(?:p[aá]gs?\.?|p\.?)\s*\d+(?:\s*[-–]\s*\d+)?/gi, "");
 }
 
-function amountsClose(a: unknown, b: unknown): boolean {
+// Normalização absoluta de valores monetários. 
+// O sistema é terminantemente proibido de vincular quando houver qualquer diferença (R$ 0,00 permitida).
+function amountsIdentical(a: unknown, b: unknown): boolean {
   const na = parseBrlAmount(a);
   const nb = parseBrlAmount(b);
-  if (!Number.isFinite(na) || !Number.isFinite(nb)) return false;
-  return Math.abs((na ?? 0) - (nb ?? 0)) < 0.02;
+  if (na === null || nb === null) return false;
+  // Diferença deve ser exatamente zero. Jamais utilizar aproximação.
+  return Math.abs(na - nb) === 0;
 }
 
-// Aceita o vínculo automático em duas vias:
-//   (a) a planilha indica explicitamente o arquivo/ID (coluna file_name /
-//       folder_path / source_id / invoice_number) e ele bate — determinístico,
-//       não precisa do OCR concordar em tudo.
-//   (b) trio principal: valor + data + favorecido — para quando a planilha não
-//       nomeia o arquivo, mas o conteúdo do comprovante confirma.
+// Hierarquia rigorosa de associação (Precisão Máxima).
+// Nenhuma associação ocorre sem evidência clara.
 function gatedTier(raw: number, matched: Set<string>): MatchTier {
-  const explicit = matched.has("path") || matched.has("id");
+  const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
-  const complementary = ["bank", "holder", "payment_method", "auth", "txid", "card", "doc"].some((k) => matched.has(k));
-  if (explicit && matched.has("amount")) return "very_high";
-  if (explicit) return "high";
-  if (coreOk && complementary && raw >= 70) return "very_high";
+  
+  // 1. Identificador único (E2E, NSU, Autenticação) + Valor
+  if (hasId && matched.has("amount")) return "very_high";
+  
+  // 2. Valor + Data + Favorecido (Trio Principal)
   if (coreOk) return "high";
+  
+  // 3. Valor + Data (Apenas se houver complementar de alta confiança)
+  if (matched.has("amount") && matched.has("date") && (matched.has("bank") || matched.has("doc"))) {
+    return "review";
+  }
+
+  // Se houver dúvida ou múltiplas possibilidades, permanece pendente (none).
   return "none";
 }
 
@@ -186,7 +193,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     const hay = `${f.file_name} ${f.extracted_text}`;
     const ocrAmounts = [ocr.amount, ocr.amount_raw].map(parseBrlAmount).filter((n): n is number => n !== null);
     if (
-      ocrAmounts.some((ocrAmt) => amountsClose(amt, ocrAmt)) ||
+      ocrAmounts.some((ocrAmt) => amountsIdentical(amt, ocrAmt)) ||
       hay.includes(withComma) ||
       hay.includes(plainComma) ||
       hay.includes(withDot) ||
@@ -336,7 +343,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   if (score <= 0) return null;
   if (score > 100) score = 100;
   const confidence = gatedTier(score, matched);
-  if (!isAcceptedTier(confidence)) return null;
+  if (confidence === "none") return null;
 
   // Prefer page from row hint, else file name hint
   const pageHint = extractPageHint(row.page_number) ?? f.pageHint ?? null;

@@ -219,8 +219,8 @@ export const classifyImportRow = createServerFn({ method: "POST" })
 
     const promptText = [
       "Você é o assistente de classificação de lançamentos financeiros do Meu Cofre.",
-      "Analise TODOS os campos da linha (dados originais, dados normalizados, descrição e observações), não apenas a coluna em que a informação aparece.",
-      "MUITAS linhas antigas têm a maioria das informações escondidas dentro do campo DESCRIÇÃO ou NOTAS em texto livre. Leia essa frase por inteiro e extraia banco, cartão, conta, valor, data, favorecido, titular/pagador, forma de pagamento, tipo (despesa/investimento), categoria e nome do IMÓVEL/PESSOA/EMPRESA relacionada.",
+      "Analise TODOS os campos da linha (dados originais, dados normalizados, descrição e observações). Priorize a precisão absoluta.",
+      "Identifique identificadores únicos como PIX E2E, NSU, ou código de autenticação.",
       'Exemplo: "Pagamento cartão Safra referente a investimento no imóvel Casa 26 para João" → bank: "Safra", payment_method: "CREDITO", transaction_type: "INVESTIMENTO", property: "Casa 26", payee: "João".',
       "NÃO altere nem reescreva o texto original da descrição — devolva-o inalterado em data.description. Coloque qualquer versão limpa/resumida em data.description_clean.",
       "",
