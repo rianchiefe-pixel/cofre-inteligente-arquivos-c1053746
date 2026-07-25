@@ -65,19 +65,10 @@ function stripPageHint(raw: unknown): string {
   return String(raw ?? "").replace(/\s*(?:[|,-]\s*)?(?:p[aá]gs?\.?|p\.?)\s*\d+(?:\s*[-–]\s*\d+)?/gi, "");
 }
 
-import { parseMoneyToCents } from "@/lib/format";
+// ---- text utils ----------------------------------------------------------
 
 function toCents(value: unknown): number | null {
   return parseMoneyToCents(value);
-}
-
-// Normalização absoluta de valores monetários.
-// O sistema é terminantemente proibido de vincular quando houver qualquer diferença (R$ 0,00 permitida).
-function amountsIdentical(a: unknown, b: unknown): boolean {
-  const ca = toCents(a);
-  const cb = toCents(b);
-  if (ca === null || cb === null) return false;
-  return ca === cb;
 }
 
 // Hierarquia rigorosa de associação (Precisão Máxima).
@@ -496,15 +487,9 @@ export async function matchBatchReceipts(
     .eq("batch_id", batchId)
     .eq("is_manual", true)
     .eq("is_primary", true);
+  // Vínculos manuais e reservados devem ser preservados.
   const manualRows = new Set((manualPrimaries ?? []).map((l: any) => l.row_id));
   const reservedFiles = new Set((manualPrimaries ?? []).map((l: any) => l.file_id));
-
-  // Wipe previous auto matches for this batch (keep manual ones)
-  await supabase
-    .from("import_row_files")
-    .delete()
-    .eq("batch_id", batchId)
-    .eq("is_manual", false);
 
   const progress: MatchProgress = {
     rowsTotal: rowList.length,
@@ -648,11 +633,63 @@ export async function matchBatchReceipts(
     if (opts.onProgress && progress.rowsDone % 5 === 0) opts.onProgress({ ...progress });
   }
 
-  for (let i = 0; i < payload.length; i += 500) {
-    const chunk = payload.slice(i, i + 500);
-    await supabase.from("import_row_files").upsert(chunk as any, {
+  // ---------------------------------------------------------------------------
+  // Persistência Transacional (Simulada via Lógica + Upsert)
+  // ---------------------------------------------------------------------------
+  
+  // 1. Validar resultados finais contra ambiguidade global de comprovantes
+  const finalPayload: any[] = [];
+  const finalFileClaims = new Map<string, number>();
+  
+  for (const p of payload) {
+    const count = finalFileClaims.get(p.file_id) ?? 0;
+    finalFileClaims.set(p.file_id, count + 1);
+  }
+
+  for (const p of payload) {
+    // Verificação de ambiguidade bidirecional (um comprovante -> mais de uma linha)
+    if (finalFileClaims.get(p.file_id)! > 1) {
+      progress.needsReview++;
+      progress.matched--;
+      continue;
+    }
+
+    // 2. Barreira obrigatória na gravação: Validar valores financeiros
+    const row = rowList.find(r => r.id === p.row_id);
+    const file = rawFiles.find(f => f.id === p.file_id);
+    
+    if (row && file) {
+      try {
+        const receiptAmount = file.ocr_data?.amount_raw ?? file.ocr_data?.amount;
+        assertMatchingAmounts(row.amount, receiptAmount);
+        finalPayload.push(p);
+      } catch (e) {
+        console.warn(`Vínculo automático rejeitado por divergência financeira: ${row.id} - ${file.id}`);
+        progress.matched--;
+        progress.needsReview++;
+      }
+    }
+  }
+
+  // 3. Execução "Transacional": Limpar antigos e inserir novos em um único passo lógico
+  // Nota: O Supabase JS não suporta transações reais multi-request facilmente sem Edge Functions,
+  // então usamos a lógica de exclusão sequencial seguida de inserção.
+  
+  await supabase
+    .from("import_row_files")
+    .delete()
+    .eq("batch_id", batchId)
+    .eq("is_manual", false);
+
+  for (let i = 0; i < finalPayload.length; i += 500) {
+    const chunk = finalPayload.slice(i, i + 500);
+    const { error } = await supabase.from("import_row_files").upsert(chunk as any, {
       onConflict: "row_id,file_id,page_number",
     });
+    if (error) {
+      console.error("Erro na persistência do lote:", error);
+      throw new Error(`Falha no reprocessamento transacional: ${error.message}`);
+    }
   }
 
   // Arquivos sem vínculo (nem automático nem manual).
@@ -679,6 +716,17 @@ export async function attachFileManually(input: {
   const { data: u } = await supabase.auth.getUser();
   const userId = u.user?.id;
   if (!userId) throw new Error("Sessão expirada");
+
+  // Barreira de gravação para associação manual
+  const [{ data: row }, { data: file }] = await Promise.all([
+    supabase.from("import_rows").select("amount").eq("id", input.rowId).single(),
+    supabase.from("import_files").select("ocr_data").eq("id", input.fileId).single()
+  ]);
+
+  if (row && file) {
+    const receiptAmount = file.ocr_data?.amount_raw ?? file.ocr_data?.amount;
+    assertMatchingAmounts(row.amount, receiptAmount);
+  }
 
   if (input.makePrimary) {
     await supabase
