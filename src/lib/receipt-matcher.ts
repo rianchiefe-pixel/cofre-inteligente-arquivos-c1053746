@@ -251,9 +251,13 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     
     // Se o OCR identificou um valor, ele DEVE ser idêntico.
     if (ocrCents !== null) {
-      if (rowCents === ocrCents) {
+      if (amountsHaveSameMagnitude(rowCents, ocrCents)) {
+        if (!isDirectionValid(rowCents, ocr, f.extracted_text)) {
+          divergent.push(`direção incompatível: planilha (${rowCents < 0 ? 'saída' : 'entrada'}) × comprovante parece ser o oposto`);
+          return null;
+        }
         score += 25;
-        reasons.push({ key: "amount", label: `valor exato R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
+        reasons.push({ key: "amount", label: `valor compatível R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
         matched.add("amount");
       } else {
         divergent.push(`valor diverge: planilha R$ ${formatBrlNumber(row.amount as number)} × comprovante R$ ${formatBrlNumber((ocr.amount_raw ?? ocr.amount) as number)}`);
@@ -267,10 +271,11 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       let match;
       let foundExact = false;
       let foundOther = false;
+      const targetAbsCents = Math.abs(rowCents);
 
       while ((match = moneyRegex.exec(rawText)) !== null) {
         const foundCents = toCents(match[1]);
-        if (foundCents === rowCents) {
+        if (foundCents !== null && Math.abs(foundCents) === targetAbsCents) {
           foundExact = true;
         } else if (foundCents !== null) {
           foundOther = true;
@@ -278,6 +283,10 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       }
 
       if (foundExact && !foundOther) {
+        if (!isDirectionValid(rowCents, ocr, rawText)) {
+          divergent.push("Direção da transação incompatível encontrada no texto");
+          return null;
+        }
         score += 25;
         reasons.push({ key: "amount", label: `valor encontrado R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
         matched.add("amount");
