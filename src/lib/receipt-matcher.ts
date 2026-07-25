@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import { supabase } from "@/integrations/supabase/client";
-import { formatBrlNumber, parseBrlAmount, parseMoneyToCents } from "@/lib/format";
+import { formatBrlNumber, parseBrlAmount, parseMoneyToCents, paymentMethodLabel } from "@/lib/format";
 import { normalizeBank, type ReceiptFacts } from "@/lib/zip-import";
 import { isCardKind } from "@/lib/import-kind";
 import { assertMatchingAmounts } from "./persistence-validator";
@@ -69,6 +69,55 @@ function stripPageHint(raw: unknown): string {
 
 function toCents(value: unknown): number | null {
   return parseMoneyToCents(value);
+}
+
+/**
+ * REGRA DE MAGNITUDE: Compara o valor absoluto (centavos) para localizar comprovantes.
+ * Planilha -400,00 e Comprovante 400,00 são compatíveis em magnitude.
+ */
+function amountsHaveSameMagnitude(a: unknown, b: unknown): boolean {
+  const ca = toCents(a);
+  const cb = toCents(b);
+  if (ca === null || cb === null) return false;
+  return Math.abs(ca) === Math.abs(cb);
+}
+
+/**
+ * Validação de Direção:
+ * Linha negativa (saída) -> Comprovante deve indicar pagamento/saída/pix enviado.
+ * Linha positiva (entrada) -> Comprovante deve indicar recebimento/entrada/pix recebido.
+ */
+function isDirectionValid(rowAmount: unknown, ocr: any, extractedText: string): boolean {
+  const cents = toCents(rowAmount);
+  if (cents === null) return false;
+
+  const isExpense = cents < 0;
+  const isIncome = cents > 0;
+
+  const text = norm(extractedText);
+  const ocrMethod = norm(ocr.payment_method ?? "");
+  
+  // Palavras-chave de Saída/Pagamento
+  const expenseKeywords = ["pagamento", "saida", "debito", "enviado", "transferido", "comprovante de pix", "liquidacao", "pago"];
+  // Palavras-chave de Entrada/Recebimento
+  const incomeKeywords = ["recebimento", "entrada", "credito", "recebido", "deposito"];
+
+  if (isExpense) {
+    // Para despesas, o comprovante NÃO deve ser explicitamente de recebimento
+    const hasIncomeClue = incomeKeywords.some(k => text.includes(k) || ocrMethod.includes(k));
+    const hasExpenseClue = expenseKeywords.some(k => text.includes(k) || ocrMethod.includes(k));
+    // Se tem cara de entrada, bloqueia. Se tem cara de saída, autoriza. Se for neutro, autoriza (precisão por valor).
+    return !hasIncomeClue || hasExpenseClue;
+  }
+
+  if (isIncome) {
+    // Para receitas, o comprovante NÃO deve ser explicitamente de pagamento/débito
+    const hasExpenseClue = expenseKeywords.some(k => text.includes(k) || ocrMethod.includes(k));
+    const hasIncomeClue = incomeKeywords.some(k => text.includes(k) || ocrMethod.includes(k));
+    return !hasExpenseClue || hasIncomeClue;
+  }
+
+  return true;
 }
 
 // Hierarquia rigorosa de associação (Precisão Máxima).

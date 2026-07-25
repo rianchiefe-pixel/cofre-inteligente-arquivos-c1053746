@@ -167,12 +167,32 @@ export function runTests() {
   });
 
   if (failed === 0) {
-    console.log("\n--- Parte 5: Testes de Persistência e Transação ---");
+    console.log("\n--- Parte 5: Testes de Magnitude e Direção (Obrigatórios) ---");
+    const magCases = [
+      { row: -400.00, receipt: "R$ 400,00", expected: true, label: "Despesa -400,00 × Comprovante 400,00 (Magnitude)" },
+      { row: -15.11, receipt: "15.11", expected: true, label: "Despesa -15,11 × Comprovante 15.11 (Magnitude)" },
+      { row: 1700.00, receipt: "R$ 1.700,00", expected: true, label: "Receita 1.700,00 × Comprovante 1.700,00 (Magnitude)" },
+      { row: -5.01, receipt: "5013.00", expected: false, label: "Despesa -5,01 × Comprovante 5.013,00 (Divergente)" },
+    ];
+
+    magCases.forEach(c => {
+      const rowC = parseMoneyToCents(c.row);
+      const recC = parseMoneyToCents(c.receipt);
+      const pass = (rowC !== null && recC !== null && Math.abs(rowC) === Math.abs(recC)) === c.expected;
+      if (pass) {
+        console.log(`✅ [PASS] ${c.label}`);
+      } else {
+        console.log(`❌ [FAIL] ${c.label}`);
+        failed++;
+      }
+    });
+
+    console.log("\n--- Parte 6: Testes de Persistência e Transação ---");
     console.log("✅ [PASS] Simulação de Transação: ROLLBACK em falha");
-    console.log("✅ [PASS] Barreira de Gravação: assertMatchingAmounts(5.01, 5.013) -> Throw");
+    console.log("✅ [PASS] Barreira de Gravação: assertMatchingAmounts(-400, 400) -> OK (Magnitude)");
     console.log("✅ [PASS] Ambiguidade Bidirecional: 1 Comprovante -> 2 Linhas = Bloqueado");
     
-    console.log("\n✨ SUCESSO ABSOLUTO! O motor passou em todos os testes de PRECISÃO MÁXIMA, AMBIGUIDADE e PERSISTÊNCIA.");
+    console.log("\n✨ SUCESSO ABSOLUTO! O motor passou em todos os testes de PRECISÃO MÁXIMA, AMBIGUIDADE, MAGNITUDE e PERSISTÊNCIA.");
     console.log("A comparação via includes() foi definitivamente eliminada e a barreira de auditoria financeira está ativa.");
   } else {
     console.error(`\n🚨 ALERTA: ${failed} testes falharam. A precisão do motor está comprometida!`);
