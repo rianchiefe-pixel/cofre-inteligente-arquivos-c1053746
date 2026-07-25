@@ -9,18 +9,23 @@ export const currencyBRL = (v: number | null | undefined) =>
  */
 export function parseMoneyToCents(raw: unknown): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
-  if (typeof raw === "number") return Math.round(Math.abs(raw) * 100);
+  
+  // Se for número, tratamos preservando o sinal
+  if (typeof raw === "number") {
+    return Math.round(raw * 100);
+  }
 
   let s = String(raw).trim();
   if (!s) return null;
 
-  // Remove R$, espaços e lixo, mantendo dígitos, vírgula, ponto e sinais básicos
-  s = s.replace(/R\$/gi, "").replace(/\s+/g, "").replace(/[^\d,.\-()]/g, "");
-  if (!s) return null;
+  // Detecta se é negativo ANTES de limpar (para suportar "- R$ 10,00" ou "(10,00)")
+  const cleanedForSign = s.replace(/\s+/g, "");
+  const isNegative = cleanedForSign.startsWith("-") || 
+                     (cleanedForSign.startsWith("(") && cleanedForSign.endsWith(")"));
 
-  s = s.replace(/^\(([^)]*)\)$/, "-$1");
-  const isNegative = s.startsWith("-");
-  s = s.replace(/^-/, "");
+  // Limpa tudo exceto dígitos, vírgula e ponto
+  s = s.replace(/R\$/gi, "").replace(/[^\d,.]/g, "");
+  if (!s) return null;
 
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
@@ -45,14 +50,14 @@ export function parseMoneyToCents(raw: unknown): number | null {
       s = parts.join("") + "00";
     }
   } else {
-    // Sem separadores: "1234" -> 123400 (assume-se valor inteiro se não houver indicação de centavos)
+    // Sem separadores: "1234" -> 123400
     s = s + "00";
   }
 
-  const n = parseInt(s, 10);
+  let n = parseInt(s, 10);
   if (Number.isNaN(n)) return null;
 
-  return Math.abs(n);
+  return isNegative ? -Math.abs(n) : Math.abs(n);
 }
 
 /** @deprecated Use parseMoneyToCents instead for accuracy */
