@@ -569,6 +569,7 @@ export async function matchBatchReceipts(
     if (!isCardKind(row.kind)) continue;
     progress.cardRows += 1;
     if (manualRows.has(row.id)) { progress.cardMatched += 1; continue; }
+    const scored: Candidate[] = [];
     const candidatesForValue = cardFileFacts.map(f => scoreRowAgainstFile(row, f)).filter(c => c !== null) as Candidate[];
     const valueMatchCount = candidatesForValue.length;
 
