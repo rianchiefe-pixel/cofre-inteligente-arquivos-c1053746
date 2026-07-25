@@ -81,10 +81,27 @@ function amountsIdentical(a: unknown, b: unknown): boolean {
 
 // Hierarquia rigorosa de associação (Precisão Máxima).
 // Nenhuma associação ocorre sem evidência clara e determinística.
-function gatedTier(raw: number, matched: Set<string>, divergent: string[]): MatchTier {
+function gatedTier(
+  raw: number, 
+  matched: Set<string>, 
+  divergent: string[], 
+  row: any, 
+  candidatesCount: number
+): MatchTier {
   // Se houver qualquer divergência explícita (data diferente, favorecido diferente, etc),
   // a associação deve ser imediatamente descartada.
   if (divergent.length > 0) return "none";
+
+  // REGRA DE OURO: Bloqueio de ambiguidade por valor.
+  // Se existirem múltiplos candidatos com o mesmo valor, só permitimos associação
+  // automática se houver um critério desempate forte (Data + Favorecido ou ID único).
+  const hasStrongTiebreaker = (matched.has("date") && matched.has("payee")) || 
+                             matched.has("id") || matched.has("txid") || matched.has("auth");
+
+  if (candidatesCount > 1 && !hasStrongTiebreaker) {
+    divergent.push("Ambiguidade entre linhas — revisão manual necessária (múltiplos candidatos com mesmo valor)");
+    return "none";
+  }
 
   const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
