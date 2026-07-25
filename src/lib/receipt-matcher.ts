@@ -84,41 +84,19 @@ function amountsIdentical(a: unknown, b: unknown): boolean {
 function gatedTier(
   raw: number, 
   matched: Set<string>, 
-  divergent: string[], 
-  row: any, 
-  candidatesCount: number
+  divergent: string[]
 ): MatchTier {
-  // Se houver qualquer divergência explícita (data diferente, favorecido diferente, etc),
-  // a associação deve ser imediatamente descartada.
   if (divergent.length > 0) return "none";
-
-  // REGRA DE OURO: Bloqueio de ambiguidade por valor.
-  // Se existirem múltiplos candidatos com o mesmo valor, só permitimos associação
-  // automática se houver um critério desempate forte (Data + Favorecido ou ID único).
-  const hasStrongTiebreaker = (matched.has("date") && matched.has("payee")) || 
-                             matched.has("id") || matched.has("txid") || matched.has("auth");
-
-  if (candidatesCount > 1 && !hasStrongTiebreaker) {
-    divergent.push("Ambiguidade entre linhas — revisão manual necessária (múltiplos candidatos com mesmo valor)");
-    return "none";
-  }
 
   const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
   
-  // 1. Identificador único (E2E, NSU, Autenticação) + Valor é a confiança absoluta (Very High)
   if (hasId && matched.has("amount")) return "very_high";
-  
-  // 2. Trio Principal (Valor + Data + Favorecido) é Confiança Alta (High)
-  // O valor é obrigatório para qualquer vínculo automático.
   if (coreOk && matched.has("amount")) return "high";
-  
-  // 3. Valor + Data + Complementar (Banco ou Documento) é Confiança de Revisão (Review)
   if (matched.has("amount") && matched.has("date") && (matched.has("bank") || matched.has("doc"))) {
     return "review";
   }
 
-  // Qualquer outra combinação que gere dúvida permanece na lista de "Não Associados" (none).
   return "none";
 }
 
@@ -538,7 +516,12 @@ export async function matchBatchReceipts(
     const scored: Candidate[] = [];
     for (const f of fileFacts) {
       const c = scoreRowAgainstFile(row, f);
-      if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) scored.push(c);
+      // REGRA DE OURO: Divergência de valor é proibida.
+      if (c && c.divergent.some(d => d.includes("valor diverge"))) {
+        // Logar como divergência no banco se necessário? Por ora, apenas ignorar.
+      } else if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
+        scored.push(c);
+      }
     }
     scored.sort((a, b) => b.score - a.score);
     
