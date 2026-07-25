@@ -25,8 +25,8 @@ export interface Candidate {
   score: number;
   confidence: MatchTier;
   reasons: CandidateReason[];
-  matched?: string[];
-  divergent?: string[];
+  matched: string[];
+  divergent: string[];
 }
 
 // ---- text utils ----------------------------------------------------------
@@ -84,9 +84,22 @@ function amountsIdentical(a: unknown, b: unknown): boolean {
 function gatedTier(
   raw: number, 
   matched: Set<string>, 
-  divergent: string[]
+  divergent: string[],
+  row: any,
+  candidatesCount: number
 ): MatchTier {
   if (divergent.length > 0) return "none";
+
+  // REGRA DE OURO: Bloqueio de ambiguidade por valor.
+  // Se existirem múltiplos candidatos com o mesmo valor, só permitimos associação
+  // automática se houver um critério desempate forte (Data + Favorecido ou ID único).
+  const hasStrongTiebreaker = (matched.has("date") && matched.has("payee")) || 
+                             matched.has("id") || matched.has("txid") || matched.has("auth");
+
+  if (candidatesCount > 1 && !hasStrongTiebreaker) {
+    divergent.push("Ambiguidade entre linhas — revisão manual necessária (múltiplos candidatos com mesmo valor)");
+    return "none";
+  }
 
   const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
@@ -381,7 +394,8 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   // REGRA DE OURO: Se o valor não bateu exatamente, nunca vincular automaticamente.
   if (!matched.has("amount")) return null;
 
-  const confidence = gatedTier(score, matched, divergent);
+  // Calculamos a confiança inicial. Se houver ambiguidade de arquivos, o matchBatchReceipts lidará com isso.
+  const confidence = gatedTier(score, matched, divergent, row, 1);
   if (confidence === "none") return null;
 
   // Prefer page from row hint, else file name hint
@@ -514,12 +528,16 @@ export async function matchBatchReceipts(
     // cartão (marcadores "fatura", "cartão de crédito", "final XXXX").
     if (isCardKind(row.kind)) continue;
     const scored: Candidate[] = [];
-    for (const f of fileFacts) {
-      const c = scoreRowAgainstFile(row, f);
-      // REGRA DE OURO: Divergência de valor é proibida.
-      if (c && c.divergent.some(d => d.includes("valor diverge"))) {
-        // Logar como divergência no banco se necessário? Por ora, apenas ignorar.
-      } else if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
+    
+    // Passo 1: Filtrar arquivos candidatos por valor (Obrigatório)
+    const candidatesForValue = fileFacts.map(f => scoreRowAgainstFile(row, f)).filter(c => c !== null) as Candidate[];
+    const valueMatchCount = candidatesForValue.length;
+
+    for (const c of candidatesForValue) {
+      // Recalcular tier com o count real de candidatos para o mesmo valor
+      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+
+      if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
         scored.push(c);
       }
     }
