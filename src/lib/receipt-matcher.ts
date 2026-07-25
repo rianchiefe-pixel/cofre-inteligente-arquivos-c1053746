@@ -25,8 +25,8 @@ export interface Candidate {
   score: number;
   confidence: MatchTier;
   reasons: CandidateReason[];
-  matched?: string[];
-  divergent?: string[];
+  matched: string[];
+  divergent: string[];
 }
 
 // ---- text utils ----------------------------------------------------------
@@ -81,27 +81,35 @@ function amountsIdentical(a: unknown, b: unknown): boolean {
 
 // Hierarquia rigorosa de associação (Precisão Máxima).
 // Nenhuma associação ocorre sem evidência clara e determinística.
-function gatedTier(raw: number, matched: Set<string>, divergent: string[]): MatchTier {
-  // Se houver qualquer divergência explícita (data diferente, favorecido diferente, etc),
-  // a associação deve ser imediatamente descartada.
+function gatedTier(
+  raw: number, 
+  matched: Set<string>, 
+  divergent: string[],
+  row: any,
+  candidatesCount: number
+): MatchTier {
   if (divergent.length > 0) return "none";
+
+  // REGRA DE OURO: Bloqueio de ambiguidade por valor.
+  // Se existirem múltiplos candidatos com o mesmo valor, só permitimos associação
+  // automática se houver um critério desempate forte (Data + Favorecido ou ID único).
+  const hasStrongTiebreaker = (matched.has("date") && matched.has("payee")) || 
+                             matched.has("id") || matched.has("txid") || matched.has("auth");
+
+  if (candidatesCount > 1 && !hasStrongTiebreaker) {
+    divergent.push("Ambiguidade entre linhas — revisão manual necessária (múltiplos candidatos com mesmo valor)");
+    return "none";
+  }
 
   const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
   
-  // 1. Identificador único (E2E, NSU, Autenticação) + Valor é a confiança absoluta (Very High)
   if (hasId && matched.has("amount")) return "very_high";
-  
-  // 2. Trio Principal (Valor + Data + Favorecido) é Confiança Alta (High)
-  // O valor é obrigatório para qualquer vínculo automático.
   if (coreOk && matched.has("amount")) return "high";
-  
-  // 3. Valor + Data + Complementar (Banco ou Documento) é Confiança de Revisão (Review)
   if (matched.has("amount") && matched.has("date") && (matched.has("bank") || matched.has("doc"))) {
     return "review";
   }
 
-  // Qualquer outra combinação que gere dúvida permanece na lista de "Não Associados" (none).
   return "none";
 }
 
@@ -386,7 +394,8 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   // REGRA DE OURO: Se o valor não bateu exatamente, nunca vincular automaticamente.
   if (!matched.has("amount")) return null;
 
-  const confidence = gatedTier(score, matched, divergent);
+  // Calculamos a confiança inicial. Se houver ambiguidade de arquivos, o matchBatchReceipts lidará com isso.
+  const confidence = gatedTier(score, matched, divergent, row, 1);
   if (confidence === "none") return null;
 
   // Prefer page from row hint, else file name hint
@@ -519,9 +528,18 @@ export async function matchBatchReceipts(
     // cartão (marcadores "fatura", "cartão de crédito", "final XXXX").
     if (isCardKind(row.kind)) continue;
     const scored: Candidate[] = [];
-    for (const f of fileFacts) {
-      const c = scoreRowAgainstFile(row, f);
-      if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) scored.push(c);
+    
+    // Passo 1: Filtrar arquivos candidatos por valor (Obrigatório)
+    const candidatesForValue = fileFacts.map(f => scoreRowAgainstFile(row, f)).filter(c => c !== null) as Candidate[];
+    const valueMatchCount = candidatesForValue.length;
+
+    for (const c of candidatesForValue) {
+      // Recalcular tier com o count real de candidatos para o mesmo valor
+      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+
+      if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
+        scored.push(c);
+      }
     }
     scored.sort((a, b) => b.score - a.score);
     
@@ -552,9 +570,14 @@ export async function matchBatchReceipts(
     progress.cardRows += 1;
     if (manualRows.has(row.id)) { progress.cardMatched += 1; continue; }
     const scored: Candidate[] = [];
-    for (const f of cardFileFacts) {
-      const c = scoreRowAgainstFile(row, f);
-      if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) scored.push(c);
+    const candidatesForValue = cardFileFacts.map(f => scoreRowAgainstFile(row, f)).filter(c => c !== null) as Candidate[];
+    const valueMatchCount = candidatesForValue.length;
+
+    for (const c of candidatesForValue) {
+      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+      if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
+        scored.push(c);
+      }
     }
     scored.sort((a, b) => b.score - a.score);
     const top = scored[0];
