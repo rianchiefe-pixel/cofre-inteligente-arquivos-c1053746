@@ -569,10 +569,14 @@ export async function matchBatchReceipts(
     if (!isCardKind(row.kind)) continue;
     progress.cardRows += 1;
     if (manualRows.has(row.id)) { progress.cardMatched += 1; continue; }
-    const scored: Candidate[] = [];
-    for (const f of cardFileFacts) {
-      const c = scoreRowAgainstFile(row, f);
-      if (c && isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) scored.push(c);
+    const candidatesForValue = cardFileFacts.map(f => scoreRowAgainstFile(row, f)).filter(c => c !== null) as Candidate[];
+    const valueMatchCount = candidatesForValue.length;
+
+    for (const c of candidatesForValue) {
+      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+      if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
+        scored.push(c);
+      }
     }
     scored.sort((a, b) => b.score - a.score);
     const top = scored[0];
