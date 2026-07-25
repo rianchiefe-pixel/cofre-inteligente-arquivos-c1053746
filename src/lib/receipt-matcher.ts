@@ -660,7 +660,8 @@ export async function matchBatchReceipts(
     
     if (row && file) {
       try {
-        const receiptAmount = file.ocr_data?.amount_raw ?? file.ocr_data?.amount;
+        const ocr = (file.ocr_data ?? {}) as any;
+        const receiptAmount = ocr.amount_raw ?? ocr.amount;
         assertMatchingAmounts(row.amount, receiptAmount);
         finalPayload.push(p);
       } catch (e) {
@@ -724,7 +725,8 @@ export async function attachFileManually(input: {
   ]);
 
   if (row && file) {
-    const receiptAmount = file.ocr_data?.amount_raw ?? file.ocr_data?.amount;
+    const ocr = (file.ocr_data ?? {}) as any;
+    const receiptAmount = ocr.amount_raw ?? ocr.amount;
     assertMatchingAmounts(row.amount, receiptAmount);
   }
 
