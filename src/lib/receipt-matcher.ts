@@ -3,13 +3,14 @@
 //
 // Cross-matches import_rows (linhas da planilha) with import_files (arquivos
 // extraídos do ZIP) and persists candidatos em `import_row_files` com
-// pontuação 0–100 + motivos, sem apagar nada — apenas marca para conferência.
+// pontuação 0–100 + motivos.
 // ---------------------------------------------------------------------------
 
 import { supabase } from "@/integrations/supabase/client";
-import { formatBrlNumber, parseBrlAmount } from "@/lib/format";
+import { formatBrlNumber, parseBrlAmount, parseMoneyToCents } from "@/lib/format";
 import { normalizeBank, type ReceiptFacts } from "@/lib/zip-import";
 import { isCardKind } from "@/lib/import-kind";
+import { assertMatchingAmounts } from "./persistence-validator";
 
 export type MatchTier = "very_high" | "high" | "review" | "low" | "none";
 
