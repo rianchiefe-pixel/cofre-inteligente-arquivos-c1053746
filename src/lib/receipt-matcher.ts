@@ -470,6 +470,33 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
 
 // ---- Public API ----------------------------------------------------------
 
+export interface MatchDiagnostics {
+  row_id: string;
+  row_number: number;
+  row_amount_original: any;
+  row_amount_cents: number | null;
+  row_date: string;
+  row_payee: string;
+  candidates: Array<{
+    file_id: string;
+    file_name: string;
+    receipt_amount_raw: any;
+    receipt_amount_cents: number | null;
+    same_magnitude: boolean;
+    receipt_date: string;
+    receipt_payee: string;
+    direction_valid: boolean;
+    candidate_accepted: boolean;
+    score: number;
+    confidence: MatchTier;
+    rejection_reason: string;
+  }>;
+  selected_file_id: string | null;
+  selected_file_name: string | null;
+  persistence_accepted: boolean;
+  final_reason: string;
+}
+
 export interface MatchProgress {
   rowsTotal: number;
   rowsDone: number;
@@ -482,7 +509,9 @@ export interface MatchProgress {
   unmatchedFiles: number;
   duplicateFiles: number;
   persistenceRejected: number;
+  diagnostics?: MatchDiagnostics[];
 }
+
 
 
 export async function matchBatchReceipts(
