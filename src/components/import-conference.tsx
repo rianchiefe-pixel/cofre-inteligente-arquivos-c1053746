@@ -1362,7 +1362,7 @@ function ReceiptViewer({
 
       {/* Document window */}
       <div className="min-h-[520px] bg-[radial-gradient(circle_at_1px_1px,theme(colors.border/30)_1px,transparent_0)] [background-size:16px_16px] p-6">
-        {!primaryFile ? (
+        {!displayFile ? (
           <div className="grid h-[440px] place-items-center rounded-xl border border-dashed border-border bg-background/60 text-center">
             <div className="max-w-xs px-6">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
