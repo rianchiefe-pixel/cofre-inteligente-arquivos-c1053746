@@ -684,14 +684,14 @@ export function ImportConference({
             <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
               <ReceiptViewer
                 row={activeRow}
-                links={(linksByRow.get(activeRow.id) ?? []).filter(isAcceptedReceiptLink).sort((a, b) => b.score - a.score)}
+                links={linksByRow.get(activeRow.id) ?? []}
                 files={filesQ.data ?? []}
                 fileById={fileById}
                 onChanged={invalidate}
               />
               <RowEditor
                 row={activeRow}
-                links={(linksByRow.get(activeRow.id) ?? []).filter(isAcceptedReceiptLink)}
+                links={linksByRow.get(activeRow.id) ?? []}
                 isDuplicate={duplicateIds.has(activeRow.id)}
                 values={values}
                 setValues={setValues}
