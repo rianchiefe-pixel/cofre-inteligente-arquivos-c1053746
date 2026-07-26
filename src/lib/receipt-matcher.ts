@@ -628,10 +628,55 @@ export async function matchBatchReceipts(
     duplicateFiles,
     persistenceRejected: 0,
     diagnostics: [],
+    filesDiagnostics: {
+      files: [],
+      summary: {
+        total_files_queried: rawFiles.length,
+        total_files_loaded: fileFacts.length,
+        total_files_included_in_matching: 0,
+        total_files_without_text: 0,
+        total_files_without_amount: 0,
+        total_files_unreadable: unreadableFiles,
+        total_files_duplicates: duplicateFiles,
+      }
+    }
   };
+
+  // Preencher filesDiagnostics
+  for (const fact of fileFacts) {
+    const raw = rawFiles.find(rf => rf.id === fact.id);
+    const ocr = fact.ocr ?? {};
+    const text = fact.extracted_text || "";
+    const amountRaw = ocr.amount_raw ?? ocr.amount;
+    
+    if (!text) progress.filesDiagnostics!.summary.total_files_without_text++;
+    if (amountRaw === undefined || amountRaw === null) progress.filesDiagnostics!.summary.total_files_without_amount++;
+    
+    const included = fact.readable !== false && !raw?.duplicate_of;
+    if (included) progress.filesDiagnostics!.summary.total_files_included_in_matching++;
+
+    progress.filesDiagnostics!.files.push({
+      file_id: fact.id,
+      file_name: fact.file_name,
+      processing_status: raw?.status ?? "unknown",
+      readable: raw?.readable !== false,
+      is_duplicate: !!raw?.duplicate_of,
+      extracted_text_length: text.length,
+      extracted_text_preview: text.substring(0, 300),
+      extraction_source: fact.original_path.toLowerCase().endsWith(".pdf") ? "Texto nativo do PDF" : "OCR / Imagem",
+      ocr_amount_raw: amountRaw,
+      ocr_amount_cents: toCents(amountRaw),
+      ocr_date: ocr.date ?? "",
+      ocr_payee: ocr.payee ?? "",
+      ocr_transaction_id: ocr.transaction_id ?? "",
+      included_in_matching: included,
+      exclusion_reason: !included ? (raw?.duplicate_of ? "Arquivo duplicado" : "Arquivo ilegível") : ""
+    });
+  }
 
   const bestByRow = new Map<string, Candidate>();
   const fileClaims = new Map<string, string[]>();
+
 
 
   console.log("\n--- INÍCIO DO DIAGNÓSTICO DE CONCILIAÇÃO ---");
