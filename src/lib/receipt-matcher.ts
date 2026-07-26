@@ -755,7 +755,7 @@ export async function matchBatchReceipts(
     const valueMatchCount = candidatesForValue.length;
 
     for (const c of candidatesForValue) {
-      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, c.missing, row, valueMatchCount);
       if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
         scored.push(c);
       }
