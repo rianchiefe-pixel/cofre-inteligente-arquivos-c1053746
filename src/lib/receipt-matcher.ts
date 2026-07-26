@@ -945,6 +945,98 @@ export async function attachFileManually(input: {
   );
 }
 
+export async function confirmReviewCandidate(linkId: string) {
+  const { data: link, error: readError } = await supabase
+    .from("import_row_files")
+    .select("*")
+    .eq("id", linkId)
+    .single();
+
+  if (readError || !link) throw new Error("Candidato não encontrado.");
+  if (link.confidence !== "review") throw new Error("Apenas candidatos em revisão podem ser confirmados por este método.");
+
+  const [{ data: row }, { data: file }] = await Promise.all([
+    supabase.from("import_rows").select("amount").eq("id", link.row_id).single(),
+    supabase.from("import_files").select("ocr_data").eq("id", link.file_id).single()
+  ]);
+
+  if (!row || !file) throw new Error("Dados da linha ou arquivo não encontrados.");
+
+  const ocr = (file.ocr_data ?? {}) as any;
+  const receiptAmount = ocr.amount_raw ?? ocr.amount;
+
+  // Barreira obrigatória: Valores em centavos devem ser exatamente iguais
+  assertMatchingAmounts(row.amount, receiptAmount);
+
+  // Remover is_primary de qualquer outro comprovante da mesma linha
+  await supabase
+    .from("import_row_files")
+    .update({ is_primary: false })
+    .eq("row_id", link.row_id);
+
+  // Impedir que o mesmo arquivo seja primário em outra linha do mesmo lote
+  await supabase
+    .from("import_row_files")
+    .update({ is_primary: false })
+    .eq("batch_id", link.batch_id)
+    .eq("file_id", link.file_id);
+
+  const existingReasons = Array.isArray(link.match_reasons) ? link.match_reasons : [];
+  const updatedReasons = [
+    ...existingReasons,
+    {
+      key: "manual_confirmation",
+      label: "Possível comprovante confirmado manualmente",
+      confirmedAt: new Date().toISOString(),
+      originalDivergences: existingReasons.filter((r: any) => r.key === "divergence")
+    }
+  ];
+
+  const { error } = await supabase
+    .from("import_row_files")
+    .update({
+      is_manual: true,
+      is_primary: true,
+      confidence: "manual_confirmed",
+      match_reasons: updatedReasons
+    })
+    .eq("id", linkId);
+
+  if (error) throw error;
+}
+
+export async function rejectReviewCandidate(linkId: string) {
+  const { data: link, error: readError } = await supabase
+    .from("import_row_files")
+    .select("match_reasons")
+    .eq("id", linkId)
+    .single();
+
+  if (readError || !link) throw new Error("Candidato não encontrado.");
+
+  const existingReasons = Array.isArray(link.match_reasons) ? link.match_reasons : [];
+  const updatedReasons = [
+    ...existingReasons,
+    {
+      key: "manual_rejection",
+      label: "Possível comprovante rejeitado manualmente",
+      rejectedAt: new Date().toISOString()
+    }
+  ];
+
+  const { error } = await supabase
+    .from("import_row_files")
+    .update({
+      is_manual: true,
+      is_primary: false,
+      confidence: "rejected",
+      match_reasons: updatedReasons
+    })
+    .eq("id", linkId);
+
+  if (error) throw error;
+}
+
 export async function detachRowFile(id: string) {
   await supabase.from("import_row_files").delete().eq("id", id);
 }
