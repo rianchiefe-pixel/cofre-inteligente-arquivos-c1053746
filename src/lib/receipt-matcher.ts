@@ -668,7 +668,7 @@ export async function matchBatchReceipts(
       final_reason: "Não encontrado"
     };
 
-    for (const f of fileFacts) {
+    for (const f of fileFacts as FileFacts[]) {
       const c = scoreRowAgainstFile(row, f);
       const ocr = f.ocr ?? {};
       const receiptAmountRaw = ocr.amount_raw ?? ocr.amount;
