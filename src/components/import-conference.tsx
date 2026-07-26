@@ -702,6 +702,7 @@ export function ImportConference({
                 properties={propertiesQ.data ?? []}
                 propertyById={propertyById}
                 batchScope={batchQ.data?.scope_kind ?? "profile"}
+                onChanged={invalidate}
               />
             </div>
           ) : (
