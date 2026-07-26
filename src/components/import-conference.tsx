@@ -1239,28 +1239,28 @@ function ReceiptViewer({
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setPage(primary?.page_number ?? 1);
+    setPage(displayLink?.page_number ?? 1);
     setZoom(1);
     setRotation(0);
-  }, [row.id, primary?.id]);
+  }, [row.id, displayLink?.id]);
 
   useEffect(() => {
     let cancelled = false;
     async function fetchUrl() {
-      if (!primaryFile?.storage_path) {
+      if (!displayFile?.storage_path) {
         setSignedUrl(null);
         return;
       }
       const { data } = await supabase.storage
         .from("receipts")
-        .createSignedUrl(primaryFile.storage_path, 3600);
+        .createSignedUrl(displayFile.storage_path, 3600);
       if (!cancelled) setSignedUrl(data?.signedUrl ?? null);
     }
     fetchUrl();
     return () => {
       cancelled = true;
     };
-  }, [primaryFile?.storage_path]);
+  }, [displayFile?.storage_path]);
 
   const isPdf = (primaryFile?.mime_type ?? "").includes("pdf") || (primaryFile?.extension ?? "").toLowerCase() === "pdf";
   const pageCount = primaryFile?.page_count ?? 1;
