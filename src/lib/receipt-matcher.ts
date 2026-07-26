@@ -499,6 +499,20 @@ export interface MatchDiagnostics {
   row_amount_cents: number | null;
   row_date: string;
   row_payee: string;
+  
+  // Database fields - what we found in the database exactly
+  database_row_number: number | null;
+  database_amount: any;
+  database_transaction_date: string | null;
+  database_payee: string | null;
+  raw_data: any;
+  normalized_data: any;
+  ai_data: any;
+  ai_suggested_amount: any;
+  ai_suggested_date: string | null;
+  status: string | null;
+  error_message: string | null;
+
   candidates: Array<{
     file_id: string;
     file_name: string;
@@ -515,7 +529,7 @@ export interface MatchDiagnostics {
   }>;
   selected_file_id: string | null;
   selected_file_name: string | null;
-  persistence_accepted: boolean;
+  persistence_accepted: boolean | null;
   final_reason: string;
 }
 
@@ -699,10 +713,24 @@ export async function matchBatchReceipts(
       row_amount_cents: rowCents,
       row_date: row.transaction_date ?? "",
       row_payee: row.payee ?? row.description ?? "",
+
+      // Campos reais da consulta Supabase para diagnóstico
+      database_row_number: (row as any).row_index ?? null,
+      database_amount: row.amount,
+      database_transaction_date: row.transaction_date ?? null,
+      database_payee: (row.payee ?? row.description) ?? null,
+      raw_data: (row as any).raw_data ?? null,
+      normalized_data: (row as any).normalized_data ?? null,
+      ai_data: (row as any).ai_data ?? null,
+      ai_suggested_amount: (row as any).ai_suggested_amount ?? null,
+      ai_suggested_date: (row as any).ai_suggested_date ?? null,
+      status: (row as any).status ?? null,
+      error_message: (row as any).error_message ?? null,
+
       candidates: [],
       selected_file_id: null,
       selected_file_name: null,
-      persistence_accepted: true,
+      persistence_accepted: null,
       final_reason: "Não encontrado"
     };
 
@@ -898,6 +926,11 @@ export async function matchBatchReceipts(
           const receiptAmount = ocr.amount_raw ?? ocr.amount;
           assertMatchingAmounts(row.amount, receiptAmount);
           finalPayload.push(p);
+          
+          const diag = progress.diagnostics?.find(d => d.row_id === row.id);
+          if (diag) {
+            diag.persistence_accepted = true;
+          }
         } catch (e: any) {
           console.warn(`[DIAGNÓSTICO PERSISTÊNCIA] Rejeitado por barreira: Linha ${row.id} vs Arquivo ${file.id}`);
           progress.matched--;
