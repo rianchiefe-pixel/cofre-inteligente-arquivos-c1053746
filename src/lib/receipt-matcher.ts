@@ -609,61 +609,74 @@ export async function matchBatchReceipts(
     if (isCardKind(row.kind)) continue;
     
     const rowCents = toCents(row.amount);
-    const diag = {
-      linha_id: row.id,
-      valor_original_planilha: row.amount,
-      valor_planilha_em_centavos: rowCents,
-      candidatos_com_mesma_magnitude: 0,
-      candidatos_restantes_após_data: 0,
-      candidatos_restantes_após_favorecido: 0,
-      rejeitados_por_direção: 0,
-      rejeitados_pela_barreira_de_persistência: 0,
-      vínculo_final_gravado: "Nenhum",
-      motivo_final: "Não encontrado"
+    const rowDiag: MatchDiagnostics = {
+      row_id: row.id,
+      row_number: row.row_index ?? 0,
+      row_amount_original: row.amount,
+      row_amount_cents: rowCents,
+      row_date: row.transaction_date ?? "",
+      row_payee: row.payee ?? row.description ?? "",
+      candidates: [],
+      selected_file_id: null,
+      selected_file_name: null,
+      persistence_accepted: true,
+      final_reason: "Não encontrado"
     };
 
     const scored: Candidate[] = [];
     
-    // Filtro 1: Magnitude
-    const candidatesForValue = fileFacts.map(f => {
+    // Processamento de candidatos e diagnóstico detalhado
+    for (const f of fileFacts) {
       const c = scoreRowAgainstFile(row, f);
-      if (c) diag.candidatos_com_mesma_magnitude++;
-      return c;
-    }).filter(c => c !== null) as Candidate[];
-    
-    const valueMatchCount = candidatesForValue.length;
-
-    for (const c of candidatesForValue) {
-      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+      const ocr = f.ocr ?? {};
+      const receiptAmountRaw = ocr.amount_raw ?? ocr.amount;
+      const receiptCents = toCents(receiptAmountRaw);
+      const sameMag = amountsHaveSameMagnitude(rowCents, receiptCents);
+      const dirValid = isDirectionValid(rowCents, ocr, f.extracted_text);
       
-      const hasDate = c.matched.includes("date");
-      const hasPayee = c.matched.includes("payee") || c.matched.includes("payee-partial");
-      const dirIssue = c.divergent.some(d => d.includes("direção") || d.includes("oposto"));
+      const candidateAccepted = c ? isAcceptedTier(c.confidence) : false;
+      const rejectionReason = c ? c.divergent.join("; ") : "Filtro inicial (score null)";
 
-      if (hasDate) diag.candidatos_restantes_após_data++;
-      if (hasPayee) diag.candidatos_restantes_após_favorecido++;
-      if (dirIssue) diag.rejeitados_por_direção++;
+      rowDiag.candidates.push({
+        file_id: f.id,
+        file_name: f.file_name,
+        receipt_amount_raw: receiptAmountRaw,
+        receipt_amount_cents: receiptCents,
+        same_magnitude: sameMag,
+        receipt_date: ocr.date ?? "",
+        receipt_payee: ocr.payee ?? "",
+        direction_valid: dirValid,
+        candidate_accepted: candidateAccepted,
+        score: c?.score ?? 0,
+        confidence: c?.confidence ?? "none",
+        rejection_reason: rejectionReason
+      });
 
-      if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
+      if (candidateAccepted && !reservedFiles.has(f.id) && c) {
         scored.push(c);
       }
     }
+
     scored.sort((a, b) => b.score - a.score);
     
     const top = scored[0];
     if (top) {
       const ties = scored.filter(s => s.score === top.score).length;
       if (ties > 1) {
-        diag.motivo_final = "Bloqueado por ambiguidade (empate de pontuação)";
+        rowDiag.final_reason = "Bloqueado por ambiguidade (empate de pontuação)";
       } else {
         bestByRow.set(row.id, top);
         if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
         fileClaims.get(top.fileId)!.push(row.id);
-        diag.vínculo_final_gravado = top.fileId;
-        diag.motivo_final = `Sucesso (${top.confidence})`;
+        
+        const file = rawFiles.find(fl => fl.id === top.fileId);
+        rowDiag.selected_file_id = top.fileId;
+        rowDiag.selected_file_name = file?.file_name ?? null;
+        rowDiag.final_reason = `Sucesso (${top.confidence})`;
       }
     }
-    console.table([diag]);
+    progress.diagnostics?.push(rowDiag);
+
   }
 
   // Cartão de crédito: tenta vincular apenas contra comprovantes que
