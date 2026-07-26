@@ -595,11 +595,12 @@ export async function matchBatchReceipts(
     unmatchedFiles: 0,
     duplicateFiles,
     persistenceRejected: 0,
+    diagnostics: [],
   };
-
 
   const bestByRow = new Map<string, Candidate>();
   const fileClaims = new Map<string, string[]>();
+
 
   console.log("\n--- INÍCIO DO DIAGNÓSTICO DE CONCILIAÇÃO ---");
 
