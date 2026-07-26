@@ -162,7 +162,7 @@ export async function readSpreadsheet(file: File): Promise<ParsedFile> {
   if (name.endsWith(".csv") || file.type === "text/csv") {
     const text = decodeCsvBytes(buffer);
     const separator = detectSeparator(text);
-    const wb = XLSX.read(text, { type: "string", FS: separator, raw: false });
+    const wb = XLSX.read(text, { type: "string", FS: separator, raw: true });
     const sheetName = wb.SheetNames[0];
     const matrix = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sheetName], {
       header: 1,
