@@ -1283,10 +1283,10 @@ function ReceiptViewer({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">
-            {primaryFile?.file_name ?? "Comprovante não identificado"}
+            {displayFile?.file_name ?? "Comprovante não identificado"}
           </p>
-          {primaryFile?.original_path && primaryFile.original_path !== primaryFile.file_name && (
-            <p className="truncate font-mono text-[10px] text-muted-foreground">{primaryFile.original_path}</p>
+          {displayFile?.original_path && displayFile.original_path !== displayFile.file_name && (
+            <p className="truncate font-mono text-[10px] text-muted-foreground">{displayFile.original_path}</p>
           )}
         </div>
         {primary ? (
