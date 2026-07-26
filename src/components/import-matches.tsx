@@ -441,7 +441,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         <RowMatchDialog
           row={openRow}
           batchId={batchId}
-          links={(linksByRow.get(openRow.id) ?? []).filter(isAcceptedReceiptLink).sort((a, b) => b.score - a.score)}
+          links={linksByRow.get(openRow.id) ?? []}
           files={files.data ?? []}
           onClose={() => setOpenRowId(null)}
           onChanged={() =>
