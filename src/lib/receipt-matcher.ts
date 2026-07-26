@@ -852,13 +852,17 @@ export async function matchBatchReceipts(
   // Atualizar contadores do progresso baseado no finalPayload
   progress.matched = finalPayload.filter(p => p.is_primary).length;
   
-  // needsReview: linhas que tem pelo menos um candidato de revisão no payload final
-  const rowsInReview = new Set(finalPayload.filter(p => !p.is_primary).map(p => p.row_id));
-  progress.needsReview = rowsInReview.size;
+  // needsReview: linhas que não tem primário MAS tem pelo menos um reviewPayload no finalPayload
+  const rowsWithPrimary = new Set(finalPayload.filter(p => p.is_primary).map(p => p.row_id));
+  const rowsWithReview = new Set(finalPayload.filter(p => !p.is_primary && p.confidence === "review").map(p => p.row_id));
+  
+  progress.needsReview = [...rowsWithReview].filter(rid => !rowsWithPrimary.has(rid)).length;
 
-  // notFound: linhas sem automático e sem revisão
-  const rowsWithAuto = new Set(finalPayload.filter((p: any) => p.is_primary).map((p: any) => p.row_id));
-  progress.notFound = rowList.filter((r: any) => !isCardKind(r.kind) && !manualRows.has(r.id) && !rowsWithAuto.has(r.id) && !rowsInReview.has(r.id)).length;
+  // notFound: linhas sem automática e sem candidatos de revisão
+  progress.notFound = rowList.filter((r: any) => {
+    if (isCardKind(r.kind) || manualRows.has(r.id)) return false;
+    return !rowsWithPrimary.has(r.id) && !rowsWithReview.has(r.id);
+  }).length;
 
   // 3. Execução "Transacional": Limpar antigos e inserir novos
   await supabase
