@@ -753,7 +753,7 @@ export async function matchBatchReceipts(
 
   // Arquivos sem vínculo (nem automático nem manual).
   const claimedFileIds = new Set<string>([
-    ...payload.map((p) => p.file_id),
+    ...finalPayload.map((p) => p.file_id),
     ...Array.from(reservedFiles),
   ]);
   progress.unmatchedFiles = rawFiles
