@@ -82,24 +82,62 @@ export interface ParsedNotes {
 
 const CSV_SEPARATORS = [";", ",", "\t", "|"] as const;
 
-function detectSeparator(sample: string): string {
-  const lines = sample.split(/\r?\n/).slice(0, 20).filter((l) => l.length > 0);
-  let best = ";";
-  let bestScore = -1;
-  for (const sep of CSV_SEPARATORS) {
-    const counts = lines.map((l) => l.split(sep).length);
-    if (counts.length === 0) continue;
-    const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
-    if (avg < 2) continue;
-    const variance =
-      counts.reduce((a, b) => a + (b - avg) ** 2, 0) / counts.length;
-    const score = avg - variance; // prefer many columns and low variance
-    if (score > bestScore) {
-      bestScore = score;
-      best = sep;
+function countSeparatorOutsideQuotes(line: string, separator: string): number {
+  let count = 0;
+  let insideQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      // Handle escaped double quotes ("")
+      if (insideQuotes && line[i + 1] === '"') {
+        i++;
+        continue;
+      }
+      insideQuotes = !insideQuotes;
+      continue;
+    }
+
+    if (!insideQuotes && char === separator) {
+      count++;
     }
   }
-  return best;
+
+  return count;
+}
+
+function detectSeparator(sample: string): string {
+  const lines = sample.split(/\r?\n/).slice(0, 50).filter((l) => l.trim().length > 0);
+  
+  const results = CSV_SEPARATORS.map((sep) => {
+    const counts = lines.map((l) => countSeparatorOutsideQuotes(l, sep));
+    if (counts.length === 0) return { sep, score: -1 };
+
+    // Mode: find the most frequent count (excluding zero)
+    const frequency: Record<number, number> = {};
+    counts.forEach((c) => {
+      if (c > 0) frequency[c] = (frequency[c] || 0) + 1;
+    });
+
+    const entries = Object.entries(frequency);
+    if (entries.length === 0) return { sep, score: -1 };
+
+    // The most frequent number of separators
+    const mode = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    const modeCount = Number(mode[0]);
+    const modeFrequency = mode[1];
+
+    // Score: prefer separators that appear consistently in many rows
+    // Bonus for higher number of columns
+    const consistency = modeFrequency / counts.length;
+    const score = modeCount * consistency;
+
+    return { sep, score };
+  });
+
+  const best = results.reduce((a, b) => (b.score > a.score ? b : a));
+  return best.score > 0 ? best.sep : ";";
 }
 
 function decodeCsvBytes(buffer: ArrayBuffer): string {
