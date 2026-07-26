@@ -806,8 +806,8 @@ export async function matchBatchReceipts(
   const combinedDraft = [...automaticPayload, ...reviewPayload];
 
   for (const p of combinedDraft) {
-    const row = rowList.find(r => r.id === p.row_id);
-    const file = rawFiles.find(f => f.id === p.file_id);
+    const row = rowList.find((r: any) => r.id === p.row_id);
+    const file = rawFiles.find((f: any) => f.id === p.file_id);
     
     if (row && file) {
       try {
