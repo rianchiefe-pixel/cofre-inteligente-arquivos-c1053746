@@ -328,10 +328,7 @@ export const classifyImportRow = createServerFn({ method: "POST" })
 
     const d = parsed.data ?? {};
     // transaction_type must be DESPESA or INVESTIMENTO — coerce
-    let tt: "DESPESA" | "INVESTIMENTO" | null = null;
-    const rawTt = String(d.transaction_type ?? "").toUpperCase();
-    if (rawTt === "INVESTIMENTO") tt = "INVESTIMENTO";
-    else if (rawTt) tt = "DESPESA";
+    const d = parsed.data ?? {};
 
     await supabase
       .from("import_rows")
@@ -340,33 +337,14 @@ export const classifyImportRow = createServerFn({ method: "POST" })
         ai_error: null,
         ai_data: d,
         ai_meta: parsed.meta ?? {},
-        transaction_type: tt,
-        subcategory: d.subcategory ?? null,
-        payee: d.payee ?? null,
-        bank: d.bank ?? null,
-        card: d.card ?? null,
-        card_last4: d.card_last4 ?? null,
-        payment_method: d.payment_method ?? null,
-        holder: d.holder ?? null,
-        file_name: d.file_name ?? null,
-        folder_path: d.folder_path ?? null,
-        source_id: d.source_id ?? null,
-        invoice_number: d.invoice_number ?? null,
-        page_number: d.page_number ?? null,
-        // NUNCA sobrescreve silenciosamente os dados financeiros da planilha.
-        amount: row.amount,
-        currency: row.currency,
-        transaction_date: row.transaction_date,
-        // Sugestões da IA salvos separadamente (auditáveis)
+        // AI suggestions saved separately (auditable)
         ai_suggested_amount: sanitizeAmount(d.amount_raw, d.amount, row.amount),
         ai_suggested_date: d.date ?? null,
         ai_suggested_payee: d.payee ?? null,
         ai_suggestion_reason: parsed.meta?.data?.rationale ?? null,
         ai_suggestion_confidence:
           typeof parsed.meta?.data?.confidence === "number" ? parsed.meta.data.confidence : null,
-        // NUNCA sobrescreve silenciosamente a categoria vinda da planilha.
-        category: row.category ?? d.category ?? null,
-        category_original: row.category_original ?? row.category ?? null,
+        
         ai_category_suggestion:
           d.category && normalizeKey(d.category) !== normalizeKey(row.category ?? "")
             ? d.category
@@ -376,7 +354,8 @@ export const classifyImportRow = createServerFn({ method: "POST" })
             ? parsed.meta.category.confidence
             : null,
         ai_category_reason: parsed.meta?.category?.rationale ?? null,
-        // Sugestão determinística de imóvel a partir do histórico do usuário.
+        
+        // Use suggestPropertyForRow for property suggestion
         ...suggestPropertyForRow({
           payee: d.payee ?? row.payee,
           category: d.category ?? row.category,
@@ -384,10 +363,6 @@ export const classifyImportRow = createServerFn({ method: "POST" })
           prefs: prefs ?? [],
           propertyById,
         }),
-        account: d.account ?? row.account,
-        // Preserve the ORIGINAL description text — never overwrite with AI output.
-        description: row.description,
-        notes: d.notes ?? row.notes,
       } as any)
       .eq("id", row.id);
 
