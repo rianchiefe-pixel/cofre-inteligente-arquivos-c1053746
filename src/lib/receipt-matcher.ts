@@ -565,21 +565,47 @@ export async function matchBatchReceipts(
   const bestByRow = new Map<string, Candidate>();
   const fileClaims = new Map<string, string[]>();
 
+  console.log("\n--- INÍCIO DO DIAGNÓSTICO DE CONCILIAÇÃO ---");
+
   for (const row of rowList) {
     if (manualRows.has(row.id)) continue;
-    // Regra 3 — transações de cartão de crédito ficam FORA do cruzamento
-    // comum. Só recebem vínculo se o comprovante for explicitamente de
-    // cartão (marcadores "fatura", "cartão de crédito", "final XXXX").
     if (isCardKind(row.kind)) continue;
+    
+    const rowCents = toCents(row.amount);
+    const diag = {
+      linha_id: row.id,
+      valor_original_planilha: row.amount,
+      valor_planilha_em_centavos: rowCents,
+      candidatos_com_mesma_magnitude: 0,
+      candidatos_restantes_após_data: 0,
+      candidatos_restantes_após_favorecido: 0,
+      rejeitados_por_direção: 0,
+      rejeitados_pela_barreira_de_persistência: 0,
+      vínculo_final_gravado: "Nenhum",
+      motivo_final: "Não encontrado"
+    };
+
     const scored: Candidate[] = [];
     
-    // Passo 1: Filtrar arquivos candidatos por valor (Obrigatório)
-    const candidatesForValue = fileFacts.map(f => scoreRowAgainstFile(row, f)).filter(c => c !== null) as Candidate[];
+    // Filtro 1: Magnitude
+    const candidatesForValue = fileFacts.map(f => {
+      const c = scoreRowAgainstFile(row, f);
+      if (c) diag.candidatos_com_mesma_magnitude++;
+      return c;
+    }).filter(c => c !== null) as Candidate[];
+    
     const valueMatchCount = candidatesForValue.length;
 
     for (const c of candidatesForValue) {
-      // Recalcular tier com o count real de candidatos para o mesmo valor
       c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+      
+      const hasDate = c.matched.includes("date");
+      const hasPayee = c.matched.includes("payee") || c.matched.includes("payee-partial");
+      const dirIssue = c.divergent.some(d => d.includes("direção") || d.includes("oposto"));
+
+      if (hasDate) diag.candidatos_restantes_após_data++;
+      if (hasPayee) diag.candidatos_restantes_após_favorecido++;
+      if (dirIssue) diag.rejeitados_por_direção++;
 
       if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
         scored.push(c);
@@ -587,20 +613,20 @@ export async function matchBatchReceipts(
     }
     scored.sort((a, b) => b.score - a.score);
     
-    // Filtro final de segurança: Se houver mais de uma opção com a mesma pontuação máxima,
-    // não vincular nenhuma automaticamente (conflito de ambiguos).
     const top = scored[0];
     if (top) {
       const ties = scored.filter(s => s.score === top.score).length;
       if (ties > 1) {
-        // Ambiguidade detectada: duas ou mais opções são igualmente boas.
-        // O sistema deve privilegiar a segurança e não associar nenhuma.
-        continue;
+        diag.motivo_final = "Bloqueado por ambiguidade (empate de pontuação)";
+      } else {
+        bestByRow.set(row.id, top);
+        if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
+        fileClaims.get(top.fileId)!.push(row.id);
+        diag.vínculo_final_gravado = top.fileId;
+        diag.motivo_final = `Sucesso (${top.confidence})`;
       }
-      bestByRow.set(row.id, top);
-      if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
-      fileClaims.get(top.fileId)!.push(row.id);
     }
+    console.table([diag]);
   }
 
   // Cartão de crédito: tenta vincular apenas contra comprovantes que
@@ -717,16 +743,16 @@ export async function matchBatchReceipts(
     const file = rawFiles.find(f => f.id === p.file_id);
     
     if (row && file) {
-      try {
-        const ocr = (file.ocr_data ?? {}) as any;
-        const receiptAmount = ocr.amount_raw ?? ocr.amount;
-        assertMatchingAmounts(row.amount, receiptAmount);
-        finalPayload.push(p);
-      } catch (e) {
-        console.warn(`Vínculo automático rejeitado por divergência financeira: ${row.id} - ${file.id}`);
-        progress.matched--;
-        progress.needsReview++;
-      }
+        try {
+          const ocr = (file.ocr_data ?? {}) as any;
+          const receiptAmount = ocr.amount_raw ?? ocr.amount;
+          assertMatchingAmounts(row.amount, receiptAmount);
+          finalPayload.push(p);
+        } catch (e) {
+          console.warn(`[DIAGNÓSTICO PERSISTÊNCIA] Rejeitado por barreira: Linha ${row.id} vs Arquivo ${file.id}`);
+          progress.matched--;
+          progress.needsReview++;
+        }
     }
   }
 
