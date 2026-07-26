@@ -750,7 +750,10 @@ export async function matchBatchReceipts(
       // Regra Conservadora: se existir mais de uma possibilidade compatível, 
       // cancela a associação automática para evitar suposições.
       progress.needsReview++;
+      const diag = progress.diagnostics?.find(d => d.row_id === row.id);
+      if (diag) diag.final_reason = "Bloqueado por ambiguidade (conflito de claims)";
     } else {
+
       progress.matched++;
       payload.push({
         user_id: userId,
