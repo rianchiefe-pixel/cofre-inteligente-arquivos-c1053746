@@ -117,21 +117,36 @@ export function ImportMatches({ batchId }: { batchId: string }) {
     const fs = files.data ?? [];
     let matched = 0;
     let missing = 0;
+    let inReview = 0;
     let cardRows = 0;
     let cardMatched = 0;
+
     for (const r of list) {
       const rl = linksByRow.get(r.id) ?? [];
-      const hit = !!primaryReceiptLink(rl);
+      const primary = primaryReceiptLink(rl);
+      const hit = !!primary;
+
       if (isCardKind((r as any).kind)) {
         cardRows++;
         if (hit) cardMatched++;
         continue;
       }
-      if (hit) matched++;
-      else missing++;
+
+      if (hit) {
+        matched++;
+      } else {
+        const hasReview = rl.some((l) => l.confidence === "review");
+        if (hasReview) inReview++;
+        else missing++;
+      }
     }
-    const claimed = new Set((links.data ?? []).filter((l) => l.is_primary).map((l) => l.file_id));
-    const unreadable = fs.filter((f: any) => f.readable === false || f.status === "unreadable").length;
+
+    const claimed = new Set(
+      (links.data ?? []).filter((l) => l.is_primary).map((l) => l.file_id),
+    );
+    const unreadable = fs.filter(
+      (f: any) => f.readable === false || f.status === "unreadable",
+    ).length;
     const duplicates = fs.filter((f: any) => f.status === "duplicate").length;
     const unmatchedFiles = fs.filter(
       (f: any) =>
@@ -141,7 +156,19 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         !claimed.has(f.id),
     ).length;
     const pendingFiles = fs.filter((f: any) => f.status === "uploaded").length;
-    return { total: list.length, matched, missing, cardRows, cardMatched, unreadable, duplicates, unmatchedFiles, pendingFiles };
+
+    return {
+      total: list.length,
+      matched,
+      missing,
+      inReview,
+      cardRows,
+      cardMatched,
+      unreadable,
+      duplicates,
+      unmatchedFiles,
+      pendingFiles,
+    };
   }, [rows.data, linksByRow, links.data, files.data]);
 
   async function runMatch() {
