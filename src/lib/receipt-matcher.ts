@@ -603,6 +603,8 @@ export async function matchBatchReceipts(
 
 
   console.log("\n--- INÍCIO DO DIAGNÓSTICO DE CONCILIAÇÃO ---");
+  console.log(`Versão do Motor: ${MATCHER_BUILD_VERSION}`);
+
 
   for (const row of rowList) {
     if (manualRows.has(row.id)) continue;
