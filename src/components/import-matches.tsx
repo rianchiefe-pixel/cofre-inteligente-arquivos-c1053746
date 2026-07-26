@@ -299,12 +299,18 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-6">
+      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-7">
         <Bucket label="Vinculados" value={stats.matched} tone="ok" />
+        <Bucket 
+          label="Possíveis" 
+          value={stats.inReview} 
+          tone={stats.inReview > 0 ? "warn" : undefined}
+          icon={<FileSearch className="h-3.5 w-3.5" />}
+        />
         <Bucket label="Sem comprovante" value={stats.missing} icon={<FileQuestion className="h-3.5 w-3.5" />} />
-        <Bucket label="Comprovantes órfãos" value={stats.unmatchedFiles} icon={<FileSearch className="h-3.5 w-3.5" />} />
+        <Bucket label="Comprovantes órfãos" value={stats.unmatchedFiles} icon={<Paperclip className="h-3.5 w-3.5" />} />
         <Bucket
-          label="Cartão de crédito"
+          label="Cartão"
           value={`${stats.cardMatched}/${stats.cardRows}`}
           icon={<CreditCard className="h-3.5 w-3.5" />}
           tone="card"
