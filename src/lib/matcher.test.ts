@@ -173,27 +173,27 @@ export function runTests() {
   try {
     assert.doesNotThrow(() => {
       assertMatchingAmounts(-400, "R$ 400,00");
-    });
+    }, "Magnitude de -400 deve bater com 400,00");
     console.log("✅ [PASS] assertMatchingAmounts(-400, 'R$ 400,00')");
 
     assert.doesNotThrow(() => {
       assertMatchingAmounts("-1.700,00", "R$ 1.700,00");
-    });
+    }, "Magnitude de -1.700,00 deve bater com 1.700,00");
     console.log("✅ [PASS] assertMatchingAmounts('-1.700,00', 'R$ 1.700,00')");
 
     assert.doesNotThrow(() => {
       assertMatchingAmounts("-17.630,14", "R$ 17.630,14");
-    });
+    }, "Magnitude de -17.630,14 deve bater com 17.630,14");
     console.log("✅ [PASS] assertMatchingAmounts('-17.630,14', 'R$ 17.630,14')");
 
     assert.throws(() => {
       assertMatchingAmounts("-5,01", "R$ 5.013,00");
-    });
+    }, "Divergência de valor deve lançar erro");
     console.log("✅ [PASS] assertMatchingAmounts('-5,01', 'R$ 5.013,00') (Throws)");
 
     assert.throws(() => {
       assertMatchingAmounts("-15,11", "R$ 15,32");
-    });
+    }, "Divergência decimal deve lançar erro");
     console.log("✅ [PASS] assertMatchingAmounts('-15,11', 'R$ 15,32') (Throws)");
   } catch (err: any) {
     console.error(`❌ [FAIL] Erro nos testes de assertMatchingAmounts: ${err.message}`);
@@ -201,10 +201,10 @@ export function runTests() {
   }
 
   if (failed === 0) {
-    console.log("\n✨ SUCESSO ABSOLUTO! O motor passou em todos os testes de PRECISÃO MÁXIMA, AMBIGUIDADE, MAGNITUDE e PERSISTÊNCIA.");
+    console.log("\n✨ SUCESSO ABSOLUTO! O motor passou em todos os testes de PRECISÃO MÁXIMA, AMBIGUIDADE e MAGNITUDE.");
     console.log("A comparação via includes() foi definitivamente eliminada e a barreira de auditoria financeira está ativa.");
   } else {
-    console.error(`\n🚨 ALERTA: ${failed} testes falharam. A precisão do motor está comprometida!`);
+    console.error(`\n🚨 ALERTA: ${failed} testes falharam.`);
   }
   
   return failed === 0;
