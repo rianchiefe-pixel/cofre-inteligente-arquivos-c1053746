@@ -12,6 +12,9 @@ import { normalizeBank, type ReceiptFacts } from "@/lib/zip-import";
 import { isCardKind } from "@/lib/import-kind";
 import { assertMatchingAmounts } from "./persistence-validator";
 
+export const MATCHER_BUILD_VERSION = "2026-07-25-sign-magnitude-fix";
+
+
 export type MatchTier = "very_high" | "high" | "review" | "low" | "none";
 
 export interface CandidateReason {

@@ -31,7 +31,9 @@ import {
   attachFileManually,
   detachRowFile,
   type MatchProgress,
+  MATCHER_BUILD_VERSION,
 } from "@/lib/receipt-matcher";
+
 import { reprocessBatchFacts } from "@/lib/zip-import";
 import { currencyBRL } from "@/lib/format";
 import { isCardKind, ROW_KIND_LABEL, type RowKind } from "@/lib/import-kind";
@@ -143,6 +145,8 @@ export function ImportMatches({ batchId }: { batchId: string }) {
 
   async function runMatch() {
     setBusy(true);
+    console.log(`[Matcher] Iniciando cruzamento - Versão: ${MATCHER_BUILD_VERSION}`);
+
     setProgress({
       rowsTotal: rows.data?.length ?? 0,
       rowsDone: 0,
@@ -192,7 +196,11 @@ export function ImportMatches({ batchId }: { batchId: string }) {
       <header className="mb-4 flex flex-wrap items-center gap-3">
         <FileSearch className="h-4 w-4 text-primary" />
         <h2 className="text-sm font-semibold">Localização automática dos comprovantes</h2>
+        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded opacity-50 font-mono">
+          v.{MATCHER_BUILD_VERSION}
+        </span>
         <div className="ml-auto text-xs text-muted-foreground">
+
           {stats.total} linhas · {stats.pendingFiles > 0 ? `${stats.pendingFiles} arquivos ainda processando` : "análise completa"}
         </div>
         <Button
