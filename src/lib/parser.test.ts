@@ -63,7 +63,17 @@ async function testParser() {
       process.exit(1);
     }
 
-    console.log("\nRESULTADO FINAL: 100% de sucesso na detecção e segmentação do CSV complexo.");
+    // Novo teste: Preservação de strings monetárias (raw: true)
+    const valorRaw = firstRow[1];
+    console.log(`Valor original capturado: "${valorRaw}" (tipo: ${typeof valorRaw})`);
+    
+    if (typeof valorRaw !== "string" || !valorRaw.includes(",")) {
+      console.error("ERRO: O valor monetário foi convertido prematuramente.");
+      process.exit(1);
+    }
+    console.log("[PASS] raw_data.Valor preserva a string original.");
+
+    console.log("\nRESULTADO FINAL: 100% de sucesso na detecção e preservação de tipos.");
 
   } catch (err) {
     console.error("Falha no teste:", err);
