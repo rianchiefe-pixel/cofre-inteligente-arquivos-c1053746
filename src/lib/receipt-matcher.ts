@@ -611,7 +611,7 @@ export async function matchBatchReceipts(
     const rowCents = toCents(row.amount);
     const rowDiag: MatchDiagnostics = {
       row_id: row.id,
-      row_number: row.row_index ?? 0,
+      row_number: (row as any).row_index ?? 0,
       row_amount_original: row.amount,
       row_amount_cents: rowCents,
       row_date: row.transaction_date ?? "",
@@ -676,6 +676,7 @@ export async function matchBatchReceipts(
       }
     }
     progress.diagnostics?.push(rowDiag);
+
 
   }
 
