@@ -563,7 +563,7 @@ export const rejectImportRow = createServerFn({ method: "POST" })
 
 const StatusInput = z.object({
   rowId: z.string().uuid(),
-  status: z.enum(["pending", "approved", "rejected", "ver_depois"]),
+  status: z.enum(["pending", "rejected", "ver_depois"]),
   reason: z.string().optional(),
   overrides: z.record(z.string(), z.any()).optional(),
 });
