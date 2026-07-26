@@ -31,6 +31,7 @@ export interface Candidate {
   reasons: CandidateReason[];
   matched: string[];
   divergent: string[];
+  missing: string[];
 }
 
 // ---- text utils ----------------------------------------------------------
