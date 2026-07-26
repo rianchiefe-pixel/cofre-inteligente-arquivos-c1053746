@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRoles, hasPermission, highestRole, ROLE_LABEL, type Permission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
-import { seedDemoData } from "@/lib/demo.functions";
+import { seedDemoData, resetDemoData } from "@/lib/demo.functions";
 
 const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Permission }[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
@@ -61,6 +61,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       toast.success("Dados demo restaurados.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao restaurar dados demo");
+    } finally {
+      setResetting(false);
+    }
+  };
+  
+  const wipeDemo = async () => {
+    if (!confirm("Isso apagará TODOS os dados da conta demo (zerado). Deseja continuar?")) return;
+    setResetting(true);
+    try {
+      await resetDemoData();
+      await queryClient.invalidateQueries();
+      toast.success("Todos os dados demo foram apagados.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar dados demo");
     } finally {
       setResetting(false);
     }
@@ -116,13 +130,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           {isDemo && (
             <div className="mx-3 mt-3 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-[11px] font-medium text-accent-foreground animate-rise">
               Conta demo ativa
-              <button
-                onClick={resetDemo}
-                disabled={resetting}
-                className="mt-2 block w-full rounded-md border border-accent/40 bg-background/60 px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-background disabled:opacity-60"
-              >
-                {resetting ? "Restaurando..." : "Restaurar dados demo"}
-              </button>
+              <div className="mt-2 flex flex-col gap-2">
+                <button
+                  onClick={resetDemo}
+                  disabled={resetting}
+                  className="w-full rounded-md border border-accent/40 bg-background/60 px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-background disabled:opacity-60"
+                >
+                  {resetting ? "..." : "Restaurar semente"}
+                </button>
+                <button
+                  onClick={wipeDemo}
+                  disabled={resetting}
+                  className="w-full rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-500/20 disabled:opacity-60"
+                >
+                  {resetting ? "..." : "Zerar tudo (Limpar)"}
+                </button>
+              </div>
             </div>
           )}
           <nav className="space-y-0.5 p-3">

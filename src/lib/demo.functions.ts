@@ -317,6 +317,17 @@ async function runSeed(supabase: any, userId: string) {
   }
 }
 
+export const resetDemoData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    if (!(await isDemoUser(supabase, userId))) {
+      throw new Error("Somente a conta demo pode ser resetada.");
+    }
+    await wipeDemoData(supabase, userId);
+    return { ok: true };
+  });
+
 export const seedDemoData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { reset?: boolean }) => data ?? {})
@@ -332,12 +343,12 @@ export const seedDemoData = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .eq("name", "Holding Familiar")
       .limit(1);
+    
     if (existing && existing.length > 0 && !data.reset) {
       return { ok: true, seeded: false };
     }
-    if (data.reset) {
-      await wipeDemoData(supabase, userId);
-    }
+    
+    await wipeDemoData(supabase, userId);
     await runSeed(supabase, userId);
     return { ok: true, seeded: true };
   });
