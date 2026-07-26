@@ -39,15 +39,23 @@ function daysAgo(n: number): string {
 }
 
 async function wipeDemoData(supabase: any, userId: string) {
+  // Limpar em ordem de dependência para evitar erros de FK
+  await supabase.from("import_batches").delete().eq("user_id", userId);
+  await supabase.from("card_transactions").delete().eq("user_id", userId);
+  await supabase.from("card_statements").delete().eq("user_id", userId);
+  await supabase.from("card_holders").delete().eq("user_id", userId);
+  await supabase.from("tasks").delete().eq("user_id", userId);
+  await supabase.from("property_obligations").delete().eq("user_id", userId);
+  await supabase.from("property_accesses").delete().eq("user_id", userId);
+  await supabase.from("property_rentals").delete().eq("user_id", userId);
+  await supabase.from("properties").delete().eq("user_id", userId);
   await supabase.from("receipts").delete().eq("user_id", userId);
+  await supabase.from("audit_logs").delete().eq("user_id", userId);
   await supabase.from("recipients").delete().eq("user_id", userId);
-  await supabase.from("cards").delete().eq("user_id", userId);
   await supabase.from("accounts").delete().eq("user_id", userId);
   await supabase.from("banks").delete().eq("user_id", userId);
-  await supabase.from("properties").delete().eq("user_id", userId);
   await supabase.from("financial_profiles").delete().eq("user_id", userId);
-  await supabase.from("audit_logs").delete().eq("user_id", userId);
-  // categories: keep seeded ones; only remove extras created by demo seed if any
+  await supabase.from("import_preferences").delete().eq("user_id", userId);
 }
 
 async function runSeed(supabase: any, userId: string) {
@@ -309,6 +317,17 @@ async function runSeed(supabase: any, userId: string) {
   }
 }
 
+export const resetDemoData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    if (!(await isDemoUser(supabase, userId))) {
+      throw new Error("Somente a conta demo pode ser resetada.");
+    }
+    await wipeDemoData(supabase, userId);
+    return { ok: true };
+  });
+
 export const seedDemoData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { reset?: boolean }) => data ?? {})
@@ -324,12 +343,12 @@ export const seedDemoData = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .eq("name", "Holding Familiar")
       .limit(1);
+    
     if (existing && existing.length > 0 && !data.reset) {
       return { ok: true, seeded: false };
     }
-    if (data.reset) {
-      await wipeDemoData(supabase, userId);
-    }
+    
+    await wipeDemoData(supabase, userId);
     await runSeed(supabase, userId);
     return { ok: true, seeded: true };
   });
