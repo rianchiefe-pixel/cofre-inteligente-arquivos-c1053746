@@ -1394,7 +1394,7 @@ function ReceiptViewer({
               ) : (
                 <img
                   src={signedUrl}
-                  alt={primaryFile.file_name}
+                  alt={displayFile.file_name}
                   className="mx-auto max-w-full rounded-lg bg-white shadow-xl ring-1 ring-border/60"
                   draggable={false}
                 />
