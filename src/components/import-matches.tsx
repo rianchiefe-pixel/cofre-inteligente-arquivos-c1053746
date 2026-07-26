@@ -230,11 +230,15 @@ export function ImportMatches({ batchId }: { batchId: string }) {
       </div>
 
       {busy && progress && progress.rowsTotal > 0 && (
-        <div className="mb-3">
+        <div className="mb-3 space-y-1.5">
           <Progress value={(progress.rowsDone / progress.rowsTotal) * 100} />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {progress.rowsDone}/{progress.rowsTotal} — {progress.matched} ok · {progress.needsReview} ambíguas · {progress.notFound} não identificadas
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+            <span className="font-medium">{progress.rowsDone}/{progress.rowsTotal} processados</span>
+            <span className="text-emerald-600 dark:text-emerald-400">• {progress.matched} associados</span>
+            {progress.notFound > 0 && <span>• {progress.notFound} sem candidato</span>}
+            {progress.needsReview > 0 && <span className="text-amber-600 dark:text-amber-400">• {progress.needsReview} ambíguos</span>}
+            {progress.unreadableFiles > 0 && <span className="text-rose-600 dark:text-rose-400">• {progress.unreadableFiles} ilegíveis</span>}
+          </div>
         </div>
       )}
 
