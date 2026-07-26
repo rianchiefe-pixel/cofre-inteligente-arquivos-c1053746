@@ -1426,7 +1426,7 @@ function ReceiptViewer({
         <Dialog open onOpenChange={(o) => !o && setFullscreen(false)}>
           <DialogContent className="max-w-[95vw]">
             <DialogHeader>
-              <DialogTitle>{primaryFile?.file_name}</DialogTitle>
+              <DialogTitle>{displayFile?.file_name}</DialogTitle>
             </DialogHeader>
             <div className="max-h-[80vh] overflow-auto">
               {isPdf ? (
