@@ -733,6 +733,9 @@ export async function matchBatchReceipts(
     const candidates: Candidate[] = [];
     for (const f of fileFacts as FileFacts[]) {
       if (reservedFiles.has(f.id)) continue;
+      // Respeita rejeição manual anterior
+      if (rejectedSet.has(`${row.id}|${f.id}`)) continue;
+
       const c = scoreRowAgainstFile(row, f);
       if (c && (isAcceptedTier(c.confidence) || c.confidence === "review")) {
         candidates.push(c);
