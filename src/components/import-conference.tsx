@@ -790,6 +790,7 @@ function RowEditor({
   properties: Array<{ id: string; name: string }>;
   propertyById: Map<string, any>;
   batchScope: string;
+  onChanged: () => void;
 }) {
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
   const confirmed = confirmedReceiptLink(links);
