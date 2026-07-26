@@ -598,7 +598,9 @@ export function ImportConference({
                 <SelectItem value="approved">Aprovados ({counts.approved})</SelectItem>
                 <SelectItem value="rejected">Rejeitados ({counts.rejected})</SelectItem>
                 <SelectItem value="ver_depois">Ver depois ({counts.ver})</SelectItem>
-                <SelectItem value="no_receipt">Não identificadas ({counts.no})</SelectItem>
+                <SelectItem value="identified">Identificados ({counts.identified})</SelectItem>
+                <SelectItem value="possible">Possíveis ({counts.possible})</SelectItem>
+                <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
                 <SelectItem value="duplicate">Duplicidades ({counts.dup})</SelectItem>
               </SelectContent>
             </Select>
