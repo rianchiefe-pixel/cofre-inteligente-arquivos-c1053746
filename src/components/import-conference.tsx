@@ -442,8 +442,12 @@ export function ImportConference({
     setSavingAction("approve");
     try {
       await approveFn({ data: { rowId: activeRow.id, overrides: overrides as any } });
-      toast.success("Aprovado");
-      invalidate();
+      toast.success("Lançamento aprovado e incluído no Meu Cofre.");
+      qc.invalidateQueries({ queryKey: ["conf-rows", batchId] });
+      qc.invalidateQueries({ queryKey: ["conf-links", batchId] });
+      qc.invalidateQueries({ queryKey: ["receipts"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["reports"] });
       goNext();
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao aprovar");
