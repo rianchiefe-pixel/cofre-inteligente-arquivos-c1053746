@@ -1204,7 +1204,7 @@ function RowEditor({
                     const confirmFn = (await import("@/lib/receipt-matcher")).confirmReviewCandidate;
                     await confirmFn(reviews[0].id);
                     toast.success("Comprovante vinculado com sucesso");
-                    invalidate();
+                    onChanged();
                   } catch (e: any) {
                     toast.error(e?.message ?? "Falha ao vincular");
                   }
