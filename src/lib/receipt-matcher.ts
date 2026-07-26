@@ -678,6 +678,16 @@ export async function matchBatchReceipts(
       }
     }
     progress.diagnostics?.push(rowDiag);
+    console.table(rowDiag.candidates.map(c => ({
+      file: c.file_name,
+      cents: c.receipt_amount_cents,
+      mag: c.same_magnitude,
+      dir: c.direction_valid,
+      score: c.score,
+      acc: c.candidate_accepted,
+      reason: c.rejection_reason
+    })));
+
 
 
   }
