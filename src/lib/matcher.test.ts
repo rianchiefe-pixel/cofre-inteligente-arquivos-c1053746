@@ -1,5 +1,7 @@
 import { parseMoneyToCents, formatBrlNumber } from "./format.ts";
 import { normalizeBank } from "./zip-import.ts";
+import assert from "node:assert/strict";
+import { assertMatchingAmounts } from "./persistence-validator.ts";
 
 // Helper to mimic toCents from receipt-matcher.ts
 function toCents(value: unknown): number | null {
@@ -166,32 +168,39 @@ export function runTests() {
     }
   });
 
-  if (failed === 0) {
-    console.log("\n--- Parte 5: Testes de Magnitude e Direção (Obrigatórios) ---");
-    const magCases = [
-      { row: -400.00, receipt: "R$ 400,00", expected: true, label: "Despesa -400,00 × Comprovante 400,00 (Magnitude)" },
-      { row: -15.11, receipt: "15.11", expected: true, label: "Despesa -15,11 × Comprovante 15.11 (Magnitude)" },
-      { row: 1700.00, receipt: "R$ 1.700,00", expected: true, label: "Receita 1.700,00 × Comprovante 1.700,00 (Magnitude)" },
-      { row: -5.01, receipt: "5013.00", expected: false, label: "Despesa -5,01 × Comprovante 5.013,00 (Divergente)" },
-    ];
-
-    magCases.forEach(c => {
-      const rowC = parseMoneyToCents(c.row);
-      const recC = parseMoneyToCents(c.receipt);
-      const pass = (rowC !== null && recC !== null && Math.abs(rowC) === Math.abs(recC)) === c.expected;
-      if (pass) {
-        console.log(`✅ [PASS] ${c.label}`);
-      } else {
-        console.log(`❌ [FAIL] ${c.label}`);
-        failed++;
-      }
+  console.log("\n--- Parte 5: Testes de Magnitude e Direção (Obrigatórios) ---");
+  
+  try {
+    assert.doesNotThrow(() => {
+      assertMatchingAmounts(-400, "R$ 400,00");
     });
+    console.log("✅ [PASS] assertMatchingAmounts(-400, 'R$ 400,00')");
 
-    console.log("\n--- Parte 6: Testes de Persistência e Transação ---");
-    console.log("✅ [PASS] Simulação de Transação: ROLLBACK em falha");
-    console.log("✅ [PASS] Barreira de Gravação: assertMatchingAmounts(-400, 400) -> OK (Magnitude)");
-    console.log("✅ [PASS] Ambiguidade Bidirecional: 1 Comprovante -> 2 Linhas = Bloqueado");
-    
+    assert.doesNotThrow(() => {
+      assertMatchingAmounts("-1.700,00", "R$ 1.700,00");
+    });
+    console.log("✅ [PASS] assertMatchingAmounts('-1.700,00', 'R$ 1.700,00')");
+
+    assert.doesNotThrow(() => {
+      assertMatchingAmounts("-17.630,14", "R$ 17.630,14");
+    });
+    console.log("✅ [PASS] assertMatchingAmounts('-17.630,14', 'R$ 17.630,14')");
+
+    assert.throws(() => {
+      assertMatchingAmounts("-5,01", "R$ 5.013,00");
+    });
+    console.log("✅ [PASS] assertMatchingAmounts('-5,01', 'R$ 5.013,00') (Throws)");
+
+    assert.throws(() => {
+      assertMatchingAmounts("-15,11", "R$ 15,32");
+    });
+    console.log("✅ [PASS] assertMatchingAmounts('-15,11', 'R$ 15,32') (Throws)");
+  } catch (err: any) {
+    console.error(`❌ [FAIL] Erro nos testes de assertMatchingAmounts: ${err.message}`);
+    failed++;
+  }
+
+  if (failed === 0) {
     console.log("\n✨ SUCESSO ABSOLUTO! O motor passou em todos os testes de PRECISÃO MÁXIMA, AMBIGUIDADE, MAGNITUDE e PERSISTÊNCIA.");
     console.log("A comparação via includes() foi definitivamente eliminada e a barreira de auditoria financeira está ativa.");
   } else {
