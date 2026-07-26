@@ -1187,6 +1187,52 @@ function RowEditor({
           </div>
         </section>
       )}
+
+      {!confirmed && reviews.length > 0 && (
+        <section className="mt-3 flex flex-col gap-2 rounded-2xl border border-amber-200/60 bg-amber-50/20 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+              Candidato sugerido ({reviews.length})
+            </h4>
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 rounded-full border-emerald-200 bg-emerald-50 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                onClick={async () => {
+                  try {
+                    const confirmFn = (await import("@/lib/receipt-matcher")).confirmReviewCandidate;
+                    await confirmFn(reviews[0].id);
+                    toast.success("Comprovante vinculado com sucesso");
+                    invalidate();
+                  } catch (e: any) {
+                    toast.error(e?.message ?? "Falha ao vincular");
+                  }
+                }}
+              >
+                Vincular este comprovante
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 rounded-full text-[10px] font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                onClick={async () => {
+                  try {
+                    const rejectFn = (await import("@/lib/receipt-matcher")).rejectReviewCandidate;
+                    await rejectFn(reviews[0].id);
+                    toast.success("Candidato removido");
+                    invalidate();
+                  } catch (e: any) {
+                    toast.error(e?.message ?? "Falha ao rejeitar");
+                  }
+                }}
+              >
+                Não é este
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
