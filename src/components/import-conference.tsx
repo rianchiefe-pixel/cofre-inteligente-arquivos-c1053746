@@ -1223,7 +1223,7 @@ function RowEditor({
                     const rejectFn = (await import("@/lib/receipt-matcher")).rejectReviewCandidate;
                     await rejectFn(reviews[0].id);
                     toast.success("Candidato removido");
-                    invalidate();
+                    onChanged();
                   } catch (e: any) {
                     toast.error(e?.message ?? "Falha ao rejeitar");
                   }
