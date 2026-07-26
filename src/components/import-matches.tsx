@@ -25,6 +25,10 @@ import {
   Copy,
   FileQuestion,
   Download,
+  Eye,
+  Check,
+  X,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
