@@ -697,7 +697,7 @@ export async function matchBatchReceipts(
   }
 
   // Cartão de crédito: lógica simplificada para diagnóstico
-  const cardFileFacts = fileFacts.filter((f) => {
+  const cardFileFacts = fileFacts.filter((f: any) => {
     const hay = `${f.file_name} ${f.textNorm}`;
     return /fatura|cartao de credito|cart[aã]o de cr[eé]dito|final \d{4}/i.test(hay);
   });
