@@ -364,6 +364,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
               const rl = (linksByRow.get(r.id) ?? []).slice().sort((a, b) => b.score - a.score);
               const primary = primaryReceiptLink(rl);
               const primaryFile = primary ? fileById.get(primary.file_id) : null;
+              const hasReview = !primary && rl.some(l => l.confidence === 'review');
               const isCard = isCardKind((r as any).kind);
               const kindLabel = (r as any).kind ? ROW_KIND_LABEL[(r as any).kind as RowKind] ?? "—" : "—";
               return (
@@ -393,6 +394,11 @@ export function ImportMatches({ batchId }: { batchId: string }) {
                           {primary.page_number ? ` · p.${primary.page_number}` : ""}
                         </span>
                       </div>
+                    ) : hasReview ? (
+                      <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <FileSearch className="h-3 w-3" />
+                        <span className="text-[11px] font-medium italic">ver possíveis candidatos</span>
+                      </div>
                     ) : isCard ? (
                       <span className="text-muted-foreground italic">segregado — cartão</span>
                     ) : (
@@ -402,6 +408,8 @@ export function ImportMatches({ batchId }: { batchId: string }) {
                   <td className="p-2 text-center">
                     {primary ? (
                       <Badge className="bg-emerald-600 text-white">Identificado</Badge>
+                    ) : hasReview ? (
+                      <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-900/20">Revisar</Badge>
                     ) : isCard ? (
                       <Badge variant="outline" className="border-amber-500/50 text-amber-700 dark:text-amber-400">
                         Cartão
@@ -410,7 +418,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
                       <Badge variant="outline">Não identificado</Badge>
                     )}
                   </td>
-                  <td className="p-2">
+                  <td className="p-2 text-right">
                     <Button size="sm" variant="ghost" onClick={() => setOpenRowId(r.id)}>
                       <Link2 className="h-3 w-3" />
                     </Button>
