@@ -201,8 +201,10 @@ function factsFromFile(f: any): FileFacts {
     pathNorm: norm(path),
     textNorm: norm(text),
     tokens: tokens(bag),
+    readable: f.readable !== false,
   };
 }
+
 
 function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   const reasons: CandidateReason[] = [];
