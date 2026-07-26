@@ -791,8 +791,11 @@ export async function matchBatchReceipts(
     if (finalFileClaims.get(p.file_id)! > 1) {
       progress.needsReview++;
       progress.matched--;
+      const diag = progress.diagnostics?.find(d => d.row_id === p.row_id);
+      if (diag) diag.final_reason = "Bloqueado por ambiguidade bidirecional (arquivo pleiteado por múltiplas linhas)";
       continue;
     }
+
 
     // 2. Barreira obrigatória na gravação: Validar valores financeiros
     const row = rowList.find(r => r.id === p.row_id);
