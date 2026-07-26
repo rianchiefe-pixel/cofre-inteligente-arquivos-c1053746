@@ -390,7 +390,8 @@ export function ImportConference({
       rejected = 0,
       ver = 0,
       no = 0,
-      identified = 0;
+      identified = 0,
+      possible = 0;
     for (const r of list) {
       const s = (r.review_status ?? "pending") as ReviewStatus;
       if (s === "approved") approved++;
