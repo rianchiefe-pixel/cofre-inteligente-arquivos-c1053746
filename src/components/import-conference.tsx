@@ -1262,8 +1262,8 @@ function ReceiptViewer({
     };
   }, [displayFile?.storage_path]);
 
-  const isPdf = (primaryFile?.mime_type ?? "").includes("pdf") || (primaryFile?.extension ?? "").toLowerCase() === "pdf";
-  const pageCount = primaryFile?.page_count ?? 1;
+  const isPdf = (displayFile?.mime_type ?? "").includes("pdf") || (displayFile?.extension ?? "").toLowerCase() === "pdf";
+  const pageCount = displayFile?.page_count ?? 1;
 
   const [manualOpen, setManualOpen] = useState(false);
 
