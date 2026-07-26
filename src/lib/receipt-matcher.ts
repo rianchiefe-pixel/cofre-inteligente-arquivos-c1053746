@@ -566,15 +566,25 @@ export async function matchBatchReceipts(
     return factsFromFile(f);
   });
 
-  const { data: manualPrimaries } = await supabase
-    .from("import_row_files")
-    .select("row_id, file_id")
-    .eq("batch_id", batchId)
-    .eq("is_manual", true)
-    .eq("is_primary", true);
+  const [{ data: manualPrimaries }, { data: rejectedPairs }] = await Promise.all([
+    supabase
+      .from("import_row_files")
+      .select("row_id, file_id")
+      .eq("batch_id", batchId)
+      .eq("is_manual", true)
+      .eq("is_primary", true),
+    supabase
+      .from("import_row_files")
+      .select("row_id, file_id")
+      .eq("batch_id", batchId)
+      .eq("confidence", "rejected")
+  ]);
   // Vínculos manuais e reservados devem ser preservados.
   const manualRows = new Set((manualPrimaries ?? []).map((l: any) => l.row_id));
   const reservedFiles = new Set((manualPrimaries ?? []).map((l: any) => l.file_id));
+  
+  // Pares explicitamente rejeitados pelo usuário não devem ser sugeridos
+  const rejectedSet = new Set((rejectedPairs ?? []).map((p: any) => `${p.row_id}|${p.file_id}`));
 
   const progress: MatchProgress = {
     rowsTotal: rowList.length,
