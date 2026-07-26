@@ -228,6 +228,51 @@ function factsFromFile(f: any): FileFacts {
 }
 
 
+function getOriginalRowEvidence(row: any) {
+  // Evidência de arquivo originada APENAS da planilha original (raw_data ou normalized_data).
+  // NUNCA utilize ai_data ou descrições geradas por IA.
+  
+  const raw = row.raw_data || {};
+  const norm = row.normalized_data || {};
+
+  // Mapeamos os nomes comuns que podem conter metadados de arquivo na planilha
+  const fileName = String(
+    row.file_name || 
+    raw["Arquivo"] || raw["file_name"] || raw["FILE"] || 
+    norm.file_name || 
+    ""
+  ).trim();
+
+  const folderPath = String(
+    row.folder_path || 
+    raw["Pasta"] || raw["folder_path"] || raw["FOLDER"] || 
+    norm.folder_path || 
+    ""
+  ).trim();
+
+  const sourceId = String(
+    row.source_id || 
+    raw["ID Origem"] || raw["source_id"] || raw["SOURCE"] || 
+    norm.source_id || 
+    ""
+  ).trim();
+
+  const invoiceNumber = String(
+    row.invoice_number || 
+    raw["Fatura"] || raw["invoice_number"] || raw["INVOICE"] || 
+    norm.invoice_number || 
+    ""
+  ).trim();
+
+  return {
+    fileName: fileName || null,
+    folderPath: folderPath || null,
+    sourceId: sourceId || null,
+    invoiceNumber: invoiceNumber || null,
+  };
+}
+
+
 function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   const reasons: CandidateReason[] = [];
   const matched = new Set<string>();
@@ -236,10 +281,11 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   let score = 0;
   const ocr = f.ocr ?? {};
 
-  const wantedName = String(row.file_name ?? "").trim();
-  const wantedFolder = String(row.folder_path ?? "").trim();
-  const rowSourceId = String(row.source_id ?? "").trim();
-  const rowInvoice = String(row.invoice_number ?? "").trim();
+  // Obter evidências ORIGINAIS da linha (ignorando IA)
+  const evidence = getOriginalRowEvidence(row);
+  const wantedName = evidence.fileName;
+  const rowSourceId = evidence.sourceId;
+  const rowInvoice = evidence.invoiceNumber;
 
   // 1. Exact name / path (40)
   if (wantedName) {
@@ -314,9 +360,6 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       matched.add("amount");
     } else if (foundExact && foundOther) {
       divergent.push("Valor ambíguo — múltiplos valores financeiros no comprovante");
-      // Valor ambíguo também é fatal se não puder desempate? O usuário pediu: 
-      // "A divergência de valor continua causando return null imediato."
-      // Ambiguidade não é exatamente divergência, mas é risco. Vamos manter return null aqui por segurança.
       return null;
     } else {
       return null; // Valor não encontrado
