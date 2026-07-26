@@ -470,6 +470,33 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
 
 // ---- Public API ----------------------------------------------------------
 
+export interface MatchDiagnostics {
+  row_id: string;
+  row_number: number;
+  row_amount_original: any;
+  row_amount_cents: number | null;
+  row_date: string;
+  row_payee: string;
+  candidates: Array<{
+    file_id: string;
+    file_name: string;
+    receipt_amount_raw: any;
+    receipt_amount_cents: number | null;
+    same_magnitude: boolean;
+    receipt_date: string;
+    receipt_payee: string;
+    direction_valid: boolean;
+    candidate_accepted: boolean;
+    score: number;
+    confidence: MatchTier;
+    rejection_reason: string;
+  }>;
+  selected_file_id: string | null;
+  selected_file_name: string | null;
+  persistence_accepted: boolean;
+  final_reason: string;
+}
+
 export interface MatchProgress {
   rowsTotal: number;
   rowsDone: number;
@@ -482,7 +509,9 @@ export interface MatchProgress {
   unmatchedFiles: number;
   duplicateFiles: number;
   persistenceRejected: number;
+  diagnostics?: MatchDiagnostics[];
 }
+
 
 
 export async function matchBatchReceipts(
@@ -566,74 +595,101 @@ export async function matchBatchReceipts(
     unmatchedFiles: 0,
     duplicateFiles,
     persistenceRejected: 0,
+    diagnostics: [],
   };
-
 
   const bestByRow = new Map<string, Candidate>();
   const fileClaims = new Map<string, string[]>();
 
+
   console.log("\n--- INÍCIO DO DIAGNÓSTICO DE CONCILIAÇÃO ---");
+  console.log(`Versão do Motor: ${MATCHER_BUILD_VERSION}`);
+
 
   for (const row of rowList) {
     if (manualRows.has(row.id)) continue;
     if (isCardKind(row.kind)) continue;
     
     const rowCents = toCents(row.amount);
-    const diag = {
-      linha_id: row.id,
-      valor_original_planilha: row.amount,
-      valor_planilha_em_centavos: rowCents,
-      candidatos_com_mesma_magnitude: 0,
-      candidatos_restantes_após_data: 0,
-      candidatos_restantes_após_favorecido: 0,
-      rejeitados_por_direção: 0,
-      rejeitados_pela_barreira_de_persistência: 0,
-      vínculo_final_gravado: "Nenhum",
-      motivo_final: "Não encontrado"
+    const rowDiag: MatchDiagnostics = {
+      row_id: row.id,
+      row_number: (row as any).row_index ?? 0,
+      row_amount_original: row.amount,
+      row_amount_cents: rowCents,
+      row_date: row.transaction_date ?? "",
+      row_payee: row.payee ?? row.description ?? "",
+      candidates: [],
+      selected_file_id: null,
+      selected_file_name: null,
+      persistence_accepted: true,
+      final_reason: "Não encontrado"
     };
 
     const scored: Candidate[] = [];
     
-    // Filtro 1: Magnitude
-    const candidatesForValue = fileFacts.map(f => {
+    // Processamento de candidatos e diagnóstico detalhado
+    for (const f of fileFacts) {
       const c = scoreRowAgainstFile(row, f);
-      if (c) diag.candidatos_com_mesma_magnitude++;
-      return c;
-    }).filter(c => c !== null) as Candidate[];
-    
-    const valueMatchCount = candidatesForValue.length;
-
-    for (const c of candidatesForValue) {
-      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+      const ocr = f.ocr ?? {};
+      const receiptAmountRaw = ocr.amount_raw ?? ocr.amount;
+      const receiptCents = toCents(receiptAmountRaw);
+      const sameMag = amountsHaveSameMagnitude(rowCents, receiptCents);
+      const dirValid = isDirectionValid(rowCents, ocr, f.extracted_text);
       
-      const hasDate = c.matched.includes("date");
-      const hasPayee = c.matched.includes("payee") || c.matched.includes("payee-partial");
-      const dirIssue = c.divergent.some(d => d.includes("direção") || d.includes("oposto"));
+      const candidateAccepted = c ? isAcceptedTier(c.confidence) : false;
+      const rejectionReason = c ? c.divergent.join("; ") : "Filtro inicial (score null)";
 
-      if (hasDate) diag.candidatos_restantes_após_data++;
-      if (hasPayee) diag.candidatos_restantes_após_favorecido++;
-      if (dirIssue) diag.rejeitados_por_direção++;
+      rowDiag.candidates.push({
+        file_id: f.id,
+        file_name: f.file_name,
+        receipt_amount_raw: receiptAmountRaw,
+        receipt_amount_cents: receiptCents,
+        same_magnitude: sameMag,
+        receipt_date: ocr.date ?? "",
+        receipt_payee: ocr.payee ?? "",
+        direction_valid: dirValid,
+        candidate_accepted: candidateAccepted,
+        score: c?.score ?? 0,
+        confidence: c?.confidence ?? "none",
+        rejection_reason: rejectionReason
+      });
 
-      if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
+      if (candidateAccepted && !reservedFiles.has(f.id) && c) {
         scored.push(c);
       }
     }
+
     scored.sort((a, b) => b.score - a.score);
     
     const top = scored[0];
     if (top) {
       const ties = scored.filter(s => s.score === top.score).length;
       if (ties > 1) {
-        diag.motivo_final = "Bloqueado por ambiguidade (empate de pontuação)";
+        rowDiag.final_reason = "Bloqueado por ambiguidade (empate de pontuação)";
       } else {
         bestByRow.set(row.id, top);
         if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
         fileClaims.get(top.fileId)!.push(row.id);
-        diag.vínculo_final_gravado = top.fileId;
-        diag.motivo_final = `Sucesso (${top.confidence})`;
+        
+        const file = rawFiles.find(fl => fl.id === top.fileId);
+        rowDiag.selected_file_id = top.fileId;
+        rowDiag.selected_file_name = file?.file_name ?? null;
+        rowDiag.final_reason = `Sucesso (${top.confidence})`;
       }
     }
-    console.table([diag]);
+    progress.diagnostics?.push(rowDiag);
+    console.table(rowDiag.candidates.map(c => ({
+      file: c.file_name,
+      cents: c.receipt_amount_cents,
+      mag: c.same_magnitude,
+      dir: c.direction_valid,
+      score: c.score,
+      acc: c.candidate_accepted,
+      reason: c.rejection_reason
+    })));
+
+
+
   }
 
   // Cartão de crédito: tenta vincular apenas contra comprovantes que
@@ -704,7 +760,10 @@ export async function matchBatchReceipts(
       // Regra Conservadora: se existir mais de uma possibilidade compatível, 
       // cancela a associação automática para evitar suposições.
       progress.needsReview++;
+      const diag = progress.diagnostics?.find(d => d.row_id === row.id);
+      if (diag) diag.final_reason = "Bloqueado por ambiguidade (conflito de claims)";
     } else {
+
       progress.matched++;
       payload.push({
         user_id: userId,
@@ -742,8 +801,11 @@ export async function matchBatchReceipts(
     if (finalFileClaims.get(p.file_id)! > 1) {
       progress.needsReview++;
       progress.matched--;
+      const diag = progress.diagnostics?.find(d => d.row_id === p.row_id);
+      if (diag) diag.final_reason = "Bloqueado por ambiguidade bidirecional (arquivo pleiteado por múltiplas linhas)";
       continue;
     }
+
 
     // 2. Barreira obrigatória na gravação: Validar valores financeiros
     const row = rowList.find(r => r.id === p.row_id);
@@ -755,11 +817,18 @@ export async function matchBatchReceipts(
           const receiptAmount = ocr.amount_raw ?? ocr.amount;
           assertMatchingAmounts(row.amount, receiptAmount);
           finalPayload.push(p);
-        } catch (e) {
+        } catch (e: any) {
           console.warn(`[DIAGNÓSTICO PERSISTÊNCIA] Rejeitado por barreira: Linha ${row.id} vs Arquivo ${file.id}`);
           progress.matched--;
           progress.persistenceRejected++;
+          
+          const diag = progress.diagnostics?.find(d => d.row_id === row.id);
+          if (diag) {
+            diag.persistence_accepted = false;
+            diag.final_reason = `Rejeitado na persistência: ${e.message}`;
+          }
         }
+
 
     }
   }
