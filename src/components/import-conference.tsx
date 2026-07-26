@@ -89,14 +89,23 @@ const STATUS_COLOR: Record<ReviewStatus, string> = {
   ver_depois: "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/25",
 };
 
-const ACCEPTED_RECEIPT_CONFIDENCES = new Set(["high", "very_high"]);
-
-function isAcceptedReceiptLink(link: any): boolean {
-  return !!link && (link.is_manual || ACCEPTED_RECEIPT_CONFIDENCES.has(String(link.confidence ?? "")));
+function confirmedReceiptLink(links: any[]) {
+  return (
+    links.find(
+      (link) =>
+        link.is_primary &&
+        (link.is_manual ||
+          link.confidence === "high" ||
+          link.confidence === "very_high" ||
+          link.confidence === "manual_confirmed")
+    ) ?? null
+  );
 }
 
-function primaryReceiptLink(links: any[]): any | null {
-  return links.find((l) => l.is_primary && isAcceptedReceiptLink(l)) ?? null;
+function reviewReceiptLinks(links: any[]) {
+  return links
+    .filter((link) => !link.is_primary && !link.is_manual && link.confidence === "review")
+    .sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0));
 }
 
 const FIELDS: Array<{ key: string; label: string; type?: "number" | "textarea" | "select"; options?: string[] }> = [
