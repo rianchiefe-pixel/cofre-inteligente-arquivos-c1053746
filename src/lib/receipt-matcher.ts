@@ -18,9 +18,12 @@ export const MATCHER_BUILD_VERSION = "2026-07-25-sign-magnitude-fix";
 export type MatchTier = "very_high" | "high" | "review" | "low" | "none";
 
 export interface CandidateReason {
-  key: string;
+  key: "match" | "divergence" | "missing" | "manual" | "path" | "id" | "amount" | "date" | "payee" | "payee-partial" | "bank" | "txid" | "auth" | "doc";
+  field?: string;
   label: string;
-  points: number;
+  points?: number;
+  rowValue?: any;
+  receiptValue?: any;
 }
 
 export interface Candidate {
