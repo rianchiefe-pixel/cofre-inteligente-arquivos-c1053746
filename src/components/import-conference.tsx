@@ -1150,7 +1150,7 @@ function RowEditor({
         </p>
       </section>
 
-      {primary && (
+      {confirmed && (
         <section className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
           <div className="mb-2 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1159,8 +1159,32 @@ function RowEditor({
             </h3>
           </div>
           <p className="text-[11px] text-emerald-800/80 dark:text-emerald-200/80">
-            {primary.is_manual ? "Associação manual realizada pelo usuário." : "Valor, data e favorecido validados com precisão absoluta."}
+            {confirmed.is_manual ? "Associação manual realizada pelo usuário." : "Valor, data e favorecido validados com precisão absoluta."}
           </p>
+        </section>
+      )}
+
+      {!confirmed && reviews.length > 0 && (
+        <section className="rounded-2xl border border-amber-200/60 bg-amber-50/40 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
+          <div className="mb-2 flex items-center gap-2">
+            <FileWarning className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+              Revisão Necessária
+            </h3>
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80">
+              Valor compatível, mas existem divergências ou dados ausentes.
+            </p>
+            {reviews[0].match_reasons
+              ?.filter((r: any) => r.key === "divergence" || r.field === "unknown")
+              .map((reason: any, idx: number) => (
+                <div key={idx} className="flex items-start gap-1.5 text-[10px] text-amber-700 dark:text-amber-300">
+                  <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-amber-400" />
+                  <span>{reason.label}</span>
+                </div>
+              ))}
+          </div>
         </section>
       )}
     </div>
