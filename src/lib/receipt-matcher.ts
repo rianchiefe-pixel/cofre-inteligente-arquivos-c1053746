@@ -609,6 +609,11 @@ export async function matchBatchReceipts(
     return factsFromFile(f);
   });
 
+  const effectiveFileFactsById = new Map<string, FileFacts>(
+    fileFacts.map((fact) => [fact.id, fact] as const)
+  );
+
+
   const [{ data: manualPrimaries }, { data: rejectedPairs }] = await Promise.all([
     supabase
       .from("import_row_files")
@@ -864,8 +869,8 @@ export async function matchBatchReceipts(
 
   for (const p of combinedDraft) {
     const row = rowList.find((r: any) => r.id === p.row_id);
-    const file = rawFiles.find((f: any) => f.id === p.file_id);
     const effectiveFile = effectiveFileFactsById.get(p.file_id);
+
     
     if (row && effectiveFile) {
       try {
