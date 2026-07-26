@@ -261,9 +261,13 @@ function ImportPage() {
               r.normalized.category,
             ),
             transaction_type: (function() {
-              const orig = String(r.parsed_notes.original_account || "").toUpperCase();
-              if (orig === "DESPESAS") return "DESPESA";
-              if (orig === "INVESTIMENTOS") return "INVESTIMENTO";
+              const raw = r.raw;
+              // Procure por uma coluna que contenha "CONTA" ou "ORIGEM" e tenha valores "DESPESAS" ou "INVESTIMENTOS"
+              for (const val of Object.values(raw)) {
+                const s = String(val || "").toUpperCase();
+                if (s === "DESPESAS") return "DESPESA";
+                if (s === "INVESTIMENTOS") return "INVESTIMENTO";
+              }
               return null;
             })(),
           }));
