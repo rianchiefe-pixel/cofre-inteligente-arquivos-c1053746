@@ -334,7 +334,15 @@ function ImportPage() {
             variant="outline"
             size="sm"
             className="h-8 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
-            onClick={() => runTests()}
+            onClick={() => {
+              console.log("Validando motor via botão principal...");
+              const success = runTests();
+              if (success) {
+                toast.success("Motor validado com sucesso!");
+              } else {
+                toast.error("Erro na validação do motor.");
+              }
+            }}
           >
             <Beaker className="h-3.5 w-3.5" />
             Validar Motor
