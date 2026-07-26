@@ -327,8 +327,7 @@ export const classifyImportRow = createServerFn({ method: "POST" })
     }
 
     const d = parsed.data ?? {};
-    // transaction_type must be DESPESA or INVESTIMENTO — coerce
-    const d = parsed.data ?? {};
+
 
     await supabase
       .from("import_rows")
