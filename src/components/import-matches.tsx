@@ -36,6 +36,8 @@ import {
   matchBatchReceipts,
   attachFileManually,
   detachRowFile,
+  confirmReviewCandidate,
+  rejectReviewCandidate,
   type MatchProgress,
   MATCHER_BUILD_VERSION,
 } from "@/lib/receipt-matcher";
@@ -711,21 +713,24 @@ function RowMatchDialog({
                           <Eye className="h-3 w-3" /> Ver comprovante
                         </Button>
                         <Button size="sm" className="h-8 gap-1 bg-amber-600 hover:bg-amber-700 text-white border-none" onClick={async () => {
-                          await attachFileManually({
-                            batchId,
-                            rowId: row.id,
-                            fileId: l.file_id,
-                            pageNumber: l.page_number,
-                            makePrimary: true
-                          });
-                          toast.success("Comprovante vinculado com sucesso");
-                          onChanged();
+                          try {
+                            await confirmReviewCandidate(l.id);
+                            toast.success("Comprovante confirmado com sucesso");
+                            onChanged();
+                          } catch (e: any) {
+                            toast.error(e.message || "Falha ao confirmar comprovante");
+                          }
                         }}>
                           <Check className="h-3 w-3" /> Vincular este comprovante
                         </Button>
                         <Button size="sm" variant="ghost" className="h-8 gap-1 text-muted-foreground" onClick={async () => {
-                          await detachRowFile(l.id);
-                          onChanged();
+                          try {
+                            await rejectReviewCandidate(l.id);
+                            toast.success("Candidato descartado");
+                            onChanged();
+                          } catch (e: any) {
+                            toast.error(e.message || "Falha ao descartar");
+                          }
                         }}>
                           <X className="h-3 w-3" /> Não é este
                         </Button>
