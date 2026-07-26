@@ -1353,7 +1353,7 @@ function ReceiptViewer({
             variant="ghost"
             className="h-8 rounded-full text-xs text-muted-foreground hover:text-rose-600"
             onClick={markUnlocated}
-            disabled={!primary}
+            disabled={!confirmed}
           >
             <FileWarning className="mr-1 h-3.5 w-3.5" /> Marcar não localizado
           </Button>
