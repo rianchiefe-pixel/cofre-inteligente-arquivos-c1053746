@@ -31,6 +31,7 @@ export interface Candidate {
   reasons: CandidateReason[];
   matched: string[];
   divergent: string[];
+  missing: string[];
 }
 
 // ---- text utils ----------------------------------------------------------
@@ -129,15 +130,14 @@ function gatedTier(
   raw: number, 
   matched: Set<string>, 
   divergent: string[],
+  missing: string[],
   row: any,
   candidatesCount: number
 ): MatchTier {
-  if (divergent.length > 0) return "none";
-
   // REGRA DE OURO: Bloqueio de ambiguidade por valor.
   // Se existirem múltiplos candidatos com o mesmo valor, só permitimos associação
   // automática se houver um critério desempate forte (Data + Favorecido ou ID único).
-  const hasStrongTiebreaker = (matched.has("date") && matched.has("payee")) || 
+  const hasStrongTiebreaker = (matched.has("date") && (matched.has("payee") || matched.has("payee-partial"))) || 
                              matched.has("id") || matched.has("txid") || matched.has("auth");
 
   if (candidatesCount > 1 && !hasStrongTiebreaker) {
@@ -148,14 +148,33 @@ function gatedTier(
   const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
   
-  if (hasId && matched.has("amount")) return "very_high";
-  if (coreOk && matched.has("amount")) return "high";
-  if (matched.has("amount") && matched.has("date") && (matched.has("bank") || matched.has("doc"))) {
-    return "review";
+  // High / Very High: Zero divergências + critérios completos
+  if (divergent.length === 0) {
+    if (hasId && matched.has("amount")) return "very_high";
+    if (coreOk && matched.has("amount")) return "high";
+  }
+
+  // REVISÃO: Exatamente uma divergência relevante + evidências suficientes
+  // OU critérios incompletos (missing) mas evidências fortes.
+  const evidenceCount = matched.size; // amount conta como 1
+  const hasStrongEvidence = matched.has("date") || matched.has("id") || matched.has("auth") || matched.has("path") || matched.has("doc");
+  
+  if (matched.has("amount")) {
+    if (divergent.length === 1 && evidenceCount >= 3 && hasStrongEvidence) {
+      return "review";
+    }
+    if (divergent.length === 0 && missing.length <= 1 && evidenceCount >= 3 && hasStrongEvidence) {
+      return "review";
+    }
+    // Caso especial: valor + data corretos, favorecido ausente, apenas um candidato
+    if (divergent.length === 0 && matched.has("date") && candidatesCount === 1) {
+      return "review";
+    }
   }
 
   return "none";
 }
+
 
 function isAcceptedTier(confidence: MatchTier): boolean {
   return confidence === "very_high" || confidence === "high";
@@ -210,6 +229,7 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
   const reasons: CandidateReason[] = [];
   const matched = new Set<string>();
   const divergent: string[] = [];
+  const missing: string[] = [];
   let score = 0;
   const ocr = f.ocr ?? {};
 
@@ -226,17 +246,13 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       reasons.push({ key: "path", label: `nome/caminho: ${wantedName}`, points: 40 });
       matched.add("path");
     }
-  }
-  if (wantedFolder) {
-    const wf = norm(wantedFolder);
-    if (wf && f.pathNorm.includes(wf)) {
-      score += 6;
-      reasons.push({ key: "folder", label: `pasta/mês: ${wantedFolder}`, points: 6 });
-    }
+  } else {
+    missing.push("nome_arquivo");
   }
 
   // 2. Source / transaction id (35)
   const ids = [rowSourceId, rowInvoice].filter(Boolean);
+  let idHit = false;
   for (const id of ids) {
     const d = digits(id);
     const n = norm(id);
@@ -245,74 +261,66 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       score += 35;
       reasons.push({ key: "id", label: `ID/transação: ${id}`, points: 35 });
       matched.add("id");
+      idHit = true;
       break;
     }
   }
+  if (!idHit) missing.push("id_transacao");
 
-  // 3. Amount (25) — exatidão absoluta exigida (comportamento de auditor).
-  // Nunca permitir associação se os valores forem diferentes (R$ 0,00 permitida).
-  const hasExplicit = matched.has("path") || matched.has("id");
+  // 3. Amount (25) — exatidão absoluta exigida.
   const rowCents = toCents(row.amount);
-  if (rowCents !== null && rowCents !== 0) {
-    const ocrCents = toCents(ocr.amount_raw ?? ocr.amount);
-    
-    // Se o OCR identificou um valor, ele DEVE ser idêntico.
-    if (ocrCents !== null) {
-      if (amountsHaveSameMagnitude(rowCents, ocrCents)) {
-        if (!isDirectionValid(rowCents, ocr, f.extracted_text)) {
-          divergent.push(`direção incompatível: planilha (${rowCents < 0 ? 'saída' : 'entrada'}) × comprovante parece ser o oposto`);
-          return null;
-        }
-        score += 25;
-        reasons.push({ key: "amount", label: `valor compatível R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
-        matched.add("amount");
-      } else {
-        divergent.push(`valor diverge: planilha R$ ${formatBrlNumber(row.amount as number)} × comprovante R$ ${formatBrlNumber((ocr.amount_raw ?? ocr.amount) as number)}`);
-        return null;
+  if (rowCents === null || rowCents === 0) return null;
+
+  const ocrCents = toCents(ocr.amount_raw ?? ocr.amount);
+  if (ocrCents !== null) {
+    if (amountsHaveSameMagnitude(rowCents, ocrCents)) {
+      if (!isDirectionValid(rowCents, ocr, f.extracted_text)) {
+        divergent.push(`direção incompatível: planilha (${rowCents < 0 ? 'saída' : 'entrada'}) × comprovante parece ser o oposto`);
       }
+      score += 25;
+      reasons.push({ key: "amount", label: `valor compatível R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
+      matched.add("amount");
     } else {
-      // Fallback: Busca exaustiva por valores monetários no texto bruto via regex.
-      // Deve respeitar fronteiras de palavra para evitar correspondência parcial.
-      const rawText = `${f.file_name} ${f.extracted_text}`;
-      const moneyRegex = /(?:R\$?\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/g;
-      let match;
-      let foundExact = false;
-      let foundOther = false;
-      const targetAbsCents = Math.abs(rowCents);
-
-      while ((match = moneyRegex.exec(rawText)) !== null) {
-        const foundCents = toCents(match[1]);
-        if (foundCents !== null && Math.abs(foundCents) === targetAbsCents) {
-          foundExact = true;
-        } else if (foundCents !== null) {
-          foundOther = true;
-        }
-      }
-
-      if (foundExact && !foundOther) {
-        if (!isDirectionValid(rowCents, ocr, rawText)) {
-          divergent.push("Direção da transação incompatível encontrada no texto");
-          return null;
-        }
-        score += 25;
-        reasons.push({ key: "amount", label: `valor encontrado R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
-        matched.add("amount");
-      } else if (foundExact && foundOther) {
-        divergent.push("Valor ambíguo — múltiplos valores financeiros no comprovante");
-        return null;
-      } else {
-        divergent.push(`valor não encontrado no texto: R$ ${formatBrlNumber(row.amount as number)}`);
-        return null;
-      }
+      // Divergência de valor é fatal: return null imediato conforme exigido.
+      return null;
     }
   } else {
-    // Linha sem valor não pode ser associada automaticamente por este motor.
-    return null;
+    // Busca exaustiva
+    const rawText = `${f.file_name} ${f.extracted_text}`;
+    const moneyRegex = /(?:R\$?\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/g;
+    let match;
+    let foundExact = false;
+    let foundOther = false;
+    const targetAbsCents = Math.abs(rowCents);
+
+    while ((match = moneyRegex.exec(rawText)) !== null) {
+      const foundCents = toCents(match[1]);
+      if (foundCents !== null && Math.abs(foundCents) === targetAbsCents) {
+        foundExact = true;
+      } else if (foundCents !== null) {
+        foundOther = true;
+      }
+    }
+
+    if (foundExact && !foundOther) {
+      if (!isDirectionValid(rowCents, ocr, rawText)) {
+        divergent.push("Direção da transação incompatível encontrada no texto");
+      }
+      score += 25;
+      reasons.push({ key: "amount", label: `valor encontrado R$ ${formatBrlNumber(row.amount as number)}`, points: 25 });
+      matched.add("amount");
+    } else if (foundExact && foundOther) {
+      divergent.push("Valor ambíguo — múltiplos valores financeiros no comprovante");
+      // Valor ambíguo também é fatal se não puder desempate? O usuário pediu: 
+      // "A divergência de valor continua causando return null imediato."
+      // Ambiguidade não é exatamente divergência, mas é risco. Vamos manter return null aqui por segurança.
+      return null;
+    } else {
+      return null; // Valor não encontrado
+    }
   }
 
-  if (!matched.has("amount")) return null;
-
-  // 4. Date (20) — validação rigorosa contra OCR. Somente datas compatíveis são aceitas.
+  // 4. Date (20)
   const date = String(row.transaction_date ?? "").trim();
   if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
     const [y, m, d] = date.split("-");
@@ -331,13 +339,10 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       matched.add("date");
     } else if (ocr.date && ocr.date !== date) {
       divergent.push(`data diverge (planilha ${date} × comprovante ${ocr.date})`);
+    } else {
+      missing.push("data");
     }
-  } else if (!hasExplicit && !matched.has("amount")) {
-    return null;
   }
-
-  // A data é um critério de auditoria. Se a data for divergente e não for ID explícito, desconsiderar.
-  if (!hasExplicit && !matched.has("date")) return null;
 
   // 5. Payee (15)
   const payee = String(row.payee ?? row.description ?? "").trim();
@@ -355,17 +360,15 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     } else if (ov >= 0.25) {
       score += 7;
       reasons.push({ key: "payee-partial", label: `favorecido parcial: ${payee}`, points: 7 });
+      matched.add("payee-partial");
     } else if (ocr.payee) {
       divergent.push(`favorecido diverge (planilha "${payee}" × comprovante "${ocr.payee}")`);
+    } else {
+      missing.push("favorecido");
     }
-  } else if (!hasExplicit) {
-    return null;
   }
 
-  // Favorecido é desejável para aumentar confiança.
-  if (!hasExplicit && !matched.has("payee")) return null;
-
-  // 6. Bank (8) + card (8) — normalize aliases (ITAÚ UNIBANCO S.A. ≡ Itaú).
+  // 6. Bank (8)
   const bank = String(row.bank ?? "").trim();
   if (bank) {
     const rowBankKey = normalizeBank(bank);
@@ -374,10 +377,9 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       ...(ocr.bank_from ? [ocr.bank_from] : []),
       ...(ocr.bank_to ? [ocr.bank_to] : []),
     ]);
-    const textHit = (() => {
-      const bn = norm(bank);
-      return !!bn && (f.textNorm.includes(bn) || f.nameNorm.includes(bn) || f.pathNorm.includes(bn));
-    })();
+    const bnNorm = norm(bank);
+    const textHit = !!bnNorm && (f.textNorm.includes(bnNorm) || f.nameNorm.includes(bnNorm) || f.pathNorm.includes(bnNorm));
+    
     if ((rowBankKey && fileBankKeys.has(rowBankKey)) || textHit) {
       score += 8;
       reasons.push({ key: "bank", label: `mesmo banco: ${bank}`, points: 8 });
@@ -386,76 +388,11 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
       divergent.push(`banco diverge (planilha "${bank}" × comprovante "${[...fileBankKeys].join(", ")}")`);
     }
   }
-  const cardTail = String(row.card_last4 ?? "").replace(/\D/g, "");
-  if (cardTail.length === 4) {
-    const hay = `${f.file_name} ${f.extracted_text}`;
-    if (hay.includes(cardTail)) {
-      score += 8;
-      reasons.push({ key: "card", label: `final do cartão ${cardTail}`, points: 8 });
-      matched.add("card");
-    }
-  }
 
-  // 7. Holder (8)
-  const holder = String(row.holder ?? "").trim();
-  if (holder) {
-    const ov = Math.max(
-      tokenOverlap(tokens(holder), tokens(ocr.payer ?? "")),
-      tokenOverlap(tokens(holder), f.tokens),
-    );
-    if (ov >= 0.5) {
-      score += 8;
-      reasons.push({ key: "holder", label: `mesmo titular: ${holder}`, points: 8 });
-      matched.add("holder");
-    }
-  }
-
-  // 8. Payment method (5)
-  const pm = String(row.payment_method ?? "").trim();
-  if (pm) {
-    const pn = norm(pm);
-    const pmSame = ocr.payment_method && norm(ocr.payment_method).includes(pn.split(" ")[0]);
-    if (pmSame || (pn && (f.textNorm.includes(pn) || f.nameNorm.includes(pn)))) {
-      score += 5;
-      reasons.push({ key: "pm", label: `forma de pagamento ${pm}`, points: 5 });
-      matched.add("payment_method");
-    }
-  }
-
-  // 9. Auth / transaction id / CPF-CNPJ from OCR against row
-  const rowAuth = String(row.auth_code ?? "").trim();
-  if (rowAuth && ocr.auth_code && norm(rowAuth) === norm(ocr.auth_code)) {
-    score += 10;
-    reasons.push({ key: "auth", label: `autenticação ${ocr.auth_code}`, points: 10 });
-    matched.add("auth");
-  }
-  const rowTx = String(row.source_id ?? row.invoice_number ?? "").trim();
-  if (rowTx && ocr.transaction_id && digits(rowTx) && digits(ocr.transaction_id).includes(digits(rowTx))) {
-    score += 10;
-    reasons.push({ key: "txid", label: `ID transação ${ocr.transaction_id}`, points: 10 });
-    matched.add("txid");
-  }
-  const rowDoc = digits(row.tax_id ?? row.cpf ?? row.cnpj ?? "");
-  if (rowDoc.length >= 11) {
-    const docs = [...(ocr.cpf ?? []), ...(ocr.cnpj ?? [])].map(digits);
-    if (docs.some((d) => d === rowDoc)) {
-      score += 10;
-      reasons.push({ key: "doc", label: `CPF/CNPJ ${rowDoc}`, points: 10 });
-      matched.add("doc");
-    }
-  }
-
-  if (score <= 0) return null;
-  if (score > 100) score = 100;
-
-  // REGRA DE OURO: Se o valor não bateu exatamente, nunca vincular automaticamente.
-  if (!matched.has("amount")) return null;
-
-  // Calculamos a confiança inicial. Se houver ambiguidade de arquivos, o matchBatchReceipts lidará com isso.
-  const confidence = gatedTier(score, matched, divergent, row, 1);
+  // Calculamos a confiança final usando gatedTier
+  const confidence = gatedTier(score, matched, divergent, missing, row, 1);
   if (confidence === "none") return null;
 
-  // Prefer page from row hint, else file name hint
   const pageHint = extractPageHint(row.page_number) ?? f.pageHint ?? null;
 
   return {
@@ -469,8 +406,10 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     ],
     matched: [...matched],
     divergent,
+    missing,
   };
 }
+
 
 // ---- Public API ----------------------------------------------------------
 
@@ -816,7 +755,7 @@ export async function matchBatchReceipts(
     const valueMatchCount = candidatesForValue.length;
 
     for (const c of candidatesForValue) {
-      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, row, valueMatchCount);
+      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, c.missing, row, valueMatchCount);
       if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
         scored.push(c);
       }
