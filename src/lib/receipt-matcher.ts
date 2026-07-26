@@ -404,9 +404,9 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
     score,
     confidence,
     reasons: [
-      ...reasons.map(r => ({ ...r, key: "match", field: r.key })),
-      ...divergent.map(d => ({ key: "divergence", label: d, field: "unknown" })),
-      ...missing.map(m => ({ key: "missing", label: `Campo ausente: ${m}`, field: m }))
+      ...reasons.map(r => ({ ...r, key: "match" as const, field: r.key })),
+      ...divergent.map(d => ({ key: "divergence" as const, label: d, field: "unknown" })),
+      ...missing.map(m => ({ key: "missing" as const, label: `Campo ausente: ${m}`, field: m }))
     ],
     matched: [...matched],
     divergent,
