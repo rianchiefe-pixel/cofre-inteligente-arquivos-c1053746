@@ -401,51 +401,96 @@ export const approveImportRow = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: row, error } = await supabase
+    // 1. Carrega dados da linha
+    const { data: row, error: rowErr } = await supabase
       .from("import_rows")
-      .select("*")
+      .select("*, batch_id, property_id, payee, category, description, amount, transaction_date, bank, payment_method, notes")
       .eq("id", data.rowId)
       .single();
-    if (error || !row) throw new Error("Linha não encontrada");
+    if (rowErr || !row) throw new Error("Linha não encontrada");
 
+    // 2. Verifica se há arquivos confirmados
+    const { data: links } = await supabase
+      .from("import_row_files")
+      .select("id, is_primary, is_manual, confidence")
+      .eq("row_id", data.rowId);
+
+    const isConfirmed = links?.some(
+      (l) => l.is_primary && (l.is_manual || ["high", "very_high", "manual_confirmed"].includes(l.confidence ?? ""))
+    );
+    if (!isConfirmed) throw new Error("Confirme o possível comprovante antes de aprovar o lançamento.");
+
+    // 3. Carrega o lote
+    const { data: batch } = await supabase
+      .from("import_batches")
+      .select("profile_id, scope_kind")
+      .eq("id", row.batch_id)
+      .single();
+
+    // 4. Resolve categoria e property_id
     const patch = { ...data.overrides };
-
-    // Auto-create category if it doesn't exist yet for the user (dedup by normalized name).
-    const finalCategory =
-      (patch.category as string | null | undefined) ?? row.category ?? null;
-    if (finalCategory && finalCategory.trim()) {
-      const key = normalizeKey(finalCategory);
-      const { data: existing } = await supabase
+    
+    // Resolve categoria (procure id pelo nome)
+    let categoryId = null;
+    const catName = (patch.category as string | null) ?? row.category;
+    if (catName) {
+      const { data: cat } = await supabase
         .from("categories")
-        .select("id, name")
-        .eq("user_id", userId);
-      const match = (existing ?? []).find(
-        (c: any) => normalizeKey(c.name) === key,
-      );
-      if (!match) {
-        await supabase.from("categories").insert({
-          user_id: userId,
-          name: finalCategory.trim(),
-          default_type: "gasto_variavel",
-        });
+        .select("id")
+        .eq("user_id", userId)
+        .ilike("name", catName)
+        .maybeSingle();
+      if (cat) {
+        categoryId = cat.id;
       } else {
-        // Snap to the canonical existing name to avoid Educação × EDUCAÇÃO drift.
-        patch.category = match.name;
+        const { data: newCat } = await supabase
+          .from("categories")
+          .insert({ user_id: userId, name: catName, default_type: "gasto_variavel" })
+          .select("id")
+          .single();
+        categoryId = newCat?.id;
       }
     }
 
-    // Persist row + mark approved
-    await supabase
-      .from("import_rows")
-      .update({
-        ...patch,
-        review_status: "approved",
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
+    // 5. Monta payload do lançamento
+    const finalValue = {
+      amount: Math.abs(patch.amount ?? (row.amount as number)),
+      paymentDate: patch.transaction_date ?? row.transaction_date,
+      recipientName: patch.payee ?? row.payee ?? patch.description ?? row.description,
+      bankName: patch.bank ?? row.bank,
+      description: patch.description ?? row.description,
+      notes: patch.notes ?? row.notes,
+      propertyId: patch.property_id ?? row.property_id,
+    };
 
-    // Register learned preferences from every user-provided override
-    const prefs: Array<{ field: string; from: unknown; to: unknown }> = [
+    const receiptPayload = {
+      user_id: userId,
+      import_row_id: row.id,
+      import_batch_id: row.batch_id,
+      profile_id: batch?.profile_id,
+      property_id: finalValue.propertyId,
+      amount: finalValue.amount,
+      payment_date: finalValue.paymentDate,
+      recipient_name: finalValue.recipientName,
+      bank_name: finalValue.bankName,
+      description: finalValue.description,
+      notes: finalValue.notes,
+      transaction_type: (patch.transaction_type ?? row.transaction_type) === "INVESTIMENTO" ? "investimento" : "despesa",
+      payment_method: patch.payment_method ?? row.payment_method ?? "outro",
+      category_id: categoryId,
+      status: "approved",
+      approved_at: new Date().toISOString(),
+    };
+
+    // 6. Chama RPC transacional
+    const { data: receiptId, error: rpcErr } = await supabase.rpc("approve_import_row_rpc", {
+      p_row_id: row.id,
+      p_receipt_payload: receiptPayload as any,
+    });
+    if (rpcErr) throw new Error(rpcErr.message);
+
+    return { ok: true as const, receiptId };
+  });
       { field: "bank", from: row.bank, to: patch.bank },
       { field: "card", from: row.card, to: patch.card },
       { field: "category", from: row.category, to: patch.category },
