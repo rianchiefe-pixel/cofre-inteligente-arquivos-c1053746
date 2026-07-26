@@ -1225,9 +1225,13 @@ function ReceiptViewer({
   fileById: Map<string, any>;
   onChanged: () => void;
 }) {
-  const primary = primaryReceiptLink(links);
-  const primaryFile = primary ? fileById.get(primary.file_id) : null;
-  const [page, setPage] = useState<number>(primary?.page_number ?? 1);
+  const confirmed = confirmedReceiptLink(links);
+  const reviews = reviewReceiptLinks(links);
+
+  const displayLink = confirmed || (reviews.length > 0 ? reviews[0] : null);
+  const displayFile = displayLink ? fileById.get(displayLink.file_id) : null;
+
+  const [page, setPage] = useState<number>(displayLink?.page_number ?? 1);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
