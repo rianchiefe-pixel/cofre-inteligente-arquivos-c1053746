@@ -130,15 +130,14 @@ function gatedTier(
   raw: number, 
   matched: Set<string>, 
   divergent: string[],
+  missing: string[],
   row: any,
   candidatesCount: number
 ): MatchTier {
-  if (divergent.length > 0) return "none";
-
   // REGRA DE OURO: Bloqueio de ambiguidade por valor.
   // Se existirem múltiplos candidatos com o mesmo valor, só permitimos associação
   // automática se houver um critério desempate forte (Data + Favorecido ou ID único).
-  const hasStrongTiebreaker = (matched.has("date") && matched.has("payee")) || 
+  const hasStrongTiebreaker = (matched.has("date") && (matched.has("payee") || matched.has("payee-partial"))) || 
                              matched.has("id") || matched.has("txid") || matched.has("auth");
 
   if (candidatesCount > 1 && !hasStrongTiebreaker) {
@@ -149,14 +148,33 @@ function gatedTier(
   const hasId = matched.has("id") || matched.has("txid") || matched.has("auth");
   const coreOk = matched.has("amount") && matched.has("date") && matched.has("payee");
   
-  if (hasId && matched.has("amount")) return "very_high";
-  if (coreOk && matched.has("amount")) return "high";
-  if (matched.has("amount") && matched.has("date") && (matched.has("bank") || matched.has("doc"))) {
-    return "review";
+  // High / Very High: Zero divergências + critérios completos
+  if (divergent.length === 0) {
+    if (hasId && matched.has("amount")) return "very_high";
+    if (coreOk && matched.has("amount")) return "high";
+  }
+
+  // REVISÃO: Exatamente uma divergência relevante + evidências suficientes
+  // OU critérios incompletos (missing) mas evidências fortes.
+  const evidenceCount = matched.size; // amount conta como 1
+  const hasStrongEvidence = matched.has("date") || matched.has("id") || matched.has("auth") || matched.has("path") || matched.has("doc");
+  
+  if (matched.has("amount")) {
+    if (divergent.length === 1 && evidenceCount >= 3 && hasStrongEvidence) {
+      return "review";
+    }
+    if (divergent.length === 0 && missing.length <= 1 && evidenceCount >= 3 && hasStrongEvidence) {
+      return "review";
+    }
+    // Caso especial: valor + data corretos, favorecido ausente, apenas um candidato
+    if (divergent.length === 0 && matched.has("date") && candidatesCount === 1) {
+      return "review";
+    }
   }
 
   return "none";
 }
+
 
 function isAcceptedTier(confidence: MatchTier): boolean {
   return confidence === "very_high" || confidence === "high";
