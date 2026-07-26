@@ -20,7 +20,6 @@ import {
   Building2,
   Beaker,
 } from "lucide-react";
-import { runTests } from "@/lib/matcher.test";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { reanalyzeBatchProperties } from "@/lib/import.functions";
@@ -330,23 +329,6 @@ function ImportPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
-            onClick={() => {
-              console.log("Validando motor via botão principal...");
-              const success = runTests();
-              if (success) {
-                toast.success("Motor validado com sucesso!");
-              } else {
-                toast.error("Erro na validação do motor.");
-              }
-            }}
-          >
-            <Beaker className="h-3.5 w-3.5" />
-            Validar Motor
-          </Button>
           <Badge variant="secondary" className="hidden sm:inline-flex gap-1">
             <Sparkles className="h-3 w-3" /> Parte 1 · Leitura Inteligente
           </Badge>

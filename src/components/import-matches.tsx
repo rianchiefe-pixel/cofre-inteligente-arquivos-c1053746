@@ -210,36 +210,15 @@ export function ImportMatches({ batchId }: { batchId: string }) {
 
           {stats.total} linhas · {stats.pendingFiles > 0 ? `${stats.pendingFiles} arquivos ainda processando` : "análise completa"}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-            onClick={async () => {
-              console.log("Iniciando validação do motor...");
-              // Importação dinâmica para evitar bundle de teste em produção
-              const { runTests } = await import("@/lib/matcher.test");
-              const success = runTests();
-              if (success) {
-                toast.success("Motor validado: 100% de precisão nos testes de magnitude e ambiguidade.");
-              } else {
-                toast.error("Falha na validação do motor. Verifique o console.");
-              }
-            }}
-            disabled={busy}
-          >
-            Validar motor
-          </Button>
-          <Button
-            size="sm"
-            onClick={runMatch}
-            disabled={busy || rows.isLoading || stats.pendingFiles > 0}
-            title={stats.pendingFiles > 0 ? "Aguarde a análise de todos os comprovantes terminar" : undefined}
-          >
-            {busy ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3" />}
-            Cruzar comprovantes
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          onClick={runMatch}
+          disabled={busy || rows.isLoading || stats.pendingFiles > 0}
+          title={stats.pendingFiles > 0 ? "Aguarde a análise de todos os comprovantes terminar" : undefined}
+        >
+          {busy ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3" />}
+          Cruzar comprovantes
+        </Button>
       </header>
       
       {progress && (progress.diagnostics?.length ?? 0) > 0 && (
