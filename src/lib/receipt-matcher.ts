@@ -666,7 +666,8 @@ export async function matchBatchReceipts(
     if (!text) progress.filesDiagnostics!.summary.total_files_without_text++;
     if (amountRaw === undefined || amountRaw === null) progress.filesDiagnostics!.summary.total_files_without_amount++;
     
-    const included = fact.readable !== false && !raw?.duplicate_of;
+    // Um duplicado legível e hidratado é incluído no matching
+    const included = fact.readable !== false;
     if (included) progress.filesDiagnostics!.summary.total_files_included_in_matching++;
 
     progress.filesDiagnostics!.files.push({
@@ -684,7 +685,7 @@ export async function matchBatchReceipts(
       ocr_payee: ocr.payee ?? "",
       ocr_transaction_id: ocr.transaction_id ?? "",
       included_in_matching: included,
-      exclusion_reason: !included ? (raw?.duplicate_of ? "Arquivo duplicado" : "Arquivo ilegível") : ""
+      exclusion_reason: !included ? "Arquivo ilegível" : ""
     });
   }
 
@@ -864,10 +865,11 @@ export async function matchBatchReceipts(
   for (const p of combinedDraft) {
     const row = rowList.find((r: any) => r.id === p.row_id);
     const file = rawFiles.find((f: any) => f.id === p.file_id);
+    const effectiveFile = effectiveFileFactsById.get(p.file_id);
     
-    if (row && file) {
+    if (row && effectiveFile) {
       try {
-        const ocr = (file.ocr_data ?? {}) as any;
+        const ocr = (effectiveFile.ocr ?? {}) as any;
         const receiptAmount = ocr.amount_raw ?? ocr.amount;
         assertMatchingAmounts(row.amount, receiptAmount);
         finalPayload.push(p);
