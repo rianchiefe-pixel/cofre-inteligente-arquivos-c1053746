@@ -164,7 +164,17 @@ export function ImportMatches({ batchId }: { batchId: string }) {
       }
       const p = await matchBatchReceipts(batchId, { onProgress: setProgress });
       toast.success(
-        `${p.matched} associados · ${p.notFound} sem comprovante · ${p.cardMatched}/${p.cardRows} cartão · ${p.unreadableFiles} ilegíveis`,
+        <div className="space-y-1">
+          <p className="font-semibold">{p.matched} associados com sucesso</p>
+          <div className="text-[10px] opacity-90 grid grid-cols-1 gap-0.5">
+            {p.notFound > 0 && <span>• {p.notFound} sem candidato compatível</span>}
+            {p.needsReview > 0 && <span>• {p.needsReview} bloqueados por ambiguidade</span>}
+            {p.unreadableFiles > 0 && <span>• {p.unreadableFiles} ilegíveis</span>}
+            {p.duplicateFiles > 0 && <span>• {p.duplicateFiles} duplicados</span>}
+            {p.unmatchedFiles > 0 && <span>• {p.unmatchedFiles} arquivos do ZIP não utilizados</span>}
+          </div>
+        </div>,
+        { duration: 6000 }
       );
       qc.invalidateQueries({ queryKey: ["import-row-files", batchId] });
       qc.invalidateQueries({ queryKey: ["import-files-simple", batchId] });
