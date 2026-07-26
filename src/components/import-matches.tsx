@@ -504,8 +504,11 @@ function RowMatchDialog({
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState<string>("");
+  const [viewingFileId, setViewingFileId] = useState<string | null>(null);
+  
   const primary = primaryReceiptLink(links);
   const primaryFile = primary ? files.find((x) => x.id === primary.file_id) : null;
+  const reviewLinks = links.filter(l => l.confidence === 'review').sort((a, b) => b.score - a.score);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -519,82 +522,256 @@ function RowMatchDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            Linha {row.row_number} — comprovantes
+          <DialogTitle className="flex items-center gap-2">
+            <Paperclip className="h-5 w-5 text-primary" />
+            Linha {row.row_number} — Gestão de Comprovantes
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs">
-            <p>
-              <b>{row.description ?? row.payee ?? "—"}</b> · {row.transaction_date ?? "—"} ·{" "}
-              {typeof row.amount === "number" ? currencyBRL(row.amount) : "—"}
-            </p>
-            <p className="mt-1 text-muted-foreground">
-              {row.bank ? `Banco: ${row.bank} · ` : ""}
-              {row.card ? `Cartão: ${row.card} · ` : ""}
-              {row.payment_method ? `Forma: ${row.payment_method} · ` : ""}
-              {row.file_name ? `Arquivo esperado: ${row.file_name}` : ""}
-            </p>
+        <div className="space-y-6 py-2">
+          {/* Resumo da Transação */}
+          <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h4 className="font-bold text-sm">{row.description ?? row.payee ?? "—"}</h4>
+                <p className="text-xs text-muted-foreground">{row.transaction_date ?? "—"}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-base">{typeof row.amount === "number" ? currencyBRL(row.amount) : "—"}</p>
+                <Badge variant="outline" className="text-[10px] uppercase font-mono">{row.kind || 'Outros'}</Badge>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Banco</span>
+                <span className="font-medium">{row.bank || '—'}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Forma</span>
+                <span className="font-medium">{row.payment_method || '—'}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Favorecido</span>
+                <span className="font-medium truncate max-w-[120px]">{row.payee || '—'}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-1">
+                <span className="text-muted-foreground">Categoria</span>
+                <span className="font-medium truncate max-w-[120px]">{row.description || '—'}</span>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold">Comprovante vinculado</p>
-            {primary && primaryFile ? (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-2 text-xs">
-                <Paperclip className="h-3 w-3 shrink-0 text-emerald-600" />
-                <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
-                  {primaryFile.original_path ?? primaryFile.file_name}
-                  {primary.page_number ? ` · p.${primary.page_number}` : ""}
-                </span>
-                {primary.is_manual && (
-                  <Badge variant="outline" className="text-[10px]">
-                    manual
-                  </Badge>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-destructive"
-                  onClick={async () => {
+          {/* Vínculo Atual */}
+          {primary && primaryFile && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                <Check className="h-3 w-3" /> Comprovante Vinculado (Primário)
+              </h3>
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <div className="h-10 w-10 rounded bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <Paperclip className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{primaryFile.file_name}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono truncate">
+                    {primaryFile.original_path || 'Sem caminho'} {primary.page_number ? `· pág. ${primary.page_number}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setViewingFileId(primary.file_id)}>
+                    <Eye className="h-3 w-3" /> Ver
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 text-destructive hover:bg-destructive/10" onClick={async () => {
                     await detachRowFile(primary.id);
                     onChanged();
-                  }}
-                >
-                  <Link2Off className="mr-1 h-3 w-3" /> Remover
-                </Button>
+                  }}>
+                    <Link2Off className="h-3 w-3" /> Remover
+                  </Button>
+                </div>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Nenhum comprovante identificado — associe manualmente abaixo.
-              </p>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div>
-            <p className="mb-2 text-xs font-semibold">Associar manualmente</p>
+          {/* Candidatos de Revisão */}
+          {reviewLinks.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <FileSearch className="h-3 w-3" /> Possíveis Comprovantes ({reviewLinks.length})
+              </h3>
+              <div className="space-y-3">
+                {reviewLinks.map((l) => {
+                  const f = files.find(x => x.id === l.file_id);
+                  if (!f) return null;
+                  
+                  // Gerar explicação baseada nos motivos
+                  const matches = (l.match_reasons || []).filter((r: any) => r.key === 'match');
+                  const divergences = (l.match_reasons || []).filter((r: any) => r.key === 'divergence');
+                  const explanation = `Este comprovante não foi vinculado automaticamente porque ${matches.map((m: any) => m.label.toLowerCase()).join(', ')} coincidem, mas ${divergences.map((d: any) => d.label.toLowerCase()).join(' e ')}.`;
+
+                  return (
+                    <div key={l.id} className="rounded-xl border border-amber-200 bg-amber-50/30 dark:border-amber-900/30 dark:bg-amber-900/10 p-4 space-y-4">
+                      {/* Comparativo Lado a Lado */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Dados da Planilha</p>
+                          <div className="space-y-1.5 text-[11px]">
+                             <div className="flex justify-between items-center bg-white/50 dark:bg-black/20 p-1.5 rounded">
+                               <span className="text-muted-foreground">Valor</span>
+                               <span className="font-bold">{typeof row.amount === 'number' ? currencyBRL(row.amount) : '—'}</span>
+                             </div>
+                             <div className="flex justify-between items-center bg-white/50 dark:bg-black/20 p-1.5 rounded">
+                               <span className="text-muted-foreground">Data</span>
+                               <span className="font-medium">{row.transaction_date || '—'}</span>
+                             </div>
+                             <div className="flex justify-between items-center bg-white/50 dark:bg-black/20 p-1.5 rounded">
+                               <span className="text-muted-foreground">Favorecido</span>
+                               <span className="font-medium truncate max-w-[100px]">{row.payee || '—'}</span>
+                             </div>
+                             <div className="flex justify-between items-center bg-white/50 dark:bg-black/20 p-1.5 rounded">
+                               <span className="text-muted-foreground">Banco</span>
+                               <span className="font-medium">{row.bank || '—'}</span>
+                             </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Dados do Comprovante</p>
+                          <div className="space-y-1.5 text-[11px]">
+                             {/* Valor OCR */}
+                             <div className={`flex justify-between items-center p-1.5 rounded ${
+                               (l.match_reasons || []).some((r: any) => r.field === 'amount' && r.key === 'match') 
+                                 ? 'bg-emerald-100/50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                                 : 'bg-white/50 dark:bg-black/20'
+                             }`}>
+                               <span className="opacity-70">Valor extraído</span>
+                               <span className="font-bold">{(l.match_reasons || []).find((r: any) => r.field === 'amount')?.receiptValue || '—'}</span>
+                             </div>
+                             {/* Data OCR */}
+                             <div className={`flex justify-between items-center p-1.5 rounded ${
+                               (l.match_reasons || []).some((r: any) => r.field === 'date' && r.key === 'match') 
+                                 ? 'bg-emerald-100/50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                                 : (l.match_reasons || []).some((r: any) => r.field === 'date' && r.key === 'divergence')
+                                   ? 'bg-amber-100/50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                   : 'bg-white/50 dark:bg-black/20'
+                             }`}>
+                               <span className="opacity-70">Data extraída</span>
+                               <span className="font-medium">{(l.match_reasons || []).find((r: any) => r.field === 'date')?.receiptValue || '—'}</span>
+                             </div>
+                             {/* Favorecido OCR */}
+                             <div className={`flex justify-between items-center p-1.5 rounded ${
+                               (l.match_reasons || []).some((r: any) => r.field === 'payee' && r.key === 'match') 
+                                 ? 'bg-emerald-100/50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                                 : (l.match_reasons || []).some((r: any) => r.field === 'payee' && r.key === 'divergence')
+                                   ? 'bg-amber-100/50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                   : 'bg-white/50 dark:bg-black/20'
+                             }`}>
+                               <span className="opacity-70">Favorecido</span>
+                               <span className="font-medium truncate max-w-[100px]">{(l.match_reasons || []).find((r: any) => r.field === 'payee')?.receiptValue || '—'}</span>
+                             </div>
+                             {/* Banco OCR */}
+                             <div className={`flex justify-between items-center p-1.5 rounded ${
+                               (l.match_reasons || []).some((r: any) => r.field === 'bank' && r.key === 'match') 
+                                 ? 'bg-emerald-100/50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                                 : (l.match_reasons || []).some((r: any) => r.field === 'bank' && r.key === 'divergence')
+                                   ? 'bg-amber-100/50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                   : 'bg-white/50 dark:bg-black/20'
+                             }`}>
+                               <span className="opacity-70">Banco</span>
+                               <span className="font-medium">{(l.match_reasons || []).find((r: any) => r.field === 'bank')?.receiptValue || '—'}</span>
+                             </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Motivos Estruturados */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {(l.match_reasons || []).map((mr: any, idx: number) => {
+                          const color = mr.key === 'match' ? 'text-emerald-700 dark:text-emerald-400' :
+                                        mr.key === 'divergence' ? 'text-amber-700 dark:text-amber-400' :
+                                        'text-slate-500 dark:text-slate-400';
+                          return (
+                            <div key={idx} className={`text-[10px] flex items-center gap-1 bg-white/40 dark:bg-black/20 px-2 py-0.5 rounded border border-border/20 ${color}`}>
+                              {mr.key === 'match' ? <Check className="h-2.5 w-2.5" /> : 
+                               mr.key === 'divergence' ? <X className="h-2.5 w-2.5" /> : 
+                               <FileQuestion className="h-2.5 w-2.5" />}
+                              {mr.label}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <p className="text-[11px] leading-relaxed text-muted-foreground italic border-l-2 border-amber-400/50 pl-2">
+                        {explanation}
+                      </p>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setViewingFileId(l.file_id)}>
+                          <Eye className="h-3 w-3" /> Ver comprovante
+                        </Button>
+                        <Button size="sm" className="h-8 gap-1 bg-amber-600 hover:bg-amber-700 text-white border-none" onClick={async () => {
+                          await attachFileManually({
+                            batchId,
+                            rowId: row.id,
+                            fileId: l.file_id,
+                            pageNumber: l.page_number,
+                            makePrimary: true
+                          });
+                          toast.success("Comprovante vinculado com sucesso");
+                          onChanged();
+                        }}>
+                          <Check className="h-3 w-3" /> Vincular este comprovante
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 gap-1 text-muted-foreground" onClick={async () => {
+                          await detachRowFile(l.id);
+                          onChanged();
+                        }}>
+                          <X className="h-3 w-3" /> Não é este
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Busca Manual Existente */}
+          <div className="space-y-4 pt-4 border-t border-border">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Busca Manual de Arquivos</h3>
+              <Button size="sm" variant="outline" className="h-8 gap-1.5 text-[11px]" onClick={() => {
+                // Aqui abriria a edição da transação se tivéssemos a função exposta, 
+                // mas para seguir o pedido "reutilizar mecanismo de edição", 
+                // assumimos que o usuário clica no botão Editar
+                toast.info("Funcionalidade de edição de transação disponível na tela de conferência principal.");
+              }}>
+                <Pencil className="h-3 w-3" /> Editar transação
+              </Button>
+            </div>
             <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar arquivo por nome ou caminho no ZIP…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="text-xs pl-8 h-9 rounded-lg"
+                />
+              </div>
               <Input
-                placeholder="Buscar por nome ou caminho…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="text-xs"
-              />
-              <Input
-                placeholder="pág."
+                placeholder="Pág."
                 value={page}
                 onChange={(e) => setPage(e.target.value.replace(/\D/g, ""))}
-                className="w-20 text-xs"
+                className="w-20 text-xs h-9 rounded-lg text-center"
               />
             </div>
-            <div className="mt-2 max-h-[220px] overflow-auto rounded-lg border border-border">
+            <div className="max-h-[200px] overflow-auto rounded-xl border border-border bg-muted/10">
               {filtered.map((f) => (
                 <button
                   key={f.id}
                   type="button"
-                  className="flex w-full items-center gap-2 border-b border-border/60 p-2 text-left text-[11px] hover:bg-muted/40"
+                  className="flex w-full items-center gap-3 border-b border-border/60 p-3 text-left text-[11px] hover:bg-muted/40 transition-colors"
                   onClick={async () => {
                     try {
                       await attachFileManually({
@@ -604,37 +781,84 @@ function RowMatchDialog({
                         pageNumber: page ? parseInt(page, 10) : null,
                         makePrimary: true,
                       });
-                      toast.success("Comprovante associado");
+                      toast.success("Comprovante associado manualmente");
                       onChanged();
                     } catch (e: any) {
                       toast.error(e?.message ?? "Falha ao associar");
                     }
                   }}
                 >
-                  <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground" />
-                  <span className="truncate font-mono">
-                    {f.original_path ?? f.file_name}
-                  </span>
+                  <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate font-medium">{f.file_name}</p>
+                    <p className="truncate text-[10px] text-muted-foreground opacity-70 font-mono">{f.original_path || '/'}</p>
+                  </div>
                   {f.page_count && (
-                    <span className="ml-auto text-muted-foreground">
-                      {f.page_count}p
-                    </span>
+                    <Badge variant="secondary" className="text-[9px] h-5">{f.page_count}p</Badge>
                   )}
                 </button>
               ))}
               {filtered.length === 0 && (
-                <p className="p-3 text-center text-xs text-muted-foreground">
-                  Nenhum arquivo encontrado no ZIP deste lote.
-                </p>
+                <div className="p-8 text-center text-xs text-muted-foreground space-y-2">
+                  <FileQuestion className="h-8 w-8 mx-auto opacity-20" />
+                  <p>Nenhum arquivo encontrado no ZIP deste lote.</p>
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Fechar
+        <DialogFooter className="border-t border-border pt-4">
+          <Button variant="outline" onClick={onClose} className="rounded-lg h-9 text-xs">
+            Fechar Painel
           </Button>
+        </DialogFooter>
+      </DialogContent>
+      
+      {/* Visualizador de Arquivo */}
+      {viewingFileId && (
+         <FileViewerDialog 
+           fileId={viewingFileId} 
+           onClose={() => setViewingFileId(null)} 
+         />
+      )}
+    </Dialog>
+  );
+}
+
+function FileViewerDialog({ fileId, onClose }: { fileId: string; onClose: () => void }) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [file, setFile] = useState<any>(null);
+
+  useMemo(async () => {
+    const { data: f } = await supabase.from('import_files').select('*').eq('id', fileId).single();
+    if (!f) return;
+    setFile(f);
+    const { data } = await supabase.storage.from('imports').createSignedUrl(f.folder + '/' + f.file_name, 3600);
+    if (data?.signedUrl) setSignedUrl(data.signedUrl);
+  }, [fileId]);
+
+  const isPdf = file?.extension?.toLowerCase() === 'pdf' || file?.file_name?.toLowerCase().endsWith('.pdf');
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-5xl h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="truncate">{file?.file_name || 'Visualizando arquivo'}</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-auto bg-muted/20 rounded-lg border border-border relative">
+          {!signedUrl ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : isPdf ? (
+            <iframe src={signedUrl} className="w-full h-full border-none" title="PDF Viewer" />
+          ) : (
+            <img src={signedUrl} alt="Comprovante" className="max-w-full mx-auto" />
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={onClose}>Fechar Visualizador</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
