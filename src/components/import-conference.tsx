@@ -89,14 +89,23 @@ const STATUS_COLOR: Record<ReviewStatus, string> = {
   ver_depois: "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/25",
 };
 
-const ACCEPTED_RECEIPT_CONFIDENCES = new Set(["high", "very_high"]);
-
-function isAcceptedReceiptLink(link: any): boolean {
-  return !!link && (link.is_manual || ACCEPTED_RECEIPT_CONFIDENCES.has(String(link.confidence ?? "")));
+function confirmedReceiptLink(links: any[]) {
+  return (
+    links.find(
+      (link) =>
+        link.is_primary &&
+        (link.is_manual ||
+          link.confidence === "high" ||
+          link.confidence === "very_high" ||
+          link.confidence === "manual_confirmed")
+    ) ?? null
+  );
 }
 
-function primaryReceiptLink(links: any[]): any | null {
-  return links.find((l) => l.is_primary && isAcceptedReceiptLink(l)) ?? null;
+function reviewReceiptLinks(links: any[]) {
+  return links
+    .filter((link) => !link.is_primary && !link.is_manual && link.confidence === "review")
+    .sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0));
 }
 
 const FIELDS: Array<{ key: string; label: string; type?: "number" | "textarea" | "select"; options?: string[] }> = [
@@ -138,9 +147,9 @@ export function ImportConference({
   const statusFn = useServerFn(setImportRowStatus);
   const classifyFn = useServerFn(classifyImportRow);
 
-  const [statusFilter, setStatusFilter] = useState<"all" | ReviewStatus | "no_receipt" | "duplicate">(
-    "pending",
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | ReviewStatus | "identified" | "possible" | "no_receipt" | "duplicate"
+  >("pending");
   const [typeFilter, setTypeFilter] = useState<"all" | "DESPESA" | "INVESTIMENTO">("all");
   const [textFilter, setTextFilter] = useState("");
   const [bankFilter, setBankFilter] = useState("");
@@ -266,18 +275,31 @@ export function ImportConference({
     return list.filter((r: any) => {
       const status = (r.review_status ?? "pending") as ReviewStatus;
       const links = linksByRow.get(r.id) ?? [];
-      const primary = primaryReceiptLink(links);
+      const confirmed = confirmedReceiptLink(links);
+      const reviews = reviewReceiptLinks(links);
+
+      const rowState: "identified" | "possible" | "no_receipt" = confirmed
+        ? "identified"
+        : reviews.length > 0
+          ? "possible"
+          : "no_receipt";
+
       // status filter
-      if (statusFilter === "no_receipt" && primary) return false;
-      if (statusFilter !== "no_receipt" && !primary) return false;
+      if (statusFilter === "identified" && rowState !== "identified") return false;
+      if (statusFilter === "possible" && rowState !== "possible") return false;
+      if (statusFilter === "no_receipt" && rowState !== "no_receipt") return false;
       if (statusFilter === "duplicate" && !duplicateIds.has(r.id)) return false;
+
       if (
         statusFilter !== "all" &&
+        statusFilter !== "identified" &&
+        statusFilter !== "possible" &&
         statusFilter !== "no_receipt" &&
         statusFilter !== "duplicate" &&
         status !== statusFilter
       )
         return false;
+
       // type
       if (typeFilter !== "all" && r.transaction_type !== typeFilter) return false;
       // text
@@ -368,7 +390,8 @@ export function ImportConference({
       rejected = 0,
       ver = 0,
       no = 0,
-      identified = 0;
+      identified = 0,
+      possible = 0;
     for (const r of list) {
       const s = (r.review_status ?? "pending") as ReviewStatus;
       if (s === "approved") approved++;
@@ -376,7 +399,11 @@ export function ImportConference({
       else if (s === "ver_depois") ver++;
       else pending++;
       const links = linksByRow.get(r.id) ?? [];
-      if (primaryReceiptLink(links)) identified++;
+      const confirmed = confirmedReceiptLink(links);
+      const reviews = reviewReceiptLinks(links);
+
+      if (confirmed) identified++;
+      else if (reviews.length > 0) possible++;
       else no++;
     }
     return {
@@ -387,6 +414,7 @@ export function ImportConference({
       ver,
       no,
       identified,
+      possible,
       dup: duplicateIds.size,
     };
   }, [rowsQ.data, linksByRow, duplicateIds]);
@@ -540,8 +568,10 @@ export function ImportConference({
               <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {counts.approved} aprovadas</span>
               <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> {counts.rejected} rejeitadas</span>
               <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-              <span>{counts.no} sem comprovante</span>
-              <span>·</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-600" /> {counts.identified} Identificados</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-600" /> {counts.possible} Possíveis</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-600" /> {counts.no} Sem comprovante</span>
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
               <span>{counts.dup} possíveis duplicidades</span>
             </div>
           </DialogHeader>
@@ -568,7 +598,9 @@ export function ImportConference({
                 <SelectItem value="approved">Aprovados ({counts.approved})</SelectItem>
                 <SelectItem value="rejected">Rejeitados ({counts.rejected})</SelectItem>
                 <SelectItem value="ver_depois">Ver depois ({counts.ver})</SelectItem>
-                <SelectItem value="no_receipt">Não identificadas ({counts.no})</SelectItem>
+                <SelectItem value="identified">Identificados ({counts.identified})</SelectItem>
+                <SelectItem value="possible">Possíveis ({counts.possible})</SelectItem>
+                <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
                 <SelectItem value="duplicate">Duplicidades ({counts.dup})</SelectItem>
               </SelectContent>
             </Select>
@@ -652,14 +684,14 @@ export function ImportConference({
             <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
               <ReceiptViewer
                 row={activeRow}
-                links={(linksByRow.get(activeRow.id) ?? []).filter(isAcceptedReceiptLink).sort((a, b) => b.score - a.score)}
+                links={linksByRow.get(activeRow.id) ?? []}
                 files={filesQ.data ?? []}
                 fileById={fileById}
                 onChanged={invalidate}
               />
               <RowEditor
                 row={activeRow}
-                links={(linksByRow.get(activeRow.id) ?? []).filter(isAcceptedReceiptLink)}
+                links={linksByRow.get(activeRow.id) ?? []}
                 isDuplicate={duplicateIds.has(activeRow.id)}
                 values={values}
                 setValues={setValues}
@@ -670,6 +702,7 @@ export function ImportConference({
                 properties={propertiesQ.data ?? []}
                 propertyById={propertyById}
                 batchScope={batchQ.data?.scope_kind ?? "profile"}
+                onChanged={invalidate}
               />
             </div>
           ) : (
@@ -745,6 +778,7 @@ function RowEditor({
   properties,
   propertyById,
   batchScope,
+  onChanged,
 }: {
   row: any;
   links: any[];
@@ -758,9 +792,11 @@ function RowEditor({
   properties: Array<{ id: string; name: string }>;
   propertyById: Map<string, any>;
   batchScope: string;
+  onChanged: () => void;
 }) {
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
-  const primary = primaryReceiptLink(links);
+  const confirmed = confirmedReceiptLink(links);
+  const reviews = reviewReceiptLinks(links);
   const status = (row.review_status ?? "pending") as ReviewStatus;
 
   const originalCategory = row.category_original ?? row.category ?? null;
@@ -880,9 +916,14 @@ function RowEditor({
               </Badge>
             )}
           </div>
-          {primary && (
+          {confirmed && (
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
               <CheckCircle2 className="h-3.5 w-3.5" /> Comprovante identificado
+            </div>
+          )}
+          {!confirmed && reviews.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+              <FileWarning className="h-3.5 w-3.5" /> Possível comprovante — ainda não vinculado
             </div>
           )}
         </div>
@@ -1112,7 +1153,7 @@ function RowEditor({
         </p>
       </section>
 
-      {primary && (
+      {confirmed && (
         <section className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
           <div className="mb-2 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1121,8 +1162,78 @@ function RowEditor({
             </h3>
           </div>
           <p className="text-[11px] text-emerald-800/80 dark:text-emerald-200/80">
-            {primary.is_manual ? "Associação manual realizada pelo usuário." : "Valor, data e favorecido validados com precisão absoluta."}
+            {confirmed.is_manual ? "Associação manual realizada pelo usuário." : "Valor, data e favorecido validados com precisão absoluta."}
           </p>
+        </section>
+      )}
+
+      {!confirmed && reviews.length > 0 && (
+        <section className="rounded-2xl border border-amber-200/60 bg-amber-50/40 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
+          <div className="mb-2 flex items-center gap-2">
+            <FileWarning className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+              Revisão Necessária
+            </h3>
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80">
+              Valor compatível, mas existem divergências ou dados ausentes.
+            </p>
+            {reviews[0].match_reasons
+              ?.filter((r: any) => r.key === "divergence" || r.field === "unknown")
+              .map((reason: any, idx: number) => (
+                <div key={idx} className="flex items-start gap-1.5 text-[10px] text-amber-700 dark:text-amber-300">
+                  <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-amber-400" />
+                  <span>{reason.label}</span>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
+      {!confirmed && reviews.length > 0 && (
+        <section className="mt-3 flex flex-col gap-2 rounded-2xl border border-amber-200/60 bg-amber-50/20 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+              Candidato sugerido ({reviews.length})
+            </h4>
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 rounded-full border-emerald-200 bg-emerald-50 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                onClick={async () => {
+                  try {
+                    const confirmFn = (await import("@/lib/receipt-matcher")).confirmReviewCandidate;
+                    await confirmFn(reviews[0].id);
+                    toast.success("Comprovante vinculado com sucesso");
+                    onChanged();
+                  } catch (e: any) {
+                    toast.error(e?.message ?? "Falha ao vincular");
+                  }
+                }}
+              >
+                Vincular este comprovante
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 rounded-full text-[10px] font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                onClick={async () => {
+                  try {
+                    const rejectFn = (await import("@/lib/receipt-matcher")).rejectReviewCandidate;
+                    await rejectFn(reviews[0].id);
+                    toast.success("Candidato removido");
+                    onChanged();
+                  } catch (e: any) {
+                    toast.error(e?.message ?? "Falha ao rejeitar");
+                  }
+                }}
+              >
+                Não é este
+              </Button>
+            </div>
+          </div>
         </section>
       )}
     </div>
@@ -1163,9 +1274,13 @@ function ReceiptViewer({
   fileById: Map<string, any>;
   onChanged: () => void;
 }) {
-  const primary = primaryReceiptLink(links);
-  const primaryFile = primary ? fileById.get(primary.file_id) : null;
-  const [page, setPage] = useState<number>(primary?.page_number ?? 1);
+  const confirmed = confirmedReceiptLink(links);
+  const reviews = reviewReceiptLinks(links);
+
+  const displayLink = confirmed || (reviews.length > 0 ? reviews[0] : null);
+  const displayFile = displayLink ? fileById.get(displayLink.file_id) : null;
+
+  const [page, setPage] = useState<number>(displayLink?.page_number ?? 1);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -1173,37 +1288,37 @@ function ReceiptViewer({
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setPage(primary?.page_number ?? 1);
+    setPage(displayLink?.page_number ?? 1);
     setZoom(1);
     setRotation(0);
-  }, [row.id, primary?.id]);
+  }, [row.id, displayLink?.id]);
 
   useEffect(() => {
     let cancelled = false;
     async function fetchUrl() {
-      if (!primaryFile?.storage_path) {
+      if (!displayFile?.storage_path) {
         setSignedUrl(null);
         return;
       }
       const { data } = await supabase.storage
         .from("receipts")
-        .createSignedUrl(primaryFile.storage_path, 3600);
+        .createSignedUrl(displayFile.storage_path, 3600);
       if (!cancelled) setSignedUrl(data?.signedUrl ?? null);
     }
     fetchUrl();
     return () => {
       cancelled = true;
     };
-  }, [primaryFile?.storage_path]);
+  }, [displayFile?.storage_path]);
 
-  const isPdf = (primaryFile?.mime_type ?? "").includes("pdf") || (primaryFile?.extension ?? "").toLowerCase() === "pdf";
-  const pageCount = primaryFile?.page_count ?? 1;
+  const isPdf = (displayFile?.mime_type ?? "").includes("pdf") || (displayFile?.extension ?? "").toLowerCase() === "pdf";
+  const pageCount = displayFile?.page_count ?? 1;
 
   const [manualOpen, setManualOpen] = useState(false);
 
   async function markUnlocated() {
-    if (!primary) return;
-    await detachRowFile(primary.id);
+    if (!confirmed) return;
+    await detachRowFile(confirmed.id);
     toast.success("Comprovante desvinculado");
     onChanged();
   }
@@ -1217,18 +1332,22 @@ function ReceiptViewer({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">
-            {primaryFile?.file_name ?? "Comprovante não identificado"}
+            {displayFile?.file_name ?? "Comprovante não identificado"}
           </p>
-          {primaryFile?.original_path && primaryFile.original_path !== primaryFile.file_name && (
-            <p className="truncate font-mono text-[10px] text-muted-foreground">{primaryFile.original_path}</p>
+          {displayFile?.original_path && displayFile.original_path !== displayFile.file_name && (
+            <p className="truncate font-mono text-[10px] text-muted-foreground">{displayFile.original_path}</p>
           )}
         </div>
-        {primary ? (
+        {confirmed ? (
           <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
             <CheckCircle2 className="mr-1 h-3 w-3" /> Localizado
           </Badge>
-        ) : (
+        ) : reviews.length > 0 ? (
           <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+            Possível
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="rounded-full border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-medium text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
             Não localizado
           </Badge>
         )}
@@ -1283,7 +1402,7 @@ function ReceiptViewer({
             variant="ghost"
             className="h-8 rounded-full text-xs text-muted-foreground hover:text-rose-600"
             onClick={markUnlocated}
-            disabled={!primary}
+            disabled={!confirmed}
           >
             <FileWarning className="mr-1 h-3.5 w-3.5" /> Marcar não localizado
           </Button>
@@ -1292,7 +1411,7 @@ function ReceiptViewer({
 
       {/* Document window */}
       <div className="min-h-[520px] bg-[radial-gradient(circle_at_1px_1px,theme(colors.border/30)_1px,transparent_0)] [background-size:16px_16px] p-6">
-        {!primaryFile ? (
+        {!displayFile ? (
           <div className="grid h-[440px] place-items-center rounded-xl border border-dashed border-border bg-background/60 text-center">
             <div className="max-w-xs px-6">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
@@ -1324,7 +1443,7 @@ function ReceiptViewer({
               ) : (
                 <img
                   src={signedUrl}
-                  alt={primaryFile.file_name}
+                  alt={displayFile.file_name}
                   className="mx-auto max-w-full rounded-lg bg-white shadow-xl ring-1 ring-border/60"
                   draggable={false}
                 />
@@ -1356,7 +1475,7 @@ function ReceiptViewer({
         <Dialog open onOpenChange={(o) => !o && setFullscreen(false)}>
           <DialogContent className="max-w-[95vw]">
             <DialogHeader>
-              <DialogTitle>{primaryFile?.file_name}</DialogTitle>
+              <DialogTitle>{displayFile?.file_name}</DialogTitle>
             </DialogHeader>
             <div className="max-h-[80vh] overflow-auto">
               {isPdf ? (
