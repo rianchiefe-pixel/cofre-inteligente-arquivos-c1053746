@@ -721,7 +721,7 @@ export async function matchBatchReceipts(
   for (const row of rowList) {
     if (manualRows.has(row.id) || isCardKind(row.kind)) continue;
     const candidates: Candidate[] = [];
-    for (const f of fileFacts) {
+    for (const f of fileFacts as FileFacts[]) {
       if (reservedFiles.has(f.id)) continue;
       const c = scoreRowAgainstFile(row, f);
       if (c && (isAcceptedTier(c.confidence) || c.confidence === "review")) {
