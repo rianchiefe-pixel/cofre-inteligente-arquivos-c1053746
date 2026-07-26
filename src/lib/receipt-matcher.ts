@@ -713,10 +713,24 @@ export async function matchBatchReceipts(
       row_amount_cents: rowCents,
       row_date: row.transaction_date ?? "",
       row_payee: row.payee ?? row.description ?? "",
+
+      // Campos reais da consulta Supabase para diagnóstico
+      database_row_number: (row as any).row_index ?? null,
+      database_amount: row.amount,
+      database_transaction_date: row.transaction_date ?? null,
+      database_payee: (row.payee ?? row.description) ?? null,
+      raw_data: (row as any).raw_data ?? null,
+      normalized_data: (row as any).normalized_data ?? null,
+      ai_data: (row as any).ai_data ?? null,
+      ai_suggested_amount: (row as any).ai_suggested_amount ?? null,
+      ai_suggested_date: (row as any).ai_suggested_date ?? null,
+      status: (row as any).status ?? null,
+      error_message: (row as any).error_message ?? null,
+
       candidates: [],
       selected_file_id: null,
       selected_file_name: null,
-      persistence_accepted: true,
+      persistence_accepted: null,
       final_reason: "Não encontrado"
     };
 
