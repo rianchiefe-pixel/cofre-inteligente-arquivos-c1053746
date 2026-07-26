@@ -398,7 +398,11 @@ export function ImportConference({
       else if (s === "ver_depois") ver++;
       else pending++;
       const links = linksByRow.get(r.id) ?? [];
-      if (primaryReceiptLink(links)) identified++;
+      const confirmed = confirmedReceiptLink(links);
+      const reviews = reviewReceiptLinks(links);
+
+      if (confirmed) identified++;
+      else if (reviews.length > 0) possible++;
       else no++;
     }
     return {
@@ -409,6 +413,7 @@ export function ImportConference({
       ver,
       no,
       identified,
+      possible,
       dup: duplicateIds.size,
     };
   }, [rowsQ.data, linksByRow, duplicateIds]);
