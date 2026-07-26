@@ -260,6 +260,16 @@ function ImportPage() {
               r.parsed_notes.payment_method,
               r.normalized.category,
             ),
+            transaction_type: (function() {
+              const raw = r.raw;
+              // Procure por uma coluna que contenha "CONTA" ou "ORIGEM" e tenha valores "DESPESAS" ou "INVESTIMENTOS"
+              for (const val of Object.values(raw)) {
+                const s = String(val || "").toUpperCase();
+                if (s === "DESPESAS") return "DESPESA";
+                if (s === "INVESTIMENTOS") return "INVESTIMENTO";
+              }
+              return null;
+            })(),
           }));
           const { error: rowErr } = await supabase.from("import_rows").insert(payload as any);
           if (rowErr) throw new Error(`Linha ${slice[0].row_number}: ${rowErr.message}`);
