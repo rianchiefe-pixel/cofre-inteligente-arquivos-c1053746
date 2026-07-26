@@ -480,7 +480,7 @@ export function ImportConference({
       await statusFn({
         data: { rowId: activeRow.id, status: "ver_depois", overrides },
       });
-      toast.success("Movido para fila de pendências");
+      toast.success("Salvo para revisar depois.");
       invalidate();
       goNext();
     } catch (e: any) {
