@@ -568,8 +568,10 @@ export function ImportConference({
               <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {counts.approved} aprovadas</span>
               <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> {counts.rejected} rejeitadas</span>
               <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-              <span>{counts.no} sem comprovante</span>
-              <span>·</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-600" /> {counts.identified} Identificados</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-600" /> {counts.possible} Possíveis</span>
+              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-600" /> {counts.no} Sem comprovante</span>
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
               <span>{counts.dup} possíveis duplicidades</span>
             </div>
           </DialogHeader>
