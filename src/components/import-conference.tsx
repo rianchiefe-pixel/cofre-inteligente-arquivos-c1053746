@@ -275,18 +275,31 @@ export function ImportConference({
     return list.filter((r: any) => {
       const status = (r.review_status ?? "pending") as ReviewStatus;
       const links = linksByRow.get(r.id) ?? [];
-      const primary = primaryReceiptLink(links);
+      const confirmed = confirmedReceiptLink(links);
+      const reviews = reviewReceiptLinks(links);
+
+      const rowState: "identified" | "possible" | "no_receipt" = confirmed
+        ? "identified"
+        : reviews.length > 0
+          ? "possible"
+          : "no_receipt";
+
       // status filter
-      if (statusFilter === "no_receipt" && primary) return false;
-      if (statusFilter !== "no_receipt" && !primary) return false;
+      if (statusFilter === "identified" && rowState !== "identified") return false;
+      if (statusFilter === "possible" && rowState !== "possible") return false;
+      if (statusFilter === "no_receipt" && rowState !== "no_receipt") return false;
       if (statusFilter === "duplicate" && !duplicateIds.has(r.id)) return false;
+
       if (
         statusFilter !== "all" &&
+        statusFilter !== "identified" &&
+        statusFilter !== "possible" &&
         statusFilter !== "no_receipt" &&
         statusFilter !== "duplicate" &&
         status !== statusFilter
       )
         return false;
+
       // type
       if (typeFilter !== "all" && r.transaction_type !== typeFilter) return false;
       // text
