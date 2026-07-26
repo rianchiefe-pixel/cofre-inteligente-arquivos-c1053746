@@ -778,6 +778,7 @@ function RowEditor({
   properties,
   propertyById,
   batchScope,
+  onChanged,
 }: {
   row: any;
   links: any[];
