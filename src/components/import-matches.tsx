@@ -24,6 +24,7 @@ import {
   FileWarning,
   Copy,
   FileQuestion,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -219,6 +220,49 @@ export function ImportMatches({ batchId }: { batchId: string }) {
           Cruzar comprovantes
         </Button>
       </header>
+      
+      {progress && (progress.diagnostics?.length ?? 0) > 0 && (
+        <div className="mb-4 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-[10px] gap-2"
+            onClick={() => {
+              const data = {
+                matcherVersion: MATCHER_BUILD_VERSION,
+                summary: {
+                  matched: progress.matched,
+                  notFound: progress.notFound,
+                  needsReview: progress.needsReview,
+                  persistenceRejected: progress.persistenceRejected,
+                  cardRows: progress.cardRows,
+                  cardMatched: progress.cardMatched,
+                  unreadableFiles: progress.unreadableFiles,
+                  duplicateFiles: progress.duplicateFiles,
+                  unmatchedFiles: progress.unmatchedFiles,
+                  totalRows: progress.rowsTotal,
+                  fileSummary: progress.filesDiagnostics?.summary
+                },
+                filesDiagnostics: progress.filesDiagnostics?.files ?? [],
+                diagnostics: progress.diagnostics ?? [],
+              };
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `diagnostico-conciliacao-${batchId}.json`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast.success("Diagnóstico JSON baixado com sucesso");
+            }}
+          >
+            <Download className="h-3 w-3" />
+            Baixar diagnóstico JSON
+          </Button>
+        </div>
+      )}
 
       <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-6">
         <Bucket label="Vinculados" value={stats.matched} tone="ok" />
