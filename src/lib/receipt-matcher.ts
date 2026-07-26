@@ -844,8 +844,8 @@ export async function matchBatchReceipts(
   progress.needsReview = rowsInReview.size;
 
   // notFound: linhas sem automático e sem revisão
-  const rowsWithAuto = new Set(finalPayload.filter(p => p.is_primary).map(p => p.row_id));
-  progress.notFound = rowList.filter(r => !isCardKind(r.kind) && !manualRows.has(r.id) && !rowsWithAuto.has(r.id) && !rowsInReview.has(r.id)).length;
+  const rowsWithAuto = new Set(finalPayload.filter((p: any) => p.is_primary).map((p: any) => p.row_id));
+  progress.notFound = rowList.filter((r: any) => !isCardKind(r.kind) && !manualRows.has(r.id) && !rowsWithAuto.has(r.id) && !rowsInReview.has(r.id)).length;
 
   // 3. Execução "Transacional": Limpar antigos e inserir novos
   await supabase
