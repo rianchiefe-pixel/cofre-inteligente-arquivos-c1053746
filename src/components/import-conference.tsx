@@ -147,9 +147,9 @@ export function ImportConference({
   const statusFn = useServerFn(setImportRowStatus);
   const classifyFn = useServerFn(classifyImportRow);
 
-  const [statusFilter, setStatusFilter] = useState<"all" | ReviewStatus | "no_receipt" | "duplicate">(
-    "pending",
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | ReviewStatus | "identified" | "possible" | "no_receipt" | "duplicate"
+  >("pending");
   const [typeFilter, setTypeFilter] = useState<"all" | "DESPESA" | "INVESTIMENTO">("all");
   const [textFilter, setTextFilter] = useState("");
   const [bankFilter, setBankFilter] = useState("");
