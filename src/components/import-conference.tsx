@@ -913,9 +913,14 @@ function RowEditor({
               </Badge>
             )}
           </div>
-          {primary && (
+          {confirmed && (
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
               <CheckCircle2 className="h-3.5 w-3.5" /> Comprovante identificado
+            </div>
+          )}
+          {!confirmed && reviews.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+              <FileWarning className="h-3.5 w-3.5" /> Possível comprovante — ainda não vinculado
             </div>
           )}
         </div>
