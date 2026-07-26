@@ -635,15 +635,9 @@ export async function matchBatchReceipts(
     });
   }
 
-  const bestByRow = new Map<string, Candidate>();
-  const fileClaims = new Map<string, string[]>();
-
-
-
-  console.log("\n--- INÍCIO DO DIAGNÓSTICO DE CONCILIAÇÃO ---");
-  console.log(`Versão do Motor: ${MATCHER_BUILD_VERSION}`);
-
-
+  // ---------------------------------------------------------------------------
+  // Diagnóstico e Cruzamento
+  // ---------------------------------------------------------------------------
   for (const row of rowList) {
     if (manualRows.has(row.id)) continue;
     if (isCardKind(row.kind)) continue;
@@ -656,8 +650,6 @@ export async function matchBatchReceipts(
       row_amount_cents: rowCents,
       row_date: row.transaction_date ?? "",
       row_payee: row.payee ?? row.description ?? "",
-
-      // Campos reais da consulta Supabase para diagnóstico
       database_row_number: (row as any).row_index ?? null,
       database_amount: row.amount,
       database_transaction_date: row.transaction_date ?? null,
@@ -669,7 +661,6 @@ export async function matchBatchReceipts(
       ai_suggested_date: (row as any).ai_suggested_date ?? null,
       status: (row as any).status ?? null,
       error_message: (row as any).error_message ?? null,
-
       candidates: [],
       selected_file_id: null,
       selected_file_name: null,
@@ -677,9 +668,6 @@ export async function matchBatchReceipts(
       final_reason: "Não encontrado"
     };
 
-    const scored: Candidate[] = [];
-    
-    // Processamento de candidatos e diagnóstico detalhado
     for (const f of fileFacts) {
       const c = scoreRowAgainstFile(row, f);
       const ocr = f.ocr ?? {};
@@ -687,8 +675,7 @@ export async function matchBatchReceipts(
       const receiptCents = toCents(receiptAmountRaw);
       const sameMag = amountsHaveSameMagnitude(rowCents, receiptCents);
       const dirValid = isDirectionValid(rowCents, ocr, f.extracted_text);
-      
-      const candidateAccepted = c ? isAcceptedTier(c.confidence) : false;
+      const candidateAccepted = c ? (isAcceptedTier(c.confidence) || c.confidence === "review") : false;
       const rejectionReason = c ? c.divergent.join("; ") : "Filtro inicial (score null)";
 
       rowDiag.candidates.push({
@@ -705,47 +692,11 @@ export async function matchBatchReceipts(
         confidence: c?.confidence ?? "none",
         rejection_reason: rejectionReason
       });
-
-      if (candidateAccepted && !reservedFiles.has(f.id) && c) {
-        scored.push(c);
-      }
-    }
-
-    scored.sort((a, b) => b.score - a.score);
-    
-    const top = scored[0];
-    if (top) {
-      const ties = scored.filter(s => s.score === top.score).length;
-      if (ties > 1) {
-        rowDiag.final_reason = "Bloqueado por ambiguidade (empate de pontuação)";
-      } else {
-        bestByRow.set(row.id, top);
-        if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
-        fileClaims.get(top.fileId)!.push(row.id);
-        
-        const file = rawFiles.find(fl => fl.id === top.fileId);
-        rowDiag.selected_file_id = top.fileId;
-        rowDiag.selected_file_name = file?.file_name ?? null;
-        rowDiag.final_reason = `Sucesso (${top.confidence})`;
-      }
     }
     progress.diagnostics?.push(rowDiag);
-    console.table(rowDiag.candidates.map(c => ({
-      file: c.file_name,
-      cents: c.receipt_amount_cents,
-      mag: c.same_magnitude,
-      dir: c.direction_valid,
-      score: c.score,
-      acc: c.candidate_accepted,
-      reason: c.rejection_reason
-    })));
-
-
-
   }
 
-  // Cartão de crédito: tenta vincular apenas contra comprovantes que
-  // explicitamente identificam cartão. Regra restrita — sem match → bucket.
+  // Cartão de crédito: lógica simplificada para diagnóstico
   const cardFileFacts = fileFacts.filter((f) => {
     const hay = `${f.file_name} ${f.textNorm}`;
     return /fatura|cartao de credito|cart[aã]o de cr[eé]dito|final \d{4}/i.test(hay);
@@ -754,85 +705,6 @@ export async function matchBatchReceipts(
     if (!isCardKind(row.kind)) continue;
     progress.cardRows += 1;
     if (manualRows.has(row.id)) { progress.cardMatched += 1; continue; }
-    const scored: Candidate[] = [];
-    const candidatesForValue = cardFileFacts.map(f => scoreRowAgainstFile(row, f)).filter(c => c !== null) as Candidate[];
-    const valueMatchCount = candidatesForValue.length;
-
-    for (const c of candidatesForValue) {
-      c.confidence = gatedTier(c.score, new Set(c.matched), c.divergent, c.missing, row, valueMatchCount);
-      if (isAcceptedTier(c.confidence) && !reservedFiles.has(c.fileId)) {
-        scored.push(c);
-      }
-    }
-    scored.sort((a, b) => b.score - a.score);
-    const top = scored[0];
-    if (top) {
-      bestByRow.set(row.id, top);
-      if (!fileClaims.has(top.fileId)) fileClaims.set(top.fileId, []);
-      fileClaims.get(top.fileId)!.push(row.id);
-    }
-  }
-
-  const payload: any[] = [];
-
-  for (const row of rowList) {
-    if (manualRows.has(row.id)) {
-      progress.matched++;
-      progress.rowsDone++;
-      if (opts.onProgress && progress.rowsDone % 5 === 0) opts.onProgress({ ...progress });
-      continue;
-    }
-    if (isCardKind(row.kind)) {
-      const topCard = bestByRow.get(row.id);
-      if (topCard) {
-        progress.cardMatched += 1;
-        payload.push({
-          user_id: userId,
-          batch_id: batchId,
-          row_id: row.id,
-          file_id: topCard.fileId,
-          page_number: topCard.pageNumber,
-          score: topCard.score,
-          confidence: topCard.confidence,
-          match_reasons: topCard.reasons,
-          is_manual: false,
-          is_primary: true,
-        });
-      }
-      progress.rowsDone++;
-      continue;
-    }
-
-    const top = bestByRow.get(row.id);
-    const claims = top ? (fileClaims.get(top.fileId) ?? []) : [];
-
-    if (!top) {
-      progress.notFound++;
-    } else if (claims.length > 1) {
-      // Regra Conservadora: se existir mais de uma possibilidade compatível, 
-      // cancela a associação automática para evitar suposições.
-      progress.needsReview++;
-      const diag = progress.diagnostics?.find(d => d.row_id === row.id);
-      if (diag) diag.final_reason = "Bloqueado por ambiguidade (conflito de claims)";
-    } else {
-
-      progress.matched++;
-      payload.push({
-        user_id: userId,
-        batch_id: batchId,
-        row_id: row.id,
-        file_id: top.fileId,
-        page_number: top.pageNumber,
-        score: top.score,
-        confidence: top.confidence,
-        match_reasons: top.reasons,
-        is_manual: false,
-        is_primary: true,
-      });
-    }
-
-    progress.rowsDone++;
-    if (opts.onProgress && progress.rowsDone % 5 === 0) opts.onProgress({ ...progress });
   }
 
   // ---------------------------------------------------------------------------
