@@ -483,7 +483,7 @@ export const approveImportRow = createServerFn({ method: "POST" })
     };
 
     // 6. Chama RPC transacional
-    const { data: receiptId, error: rpcErr } = await supabase.rpc("approve_import_row_rpc", {
+    const { data: receiptId, error: rpcErr } = await supabase.rpc("approve_import_row_rpc" as any, {
       p_row_id: row.id,
       p_receipt_payload: receiptPayload as any,
     });
