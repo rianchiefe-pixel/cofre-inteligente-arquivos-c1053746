@@ -15,7 +15,7 @@ import { assertMatchingAmounts } from "./persistence-validator";
 export const MATCHER_BUILD_VERSION = "2026-07-25-sign-magnitude-fix";
 
 
-export type MatchTier = "very_high" | "high" | "review" | "low" | "none";
+export type MatchTier = "very_high" | "high" | "review" | "manual_confirmed" | "rejected" | "low" | "none";
 
 export interface CandidateReason {
   key: "match" | "divergence" | "missing" | "manual" | "path" | "id" | "amount" | "date" | "payee" | "payee-partial" | "bank" | "txid" | "auth" | "doc";
