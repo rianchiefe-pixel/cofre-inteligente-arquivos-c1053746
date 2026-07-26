@@ -489,8 +489,8 @@ export const approveImportRow = createServerFn({ method: "POST" })
     });
     if (rpcErr) throw new Error(rpcErr.message);
 
-    return { ok: true as const, receiptId };
-  });
+    // 7. Registra preferências aprendidas a partir de cada override
+    const prefs: Array<{ field: string; from: unknown; to: unknown }> = [
       { field: "bank", from: row.bank, to: patch.bank },
       { field: "card", from: row.card, to: patch.card },
       { field: "category", from: row.category, to: patch.category },
@@ -498,10 +498,8 @@ export const approveImportRow = createServerFn({ method: "POST" })
       { field: "payment_method", from: row.payment_method, to: patch.payment_method },
     ];
 
-    // Aprende vínculo imóvel↔favorecido/categoria — só quando o usuário
-    // explicitamente escolheu um imóvel (não "conta geral", não em branco).
-    const finalProperty =
-      patch.property_id !== undefined ? patch.property_id : row.property_id;
+    // Aprende vínculo imóvel↔favorecido/categoria
+    const finalProperty = patch.property_id !== undefined ? patch.property_id : row.property_id;
     if (finalProperty) {
       const payeeKey = normalizeKey(patch.payee ?? row.payee);
       const catKey = normalizeKey(patch.category ?? row.category);
@@ -540,7 +538,7 @@ export const approveImportRow = createServerFn({ method: "POST" })
       }
     }
 
-    return { ok: true as const };
+    return { ok: true as const, receiptId };
   });
 
 export const rejectImportRow = createServerFn({ method: "POST" })
