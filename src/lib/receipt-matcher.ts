@@ -481,7 +481,9 @@ export interface MatchProgress {
   unreadableFiles: number;
   unmatchedFiles: number;
   duplicateFiles: number;
+  persistenceRejected: number;
 }
+
 
 export async function matchBatchReceipts(
   batchId: string,
@@ -563,7 +565,9 @@ export async function matchBatchReceipts(
     unreadableFiles,
     unmatchedFiles: 0,
     duplicateFiles,
+    persistenceRejected: 0,
   };
+
 
   const bestByRow = new Map<string, Candidate>();
   const fileClaims = new Map<string, string[]>();
@@ -754,8 +758,9 @@ export async function matchBatchReceipts(
         } catch (e) {
           console.warn(`[DIAGNÓSTICO PERSISTÊNCIA] Rejeitado por barreira: Linha ${row.id} vs Arquivo ${file.id}`);
           progress.matched--;
-          progress.needsReview++;
+          progress.persistenceRejected++;
         }
+
     }
   }
 

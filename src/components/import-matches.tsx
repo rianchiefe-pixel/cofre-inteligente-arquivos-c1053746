@@ -158,7 +158,9 @@ export function ImportMatches({ batchId }: { batchId: string }) {
       unreadableFiles: 0,
       unmatchedFiles: 0,
       duplicateFiles: 0,
+      persistenceRejected: 0,
     });
+
     try {
       // Re-normaliza valores/datas dos comprovantes com o parser BRL corrigido
       // antes de recruzar — garante que "R$ 5.33" seja lido como 5,33.
@@ -173,9 +175,13 @@ export function ImportMatches({ batchId }: { batchId: string }) {
           <div className="text-[10px] opacity-90 grid grid-cols-1 gap-0.5">
             {p.notFound > 0 && <span>• {p.notFound} sem candidato compatível</span>}
             {p.needsReview > 0 && <span>• {p.needsReview} bloqueados por ambiguidade</span>}
+            {p.persistenceRejected > 0 && (
+              <span>• {p.persistenceRejected} rejeitados pela validação de persistência</span>
+            )}
             {p.unreadableFiles > 0 && <span>• {p.unreadableFiles} ilegíveis</span>}
             {p.duplicateFiles > 0 && <span>• {p.duplicateFiles} duplicados</span>}
             {p.unmatchedFiles > 0 && <span>• {p.unmatchedFiles} arquivos do ZIP não utilizados</span>}
+
           </div>
         </div>,
         { duration: 6000 }
@@ -245,7 +251,11 @@ export function ImportMatches({ batchId }: { batchId: string }) {
             <span className="text-emerald-600 dark:text-emerald-400">• {progress.matched} associados</span>
             {progress.notFound > 0 && <span>• {progress.notFound} sem candidato</span>}
             {progress.needsReview > 0 && <span className="text-amber-600 dark:text-amber-400">• {progress.needsReview} ambíguos</span>}
+            {progress.persistenceRejected > 0 && (
+              <span className="text-rose-600 dark:text-rose-400">• {progress.persistenceRejected} erro de valor</span>
+            )}
             {progress.unreadableFiles > 0 && <span className="text-rose-600 dark:text-rose-400">• {progress.unreadableFiles} ilegíveis</span>}
+
           </div>
         </div>
       )}
