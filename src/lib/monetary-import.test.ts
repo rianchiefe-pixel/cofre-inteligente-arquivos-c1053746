@@ -66,7 +66,7 @@ async function testMonetaryImport() {
     console.log("\n[PASS] Todos os valores foram importados e convertidos corretamente seguindo o fluxo real.");
 
   } catch (err) {
-    console.error("\nFALHA NO TESTE:", err.message);
+    console.error("\nFALHA NO TESTE:", err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
 }
