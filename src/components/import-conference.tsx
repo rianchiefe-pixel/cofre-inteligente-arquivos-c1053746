@@ -1268,8 +1268,8 @@ function ReceiptViewer({
   const [manualOpen, setManualOpen] = useState(false);
 
   async function markUnlocated() {
-    if (!primary) return;
-    await detachRowFile(primary.id);
+    if (!confirmed) return;
+    await detachRowFile(confirmed.id);
     toast.success("Comprovante desvinculado");
     onChanged();
   }
