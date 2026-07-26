@@ -605,7 +605,7 @@ export async function matchBatchReceipts(
 
   // Preencher filesDiagnostics
   for (const fact of fileFacts) {
-    const raw = rawFiles.find(rf => rf.id === fact.id);
+    const raw = rawFiles.find((rf: any) => rf.id === fact.id);
     const ocr = fact.ocr ?? {};
     const text = fact.extracted_text || "";
     const amountRaw = ocr.amount_raw ?? ocr.amount;
