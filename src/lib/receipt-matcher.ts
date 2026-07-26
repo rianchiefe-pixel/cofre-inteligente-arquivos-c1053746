@@ -176,7 +176,9 @@ interface FileFacts {
   pathNorm: string;
   textNorm: string;
   tokens: Set<string>;
+  readable: boolean;
 }
+
 
 function factsFromFile(f: any): FileFacts {
   const name = String(f.file_name ?? "");
