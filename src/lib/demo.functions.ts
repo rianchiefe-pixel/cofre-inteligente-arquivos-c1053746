@@ -39,15 +39,23 @@ function daysAgo(n: number): string {
 }
 
 async function wipeDemoData(supabase: any, userId: string) {
+  // Limpar em ordem de dependência para evitar erros de FK
+  await supabase.from("import_batches").delete().eq("user_id", userId);
+  await supabase.from("card_transactions").delete().eq("user_id", userId);
+  await supabase.from("card_statements").delete().eq("user_id", userId);
+  await supabase.from("card_holders").delete().eq("user_id", userId);
+  await supabase.from("tasks").delete().eq("user_id", userId);
+  await supabase.from("property_obligations").delete().eq("user_id", userId);
+  await supabase.from("property_accesses").delete().eq("user_id", userId);
+  await supabase.from("property_rentals").delete().eq("user_id", userId);
+  await supabase.from("properties").delete().eq("user_id", userId);
   await supabase.from("receipts").delete().eq("user_id", userId);
+  await supabase.from("audit_logs").delete().eq("user_id", userId);
   await supabase.from("recipients").delete().eq("user_id", userId);
-  await supabase.from("cards").delete().eq("user_id", userId);
   await supabase.from("accounts").delete().eq("user_id", userId);
   await supabase.from("banks").delete().eq("user_id", userId);
-  await supabase.from("properties").delete().eq("user_id", userId);
   await supabase.from("financial_profiles").delete().eq("user_id", userId);
-  await supabase.from("audit_logs").delete().eq("user_id", userId);
-  // categories: keep seeded ones; only remove extras created by demo seed if any
+  await supabase.from("import_preferences").delete().eq("user_id", userId);
 }
 
 async function runSeed(supabase: any, userId: string) {
