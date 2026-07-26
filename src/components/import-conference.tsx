@@ -792,7 +792,8 @@ function RowEditor({
   batchScope: string;
 }) {
   const meta = (row.ai_meta ?? {}) as Record<string, any>;
-  const primary = primaryReceiptLink(links);
+  const confirmed = confirmedReceiptLink(links);
+  const reviews = reviewReceiptLinks(links);
   const status = (row.review_status ?? "pending") as ReviewStatus;
 
   const originalCategory = row.category_original ?? row.category ?? null;
