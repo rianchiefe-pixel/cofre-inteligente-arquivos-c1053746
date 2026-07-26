@@ -260,6 +260,12 @@ function ImportPage() {
               r.parsed_notes.payment_method,
               r.normalized.category,
             ),
+            transaction_type: (function() {
+              const orig = String(r.parsed_notes.original_account || "").toUpperCase();
+              if (orig === "DESPESAS") return "DESPESA";
+              if (orig === "INVESTIMENTOS") return "INVESTIMENTO";
+              return null;
+            })(),
           }));
           const { error: rowErr } = await supabase.from("import_rows").insert(payload as any);
           if (rowErr) throw new Error(`Linha ${slice[0].row_number}: ${rowErr.message}`);
