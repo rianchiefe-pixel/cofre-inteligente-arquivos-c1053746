@@ -1414,6 +1414,7 @@ export type Database = {
           file_size: number | null
           id: string
           import_batch_id: string | null
+          import_row_id: string | null
           is_fixed: boolean | null
           notes: string | null
           ocr_data: Json | null
@@ -1453,6 +1454,7 @@ export type Database = {
           file_size?: number | null
           id?: string
           import_batch_id?: string | null
+          import_row_id?: string | null
           is_fixed?: boolean | null
           notes?: string | null
           ocr_data?: Json | null
@@ -1492,6 +1494,7 @@ export type Database = {
           file_size?: number | null
           id?: string
           import_batch_id?: string | null
+          import_row_id?: string | null
           is_fixed?: boolean | null
           notes?: string | null
           ocr_data?: Json | null
@@ -1552,6 +1555,13 @@ export type Database = {
             columns: ["import_batch_id"]
             isOneToOne: false
             referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_import_row_id_fkey"
+            columns: ["import_row_id"]
+            isOneToOne: false
+            referencedRelation: "import_rows"
             referencedColumns: ["id"]
           },
           {
@@ -1657,6 +1667,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_import_row_rpc: {
+        Args: { p_receipt_payload: Json; p_row_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
