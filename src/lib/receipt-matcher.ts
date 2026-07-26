@@ -470,47 +470,43 @@ function scoreRowAgainstFile(row: any, f: FileFacts): Candidate | null {
 
 // ---- Public API ----------------------------------------------------------
 
-export interface MatchDiagnostics {
-  row_id: string;
-  row_number: number;
-  row_amount_original: any;
-  row_amount_cents: number | null;
-  row_date: string;
-  row_payee: string;
-  candidates: Array<{
-    file_id: string;
-    file_name: string;
-    receipt_amount_raw: any;
-    receipt_amount_cents: number | null;
-    same_magnitude: boolean;
-    receipt_date: string;
-    receipt_payee: string;
-    direction_valid: boolean;
-    candidate_accepted: boolean;
-    score: number;
-    confidence: MatchTier;
-    rejection_reason: string;
-  }>;
-  selected_file_id: string | null;
-  selected_file_name: string | null;
-  persistence_accepted: boolean;
-  final_reason: string;
+export interface FileDiagnostic {
+  file_id: string;
+  file_name: string;
+  processing_status: string;
+  readable: boolean;
+  is_duplicate: boolean;
+  extracted_text_length: number;
+  extracted_text_preview: string;
+  extraction_source: string;
+  ocr_amount_raw: any;
+  ocr_amount_cents: number | null;
+  ocr_date: string;
+  ocr_payee: string;
+  ocr_transaction_id: string;
+  included_in_matching: boolean;
+  exclusion_reason: string;
 }
 
-export interface MatchProgress {
-  rowsTotal: number;
-  rowsDone: number;
-  matched: number;
-  needsReview: number;
-  notFound: number;
-  cardRows: number;
-  cardMatched: number;
-  unreadableFiles: number;
-  unmatchedFiles: number;
-  duplicateFiles: number;
+export interface MatchDiagnostics {
+  row_id: string;
+...
   persistenceRejected: number;
   diagnostics?: MatchDiagnostics[];
+  filesDiagnostics?: {
+    files: FileDiagnostic[];
+    summary: {
+      total_files_queried: number;
+      total_files_loaded: number;
+      total_files_included_in_matching: number;
+      total_files_without_text: number;
+      total_files_without_amount: number;
+      total_files_unreadable: number;
+      total_files_duplicates: number;
+    };
+  };
 }
+
 
 
 
