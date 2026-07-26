@@ -170,6 +170,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         toast.message(`Comprovantes reprocessados: ${rp.updated}/${rp.total}`);
       }
       const p = await matchBatchReceipts(batchId, { onProgress: setProgress });
+      setProgress(p);
       toast.success(
         <div className="space-y-1">
           <p className="font-semibold">{p.matched} associados com sucesso</p>
@@ -226,8 +227,15 @@ export function ImportMatches({ batchId }: { batchId: string }) {
           <Button
             variant="outline"
             size="sm"
+            type="button"
             className="text-[10px] gap-2"
             onClick={() => {
+              if (!progress?.filesDiagnostics || !progress?.diagnostics) {
+                toast.error(
+                  "O diagnóstico final ainda não está disponível. Execute o cruzamento novamente."
+                );
+                return;
+              }
               const data = {
                 matcherVersion: MATCHER_BUILD_VERSION,
                 summary: {
