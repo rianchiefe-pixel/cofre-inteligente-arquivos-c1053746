@@ -926,6 +926,11 @@ export async function matchBatchReceipts(
           const receiptAmount = ocr.amount_raw ?? ocr.amount;
           assertMatchingAmounts(row.amount, receiptAmount);
           finalPayload.push(p);
+          
+          const diag = progress.diagnostics?.find(d => d.row_id === row.id);
+          if (diag) {
+            diag.persistence_accepted = true;
+          }
         } catch (e: any) {
           console.warn(`[DIAGNÓSTICO PERSISTÊNCIA] Rejeitado por barreira: Linha ${row.id} vs Arquivo ${file.id}`);
           progress.matched--;
