@@ -832,38 +832,181 @@ function RowMatchDialog({
   );
 }
 
-function FileViewerDialog({ fileId, onClose }: { fileId: string; onClose: () => void }) {
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
-  const [file, setFile] = useState<any>(null);
+function mimeFromFileName(fileName?: string | null): string | null {
+  const extension = fileName?.toLowerCase().split(".").pop();
+  if (!extension) return null;
+  if (extension === "pdf") return "application/pdf";
+  if (extension === "png") return "image/png";
+  if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
+  if (extension === "webp") return "image/webp";
+  if (extension === "gif") return "image/gif";
+  return null;
+}
 
-  useMemo(async () => {
-    const { data: f } = await supabase.from('import_files').select('*').eq('id', fileId).single();
-    if (!f) return;
-    setFile(f);
-    const { data } = await supabase.storage.from('imports').createSignedUrl(f.folder + '/' + f.file_name, 3600);
-    if (data?.signedUrl) setSignedUrl(data.signedUrl);
+type ViewerStatus = "loading" | "ready" | "error";
+
+function FileViewerDialog({ fileId, onClose }: { fileId: string; onClose: () => void }) {
+  const [status, setStatus] = useState<ViewerStatus>("loading");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [resolvedMime, setResolvedMime] = useState<string>("application/octet-stream");
+  const [fileName, setFileName] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    let createdUrl: string | null = null;
+    const timeout = window.setTimeout(() => {
+      if (cancelled) return;
+      setStatus((current) => {
+        if (current === "loading") {
+          setErrorMessage("O comprovante demorou mais que o esperado para carregar.");
+          return "error";
+        }
+        return current;
+      });
+    }, 15000);
+
+    (async () => {
+      try {
+        const { data: f, error: qErr } = await supabase
+          .from("import_files")
+          .select("id, file_name, mime_type, extension, storage_path, duplicate_of")
+          .eq("id", fileId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (qErr) throw new Error(qErr.message);
+        if (!f) throw new Error("Arquivo não encontrado.");
+
+        // Resolve duplicates: inherit storage_path/mime from the original.
+        let effective: { storage_path: string | null; mime_type: string | null; file_name: string | null; extension: string | null } = f;
+        if (!f.storage_path && f.duplicate_of) {
+          const { data: orig } = await supabase
+            .from("import_files")
+            .select("storage_path, mime_type, file_name, extension")
+            .eq("id", f.duplicate_of)
+            .maybeSingle();
+          if (orig) {
+            effective = {
+              storage_path: orig.storage_path,
+              mime_type: orig.mime_type ?? f.mime_type,
+              file_name: f.file_name ?? orig.file_name,
+              extension: f.extension ?? orig.extension,
+            };
+          }
+        }
+
+        setFileName(effective.file_name ?? f.file_name ?? "Comprovante");
+
+        const path = effective.storage_path;
+        if (!path || path === "import/pending" || path === "pending") {
+          throw new Error("Caminho inválido: o arquivo não foi persistido no armazenamento.");
+        }
+
+        const { data: blob, error: dlErr } = await supabase.storage
+          .from("receipts")
+          .download(path);
+        if (cancelled) return;
+        if (dlErr) throw new Error(dlErr.message || "Erro ao baixar arquivo.");
+        if (!blob) throw new Error("O Storage não retornou o arquivo.");
+
+        const mime =
+          effective.mime_type ||
+          mimeFromFileName(effective.file_name ?? f.file_name) ||
+          blob.type ||
+          "application/octet-stream";
+
+        const typed = new Blob([await blob.arrayBuffer()], { type: mime });
+        if (cancelled) return;
+        const url = URL.createObjectURL(typed);
+        createdUrl = url;
+        setObjectUrl(url);
+        setResolvedMime(mime);
+        setStatus("ready");
+      } catch (e) {
+        if (cancelled) return;
+        setErrorMessage(e instanceof Error ? e.message : String(e));
+        setStatus("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
   }, [fileId]);
 
-  const isPdf = file?.extension?.toLowerCase() === 'pdf' || file?.file_name?.toLowerCase().endsWith('.pdf');
+  const isPdf = resolvedMime === "application/pdf";
+  const isImage = resolvedMime.startsWith("image/");
+
+  const download = () => {
+    if (!objectUrl) return;
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = fileName || "comprovante";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-5xl h-[90vh]">
+      <DialogContent className="max-w-5xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="truncate">{file?.file_name || 'Visualizando arquivo'}</DialogTitle>
+          <DialogTitle className="truncate">{fileName || "Visualizando arquivo"}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-auto bg-muted/20 rounded-lg border border-border relative">
-          {!signedUrl ? (
+        <div className="flex-1 overflow-auto bg-muted/20 rounded-lg border border-border relative min-h-[60vh]">
+          {status === "loading" && (
             <div className="absolute inset-0 flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : isPdf ? (
-            <iframe src={signedUrl} className="w-full h-full border-none" title="PDF Viewer" />
-          ) : (
-            <img src={signedUrl} alt="Comprovante" className="max-w-full mx-auto" />
+          )}
+          {status === "ready" && objectUrl && isPdf && (
+            <iframe
+              src={objectUrl}
+              title={fileName || "Comprovante PDF"}
+              className="h-full min-h-[60vh] w-full border-none"
+            />
+          )}
+          {status === "ready" && objectUrl && isImage && (
+            <img
+              src={objectUrl}
+              alt={fileName || "Comprovante"}
+              className="max-h-[80vh] w-full object-contain"
+              onError={() => {
+                setStatus("error");
+                setErrorMessage("Não foi possível exibir a imagem.");
+              }}
+            />
+          )}
+          {status === "ready" && objectUrl && !isPdf && !isImage && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+              <FileQuestion className="h-10 w-10 opacity-40" />
+              <p>Formato não suportado para pré-visualização ({resolvedMime}).</p>
+              <Button size="sm" variant="outline" onClick={download}>
+                <Download className="h-4 w-4" /> Baixar comprovante
+              </Button>
+            </div>
+          )}
+          {status === "error" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
+              <FileWarning className="h-10 w-10 text-destructive" />
+              <p className="text-sm font-medium text-foreground">Não foi possível carregar o comprovante.</p>
+              <p className="text-xs text-muted-foreground max-w-md">{errorMessage}</p>
+              {objectUrl && (
+                <Button size="sm" variant="outline" onClick={download} className="mt-2">
+                  <Download className="h-4 w-4" /> Baixar comprovante
+                </Button>
+              )}
+            </div>
           )}
         </div>
         <DialogFooter>
+          {status === "ready" && objectUrl && (
+            <Button variant="outline" onClick={download}>
+              <Download className="h-4 w-4" /> Baixar
+            </Button>
+          )}
           <Button onClick={onClose}>Fechar Visualizador</Button>
         </DialogFooter>
       </DialogContent>
