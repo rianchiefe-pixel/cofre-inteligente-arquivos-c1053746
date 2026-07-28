@@ -409,16 +409,58 @@ export const approveImportRow = createServerFn({ method: "POST" })
       .single();
     if (rowErr || !row) throw new Error("Linha não encontrada");
 
-    // 2. Verifica se há arquivos confirmados
-    const { data: links } = await supabase
+    // 2. Carrega o vínculo confirmado + arquivo real
+    const { data: confirmedLink, error: confirmedLinkError } = await supabase
       .from("import_row_files")
-      .select("id, is_primary, is_manual, confidence")
-      .eq("row_id", data.rowId);
+      .select(
+        `id, file_id, confidence, is_primary, is_manual,
+         import_files!inner (
+           id, storage_path, file_name, mime_type, size_bytes,
+           content_hash, ocr_data, duplicate_of
+         )`,
+      )
+      .eq("row_id", data.rowId)
+      .eq("is_primary", true)
+      .in("confidence", ["high", "very_high", "manual_confirmed"])
+      .maybeSingle();
+    if (confirmedLinkError) throw new Error(confirmedLinkError.message);
+    if (!confirmedLink) {
+      throw new Error("Confirme o possível comprovante antes de aprovar o lançamento.");
+    }
 
-    const isConfirmed = links?.some(
-      (l) => l.is_primary && (l.is_manual || ["high", "very_high", "manual_confirmed"].includes(l.confidence ?? ""))
-    );
-    if (!isConfirmed) throw new Error("Confirme o possível comprovante antes de aprovar o lançamento.");
+    // 2b. Resolve arquivo duplicado (herda dados do original quando faltarem)
+    const currentFile: any = (confirmedLink as any).import_files;
+    let originalFile: any = null;
+    if (currentFile?.duplicate_of) {
+      const { data: orig } = await supabase
+        .from("import_files")
+        .select(
+          "id, storage_path, file_name, mime_type, size_bytes, content_hash, ocr_data",
+        )
+        .eq("id", currentFile.duplicate_of)
+        .maybeSingle();
+      originalFile = orig ?? null;
+    }
+    const effectiveFile = {
+      storage_path: currentFile?.storage_path ?? originalFile?.storage_path ?? null,
+      file_name: currentFile?.file_name ?? originalFile?.file_name ?? null,
+      mime_type: currentFile?.mime_type ?? originalFile?.mime_type ?? null,
+      size_bytes: currentFile?.size_bytes ?? originalFile?.size_bytes ?? null,
+      content_hash: currentFile?.content_hash ?? originalFile?.content_hash ?? null,
+      ocr_data: currentFile?.ocr_data ?? originalFile?.ocr_data ?? null,
+    };
+
+    // 2c. Barreira: caminho de armazenamento é obrigatório e não pode ser placeholder
+    const INVALID_PATHS = new Set(["import/pending", "pending", ""]);
+    const trimmedPath =
+      typeof effectiveFile.storage_path === "string"
+        ? effectiveFile.storage_path.trim()
+        : "";
+    if (!trimmedPath || INVALID_PATHS.has(trimmedPath)) {
+      throw new Error(
+        "O comprovante confirmado não possui um arquivo válido no armazenamento.",
+      );
+    }
 
     // 3. Carrega o lote
     const { data: batch } = await supabase
@@ -478,6 +520,14 @@ export const approveImportRow = createServerFn({ method: "POST" })
       transaction_type: (patch.transaction_type ?? row.transaction_type) === "INVESTIMENTO" ? "investimento" : "despesa",
       payment_method: patch.payment_method ?? row.payment_method ?? "outro",
       category_id: categoryId,
+      // Arquivo real confirmado (nunca vem da IA)
+      file_path: trimmedPath,
+      file_name: effectiveFile.file_name,
+      file_mime: effectiveFile.mime_type,
+      file_size: effectiveFile.size_bytes,
+      file_hash: effectiveFile.content_hash,
+      ocr_data: effectiveFile.ocr_data,
+      ocr_status: effectiveFile.ocr_data ? "done" : "queued",
       status: "approved",
       approved_at: new Date().toISOString(),
     };
