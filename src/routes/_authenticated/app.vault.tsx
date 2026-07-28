@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
@@ -19,7 +19,7 @@ import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@
 import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, Loader2, Inbox, Copy, Archive, Trash2, GitCompareArrows, Download, Plus, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts, analyzeReceipt } from "@/lib/receipts.functions";
+import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts, analyzeReceipt, updateReceiptConference } from "@/lib/receipts.functions";
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
 
@@ -361,6 +361,7 @@ function VaultPage() {
   const approve = useServerFn(approveReceipt);
   const reject = useServerFn(rejectReceipt);
   const analyze = useServerFn(analyzeReceipt);
+  const saveConference = useServerFn(updateReceiptConference);
   const bulkAction = useServerFn(bulkReceiptAction);
   const bulkUpdate = useServerFn(bulkUpdateReceipts);
   const bulkDelete = useServerFn(deleteReceipts);
@@ -374,7 +375,10 @@ function VaultPage() {
   const [bankId, setBankId] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [editing, setEditing] = useState<any | null>(null);
+  const [original, setOriginal] = useState<any | null>(null);
+  const [draft, setDraft] = useState<any | null>(null);
+  const [suggested, setSuggested] = useState<any | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [preview, setPreview] = useState<PreviewState>(EMPTY_PREVIEW);
   const [compareId, setCompareId] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
