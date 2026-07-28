@@ -429,3 +429,74 @@ export const deleteReceipts = createServerFn({ method: "POST" })
     }
     return { ok: true, count: data.receiptIds.length };
   });
+
+const paymentMethodEnum = z.enum(["debito","credito_vista","credito_parcelado","pix","ted","boleto","dinheiro","transferencia","outro"]);
+const transactionTypeEnum = z.enum(["despesa","investimento","gasto_fixo","gasto_variavel","pessoal","empresarial","patrimonial"]);
+
+const ConferencePatchSchema = z.object({
+  payment_date: z.string().nullable().optional(),
+  amount: z.number().nullable().optional(),
+  recipient_name: z.string().nullable().optional(),
+  recipient_tax_id: z.string().nullable().optional(),
+  bank_name: z.string().nullable().optional(),
+  auth_code: z.string().nullable().optional(),
+  payment_method: paymentMethodEnum.nullable().optional(),
+  transaction_type: transactionTypeEnum.nullable().optional(),
+  category_id: z.string().uuid().nullable().optional(),
+  description: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  profile_id: z.string().uuid().nullable().optional(),
+  property_id: z.string().uuid().nullable().optional(),
+  bank_id: z.string().uuid().nullable().optional(),
+  account_id: z.string().uuid().nullable().optional(),
+}).strict();
+
+export const updateReceiptConference = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    receiptId: z.string().uuid(),
+    patch: ConferencePatchSchema,
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: existing, error: loadErr } = await supabase
+      .from("receipts").select("*").eq("id", data.receiptId).single();
+    if (loadErr || !existing) throw new Error("Comprovante não encontrado");
+    if ((existing as any).user_id !== userId) {
+      throw new Error("Sem permissão para editar este comprovante");
+    }
+
+    const diff: Record<string, any> = {};
+    const oldValues: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data.patch)) {
+      if (v === undefined) continue;
+      const current = (existing as any)[k];
+      const normalizedCurrent = current === undefined ? null : current;
+      const normalizedNext = v === undefined ? null : v;
+      if (normalizedCurrent !== normalizedNext) {
+        diff[k] = v;
+        oldValues[k] = normalizedCurrent;
+      }
+    }
+
+    if (Object.keys(diff).length === 0) {
+      return { ok: true, receipt: existing, changed: [] as string[] };
+    }
+
+    const { data: updated, error: upErr } = await supabase
+      .from("receipts").update(diff).eq("id", data.receiptId).select("*").single();
+    if (upErr) throw new Error(upErr.message);
+
+    await logAudit(supabase, userId, {
+      action: "conference_updated",
+      entity: "receipt",
+      entity_id: data.receiptId,
+      profile_id: (updated as any)?.profile_id ?? (existing as any).profile_id,
+      property_id: (updated as any)?.property_id ?? (existing as any).property_id,
+      old_value: oldValues,
+      new_value: diff,
+    });
+
+    return { ok: true, receipt: updated, changed: Object.keys(diff) };
+  });
