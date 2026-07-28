@@ -56,7 +56,16 @@ function UploadPage() {
         const ext = file.name.split(".").pop() ?? "bin";
         const path = `${userId}/${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`;
 
-        const { error: upErr } = await supabase.storage.from("receipts").upload(path, file, { contentType: file.type });
+        const contentType =
+          file.type ||
+          (ext === "pdf"
+            ? "application/pdf"
+            : ext === "png"
+              ? "image/png"
+              : ext === "jpg" || ext === "jpeg"
+                ? "image/jpeg"
+                : "application/octet-stream");
+        const { error: upErr } = await supabase.storage.from("receipts").upload(path, file, { contentType });
         if (upErr) throw new Error(upErr.message);
 
         const { data: inserted, error: insErr } = await supabase.from("receipts").insert({
