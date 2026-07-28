@@ -844,23 +844,23 @@ function VaultPage() {
       <CompareDialog receiptId={compareId} onClose={() => setCompareId(null)} onChanged={invalidate} />
 
       {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) { setEditing(null); setPreview(EMPTY_PREVIEW); setRejectNote(""); } }}>
+      <Dialog open={!!original} onOpenChange={(o) => { if (!o) requestClose(); }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Conferência do comprovante</DialogTitle></DialogHeader>
-          {editing && (
+          {original && draft && (
             <div className="grid gap-6 md:grid-cols-[1fr_1.2fr]">
               <div className="rounded-lg border border-border bg-muted/40 p-2">
                 <div className="min-h-[520px] overflow-hidden rounded bg-background/50">
                   {preview.loading ? (
                     <div className="grid h-[520px] place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando prévia…</div>
                   ) : preview.url ? (
-                    inferMime(editing.file_name, editing.file_mime).startsWith("image/") ? (
+                    inferMime(original.file_name, original.file_mime).startsWith("image/") ? (
                       <ZoomPanFrame>
                         <img src={preview.url} alt="Comprovante" className="block max-w-none rounded" draggable={false} style={{ maxHeight: "none" }} onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
                       </ZoomPanFrame>
-                    ) : inferMime(editing.file_name, editing.file_mime) === "application/pdf" ? (
+                    ) : inferMime(original.file_name, original.file_mime) === "application/pdf" ? (
                       <ZoomPanFrame>
-                        <PdfCanvasPreview url={preview.url} fileName={editing.file_name} />
+                        <PdfCanvasPreview url={preview.url} fileName={original.file_name} />
                       </ZoomPanFrame>
                     ) : (
                       <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
@@ -876,85 +876,138 @@ function VaultPage() {
                 {preview.error && preview.url && <p className="mt-2 text-xs text-destructive">{preview.error}</p>}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {preview.url && <Button asChild variant="outline" size="sm"><a href={preview.url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir em nova aba</a></Button>}
-                  {preview.downloadUrl && <Button asChild variant="outline" size="sm"><a href={preview.downloadUrl} download={editing.file_name ?? true}><Download className="h-4 w-4" /> Baixar comprovante</a></Button>}
+                  {preview.downloadUrl && <Button asChild variant="outline" size="sm"><a href={preview.downloadUrl} download={original.file_name ?? true}><Download className="h-4 w-4" /> Baixar comprovante</a></Button>}
                   <Button variant="outline" size="sm" onClick={analyzeCurrentReceipt} disabled={busy}>
-                    <RefreshCw className="h-4 w-4" /> {hasExtractedConferenceData(editing) ? "Reanalisar com IA" : "Analisar comprovante agora"}
+                    <RefreshCw className="h-4 w-4" /> {hasExtractedConferenceData(original) ? "Reanalisar com IA" : "Analisar comprovante agora"}
                   </Button>
                 </div>
               </div>
 
               <div className="space-y-3 text-sm">
-                {typeof editing.duplicate_score === "number" && editing.duplicate_score >= 50 && (
-                  <div className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${editing.duplicate_score >= 80 ? "border-destructive/50 bg-destructive/10" : "border-yellow-500/50 bg-yellow-500/10"}`}>
+                {typeof original.duplicate_score === "number" && original.duplicate_score >= 50 && (
+                  <div className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${original.duplicate_score >= 80 ? "border-destructive/50 bg-destructive/10" : "border-yellow-500/50 bg-yellow-500/10"}`}>
                     <AlertTriangle className="mt-0.5 h-4 w-4" />
                     <div className="flex-1">
-                      {editing.duplicate_score >= 80 ? "Alta chance de comprovante repetido." : "Possível comprovante repetido."} <span className="opacity-70">(score {editing.duplicate_score}/100)</span>
+                      {original.duplicate_score >= 80 ? "Alta chance de comprovante repetido." : "Possível comprovante repetido."} <span className="opacity-70">(score {original.duplicate_score}/100)</span>
                     </div>
-                    {editing.duplicate_of && <Button size="sm" variant="outline" onClick={() => { setCompareId(editing.id); }}><GitCompareArrows className="h-4 w-4" /> Comparar</Button>}
+                    {original.duplicate_of && <Button size="sm" variant="outline" onClick={() => { setCompareId(original.id); }}><GitCompareArrows className="h-4 w-4" /> Comparar</Button>}
+                  </div>
+                )}
+                {isDirty && (
+                  <div className="rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs text-primary">
+                    Você tem alterações não salvas. Clique em <strong>Salvar alterações</strong> para gravar.
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Data</Label><Input type="date" defaultValue={editing.payment_date ?? ""} onBlur={(e) => updateReceipt.mutate({ payment_date: e.target.value || null })} /></div>
-                  <div className="space-y-1"><Label>Valor</Label><Input type="number" step="0.01" defaultValue={editing.amount ?? ""} onBlur={(e) => updateReceipt.mutate({ amount: e.target.value ? Number(e.target.value) : null })} /></div>
+                  <div className="space-y-1">
+                    <Label>Data</Label>
+                    <Input type="date" value={draft.payment_date ?? ""} onChange={(e) => setDraftField("payment_date", e.target.value || null)} />
+                    {!original.payment_date && suggested?.payment_date && (
+                      <SuggestionHint value={String(suggested.payment_date)} onApply={() => applySuggestion("payment_date")} />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Valor</Label>
+                    <Input type="number" step="0.01" value={draft.amount ?? ""} onChange={(e) => setDraftField("amount", e.target.value === "" ? null : Number(e.target.value))} />
+                    {original.amount == null && suggested?.amount != null && (
+                      <SuggestionHint value={String(suggested.amount)} onApply={() => applySuggestion("amount")} />
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-1"><Label>Destinatário</Label><Input defaultValue={editing.recipient_name ?? ""} onBlur={(e) => updateReceipt.mutate({ recipient_name: e.target.value || null })} /></div>
+                <div className="space-y-1">
+                  <Label>Destinatário</Label>
+                  <Input value={draft.recipient_name ?? ""} onChange={(e) => setDraftField("recipient_name", e.target.value || null)} />
+                  {!original.recipient_name && suggested?.recipient_name && (
+                    <SuggestionHint value={suggested.recipient_name} onApply={() => applySuggestion("recipient_name")} />
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Banco de origem</Label><Input defaultValue={editing.bank_name ?? ""} onBlur={(e) => updateReceipt.mutate({ bank_name: e.target.value || null })} /></div>
-                  <div className="space-y-1"><Label>Código de autenticação</Label><Input defaultValue={editing.auth_code ?? ""} onBlur={(e) => updateReceipt.mutate({ auth_code: e.target.value || null })} /></div>
+                  <div className="space-y-1">
+                    <Label>Banco de origem</Label>
+                    <Input value={draft.bank_name ?? ""} onChange={(e) => setDraftField("bank_name", e.target.value || null)} />
+                    {!original.bank_name && suggested?.bank_name && (
+                      <SuggestionHint value={suggested.bank_name} onApply={() => applySuggestion("bank_name")} />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Código de autenticação</Label>
+                    <Input value={draft.auth_code ?? ""} onChange={(e) => setDraftField("auth_code", e.target.value || null)} />
+                    {!original.auth_code && suggested?.auth_code && (
+                      <SuggestionHint value={suggested.auth_code} onApply={() => applySuggestion("auth_code")} />
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Forma de pagamento</Label>
-                    <Select defaultValue={editing.payment_method ?? undefined} onValueChange={(v) => updateReceipt.mutate({ payment_method: v })}>
+                    <Select value={draft.payment_method ?? undefined} onValueChange={(v) => setDraftField("payment_method", v)}>
                       <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>{Object.entries(paymentMethodLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                     </Select>
+                    {!original.payment_method && suggested?.payment_method && (
+                      <SuggestionHint value={paymentMethodLabel[suggested.payment_method as keyof typeof paymentMethodLabel] ?? String(suggested.payment_method)} onApply={() => applySuggestion("payment_method")} />
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label>Tipo</Label>
-                    <Select defaultValue={editing.transaction_type ?? undefined} onValueChange={(v) => updateReceipt.mutate({ transaction_type: v })}>
+                    <Select value={draft.transaction_type ?? undefined} onValueChange={(v) => setDraftField("transaction_type", v)}>
                       <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>{Object.entries(transactionTypeLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                     </Select>
+                    {!original.transaction_type && suggested?.transaction_type && (
+                      <SuggestionHint value={transactionTypeLabel[suggested.transaction_type as keyof typeof transactionTypeLabel] ?? String(suggested.transaction_type)} onApply={() => applySuggestion("transaction_type")} />
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1">
                   <Label>Categoria</Label>
-                  <Select defaultValue={editing.category_id ?? undefined} onValueChange={(v) => updateReceipt.mutate({ category_id: v })}>
+                  <Select value={draft.category_id ?? undefined} onValueChange={(v) => setDraftField("category_id", v)}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>{(categories.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
+                  {!original.category_id && suggested?.category_id && (
+                    <SuggestionHint value={(categories.data ?? []).find((c: any) => c.id === suggested.category_id)?.name ?? "Categoria sugerida"} onApply={() => applySuggestion("category_id")} />
+                  )}
                   <div className="flex gap-2 pt-1">
                     <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Nova categoria" />
                     <Button type="button" variant="outline" size="icon" onClick={createCategory} disabled={!newCategoryName.trim()} title="Criar categoria"><Plus className="h-4 w-4" /></Button>
                   </div>
                 </div>
-                <div className="space-y-1"><Label>Descrição</Label><Textarea defaultValue={editing.description ?? ""} onBlur={(e) => updateReceipt.mutate({ description: e.target.value || null })} /></div>
+                <div className="space-y-1">
+                  <Label>Descrição</Label>
+                  <Textarea value={draft.description ?? ""} onChange={(e) => setDraftField("description", e.target.value || null)} />
+                </div>
                 <div className="space-y-1">
                   <Label>Perfil financeiro</Label>
-                  <Select defaultValue={editing.profile_id ?? undefined} onValueChange={(v) => updateReceipt.mutate({ profile_id: v })}>
+                  <Select value={draft.profile_id ?? undefined} onValueChange={(v) => setDraftField("profile_id", v)}>
                     <SelectTrigger><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
                     <SelectContent>{(profiles.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
                   <Label>Imóvel vinculado</Label>
-                  <Select defaultValue={editing.property_id ?? "none"} onValueChange={(v) => updateReceipt.mutate({ property_id: v === "none" ? null : v })}>
+                  <Select value={draft.property_id ?? "none"} onValueChange={(v) => setDraftField("property_id", v === "none" ? null : v)}>
                     <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
                       {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {!original.property_id && suggested?.property_id && (
+                    <SuggestionHint value={(properties.data ?? []).find((p: any) => p.id === suggested.property_id)?.name ?? "Imóvel sugerido"} onApply={() => applySuggestion("property_id")} />
+                  )}
                 </div>
 
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setEditing(null); setPreview(EMPTY_PREVIEW); setRejectNote(""); toast.info("Comprovante mantido como pendente. Você pode conferir depois."); }} disabled={busy}>
+                  <Button variant="outline" onClick={requestClose} disabled={busy}>
                     <Inbox className="h-4 w-4" /> Conferir depois
+                  </Button>
+                  <Button variant="default" onClick={saveDraft} disabled={busy || !isDirty}>
+                    Salvar alterações
                   </Button>
                   {canApprove && <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline"><XCircle className="h-4 w-4" /> Rejeitar</Button>
+                      <Button variant="outline" disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de rejeitar." : undefined}><XCircle className="h-4 w-4" /> Rejeitar</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -971,10 +1024,10 @@ function VaultPage() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>}
-                  {canApprove && editing.duplicate_score >= 50 ? (
+                  {canApprove && original.duplicate_score >= 50 ? (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="success" disabled={busy}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
+                        <Button variant="success" disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de aprovar." : undefined}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -988,7 +1041,7 @@ function VaultPage() {
                       </AlertDialogContent>
                     </AlertDialog>
                   ) : canApprove ? (
-                    <Button variant="success" onClick={approveCurrentReceipt} disabled={busy}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
+                    <Button variant="success" onClick={approveCurrentReceipt} disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de aprovar." : undefined}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
                   ) : null}
                 </div>
               </div>
@@ -996,6 +1049,32 @@ function VaultPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar alterações não salvas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Suas alterações no comprovante não serão salvas. O comprovante continuará disponível para conferência.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmDiscard(false); closeEditing(); toast.info("Nenhuma alteração foi salva. O comprovante continuará disponível para conferência."); }}>
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function SuggestionHint({ value, onApply }: { value: string; onApply: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+      <span>Sugestão do comprovante: <span className="font-medium text-foreground">{value}</span></span>
+      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={onApply}>Usar sugestão</Button>
     </div>
   );
 }
