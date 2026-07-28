@@ -526,41 +526,105 @@ function VaultPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.receipt]);
 
-  const updateReceipt = useMutation({
-    mutationFn: async (patch: any) => {
-      const { error } = await supabase.from("receipts").update(patch).eq("id", editing.id);
-      if (error) throw error;
-      setEditing((prev: any) => (prev ? { ...prev, ...patch } : prev));
-    },
-    onSuccess: () => { toast.success("Salvo"); qc.invalidateQueries({ queryKey: ["receipts"] }); },
-    onError: (e: any) => toast.error(e.message),
-  });
+  const CONFERENCE_FIELDS = [
+    "payment_date","amount","recipient_name","recipient_tax_id","bank_name","auth_code",
+    "payment_method","transaction_type","category_id","description","notes",
+    "profile_id","property_id","bank_id","account_id",
+  ] as const;
+  type ConfField = typeof CONFERENCE_FIELDS[number];
+
+  const isDirty = useMemo(() => {
+    if (!original || !draft) return false;
+    return CONFERENCE_FIELDS.some((k) => {
+      const a = (original as any)[k] ?? null;
+      const b = (draft as any)[k] ?? null;
+      return a !== b;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [original, draft]);
+
+  const setDraftField = (field: ConfField, value: any) => {
+    setDraft((current: any) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const applySuggestion = (field: ConfField) => {
+    if (!suggested) return;
+    const val = (suggested as any)[field];
+    if (val == null || val === "") return;
+    setDraftField(field, val);
+  };
+
+  const closeEditing = () => {
+    setOriginal(null);
+    setDraft(null);
+    setSuggested(null);
+    setPreview(EMPTY_PREVIEW);
+    setRejectNote("");
+    setNewCategoryName("");
+  };
+
+  const requestClose = () => {
+    if (isDirty) {
+      setConfirmDiscard(true);
+    } else {
+      closeEditing();
+      toast.info("Nenhuma alteração foi salva. O comprovante continuará disponível para conferência.");
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!original || !draft || !isDirty) return;
+    setBusy(true);
+    try {
+      const patch: Record<string, any> = {};
+      for (const k of CONFERENCE_FIELDS) {
+        const a = (original as any)[k] ?? null;
+        const b = (draft as any)[k] ?? null;
+        if (a !== b) patch[k] = b;
+      }
+      const res: any = await saveConference({ data: { receiptId: original.id, patch } });
+      if (!res?.ok || !res.receipt) throw new Error("Não foi possível salvar as alterações");
+      const merged = { ...original, ...res.receipt };
+      setOriginal(merged);
+      setDraft({ ...merged });
+      toast.success("Alterações salvas com sucesso.");
+      invalidate();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar alterações");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const createCategory = async () => {
     const name = newCategoryName.trim();
-    if (!name || !editing) return;
+    if (!name || !draft) return;
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (!userId) return toast.error("Sessão expirada");
     const { data, error } = await supabase
       .from("categories")
-      .insert({ user_id: userId, name, default_type: editing.transaction_type ?? "gasto_variavel" })
+      .insert({ user_id: userId, name, default_type: draft.transaction_type ?? "gasto_variavel" })
       .select("id, name")
       .single();
     if (error || !data) return toast.error(error?.message ?? "Não foi possível criar a categoria");
     setNewCategoryName("");
-    updateReceipt.mutate({ category_id: data.id });
+    setDraftField("category_id", data.id);
     qc.invalidateQueries({ queryKey: ["categories"] });
-    toast.success("Categoria criada");
+    toast.success("Categoria criada. Clique em Salvar alterações para vincular ao comprovante.");
   };
 
   const analyzeCurrentReceipt = async () => {
-    if (!editing) return;
+    if (!original) return;
+    if (isDirty) {
+      toast.error("Salve ou descarte as alterações antes de reanalisar.");
+      return;
+    }
     setBusy(true);
     try {
-      const res = await analyze({ data: { receiptId: editing.id } });
+      const res = await analyze({ data: { receiptId: original.id } });
       if (!res.ok) throw new Error(res.error ?? "Não foi possível analisar o comprovante");
-      const { data } = await supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").eq("id", editing.id).single();
+      const { data } = await supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").eq("id", original.id).single();
       if (data) await openEdit(data);
       invalidate();
       toast.success("Comprovante analisado");
@@ -572,13 +636,17 @@ function VaultPage() {
   };
 
   const approveCurrentReceipt = async () => {
-    if (!editing) return;
+    if (!original) return;
+    if (isDirty) {
+      toast.error("Salve ou descarte as alterações antes de aprovar.");
+      return;
+    }
     setBusy(true);
     try {
-      await approve({ data: { receiptId: editing.id } });
+      await approve({ data: { receiptId: original.id } });
       toast.success("Aprovado");
       invalidate();
-      setEditing(null);
+      closeEditing();
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao aprovar");
     } finally {
@@ -587,13 +655,13 @@ function VaultPage() {
   };
 
   const rejectCurrentReceipt = async () => {
-    if (!editing) return;
+    if (!original) return;
     setBusy(true);
     try {
-      await reject({ data: { receiptId: editing.id, reason: "rejected", note: rejectNote || undefined } });
+      await reject({ data: { receiptId: original.id, reason: "rejected", note: rejectNote || undefined } });
       toast.success("Comprovante rejeitado");
       invalidate();
-      setEditing(null);
+      closeEditing();
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao rejeitar");
     } finally {
