@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
@@ -19,7 +19,7 @@ import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@
 import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, Loader2, Inbox, Copy, Archive, Trash2, GitCompareArrows, Download, Plus, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts, analyzeReceipt } from "@/lib/receipts.functions";
+import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts, analyzeReceipt, updateReceiptConference } from "@/lib/receipts.functions";
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
 
@@ -361,6 +361,7 @@ function VaultPage() {
   const approve = useServerFn(approveReceipt);
   const reject = useServerFn(rejectReceipt);
   const analyze = useServerFn(analyzeReceipt);
+  const saveConference = useServerFn(updateReceiptConference);
   const bulkAction = useServerFn(bulkReceiptAction);
   const bulkUpdate = useServerFn(bulkUpdateReceipts);
   const bulkDelete = useServerFn(deleteReceipts);
@@ -374,7 +375,10 @@ function VaultPage() {
   const [bankId, setBankId] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [editing, setEditing] = useState<any | null>(null);
+  const [original, setOriginal] = useState<any | null>(null);
+  const [draft, setDraft] = useState<any | null>(null);
+  const [suggested, setSuggested] = useState<any | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [preview, setPreview] = useState<PreviewState>(EMPTY_PREVIEW);
   const [compareId, setCompareId] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -467,28 +471,22 @@ function VaultPage() {
   };
 
   const openEdit = async (r: any) => {
-    const hydrated = hydrateReceiptForConference(r, categories.data ?? [], properties.data ?? []);
-    setEditing(hydrated);
+    // Somente leitura: abrir o modal não altera dados do comprovante.
+    setOriginal(r);
+    setDraft({ ...r });
+    setSuggested(hydrateReceiptForConference(r, categories.data ?? [], properties.data ?? []));
     setRejectNote("");
+    setNewCategoryName("");
     setPreview({ ...EMPTY_PREVIEW, loading: true });
 
-    const patch: any = {};
-    for (const key of ["payment_date", "amount", "recipient_name", "recipient_tax_id", "bank_name", "auth_code", "payment_method", "transaction_type", "description", "category_id", "property_id"] as const) {
-      if ((r[key] == null || r[key] === "") && hydrated[key] != null && hydrated[key] !== "") patch[key] = hydrated[key];
-    }
-    if (Object.keys(patch).length) {
-      await supabase.from("receipts").update(patch).eq("id", r.id);
-      qc.invalidateQueries({ queryKey: ["receipts"] });
-    }
-
-    const path = getStoragePath(hydrated);
+    const path = getStoragePath(r);
     if (!path) {
       setPreview({ loading: false, url: null, downloadUrl: null, error: "Este comprovante não tem caminho de arquivo salvo." });
       return;
     }
     const [{ data, error }, downloadResult, downloaded] = await Promise.all([
       supabase.storage.from("receipts").createSignedUrl(path, 60 * 10),
-      (supabase.storage.from("receipts") as any).createSignedUrl(path, 60 * 10, { download: hydrated.file_name ?? true }),
+      (supabase.storage.from("receipts") as any).createSignedUrl(path, 60 * 10, { download: r.file_name ?? true }),
       supabase.storage.from("receipts").download(path),
     ]);
     if (downloaded.error || !downloaded.data) {
@@ -528,41 +526,105 @@ function VaultPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.receipt]);
 
-  const updateReceipt = useMutation({
-    mutationFn: async (patch: any) => {
-      const { error } = await supabase.from("receipts").update(patch).eq("id", editing.id);
-      if (error) throw error;
-      setEditing((prev: any) => (prev ? { ...prev, ...patch } : prev));
-    },
-    onSuccess: () => { toast.success("Salvo"); qc.invalidateQueries({ queryKey: ["receipts"] }); },
-    onError: (e: any) => toast.error(e.message),
-  });
+  const CONFERENCE_FIELDS = [
+    "payment_date","amount","recipient_name","recipient_tax_id","bank_name","auth_code",
+    "payment_method","transaction_type","category_id","description","notes",
+    "profile_id","property_id","bank_id","account_id",
+  ] as const;
+  type ConfField = typeof CONFERENCE_FIELDS[number];
+
+  const isDirty = useMemo(() => {
+    if (!original || !draft) return false;
+    return CONFERENCE_FIELDS.some((k) => {
+      const a = (original as any)[k] ?? null;
+      const b = (draft as any)[k] ?? null;
+      return a !== b;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [original, draft]);
+
+  const setDraftField = (field: ConfField, value: any) => {
+    setDraft((current: any) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const applySuggestion = (field: ConfField) => {
+    if (!suggested) return;
+    const val = (suggested as any)[field];
+    if (val == null || val === "") return;
+    setDraftField(field, val);
+  };
+
+  const closeEditing = () => {
+    setOriginal(null);
+    setDraft(null);
+    setSuggested(null);
+    setPreview(EMPTY_PREVIEW);
+    setRejectNote("");
+    setNewCategoryName("");
+  };
+
+  const requestClose = () => {
+    if (isDirty) {
+      setConfirmDiscard(true);
+    } else {
+      closeEditing();
+      toast.info("Nenhuma alteração foi salva. O comprovante continuará disponível para conferência.");
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!original || !draft || !isDirty) return;
+    setBusy(true);
+    try {
+      const patch: Record<string, any> = {};
+      for (const k of CONFERENCE_FIELDS) {
+        const a = (original as any)[k] ?? null;
+        const b = (draft as any)[k] ?? null;
+        if (a !== b) patch[k] = b;
+      }
+      const res: any = await saveConference({ data: { receiptId: original.id, patch } });
+      if (!res?.ok || !res.receipt) throw new Error("Não foi possível salvar as alterações");
+      const merged = { ...original, ...res.receipt };
+      setOriginal(merged);
+      setDraft({ ...merged });
+      toast.success("Alterações salvas com sucesso.");
+      invalidate();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar alterações");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const createCategory = async () => {
     const name = newCategoryName.trim();
-    if (!name || !editing) return;
+    if (!name || !draft) return;
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (!userId) return toast.error("Sessão expirada");
     const { data, error } = await supabase
       .from("categories")
-      .insert({ user_id: userId, name, default_type: editing.transaction_type ?? "gasto_variavel" })
+      .insert({ user_id: userId, name, default_type: draft.transaction_type ?? "gasto_variavel" })
       .select("id, name")
       .single();
     if (error || !data) return toast.error(error?.message ?? "Não foi possível criar a categoria");
     setNewCategoryName("");
-    updateReceipt.mutate({ category_id: data.id });
+    setDraftField("category_id", data.id);
     qc.invalidateQueries({ queryKey: ["categories"] });
-    toast.success("Categoria criada");
+    toast.success("Categoria criada. Clique em Salvar alterações para vincular ao comprovante.");
   };
 
   const analyzeCurrentReceipt = async () => {
-    if (!editing) return;
+    if (!original) return;
+    if (isDirty) {
+      toast.error("Salve ou descarte as alterações antes de reanalisar.");
+      return;
+    }
     setBusy(true);
     try {
-      const res = await analyze({ data: { receiptId: editing.id } });
+      const res = await analyze({ data: { receiptId: original.id } });
       if (!res.ok) throw new Error(res.error ?? "Não foi possível analisar o comprovante");
-      const { data } = await supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").eq("id", editing.id).single();
+      const { data } = await supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").eq("id", original.id).single();
       if (data) await openEdit(data);
       invalidate();
       toast.success("Comprovante analisado");
@@ -574,13 +636,17 @@ function VaultPage() {
   };
 
   const approveCurrentReceipt = async () => {
-    if (!editing) return;
+    if (!original) return;
+    if (isDirty) {
+      toast.error("Salve ou descarte as alterações antes de aprovar.");
+      return;
+    }
     setBusy(true);
     try {
-      await approve({ data: { receiptId: editing.id } });
+      await approve({ data: { receiptId: original.id } });
       toast.success("Aprovado");
       invalidate();
-      setEditing(null);
+      closeEditing();
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao aprovar");
     } finally {
@@ -589,13 +655,13 @@ function VaultPage() {
   };
 
   const rejectCurrentReceipt = async () => {
-    if (!editing) return;
+    if (!original) return;
     setBusy(true);
     try {
-      await reject({ data: { receiptId: editing.id, reason: "rejected", note: rejectNote || undefined } });
+      await reject({ data: { receiptId: original.id, reason: "rejected", note: rejectNote || undefined } });
       toast.success("Comprovante rejeitado");
       invalidate();
-      setEditing(null);
+      closeEditing();
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao rejeitar");
     } finally {
@@ -778,23 +844,23 @@ function VaultPage() {
       <CompareDialog receiptId={compareId} onClose={() => setCompareId(null)} onChanged={invalidate} />
 
       {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) { setEditing(null); setPreview(EMPTY_PREVIEW); setRejectNote(""); } }}>
+      <Dialog open={!!original} onOpenChange={(o) => { if (!o) requestClose(); }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Conferência do comprovante</DialogTitle></DialogHeader>
-          {editing && (
+          {original && draft && (
             <div className="grid gap-6 md:grid-cols-[1fr_1.2fr]">
               <div className="rounded-lg border border-border bg-muted/40 p-2">
                 <div className="min-h-[520px] overflow-hidden rounded bg-background/50">
                   {preview.loading ? (
                     <div className="grid h-[520px] place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando prévia…</div>
                   ) : preview.url ? (
-                    inferMime(editing.file_name, editing.file_mime).startsWith("image/") ? (
+                    inferMime(original.file_name, original.file_mime).startsWith("image/") ? (
                       <ZoomPanFrame>
                         <img src={preview.url} alt="Comprovante" className="block max-w-none rounded" draggable={false} style={{ maxHeight: "none" }} onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
                       </ZoomPanFrame>
-                    ) : inferMime(editing.file_name, editing.file_mime) === "application/pdf" ? (
+                    ) : inferMime(original.file_name, original.file_mime) === "application/pdf" ? (
                       <ZoomPanFrame>
-                        <PdfCanvasPreview url={preview.url} fileName={editing.file_name} />
+                        <PdfCanvasPreview url={preview.url} fileName={original.file_name} />
                       </ZoomPanFrame>
                     ) : (
                       <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
@@ -810,85 +876,138 @@ function VaultPage() {
                 {preview.error && preview.url && <p className="mt-2 text-xs text-destructive">{preview.error}</p>}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {preview.url && <Button asChild variant="outline" size="sm"><a href={preview.url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir em nova aba</a></Button>}
-                  {preview.downloadUrl && <Button asChild variant="outline" size="sm"><a href={preview.downloadUrl} download={editing.file_name ?? true}><Download className="h-4 w-4" /> Baixar comprovante</a></Button>}
+                  {preview.downloadUrl && <Button asChild variant="outline" size="sm"><a href={preview.downloadUrl} download={original.file_name ?? true}><Download className="h-4 w-4" /> Baixar comprovante</a></Button>}
                   <Button variant="outline" size="sm" onClick={analyzeCurrentReceipt} disabled={busy}>
-                    <RefreshCw className="h-4 w-4" /> {hasExtractedConferenceData(editing) ? "Reanalisar com IA" : "Analisar comprovante agora"}
+                    <RefreshCw className="h-4 w-4" /> {hasExtractedConferenceData(original) ? "Reanalisar com IA" : "Analisar comprovante agora"}
                   </Button>
                 </div>
               </div>
 
               <div className="space-y-3 text-sm">
-                {typeof editing.duplicate_score === "number" && editing.duplicate_score >= 50 && (
-                  <div className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${editing.duplicate_score >= 80 ? "border-destructive/50 bg-destructive/10" : "border-yellow-500/50 bg-yellow-500/10"}`}>
+                {typeof original.duplicate_score === "number" && original.duplicate_score >= 50 && (
+                  <div className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${original.duplicate_score >= 80 ? "border-destructive/50 bg-destructive/10" : "border-yellow-500/50 bg-yellow-500/10"}`}>
                     <AlertTriangle className="mt-0.5 h-4 w-4" />
                     <div className="flex-1">
-                      {editing.duplicate_score >= 80 ? "Alta chance de comprovante repetido." : "Possível comprovante repetido."} <span className="opacity-70">(score {editing.duplicate_score}/100)</span>
+                      {original.duplicate_score >= 80 ? "Alta chance de comprovante repetido." : "Possível comprovante repetido."} <span className="opacity-70">(score {original.duplicate_score}/100)</span>
                     </div>
-                    {editing.duplicate_of && <Button size="sm" variant="outline" onClick={() => { setCompareId(editing.id); }}><GitCompareArrows className="h-4 w-4" /> Comparar</Button>}
+                    {original.duplicate_of && <Button size="sm" variant="outline" onClick={() => { setCompareId(original.id); }}><GitCompareArrows className="h-4 w-4" /> Comparar</Button>}
+                  </div>
+                )}
+                {isDirty && (
+                  <div className="rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs text-primary">
+                    Você tem alterações não salvas. Clique em <strong>Salvar alterações</strong> para gravar.
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Data</Label><Input type="date" defaultValue={editing.payment_date ?? ""} onBlur={(e) => updateReceipt.mutate({ payment_date: e.target.value || null })} /></div>
-                  <div className="space-y-1"><Label>Valor</Label><Input type="number" step="0.01" defaultValue={editing.amount ?? ""} onBlur={(e) => updateReceipt.mutate({ amount: e.target.value ? Number(e.target.value) : null })} /></div>
+                  <div className="space-y-1">
+                    <Label>Data</Label>
+                    <Input type="date" value={draft.payment_date ?? ""} onChange={(e) => setDraftField("payment_date", e.target.value || null)} />
+                    {!original.payment_date && suggested?.payment_date && (
+                      <SuggestionHint value={String(suggested.payment_date)} onApply={() => applySuggestion("payment_date")} />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Valor</Label>
+                    <Input type="number" step="0.01" value={draft.amount ?? ""} onChange={(e) => setDraftField("amount", e.target.value === "" ? null : Number(e.target.value))} />
+                    {original.amount == null && suggested?.amount != null && (
+                      <SuggestionHint value={String(suggested.amount)} onApply={() => applySuggestion("amount")} />
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-1"><Label>Destinatário</Label><Input defaultValue={editing.recipient_name ?? ""} onBlur={(e) => updateReceipt.mutate({ recipient_name: e.target.value || null })} /></div>
+                <div className="space-y-1">
+                  <Label>Destinatário</Label>
+                  <Input value={draft.recipient_name ?? ""} onChange={(e) => setDraftField("recipient_name", e.target.value || null)} />
+                  {!original.recipient_name && suggested?.recipient_name && (
+                    <SuggestionHint value={suggested.recipient_name} onApply={() => applySuggestion("recipient_name")} />
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Banco de origem</Label><Input defaultValue={editing.bank_name ?? ""} onBlur={(e) => updateReceipt.mutate({ bank_name: e.target.value || null })} /></div>
-                  <div className="space-y-1"><Label>Código de autenticação</Label><Input defaultValue={editing.auth_code ?? ""} onBlur={(e) => updateReceipt.mutate({ auth_code: e.target.value || null })} /></div>
+                  <div className="space-y-1">
+                    <Label>Banco de origem</Label>
+                    <Input value={draft.bank_name ?? ""} onChange={(e) => setDraftField("bank_name", e.target.value || null)} />
+                    {!original.bank_name && suggested?.bank_name && (
+                      <SuggestionHint value={suggested.bank_name} onApply={() => applySuggestion("bank_name")} />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Código de autenticação</Label>
+                    <Input value={draft.auth_code ?? ""} onChange={(e) => setDraftField("auth_code", e.target.value || null)} />
+                    {!original.auth_code && suggested?.auth_code && (
+                      <SuggestionHint value={suggested.auth_code} onApply={() => applySuggestion("auth_code")} />
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Forma de pagamento</Label>
-                    <Select defaultValue={editing.payment_method ?? undefined} onValueChange={(v) => updateReceipt.mutate({ payment_method: v })}>
+                    <Select value={draft.payment_method ?? undefined} onValueChange={(v) => setDraftField("payment_method", v)}>
                       <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>{Object.entries(paymentMethodLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                     </Select>
+                    {!original.payment_method && suggested?.payment_method && (
+                      <SuggestionHint value={paymentMethodLabel[suggested.payment_method as keyof typeof paymentMethodLabel] ?? String(suggested.payment_method)} onApply={() => applySuggestion("payment_method")} />
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label>Tipo</Label>
-                    <Select defaultValue={editing.transaction_type ?? undefined} onValueChange={(v) => updateReceipt.mutate({ transaction_type: v })}>
+                    <Select value={draft.transaction_type ?? undefined} onValueChange={(v) => setDraftField("transaction_type", v)}>
                       <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>{Object.entries(transactionTypeLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                     </Select>
+                    {!original.transaction_type && suggested?.transaction_type && (
+                      <SuggestionHint value={transactionTypeLabel[suggested.transaction_type as keyof typeof transactionTypeLabel] ?? String(suggested.transaction_type)} onApply={() => applySuggestion("transaction_type")} />
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1">
                   <Label>Categoria</Label>
-                  <Select defaultValue={editing.category_id ?? undefined} onValueChange={(v) => updateReceipt.mutate({ category_id: v })}>
+                  <Select value={draft.category_id ?? undefined} onValueChange={(v) => setDraftField("category_id", v)}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>{(categories.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
+                  {!original.category_id && suggested?.category_id && (
+                    <SuggestionHint value={(categories.data ?? []).find((c: any) => c.id === suggested.category_id)?.name ?? "Categoria sugerida"} onApply={() => applySuggestion("category_id")} />
+                  )}
                   <div className="flex gap-2 pt-1">
                     <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Nova categoria" />
                     <Button type="button" variant="outline" size="icon" onClick={createCategory} disabled={!newCategoryName.trim()} title="Criar categoria"><Plus className="h-4 w-4" /></Button>
                   </div>
                 </div>
-                <div className="space-y-1"><Label>Descrição</Label><Textarea defaultValue={editing.description ?? ""} onBlur={(e) => updateReceipt.mutate({ description: e.target.value || null })} /></div>
+                <div className="space-y-1">
+                  <Label>Descrição</Label>
+                  <Textarea value={draft.description ?? ""} onChange={(e) => setDraftField("description", e.target.value || null)} />
+                </div>
                 <div className="space-y-1">
                   <Label>Perfil financeiro</Label>
-                  <Select defaultValue={editing.profile_id ?? undefined} onValueChange={(v) => updateReceipt.mutate({ profile_id: v })}>
+                  <Select value={draft.profile_id ?? undefined} onValueChange={(v) => setDraftField("profile_id", v)}>
                     <SelectTrigger><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
                     <SelectContent>{(profiles.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
                   <Label>Imóvel vinculado</Label>
-                  <Select defaultValue={editing.property_id ?? "none"} onValueChange={(v) => updateReceipt.mutate({ property_id: v === "none" ? null : v })}>
+                  <Select value={draft.property_id ?? "none"} onValueChange={(v) => setDraftField("property_id", v === "none" ? null : v)}>
                     <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
                       {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {!original.property_id && suggested?.property_id && (
+                    <SuggestionHint value={(properties.data ?? []).find((p: any) => p.id === suggested.property_id)?.name ?? "Imóvel sugerido"} onApply={() => applySuggestion("property_id")} />
+                  )}
                 </div>
 
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setEditing(null); setPreview(EMPTY_PREVIEW); setRejectNote(""); toast.info("Comprovante mantido como pendente. Você pode conferir depois."); }} disabled={busy}>
+                  <Button variant="outline" onClick={requestClose} disabled={busy}>
                     <Inbox className="h-4 w-4" /> Conferir depois
+                  </Button>
+                  <Button variant="default" onClick={saveDraft} disabled={busy || !isDirty}>
+                    Salvar alterações
                   </Button>
                   {canApprove && <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline"><XCircle className="h-4 w-4" /> Rejeitar</Button>
+                      <Button variant="outline" disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de rejeitar." : undefined}><XCircle className="h-4 w-4" /> Rejeitar</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -905,10 +1024,10 @@ function VaultPage() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>}
-                  {canApprove && editing.duplicate_score >= 50 ? (
+                  {canApprove && original.duplicate_score >= 50 ? (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="success" disabled={busy}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
+                        <Button variant="success" disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de aprovar." : undefined}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -922,7 +1041,7 @@ function VaultPage() {
                       </AlertDialogContent>
                     </AlertDialog>
                   ) : canApprove ? (
-                    <Button variant="success" onClick={approveCurrentReceipt} disabled={busy}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
+                    <Button variant="success" onClick={approveCurrentReceipt} disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de aprovar." : undefined}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
                   ) : null}
                 </div>
               </div>
@@ -930,6 +1049,32 @@ function VaultPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar alterações não salvas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Suas alterações no comprovante não serão salvas. O comprovante continuará disponível para conferência.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmDiscard(false); closeEditing(); toast.info("Nenhuma alteração foi salva. O comprovante continuará disponível para conferência."); }}>
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function SuggestionHint({ value, onApply }: { value: string; onApply: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+      <span>Sugestão do comprovante: <span className="font-medium text-foreground">{value}</span></span>
+      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={onApply}>Usar sugestão</Button>
     </div>
   );
 }
