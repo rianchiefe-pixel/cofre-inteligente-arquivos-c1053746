@@ -471,28 +471,22 @@ function VaultPage() {
   };
 
   const openEdit = async (r: any) => {
-    const hydrated = hydrateReceiptForConference(r, categories.data ?? [], properties.data ?? []);
-    setEditing(hydrated);
+    // Somente leitura: abrir o modal não altera dados do comprovante.
+    setOriginal(r);
+    setDraft({ ...r });
+    setSuggested(hydrateReceiptForConference(r, categories.data ?? [], properties.data ?? []));
     setRejectNote("");
+    setNewCategoryName("");
     setPreview({ ...EMPTY_PREVIEW, loading: true });
 
-    const patch: any = {};
-    for (const key of ["payment_date", "amount", "recipient_name", "recipient_tax_id", "bank_name", "auth_code", "payment_method", "transaction_type", "description", "category_id", "property_id"] as const) {
-      if ((r[key] == null || r[key] === "") && hydrated[key] != null && hydrated[key] !== "") patch[key] = hydrated[key];
-    }
-    if (Object.keys(patch).length) {
-      await supabase.from("receipts").update(patch).eq("id", r.id);
-      qc.invalidateQueries({ queryKey: ["receipts"] });
-    }
-
-    const path = getStoragePath(hydrated);
+    const path = getStoragePath(r);
     if (!path) {
       setPreview({ loading: false, url: null, downloadUrl: null, error: "Este comprovante não tem caminho de arquivo salvo." });
       return;
     }
     const [{ data, error }, downloadResult, downloaded] = await Promise.all([
       supabase.storage.from("receipts").createSignedUrl(path, 60 * 10),
-      (supabase.storage.from("receipts") as any).createSignedUrl(path, 60 * 10, { download: hydrated.file_name ?? true }),
+      (supabase.storage.from("receipts") as any).createSignedUrl(path, 60 * 10, { download: r.file_name ?? true }),
       supabase.storage.from("receipts").download(path),
     ]);
     if (downloaded.error || !downloaded.data) {
