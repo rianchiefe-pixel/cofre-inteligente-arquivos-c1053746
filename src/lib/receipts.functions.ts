@@ -485,7 +485,7 @@ export const updateReceiptConference = createServerFn({ method: "POST" })
     }
 
     const { data: updated, error: upErr } = await supabase
-      .from("receipts").update(diff).eq("id", data.receiptId).select("*").single();
+      .from("receipts").update(diff as any).eq("id", data.receiptId).select("*").single();
     if (upErr) throw new Error(upErr.message);
 
     await logAudit(supabase, userId, {
