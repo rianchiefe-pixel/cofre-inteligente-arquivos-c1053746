@@ -1671,6 +1671,13 @@ export type Database = {
         Args: { p_receipt_payload: Json; p_row_id: string }
         Returns: string
       }
+      delete_receipts_safely: {
+        Args: { p_receipt_ids: string[] }
+        Returns: {
+          deleted_id: string
+          safe_file_path: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

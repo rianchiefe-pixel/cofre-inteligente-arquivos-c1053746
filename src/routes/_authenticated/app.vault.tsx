@@ -465,7 +465,17 @@ function VaultPage() {
     setBusy(true);
     try {
       const res = await bulkDelete({ data: { receiptIds: Array.from(selectedIds) } });
-      toast.success(`${res.count} comprovante(s) excluídos`);
+      if (res.storageWarning) {
+        toast.warning(`${res.count} lançamento(s) excluídos, mas o arquivo não pôde ser removido do armazenamento.`, {
+          description: "O registro já não existe mais. Tente remover o arquivo novamente mais tarde.",
+        });
+      } else {
+        toast.success(
+          `${res.count} lançamento(s) excluídos` +
+            (res.filesRemoved ? ` · ${res.filesRemoved} arquivo(s) apagados` : "") +
+            (res.filesKept ? ` · ${res.filesKept} arquivo(s) preservados (em uso)` : ""),
+        );
+      }
       setSelectedIds(new Set()); invalidate();
     } catch (e: any) { toast.error(e.message ?? "Falha"); } finally { setBusy(false); }
   };
@@ -1091,7 +1101,8 @@ function BulkConfirm({ label, icon: Icon, tone, count, onConfirm, disabled, dest
           <AlertDialogTitle>{destructive ? "Excluir permanentemente?" : `Confirmar: ${label.toLowerCase()}`}</AlertDialogTitle>
           <AlertDialogDescription>
             Você está prestes a {label.toLowerCase()} {count} comprovante{count > 1 ? "s" : ""}. Deseja continuar?
-            {destructive && " Esta ação não pode ser desfeita."}
+            {destructive &&
+              " O lançamento será apagado do banco de dados e o arquivo original será removido do armazenamento apenas se nenhum outro lançamento ou importação estiver usando o mesmo arquivo. Esta ação não pode ser desfeita."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

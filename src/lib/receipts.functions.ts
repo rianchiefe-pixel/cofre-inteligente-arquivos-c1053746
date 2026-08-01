@@ -417,17 +417,44 @@ export const deleteReceipts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ receiptIds: z.array(z.string().uuid()).min(1).max(500) }).parse(data))
   .handler(async ({ data, context }) => {
-    const { data: rows } = await context.supabase.from("receipts").select("id, file_path").in("id", data.receiptIds);
-    const paths = (rows ?? []).map((r: any) => r.file_path).filter(Boolean);
-    if (paths.length) await context.supabase.storage.from("receipts").remove(paths);
-    const { error } = await context.supabase.from("receipts").delete().in("id", data.receiptIds);
+    // 1) Exclusão transacional no banco (RPC verifica propriedade e grava auditoria).
+    //    O Storage só é tocado DEPOIS que o banco confirmou a remoção.
+    const { data: result, error } = await context.supabase.rpc("delete_receipts_safely", {
+      p_receipt_ids: data.receiptIds,
+    });
     if (error) throw new Error(error.message);
-    for (const id of data.receiptIds) {
-      await logAudit(context.supabase, context.userId, {
-        action: "deleted", entity: "receipt", entity_id: id,
-      });
+
+    const deleted = (result ?? []) as Array<{ deleted_id: string; safe_file_path: string | null }>;
+    if (deleted.length === 0) {
+      throw new Error("Nenhum comprovante encontrado ou sem permissão para excluir.");
     }
-    return { ok: true, count: data.receiptIds.length };
+
+    // 2) Apaga apenas arquivos que não são referenciados por outros comprovantes/importações.
+    const paths = Array.from(
+      new Set(deleted.map((r) => r.safe_file_path).filter((p): p is string => !!p)),
+    );
+    let storageWarning: string | null = null;
+    if (paths.length) {
+      const { error: storageErr } = await context.supabase.storage.from("receipts").remove(paths);
+      if (storageErr) {
+        // Falha no Storage NÃO reverte a exclusão no banco; apenas informa e audita.
+        storageWarning = storageErr.message;
+        console.error("[deleteReceipts] falha ao remover arquivos do Storage:", storageErr.message);
+        await logAudit(context.supabase, context.userId, {
+          action: "deleted",
+          entity: "receipt_file",
+          note: `Arquivos não removidos do armazenamento: ${paths.join(", ")} (${storageErr.message})`,
+        });
+      }
+    }
+
+    return {
+      ok: true,
+      count: deleted.length,
+      filesRemoved: storageWarning ? 0 : paths.length,
+      filesKept: deleted.length - paths.length,
+      storageWarning,
+    };
   });
 
 const paymentMethodEnum = z.enum(["debito","credito_vista","credito_parcelado","pix","ted","boleto","dinheiro","transferencia","outro"]);
