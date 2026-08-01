@@ -1101,7 +1101,8 @@ function BulkConfirm({ label, icon: Icon, tone, count, onConfirm, disabled, dest
           <AlertDialogTitle>{destructive ? "Excluir permanentemente?" : `Confirmar: ${label.toLowerCase()}`}</AlertDialogTitle>
           <AlertDialogDescription>
             Você está prestes a {label.toLowerCase()} {count} comprovante{count > 1 ? "s" : ""}. Deseja continuar?
-            {destructive && " Esta ação não pode ser desfeita."}
+            {destructive &&
+              " O lançamento será apagado do banco de dados e o arquivo original será removido do armazenamento apenas se nenhum outro lançamento ou importação estiver usando o mesmo arquivo. Esta ação não pode ser desfeita."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
