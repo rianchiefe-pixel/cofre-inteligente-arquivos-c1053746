@@ -1174,6 +1174,8 @@ export type Database = {
           login: string | null
           notes: string | null
           password: string | null
+          password_cipher: string | null
+          password_set_at: string | null
           property_id: string
           recovery_email: string | null
           service: string
@@ -1188,6 +1190,8 @@ export type Database = {
           login?: string | null
           notes?: string | null
           password?: string | null
+          password_cipher?: string | null
+          password_set_at?: string | null
           property_id: string
           recovery_email?: string | null
           service: string
@@ -1202,6 +1206,8 @@ export type Database = {
           login?: string | null
           notes?: string | null
           password?: string | null
+          password_cipher?: string | null
+          password_set_at?: string | null
           property_id?: string
           recovery_email?: string | null
           service?: string
@@ -1668,8 +1674,28 @@ export type Database = {
     }
     Functions: {
       approve_import_row_rpc: {
-        Args: { p_receipt_payload: Json; p_row_id: string }
-        Returns: string
+        Args: { p_overrides?: Json; p_row_id: string }
+        Returns: {
+          file_path: string
+          receipt_id: string
+          receipt_status: string
+          row_review_status: string
+        }[]
+      }
+      attach_receipt_file_rpc: {
+        Args: { p_file_id: string; p_make_primary?: boolean; p_row_id: string }
+        Returns: {
+          confidence: string
+          is_primary: boolean
+          link_id: string
+        }[]
+      }
+      create_card_with_holders_rpc: {
+        Args: { p_card: Json; p_holders?: Json }
+        Returns: {
+          card_id: string
+          holders_created: number
+        }[]
       }
       delete_receipts_safely: {
         Args: { p_receipt_ids: string[] }
@@ -1678,12 +1704,68 @@ export type Database = {
           safe_file_path: string
         }[]
       }
+      detach_receipt_file_rpc: {
+        Args: { p_link_id: string }
+        Returns: {
+          confidence: string
+          is_primary: boolean
+          link_id: string
+        }[]
+      }
+      finalize_card_statement_rpc: {
+        Args: { p_statement_id: string }
+        Returns: {
+          approved_count: number
+          later_count: number
+          statement_id: string
+          statement_status: string
+        }[]
+      }
+      has_permission: {
+        Args: { _perm: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      require_permission: { Args: { _perm: string }; Returns: string }
+      reset_demo_data_rpc: {
+        Args: never
+        Returns: {
+          files_removed: number
+          receipts_removed: number
+          rows_removed: number
+          storage_paths: string[]
+        }[]
+      }
+      role_permissions: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: string[]
+      }
+      set_import_row_review_rpc: {
+        Args: { p_reason?: string; p_row_id: string; p_status: string }
+        Returns: {
+          receipt_status: string
+          row_review_status: string
+        }[]
+      }
+      set_primary_receipt_file_rpc: {
+        Args: { p_link_id: string }
+        Returns: {
+          confidence: string
+          is_primary: boolean
+          link_id: string
+        }[]
+      }
+      upsert_property_lease_rpc: {
+        Args: { p_lease: Json; p_property_id: string }
+        Returns: {
+          lease_id: string
+        }[]
       }
     }
     Enums: {

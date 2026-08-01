@@ -38,24 +38,25 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function wipeDemoData(supabase: any, userId: string) {
-  // Limpar em ordem de dependência para evitar erros de FK
-  await supabase.from("import_batches").delete().eq("user_id", userId);
-  await supabase.from("card_transactions").delete().eq("user_id", userId);
-  await supabase.from("card_statements").delete().eq("user_id", userId);
-  await supabase.from("card_holders").delete().eq("user_id", userId);
-  await supabase.from("tasks").delete().eq("user_id", userId);
-  await supabase.from("property_obligations").delete().eq("user_id", userId);
-  await supabase.from("property_accesses").delete().eq("user_id", userId);
-  await supabase.from("property_rentals").delete().eq("user_id", userId);
-  await supabase.from("properties").delete().eq("user_id", userId);
-  await supabase.from("receipts").delete().eq("user_id", userId);
-  await supabase.from("audit_logs").delete().eq("user_id", userId);
-  await supabase.from("recipients").delete().eq("user_id", userId);
-  await supabase.from("accounts").delete().eq("user_id", userId);
-  await supabase.from("banks").delete().eq("user_id", userId);
-  await supabase.from("financial_profiles").delete().eq("user_id", userId);
-  await supabase.from("import_preferences").delete().eq("user_id", userId);
+// Limpeza transacional no banco (ordem de dependências e nomes reais das tabelas
+// ficam do lado do Postgres). Devolve os caminhos de arquivos liberados.
+async function wipeDemoData(supabase: any, _userId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc("reset_demo_data_rpc");
+  if (error) throw new Error(`Falha ao limpar dados: ${error.message}`);
+  const state = Array.isArray(data) ? data[0] : data;
+  return (state?.storage_paths ?? []) as string[];
+}
+
+async function removeStorageFiles(supabase: any, paths: string[]): Promise<string[]> {
+  const unique = Array.from(new Set(paths.filter(Boolean)));
+  if (unique.length === 0) return [];
+  const failed: string[] = [];
+  for (let i = 0; i < unique.length; i += 100) {
+    const slice = unique.slice(i, i + 100);
+    const { error } = await supabase.storage.from("receipts").remove(slice);
+    if (error) failed.push(...slice);
+  }
+  return failed;
 }
 
 async function runSeed(supabase: any, userId: string) {
@@ -324,8 +325,9 @@ export const resetDemoData = createServerFn({ method: "POST" })
     if (!(await isDemoUser(supabase, userId))) {
       throw new Error("Somente a conta demo pode ser resetada.");
     }
-    await wipeDemoData(supabase, userId);
-    return { ok: true };
+    const paths = await wipeDemoData(supabase, userId);
+    const failed = await removeStorageFiles(supabase, paths);
+    return { ok: true as const, filesRemoved: paths.length - failed.length, filesFailed: failed.length };
   });
 
 export const seedDemoData = createServerFn({ method: "POST" })
@@ -348,7 +350,8 @@ export const seedDemoData = createServerFn({ method: "POST" })
       return { ok: true, seeded: false };
     }
     
-    await wipeDemoData(supabase, userId);
+    const paths = await wipeDemoData(supabase, userId);
+    await removeStorageFiles(supabase, paths);
     await runSeed(supabase, userId);
-    return { ok: true, seeded: true };
+    return { ok: true as const, seeded: true };
   });
