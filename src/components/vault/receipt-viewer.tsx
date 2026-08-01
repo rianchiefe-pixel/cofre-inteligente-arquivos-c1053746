@@ -132,6 +132,7 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let task: any = null;
     let hasCanvas = false;
 
