@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { currencyBRL, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
+import { currencyBRL, parseBrlAmount, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
 import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock } from "lucide-react";
 
 const sb = supabase as any;
