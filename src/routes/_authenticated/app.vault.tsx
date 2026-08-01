@@ -465,7 +465,17 @@ function VaultPage() {
     setBusy(true);
     try {
       const res = await bulkDelete({ data: { receiptIds: Array.from(selectedIds) } });
-      toast.success(`${res.count} comprovante(s) excluídos`);
+      if (res.storageWarning) {
+        toast.warning(`${res.count} lançamento(s) excluídos, mas o arquivo não pôde ser removido do armazenamento.`, {
+          description: "O registro já não existe mais. Tente remover o arquivo novamente mais tarde.",
+        });
+      } else {
+        toast.success(
+          `${res.count} lançamento(s) excluídos` +
+            (res.filesRemoved ? ` · ${res.filesRemoved} arquivo(s) apagados` : "") +
+            (res.filesKept ? ` · ${res.filesKept} arquivo(s) preservados (em uso)` : ""),
+        );
+      }
       setSelectedIds(new Set()); invalidate();
     } catch (e: any) { toast.error(e.message ?? "Falha"); } finally { setBusy(false); }
   };
