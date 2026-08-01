@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts, analyzeReceipt, updateReceiptConference } from "@/lib/receipts.functions";
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
+import { ConferenceDialog } from "@/components/vault/conference-dialog";
 
 export const Route = createFileRoute("/_authenticated/app/vault")({
   head: () => ({ meta: [{ title: "Cofre de comprovantes — Meu Cofre" }] }),
@@ -172,171 +172,8 @@ function getStoragePath(receipt: any) {
   return raw.replace(/^\/+/, "").replace(/^receipts\//, "");
 }
 
-function inferMime(name?: string | null, mime?: string | null) {
-  if (mime) return mime;
-  const lower = (name ?? "").toLowerCase();
-  if (lower.endsWith(".pdf")) return "application/pdf";
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-  if (lower.endsWith(".webp")) return "image/webp";
-  return "application/octet-stream";
-}
-
 function hasExtractedConferenceData(receipt: any) {
   return Boolean(receipt.payment_date || receipt.amount != null || receipt.recipient_name || receipt.bank_name || receipt.auth_code || receipt.payment_method || receipt.transaction_type || receipt.category_id);
-}
-
-function ZoomPanFrame({ children }: { children: React.ReactNode }) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const innerRef = useRef<HTMLDivElement | null>(null);
-  const sizerRef = useRef<HTMLDivElement | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [natural, setNatural] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const dragRef = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
-
-  const clamp = (v: number) => Math.min(4, Math.max(0.4, v));
-
-  useEffect(() => {
-    const el = innerRef.current;
-    if (!el) return;
-    const measure = () => {
-      const w = el.scrollWidth;
-      const h = el.scrollHeight;
-      if (w && h) setNatural((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    const id = window.setInterval(measure, 500);
-    return () => { ro.disconnect(); window.clearInterval(id); };
-  }, []);
-
-  const onMouseDown = (e: React.MouseEvent) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    dragRef.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
-    el.style.cursor = "grabbing";
-  };
-  const onMouseMove = (e: React.MouseEvent) => {
-    const d = dragRef.current;
-    const el = scrollRef.current;
-    if (!d || !el) return;
-    el.scrollLeft = d.sl - (e.clientX - d.x);
-    el.scrollTop = d.st - (e.clientY - d.y);
-  };
-  const endDrag = () => {
-    dragRef.current = null;
-    if (scrollRef.current) scrollRef.current.style.cursor = "grab";
-  };
-  const onWheel = (e: React.WheelEvent) => {
-    if (!(e.ctrlKey || e.metaKey)) return;
-    e.preventDefault();
-    setZoom((z) => clamp(z + (e.deltaY < 0 ? 0.15 : -0.15)));
-  };
-
-  return (
-    <div className="relative h-[520px]">
-      <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md border border-border bg-background/90 p-1 shadow-sm backdrop-blur">
-        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom((z) => clamp(z - 0.2))} title="Diminuir zoom"><ZoomOut className="h-4 w-4" /></Button>
-        <span className="min-w-[3rem] self-center text-center text-xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
-        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom((z) => clamp(z + 0.2))} title="Aumentar zoom"><ZoomIn className="h-4 w-4" /></Button>
-        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(1)} title="Redefinir zoom"><Maximize2 className="h-4 w-4" /></Button>
-      </div>
-      <div
-        ref={scrollRef}
-        className="h-full w-full select-none overflow-scroll rounded bg-background"
-        style={{ cursor: "grab" }}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={endDrag}
-        onMouseLeave={endDrag}
-        onWheel={onWheel}
-      >
-        <div
-          ref={sizerRef}
-          style={{
-            width: natural.w ? natural.w * zoom : undefined,
-            height: natural.h ? natural.h * zoom : undefined,
-          }}
-        >
-          <div
-            ref={innerRef}
-            style={{ transform: `scale(${zoom})`, transformOrigin: "top left", display: "inline-block" }}
-          >
-            {children}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | null }) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [errorText, setErrorText] = useState<string | null>(null);
-  const [canvasReady, setCanvasReady] = useState(false);
-  const [failedBeforeCanvas, setFailedBeforeCanvas] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    let task: any = null;
-    let hasCanvas = false;
-
-    (async () => {
-      try {
-        setState("loading");
-        setErrorText(null);
-        setCanvasReady(false);
-        setFailedBeforeCanvas(false);
-        const pdfjs = await import("pdfjs-dist");
-        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-        task = pdfjs.getDocument({ url });
-        const pdf = await task.promise;
-        const page = await pdf.getPage(1);
-        if (cancelled || !canvasRef.current) return;
-        const baseViewport = page.getViewport({ scale: 1 });
-        // Render at high resolution so zooming stays sharp
-        const scale = Math.min(Math.max(900 / baseViewport.width, 1.5), 3);
-        const viewport = page.getViewport({ scale });
-        const canvas = canvasRef.current;
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        // Display at a comfortable base size; ZoomPanFrame handles zoom.
-        const displayWidth = Math.min(460, Math.floor(viewport.width));
-        canvas.style.width = `${displayWidth}px`;
-        canvas.style.height = "auto";
-        hasCanvas = true;
-        setCanvasReady(true);
-        await page.render({ canvas, viewport }).promise;
-        if (!cancelled) setState("ready");
-      } catch (error) {
-        if (!cancelled) {
-          if (hasCanvas || (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0)) {
-            setCanvasReady(true);
-            setState("ready");
-          } else {
-            setErrorText(error instanceof Error ? error.message : String(error));
-            setFailedBeforeCanvas(true);
-            setState("error");
-          }
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      task?.destroy().catch(() => undefined);
-    };
-  }, [url]);
-
-  return (
-    <div className="relative p-3">
-      {state === "loading" && !canvasReady && <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando PDF…</div>}
-      {failedBeforeCanvas && <div className="p-6 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro do modal. Use abrir em nova aba ou baixar.{errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}</div>}
-      <canvas ref={canvasRef} aria-label={fileName ? `Prévia de ${fileName}` : "Prévia do PDF"} className="rounded shadow-sm" draggable={false} />
-    </div>
-  );
 }
 
 function statusBadge(s: string) {
@@ -393,7 +230,8 @@ function VaultPage() {
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const categories = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [] });
-  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
+  const properties = useQuery({ queryKey: ["properties", "conference"], queryFn: async () => (await supabase.from("properties").select("id, name, profile_id").order("name")).data ?? [] });
+  const accounts = useQuery({ queryKey: ["accounts", "conference"], queryFn: async () => (await supabase.from("accounts").select("id, nickname, bank_id, profile_id").order("nickname")).data ?? [] });
   const banks = useQuery({ queryKey: ["banks"], queryFn: async () => (await supabase.from("banks").select("id, name").order("name")).data ?? [] });
 
   const receipts = useQuery({
@@ -557,6 +395,16 @@ function VaultPage() {
     setDraft((current: any) => (current ? { ...current, [field]: value } : current));
   };
 
+  const patchDraft = (patch: Record<string, unknown>) => {
+    setDraft((current: any) => (current ? { ...current, ...patch } : current));
+  };
+
+  const discardDraft = () => {
+    if (!original) return;
+    setDraft({ ...original });
+    toast.info("Alterações descartadas. Nada foi salvo.");
+  };
+
   const applySuggestion = (field: ConfField) => {
     if (!suggested) return;
     const val = (suggested as any)[field];
@@ -606,22 +454,26 @@ function VaultPage() {
     }
   };
 
-  const createCategory = async () => {
-    const name = newCategoryName.trim();
-    if (!name || !draft) return;
+  const createCategoryByName = async (name: string, type: string) => {
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
-    if (!userId) return toast.error("Sessão expirada");
+    if (!userId) {
+      toast.error("Sessão expirada");
+      return null;
+    }
     const { data, error } = await supabase
       .from("categories")
-      .insert({ user_id: userId, name, default_type: draft.transaction_type ?? "gasto_variavel" })
+      .insert({ user_id: userId, name, default_type: type as any })
       .select("id, name")
       .single();
-    if (error || !data) return toast.error(error?.message ?? "Não foi possível criar a categoria");
-    setNewCategoryName("");
-    setDraftField("category_id", data.id);
-    qc.invalidateQueries({ queryKey: ["categories"] });
+    if (error || !data) {
+      toast.error(error?.message ?? "Não foi possível criar a categoria");
+      return null;
+    }
+    await qc.invalidateQueries({ queryKey: ["categories"] });
+    patchDraft({ category_id: data.id });
     toast.success("Categoria criada. Clique em Salvar alterações para vincular ao comprovante.");
+    return data.id;
   };
 
   const analyzeCurrentReceipt = async () => {
@@ -664,11 +516,11 @@ function VaultPage() {
     }
   };
 
-  const rejectCurrentReceipt = async () => {
+  const rejectCurrentReceipt = async (note?: string) => {
     if (!original) return;
     setBusy(true);
     try {
-      await reject({ data: { receiptId: original.id, reason: "rejected", note: rejectNote || undefined } });
+      await reject({ data: { receiptId: original.id, reason: "rejected", note: (note ?? rejectNote) || undefined } });
       toast.success("Comprovante rejeitado");
       invalidate();
       closeEditing();
@@ -853,212 +705,36 @@ function VaultPage() {
       {/* Compare side-by-side */}
       <CompareDialog receiptId={compareId} onClose={() => setCompareId(null)} onChanged={invalidate} />
 
-      {/* Edit dialog */}
-      <Dialog open={!!original} onOpenChange={(o) => { if (!o) requestClose(); }}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Conferência do comprovante</DialogTitle></DialogHeader>
-          {original && draft && (
-            <div className="grid gap-6 md:grid-cols-[1fr_1.2fr]">
-              <div className="rounded-lg border border-border bg-muted/40 p-2">
-                <div className="min-h-[520px] overflow-hidden rounded bg-background/50">
-                  {preview.loading ? (
-                    <div className="grid h-[520px] place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando prévia…</div>
-                  ) : preview.url ? (
-                    inferMime(original.file_name, original.file_mime).startsWith("image/") ? (
-                      <ZoomPanFrame>
-                        <img src={preview.url} alt="Comprovante" className="block max-w-none rounded" draggable={false} style={{ maxHeight: "none" }} onError={() => setPreview((p) => ({ ...p, error: "A imagem não pôde ser exibida dentro da conferência." }))} />
-                      </ZoomPanFrame>
-                    ) : inferMime(original.file_name, original.file_mime) === "application/pdf" ? (
-                      <ZoomPanFrame>
-                        <PdfCanvasPreview url={preview.url} fileName={original.file_name} />
-                      </ZoomPanFrame>
-                    ) : (
-                      <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
-                        <div><FileText className="mx-auto mb-2 h-8 w-8" /> Este tipo de arquivo deve ser aberto ou baixado para conferência.</div>
-                      </div>
-                    )
-                  ) : (
-                    <div className="grid h-[520px] place-items-center p-6 text-center text-sm text-muted-foreground">
-                      <div><FileText className="mx-auto mb-2 h-8 w-8" /> {preview.error ?? "Não foi possível carregar a prévia do comprovante."}</div>
-                    </div>
-                  )}
-                </div>
-                {preview.error && preview.url && <p className="mt-2 text-xs text-destructive">{preview.error}</p>}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {preview.url && <Button asChild variant="outline" size="sm"><a href={preview.url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir em nova aba</a></Button>}
-                  {preview.downloadUrl && <Button asChild variant="outline" size="sm"><a href={preview.downloadUrl} download={original.file_name ?? true}><Download className="h-4 w-4" /> Baixar comprovante</a></Button>}
-                  <Button variant="outline" size="sm" onClick={analyzeCurrentReceipt} disabled={busy}>
-                    <RefreshCw className="h-4 w-4" /> {hasExtractedConferenceData(original) ? "Reanalisar com IA" : "Analisar comprovante agora"}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                {typeof original.duplicate_score === "number" && original.duplicate_score >= 50 && (
-                  <div className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${original.duplicate_score >= 80 ? "border-destructive/50 bg-destructive/10" : "border-yellow-500/50 bg-yellow-500/10"}`}>
-                    <AlertTriangle className="mt-0.5 h-4 w-4" />
-                    <div className="flex-1">
-                      {original.duplicate_score >= 80 ? "Alta chance de comprovante repetido." : "Possível comprovante repetido."} <span className="opacity-70">(score {original.duplicate_score}/100)</span>
-                    </div>
-                    {original.duplicate_of && <Button size="sm" variant="outline" onClick={() => { setCompareId(original.id); }}><GitCompareArrows className="h-4 w-4" /> Comparar</Button>}
-                  </div>
-                )}
-                {isDirty && (
-                  <div className="rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs text-primary">
-                    Você tem alterações não salvas. Clique em <strong>Salvar alterações</strong> para gravar.
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Data</Label>
-                    <Input type="date" value={draft.payment_date ?? ""} onChange={(e) => setDraftField("payment_date", e.target.value || null)} />
-                    {!original.payment_date && suggested?.payment_date && (
-                      <SuggestionHint value={String(suggested.payment_date)} onApply={() => applySuggestion("payment_date")} />
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Valor</Label>
-                    <Input type="number" step="0.01" value={draft.amount ?? ""} onChange={(e) => setDraftField("amount", e.target.value === "" ? null : Number(e.target.value))} />
-                    {original.amount == null && suggested?.amount != null && (
-                      <SuggestionHint value={String(suggested.amount)} onApply={() => applySuggestion("amount")} />
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label>Destinatário</Label>
-                  <Input value={draft.recipient_name ?? ""} onChange={(e) => setDraftField("recipient_name", e.target.value || null)} />
-                  {!original.recipient_name && suggested?.recipient_name && (
-                    <SuggestionHint value={suggested.recipient_name} onApply={() => applySuggestion("recipient_name")} />
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Banco de origem</Label>
-                    <Input value={draft.bank_name ?? ""} onChange={(e) => setDraftField("bank_name", e.target.value || null)} />
-                    {!original.bank_name && suggested?.bank_name && (
-                      <SuggestionHint value={suggested.bank_name} onApply={() => applySuggestion("bank_name")} />
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Código de autenticação</Label>
-                    <Input value={draft.auth_code ?? ""} onChange={(e) => setDraftField("auth_code", e.target.value || null)} />
-                    {!original.auth_code && suggested?.auth_code && (
-                      <SuggestionHint value={suggested.auth_code} onApply={() => applySuggestion("auth_code")} />
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Forma de pagamento</Label>
-                    <Select value={draft.payment_method ?? undefined} onValueChange={(v) => setDraftField("payment_method", v)}>
-                      <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>{Object.entries(paymentMethodLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
-                    </Select>
-                    {!original.payment_method && suggested?.payment_method && (
-                      <SuggestionHint value={paymentMethodLabel[suggested.payment_method as keyof typeof paymentMethodLabel] ?? String(suggested.payment_method)} onApply={() => applySuggestion("payment_method")} />
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Tipo</Label>
-                    <Select value={draft.transaction_type ?? undefined} onValueChange={(v) => setDraftField("transaction_type", v)}>
-                      <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>{Object.entries(transactionTypeLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
-                    </Select>
-                    {!original.transaction_type && suggested?.transaction_type && (
-                      <SuggestionHint value={transactionTypeLabel[suggested.transaction_type as keyof typeof transactionTypeLabel] ?? String(suggested.transaction_type)} onApply={() => applySuggestion("transaction_type")} />
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label>Categoria</Label>
-                  <Select value={draft.category_id ?? undefined} onValueChange={(v) => setDraftField("category_id", v)}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{(categories.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                  {!original.category_id && suggested?.category_id && (
-                    <SuggestionHint value={(categories.data ?? []).find((c: any) => c.id === suggested.category_id)?.name ?? "Categoria sugerida"} onApply={() => applySuggestion("category_id")} />
-                  )}
-                  <div className="flex gap-2 pt-1">
-                    <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Nova categoria" />
-                    <Button type="button" variant="outline" size="icon" onClick={createCategory} disabled={!newCategoryName.trim()} title="Criar categoria"><Plus className="h-4 w-4" /></Button>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label>Descrição</Label>
-                  <Textarea value={draft.description ?? ""} onChange={(e) => setDraftField("description", e.target.value || null)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Perfil financeiro</Label>
-                  <Select value={draft.profile_id ?? undefined} onValueChange={(v) => setDraftField("profile_id", v)}>
-                    <SelectTrigger><SelectValue placeholder="Selecione o perfil" /></SelectTrigger>
-                    <SelectContent>{(profiles.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Imóvel vinculado</Label>
-                  <Select value={draft.property_id ?? "none"} onValueChange={(v) => setDraftField("property_id", v === "none" ? null : v)}>
-                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  {!original.property_id && suggested?.property_id && (
-                    <SuggestionHint value={(properties.data ?? []).find((p: any) => p.id === suggested.property_id)?.name ?? "Imóvel sugerido"} onApply={() => applySuggestion("property_id")} />
-                  )}
-                </div>
-
-                <div className="mt-4 flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={requestClose} disabled={busy}>
-                    <Inbox className="h-4 w-4" /> Conferir depois
-                  </Button>
-                  <Button variant="default" onClick={saveDraft} disabled={busy || !isDirty}>
-                    Salvar alterações
-                  </Button>
-                  {canApprove && <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de rejeitar." : undefined}><XCircle className="h-4 w-4" /> Rejeitar</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Rejeitar este comprovante?</AlertDialogTitle>
-                        <AlertDialogDescription>Ele não entrará no dashboard nem nos relatórios.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <div className="space-y-2 py-2">
-                        <Label>Motivo da rejeição</Label>
-                        <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="Descreva o motivo, se necessário" />
-                      </div>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Voltar</AlertDialogCancel>
-                        <AlertDialogAction onClick={rejectCurrentReceipt}>Confirmar</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>}
-                  {canApprove && original.duplicate_score >= 50 ? (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="success" disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de aprovar." : undefined}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Possível duplicidade detectada</AlertDialogTitle>
-                          <AlertDialogDescription>Este comprovante parece semelhante a outro já salvo. Confirme somente se revisou o arquivo, valor, data, destinatário, banco e código de autenticação.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Voltar</AlertDialogCancel>
-                          <AlertDialogAction onClick={approveCurrentReceipt}>Aprovar mesmo assim</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  ) : canApprove ? (
-                    <Button variant="success" onClick={approveCurrentReceipt} disabled={busy || isDirty} title={isDirty ? "Salve ou descarte as alterações antes de aprovar." : undefined}><CheckCircle2 className="h-4 w-4" /> Aprovar</Button>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Área de conferência ampla */}
+      {original && draft && (
+        <ConferenceDialog
+          original={original}
+          draft={draft}
+          suggested={suggested}
+          isDirty={isDirty}
+          busy={busy}
+          canApprove={canApprove}
+          preview={preview}
+          statusBadge={statusBadge}
+          categories={categories.data ?? []}
+          profiles={profiles.data ?? []}
+          properties={properties.data ?? []}
+          banks={banks.data ?? []}
+          accounts={accounts.data ?? []}
+          hasExtractedData={hasExtractedConferenceData(original)}
+          patchDraft={patchDraft}
+          applySuggestion={applySuggestion}
+          onRequestClose={requestClose}
+          onDiscard={discardDraft}
+          onSave={saveDraft}
+          onApprove={approveCurrentReceipt}
+          onReject={(note) => { setRejectNote(note); void rejectCurrentReceipt(note); }}
+          onAnalyze={analyzeCurrentReceipt}
+          onCompare={() => setCompareId(original.id)}
+          onPreviewError={(message) => setPreview((prev) => ({ ...prev, error: message }))}
+          onCreateCategory={createCategoryByName}
+        />
+      )}
 
       <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
         <AlertDialogContent>
@@ -1076,15 +752,6 @@ function VaultPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-function SuggestionHint({ value, onApply }: { value: string; onApply: () => void }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
-      <span>Sugestão do comprovante: <span className="font-medium text-foreground">{value}</span></span>
-      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={onApply}>Usar sugestão</Button>
     </div>
   );
 }
