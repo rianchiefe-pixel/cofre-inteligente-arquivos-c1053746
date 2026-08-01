@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, CreditCard, ArrowRight } from "lucide-react";
-import { currencyBRL } from "@/lib/format";
+import { currencyBRL, parseBrlAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/app/cards")({
   head: () => ({ meta: [{ title: "Cartões — Meu Cofre" }] }),
