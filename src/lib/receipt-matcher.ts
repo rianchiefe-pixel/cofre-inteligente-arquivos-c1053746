@@ -978,21 +978,16 @@ export async function attachFileManually(input: {
       .eq("file_id", input.fileId);
   }
 
-  await supabase.from("import_row_files").upsert(
-    {
-      user_id: userId,
-      batch_id: input.batchId,
-      row_id: input.rowId,
-      file_id: input.fileId,
-      page_number: input.pageNumber ?? null,
-      score: 100,
-      confidence: "very_high",
-      match_reasons: [{ key: "manual", label: "Associação manual", points: 100 }],
-      is_manual: true,
-      is_primary: input.makePrimary ?? true,
-    } as any,
-    { onConflict: "row_id,file_id,page_number" },
-  );
+  // Autorização, validação de dono/lote e gravação acontecem no banco.
+  const { data: res, error } = await supabase.rpc("attach_receipt_file_rpc", {
+    p_row_id: input.rowId,
+    p_file_id: input.fileId,
+    p_make_primary: input.makePrimary ?? true,
+  });
+  if (error) throw new Error(error.message);
+  const link = Array.isArray(res) ? res[0] : res;
+  if (!link?.link_id) throw new Error("O vínculo não foi confirmado pelo banco de dados.");
+  return link;
 }
 
 export async function confirmReviewCandidate(linkId: string) {
@@ -1042,17 +1037,19 @@ export async function confirmReviewCandidate(linkId: string) {
     }
   ];
 
-  const { error } = await supabase
+  const { data: res, error } = await supabase.rpc("set_primary_receipt_file_rpc", {
+    p_link_id: linkId,
+  });
+  if (error) throw new Error(error.message);
+  const state = Array.isArray(res) ? res[0] : res;
+  if (!state?.is_primary || state.confidence !== "manual_confirmed") {
+    throw new Error("A confirmação do comprovante não foi persistida.");
+  }
+  // Histórico das divergências originais (não altera estado de decisão).
+  await supabase
     .from("import_row_files")
-    .update({
-      is_manual: true,
-      is_primary: true,
-      confidence: "manual_confirmed",
-      match_reasons: updatedReasons
-    })
+    .update({ match_reasons: updatedReasons })
     .eq("id", linkId);
-
-  if (error) throw error;
 }
 
 export async function rejectReviewCandidate(linkId: string) {
@@ -1074,21 +1071,27 @@ export async function rejectReviewCandidate(linkId: string) {
     }
   ];
 
-  const { error } = await supabase
+  const { data: res, error } = await supabase.rpc("detach_receipt_file_rpc", {
+    p_link_id: linkId,
+  });
+  if (error) throw new Error(error.message);
+  const state = Array.isArray(res) ? res[0] : res;
+  if (state?.confidence !== "rejected" || state?.is_primary) {
+    throw new Error("A rejeição do comprovante não foi persistida.");
+  }
+  await supabase
     .from("import_row_files")
-    .update({
-      is_manual: true,
-      is_primary: false,
-      confidence: "rejected",
-      match_reasons: updatedReasons
-    })
+    .update({ match_reasons: updatedReasons })
     .eq("id", linkId);
-
-  if (error) throw error;
 }
 
 export async function detachRowFile(id: string) {
-  await supabase.from("import_row_files").delete().eq("id", id);
+  const { data: res, error } = await supabase.rpc("detach_receipt_file_rpc", { p_link_id: id });
+  if (error) throw new Error(error.message);
+  const state = Array.isArray(res) ? res[0] : res;
+  if (state?.confidence !== "rejected") {
+    throw new Error("O desvínculo não foi confirmado pelo banco de dados.");
+  }
 }
 
 export async function setPrimaryRowFile(rowId: string, linkId: string) {
@@ -1098,15 +1101,18 @@ export async function setPrimaryRowFile(rowId: string, linkId: string) {
     .eq("id", linkId)
     .maybeSingle();
   if (readError || !link) throw new Error(readError?.message ?? "Vínculo não encontrado");
+  if (link.confidence === "rejected") {
+    throw new Error("Um comprovante rejeitado não pode ser definido como principal.");
+  }
   if (!link.is_manual && !isAcceptedTier(link.confidence as MatchTier)) {
     throw new Error("Este comprovante não tem confiança suficiente para associação automática.");
   }
-  await supabase.from("import_row_files").update({ is_primary: false }).eq("row_id", rowId);
-  await supabase
-    .from("import_row_files")
-    .update({ is_primary: false })
-    .eq("batch_id", link.batch_id)
-    .eq("file_id", link.file_id);
-  const { error } = await supabase.from("import_row_files").update({ is_primary: true }).eq("id", linkId);
+  const { data: res, error } = await supabase.rpc("set_primary_receipt_file_rpc", {
+    p_link_id: linkId,
+  });
   if (error) throw new Error(error.message);
+  const state = Array.isArray(res) ? res[0] : res;
+  if (!state?.is_primary) {
+    throw new Error("O comprovante principal não foi confirmado pelo banco de dados.");
+  }
 }
