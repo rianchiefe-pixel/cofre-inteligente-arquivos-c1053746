@@ -464,135 +464,62 @@ export const approveImportRow = createServerFn({ method: "POST" })
       .single();
     if (rowErr || !row) throw new Error("Linha não encontrada");
 
-    // 2. Carrega o vínculo confirmado + arquivo real
-    const { data: confirmedLink, error: confirmedLinkError } = await supabase
-      .from("import_row_files")
-      .select(
-        `id, file_id, confidence, is_primary, is_manual,
-         import_files!inner (
-           id, storage_path, file_name, mime_type, size_bytes,
-           content_hash, ocr_data, duplicate_of
-         )`,
-      )
-      .eq("row_id", data.rowId)
-      .eq("is_primary", true)
-      .in("confidence", ["high", "very_high", "manual_confirmed"])
-      .maybeSingle();
-    if (confirmedLinkError) throw new Error(confirmedLinkError.message);
-    if (!confirmedLink) {
-      throw new Error("Confirme o possível comprovante antes de aprovar o lançamento.");
-    }
+    // 2. Persiste apenas os campos permitidos na linha (lista fechada)
+    await persistRowOverrides(supabase, data.rowId, data.overrides);
 
-    // 2b. Resolve arquivo duplicado (herda dados do original quando faltarem)
-    const currentFile: any = (confirmedLink as any).import_files;
-    let originalFile: any = null;
-    if (currentFile?.duplicate_of) {
-      const { data: orig } = await supabase
-        .from("import_files")
-        .select(
-          "id, storage_path, file_name, mime_type, size_bytes, content_hash, ocr_data",
-        )
-        .eq("id", currentFile.duplicate_of)
-        .maybeSingle();
-      originalFile = orig ?? null;
-    }
-    const effectiveFile = {
-      storage_path: currentFile?.storage_path ?? originalFile?.storage_path ?? null,
-      file_name: currentFile?.file_name ?? originalFile?.file_name ?? null,
-      mime_type: currentFile?.mime_type ?? originalFile?.mime_type ?? null,
-      size_bytes: currentFile?.size_bytes ?? originalFile?.size_bytes ?? null,
-      content_hash: currentFile?.content_hash ?? originalFile?.content_hash ?? null,
-      ocr_data: currentFile?.ocr_data ?? originalFile?.ocr_data ?? null,
-    };
-
-    // 2c. Barreira: caminho de armazenamento é obrigatório e não pode ser placeholder
-    const INVALID_PATHS = new Set(["import/pending", "pending", ""]);
-    const trimmedPath =
-      typeof effectiveFile.storage_path === "string"
-        ? effectiveFile.storage_path.trim()
-        : "";
-    if (!trimmedPath || INVALID_PATHS.has(trimmedPath)) {
-      throw new Error(
-        "O comprovante confirmado não possui um arquivo válido no armazenamento.",
-      );
-    }
-
-    // 3. Carrega o lote
-    const { data: batch } = await supabase
-      .from("import_batches")
-      .select("profile_id, scope_kind")
-      .eq("id", row.batch_id)
-      .single();
-
-    // 4. Resolve categoria e property_id
-    const patch = { ...data.overrides };
-    
-    // Resolve categoria (procure id pelo nome)
-    let categoryId = null;
-    const catName = (patch.category as string | null) ?? row.category;
-    if (catName) {
-      const { data: cat } = await supabase
+    // 3. Resolve categoria pelo nome, sempre no escopo do usuário autenticado
+    let categoryId: string | null = null;
+    const catName = (data.overrides.category ?? row.category) as string | null;
+    if (catName && catName.trim()) {
+      const { data: cat, error: catErr } = await supabase
         .from("categories")
         .select("id")
         .eq("user_id", userId)
-        .ilike("name", catName)
+        .ilike("name", catName.trim())
         .maybeSingle();
+      if (catErr) throw new Error(catErr.message);
       if (cat) {
         categoryId = cat.id;
       } else {
-        const { data: newCat } = await supabase
+        const { data: newCat, error: newCatErr } = await supabase
           .from("categories")
-          .insert({ user_id: userId, name: catName, default_type: "gasto_variavel" })
+          .insert({ user_id: userId, name: catName.trim(), default_type: "gasto_variavel" })
           .select("id")
           .single();
-        categoryId = newCat?.id;
+        if (newCatErr || !newCat) throw new Error(newCatErr?.message ?? "Falha ao criar categoria");
+        categoryId = newCat.id;
       }
     }
 
-    // 5. Monta payload do lançamento
-    const finalValue = {
-      amount: Math.abs(patch.amount ?? (row.amount as number)),
-      paymentDate: patch.transaction_date ?? row.transaction_date,
-      recipientName: patch.payee ?? row.payee ?? patch.description ?? row.description,
-      bankName: patch.bank ?? row.bank,
-      description: patch.description ?? row.description,
-      notes: patch.notes ?? row.notes,
-      propertyId: patch.property_id ?? row.property_id,
-    };
+    // 4. Aprovação transacional no banco (deriva usuário, lote, arquivo e perfil)
+    const rpcOverrides: Record<string, unknown> = {};
+    const o = data.overrides;
+    if (o.amount !== undefined && o.amount !== null) rpcOverrides.amount = Math.abs(o.amount);
+    if (o.transaction_date !== undefined && o.transaction_date) rpcOverrides.transaction_date = o.transaction_date;
+    if (o.payee !== undefined && o.payee !== null) rpcOverrides.payee = o.payee;
+    if (o.bank !== undefined && o.bank !== null) rpcOverrides.bank = o.bank;
+    if (o.description !== undefined && o.description !== null) rpcOverrides.description = o.description;
+    if (o.notes !== undefined && o.notes !== null) rpcOverrides.notes = o.notes;
+    if (o.property_id !== undefined) rpcOverrides.property_id = o.property_id;
+    if (o.transaction_type !== undefined) {
+      rpcOverrides.transaction_type = o.transaction_type === "INVESTIMENTO" ? "investimento" : "despesa";
+    }
+    const method = normalizePaymentMethod(o.payment_method ?? row.payment_method);
+    if (method) rpcOverrides.payment_method = method;
+    if (categoryId) rpcOverrides.category_id = categoryId;
 
-    const receiptPayload = {
-      user_id: userId,
-      import_row_id: row.id,
-      import_batch_id: row.batch_id,
-      profile_id: batch?.profile_id,
-      property_id: finalValue.propertyId,
-      amount: finalValue.amount,
-      payment_date: finalValue.paymentDate,
-      recipient_name: finalValue.recipientName,
-      bank_name: finalValue.bankName,
-      description: finalValue.description,
-      notes: finalValue.notes,
-      transaction_type: (patch.transaction_type ?? row.transaction_type) === "INVESTIMENTO" ? "investimento" : "despesa",
-      payment_method: patch.payment_method ?? row.payment_method ?? "outro",
-      category_id: categoryId,
-      // Arquivo real confirmado (nunca vem da IA)
-      file_path: trimmedPath,
-      file_name: effectiveFile.file_name,
-      file_mime: effectiveFile.mime_type,
-      file_size: effectiveFile.size_bytes,
-      file_hash: effectiveFile.content_hash,
-      ocr_data: effectiveFile.ocr_data,
-      ocr_status: effectiveFile.ocr_data ? "done" : "queued",
-      status: "approved",
-      approved_at: new Date().toISOString(),
-    };
-
-    // 6. Chama RPC transacional
-    const { data: receiptId, error: rpcErr } = await supabase.rpc("approve_import_row_rpc" as any, {
-      p_row_id: row.id,
-      p_receipt_payload: receiptPayload as any,
+    const { data: rpcRows, error: rpcErr } = await supabase.rpc("approve_import_row_rpc", {
+      p_row_id: data.rowId,
+      p_overrides: rpcOverrides as never,
     });
     if (rpcErr) throw new Error(rpcErr.message);
+    const persisted = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+    if (!persisted?.receipt_id || persisted.row_review_status !== "approved") {
+      throw new Error("A aprovação não foi confirmada pelo banco de dados.");
+    }
+
+    const patch = data.overrides;
+
 
     // 7. Registra preferências aprendidas a partir de cada override
     const prefs: Array<{ field: string; from: unknown; to: unknown }> = [
