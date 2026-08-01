@@ -589,7 +589,7 @@ export const rejectImportRow = createServerFn({ method: "POST" })
     const { data: res, error } = await supabase.rpc("set_import_row_review_rpc", {
       p_row_id: data.rowId,
       p_status: "rejected",
-      p_reason: data.reason ?? null,
+      p_reason: data.reason ?? undefined,
     });
     if (error) throw new Error(error.message);
     const state = Array.isArray(res) ? res[0] : res;
@@ -623,7 +623,7 @@ export const setImportRowStatus = createServerFn({ method: "POST" })
     const { data: res, error } = await supabase.rpc("set_import_row_review_rpc", {
       p_row_id: data.rowId,
       p_status: data.status,
-      p_reason: data.reason ?? null,
+      p_reason: data.reason ?? undefined,
     });
     if (error) throw new Error(error.message);
     const state = Array.isArray(res) ? res[0] : res;
