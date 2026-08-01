@@ -34,25 +34,23 @@ export function LeaseTab({ propertyId, userId }: { propertyId: string; userId: s
 
   const save = useMutation({
     mutationFn: async () => {
-      const payload: any = {
-        user_id: userId,
-        property_id: propertyId,
-        tenant_name: current.tenant_name || null,
-        tenant_phone: current.tenant_phone || null,
-        tenant_tax_id: current.tenant_tax_id || null,
-        rent_amount: current.rent_amount ? Number(String(current.rent_amount).replace(",", ".")) : null,
-        due_day: current.due_day ? Number(current.due_day) : null,
-        contract_start: current.contract_start || null,
-        contract_end: current.contract_end || null,
-        notes: current.notes || null,
-      };
-      if (q.data?.id) {
-        const { error } = await sb.from("property_leases").update(payload).eq("id", q.data.id);
-        if (error) throw error;
-      } else {
-        const { error } = await sb.from("property_leases").insert(payload);
-        if (error) throw error;
-      }
+      // Uma locação por imóvel, criada ou atualizada em uma única operação validada.
+      const { data: res, error } = await sb.rpc("upsert_property_lease_rpc", {
+        p_property_id: propertyId,
+        p_lease: {
+          tenant_name: current.tenant_name || null,
+          tenant_phone: current.tenant_phone || null,
+          tenant_tax_id: current.tenant_tax_id || null,
+          rent_amount: current.rent_amount ? parseBrlAmount(current.rent_amount) : null,
+          due_day: current.due_day ? Number(current.due_day) : null,
+          contract_start: current.contract_start || null,
+          contract_end: current.contract_end || null,
+          notes: current.notes || null,
+        } as never,
+      });
+      if (error) throw new Error(error.message);
+      const saved = Array.isArray(res) ? res[0] : res;
+      if (!saved?.lease_id) throw new Error("A locação não foi confirmada pelo banco de dados.");
     },
     onSuccess: () => { toast.success("Dados de locação salvos"); qc.invalidateQueries({ queryKey: ["lease", propertyId] }); setForm(null); },
     onError: (e: any) => toast.error(e.message),
