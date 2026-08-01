@@ -570,7 +570,13 @@ export const approveImportRow = createServerFn({ method: "POST" })
       }
     }
 
-    return { ok: true as const, receiptId };
+    return {
+      ok: true as const,
+      receiptId: persisted.receipt_id as string,
+      reviewStatus: persisted.row_review_status as string,
+      receiptStatus: persisted.receipt_status as string,
+      filePath: persisted.file_path as string,
+    };
   });
 
 export const rejectImportRow = createServerFn({ method: "POST" })
@@ -580,15 +586,21 @@ export const rejectImportRow = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    await supabase
-      .from("import_rows")
-      .update({
-        review_status: "rejected",
-        reviewed_at: new Date().toISOString(),
-        ai_error: data.reason ?? null,
-      })
-      .eq("id", data.rowId);
-    return { ok: true as const };
+    const { data: res, error } = await supabase.rpc("set_import_row_review_rpc", {
+      p_row_id: data.rowId,
+      p_status: "rejected",
+      p_reason: data.reason ?? null,
+    });
+    if (error) throw new Error(error.message);
+    const state = Array.isArray(res) ? res[0] : res;
+    if (state?.row_review_status !== "rejected") {
+      throw new Error("A rejeição não foi confirmada pelo banco de dados.");
+    }
+    return {
+      ok: true as const,
+      reviewStatus: state.row_review_status as string,
+      receiptStatus: (state.receipt_status ?? null) as string | null,
+    };
   });
 
 // ---- Set arbitrary review status (ver_depois, pending/undo, save w/o approve)
@@ -597,7 +609,7 @@ const StatusInput = z.object({
   rowId: z.string().uuid(),
   status: z.enum(["pending", "rejected", "ver_depois"]),
   reason: z.string().optional(),
-  overrides: z.record(z.string(), z.any()).optional(),
+  overrides: RowOverrides.optional(),
 });
 
 export const setImportRowStatus = createServerFn({ method: "POST" })
@@ -605,14 +617,24 @@ export const setImportRowStatus = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => StatusInput.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const patch: Record<string, unknown> = {
-      review_status: data.status,
-      reviewed_at: ["pending"].includes(data.status) ? null : new Date().toISOString(),
+    if (data.overrides) {
+      await persistRowOverrides(supabase, data.rowId, data.overrides);
+    }
+    const { data: res, error } = await supabase.rpc("set_import_row_review_rpc", {
+      p_row_id: data.rowId,
+      p_status: data.status,
+      p_reason: data.reason ?? null,
+    });
+    if (error) throw new Error(error.message);
+    const state = Array.isArray(res) ? res[0] : res;
+    if (state?.row_review_status !== data.status) {
+      throw new Error("A mudança de estado não foi confirmada pelo banco de dados.");
+    }
+    return {
+      ok: true as const,
+      reviewStatus: state.row_review_status as string,
+      receiptStatus: (state.receipt_status ?? null) as string | null,
     };
-    if (data.reason !== undefined) patch.ai_error = data.reason;
-    if (data.overrides) Object.assign(patch, data.overrides);
-    await supabase.from("import_rows").update(patch as any).eq("id", data.rowId);
-    return { ok: true as const };
   });
 
 // ---- Reprocessa valores monetários salvos incorretamente ------------------
