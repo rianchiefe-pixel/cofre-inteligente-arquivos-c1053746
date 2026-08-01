@@ -29,7 +29,6 @@ import {
   Plus,
   RotateCcw,
   Save,
-  X,
   XCircle,
 } from "lucide-react";
 import { ReceiptViewerPane, type PreviewState } from "./receipt-viewer";
