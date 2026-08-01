@@ -370,30 +370,85 @@ export const classifyImportRow = createServerFn({ method: "POST" })
 
 // ---- 2. Approve a row: registers learned preferences ---------------------
 
+// Lista fechada de campos editáveis de uma linha importada. Qualquer chave
+// desconhecida é rejeitada (sem mass assignment, sem z.record/z.any).
+const RowOverrides = z
+  .object({
+    transaction_type: z.enum(["DESPESA", "INVESTIMENTO"]).optional(),
+    category: z.string().nullable().optional(),
+    category_original: z.string().nullable().optional(),
+    subcategory: z.string().nullable().optional(),
+    bank: z.string().nullable().optional(),
+    card: z.string().nullable().optional(),
+    card_last4: z.string().nullable().optional(),
+    payment_method: z.string().nullable().optional(),
+    payee: z.string().nullable().optional(),
+    account: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
+    amount: z.number().finite().nullable().optional(),
+    currency: z.string().nullable().optional(),
+    transaction_date: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    property_id: z.string().uuid().nullable().optional(),
+    general_account: z.boolean().optional(),
+  })
+  .strict();
+
+export type RowOverridesInput = z.infer<typeof RowOverrides>;
+
 const ApproveInput = z.object({
   rowId: z.string().uuid(),
-  overrides: z
-    .object({
-      transaction_type: z.enum(["DESPESA", "INVESTIMENTO"]).optional(),
-      category: z.string().nullable().optional(),
-      category_original: z.string().nullable().optional(),
-      subcategory: z.string().nullable().optional(),
-      bank: z.string().nullable().optional(),
-      card: z.string().nullable().optional(),
-      card_last4: z.string().nullable().optional(),
-      payment_method: z.string().nullable().optional(),
-      payee: z.string().nullable().optional(),
-      account: z.string().nullable().optional(),
-      description: z.string().nullable().optional(),
-      amount: z.number().nullable().optional(),
-      currency: z.string().nullable().optional(),
-      transaction_date: z.string().nullable().optional(),
-      notes: z.string().nullable().optional(),
-      property_id: z.string().uuid().nullable().optional(),
-      general_account: z.boolean().optional(),
-    })
-    .default({}),
+  overrides: RowOverrides.default({}),
 });
+
+const PAYMENT_METHOD_MAP: Record<string, string> = {
+  pix: "pix",
+  debito: "debito",
+  "debito automatico": "debito",
+  credito: "credito_vista",
+  "credito a vista": "credito_vista",
+  "credito vista": "credito_vista",
+  "credito parcelado": "credito_parcelado",
+  parcelado: "credito_parcelado",
+  ted: "ted",
+  doc: "ted",
+  transferencia: "transferencia",
+  transf: "transferencia",
+  boleto: "boleto",
+  dinheiro: "dinheiro",
+  especie: "dinheiro",
+  outro: "outro",
+};
+
+export function normalizePaymentMethod(v: unknown): string | null {
+  const key = normalizeKey(v).replace(/[^a-z ]/g, "").trim();
+  if (!key) return null;
+  return PAYMENT_METHOD_MAP[key] ?? null;
+}
+
+// Persiste apenas os campos permitidos na própria linha importada (RLS do usuário).
+async function persistRowOverrides(
+  db: any,
+  rowId: string,
+  overrides: RowOverridesInput,
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v === undefined) continue;
+    if (k === "transaction_type") {
+      patch[k] = typeof v === "string" ? v.toUpperCase() : v;
+      continue;
+    }
+    if (k === "payment_method") {
+      patch[k] = v === null ? null : (normalizePaymentMethod(v) ?? String(v));
+      continue;
+    }
+    patch[k] = v;
+  }
+  if (Object.keys(patch).length === 0) return;
+  const { error } = await db.from("import_rows").update(patch).eq("id", rowId);
+  if (error) throw new Error(`Falha ao salvar alterações da linha: ${error.message}`);
+}
 
 export const approveImportRow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
