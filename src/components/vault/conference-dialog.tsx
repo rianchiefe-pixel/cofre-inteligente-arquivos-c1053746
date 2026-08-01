@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog,
@@ -35,7 +42,12 @@ import { ReceiptViewerPane, type PreviewState } from "./receipt-viewer";
 
 type Lookup = { id: string; name: string };
 type PropertyOption = Lookup & { profile_id?: string | null };
-type AccountOption = { id: string; nickname: string; bank_id?: string | null; profile_id?: string | null };
+type AccountOption = {
+  id: string;
+  nickname: string;
+  bank_id?: string | null;
+  profile_id?: string | null;
+};
 
 export type ConferenceField =
   | "payment_date"
@@ -57,7 +69,9 @@ export type ConferenceField =
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-border bg-card p-4">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
       <div className="space-y-3">{children}</div>
     </section>
   );
@@ -69,14 +83,26 @@ function SuggestionHint({ value, onApply }: { value: string; onApply: () => void
       <span>
         Sugestão do comprovante: <span className="font-medium text-foreground">{value}</span>
       </span>
-      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={onApply}>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-6 px-2 text-xs"
+        onClick={onApply}
+      >
         Usar sugestão
       </Button>
     </div>
   );
 }
 
-function NewCategoryPopover({ defaultType, onCreate }: { defaultType: string | null; onCreate: (name: string, type: string) => Promise<string | null> }) {
+function NewCategoryPopover({
+  defaultType,
+  onCreate,
+}: {
+  defaultType: string | null;
+  onCreate: (name: string, type: string) => Promise<string | null>;
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState(defaultType ?? "gasto_variavel");
@@ -85,14 +111,23 @@ function NewCategoryPopover({ defaultType, onCreate }: { defaultType: string | n
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-9 shrink-0 whitespace-nowrap">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 shrink-0 whitespace-nowrap"
+        >
           <Plus className="h-4 w-4" /> Nova categoria
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 space-y-3">
         <div className="space-y-1">
           <Label className="text-xs">Nome da categoria</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Manutenção predial" />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ex.: Manutenção predial"
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Tipo padrão</Label>
@@ -201,7 +236,8 @@ export function ConferenceDialog(props: {
   const availableAccounts = useMemo(() => {
     let list = accounts;
     if (draft?.bank_id) list = list.filter((a) => a.bank_id === draft.bank_id);
-    if (draft?.profile_id) list = list.filter((a) => !a.profile_id || a.profile_id === draft.profile_id);
+    if (draft?.profile_id)
+      list = list.filter((a) => !a.profile_id || a.profile_id === draft.profile_id);
     return list;
   }, [accounts, draft?.bank_id, draft?.profile_id]);
 
@@ -240,7 +276,11 @@ export function ConferenceDialog(props: {
       : null;
 
   const approveButton = (
-    <Button variant="success" disabled={busy || isDirty || missing.length > 0} onClick={dupScore >= 50 ? undefined : onApprove}>
+    <Button
+      variant="success"
+      disabled={busy || isDirty || missing.length > 0}
+      onClick={dupScore >= 50 ? undefined : onApprove}
+    >
       <CheckCircle2 className="h-4 w-4" /> Aprovar lançamento
     </Button>
   );
@@ -267,17 +307,23 @@ export function ConferenceDialog(props: {
         <header className="shrink-0 border-b border-border bg-card px-4 py-3 sm:px-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
             <div className="min-w-0">
-              <DialogTitle className="truncate text-base font-semibold sm:text-lg">Conferência do comprovante</DialogTitle>
+              <DialogTitle className="truncate text-base font-semibold sm:text-lg">
+                Conferência do comprovante
+              </DialogTitle>
               <DialogDescription className="mt-0.5 flex min-w-0 items-center gap-2 text-xs">
                 <FileText className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{original.file_name ?? "Arquivo sem nome"}</span>
               </DialogDescription>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">{currencyBRL(Number(draft.amount ?? 0))}</span>
+                <span className="font-semibold text-foreground">
+                  {currencyBRL(Number(draft.amount ?? 0))}
+                </span>
                 <span>•</span>
                 <span>{dateBR(draft.payment_date)}</span>
                 <span className="hidden sm:inline">•</span>
-                <span className="flex items-center gap-1">Status: {statusBadge(original.status)}</span>
+                <span className="flex items-center gap-1">
+                  Status: {statusBadge(original.status)}
+                </span>
                 {isDirty && (
                   <Badge variant="outline" className="border-primary/50 text-primary">
                     Alterações não salvas
@@ -290,7 +336,8 @@ export function ConferenceDialog(props: {
                     className={`flex items-center gap-1 rounded-md border px-2 py-0.5 ${dupScore >= 80 ? "border-destructive/50 bg-destructive/10 text-destructive" : "border-yellow-500/50 bg-yellow-500/10 text-yellow-700"}`}
                   >
                     <AlertTriangle className="h-3 w-3" />
-                    {dupScore >= 80 ? "Alta chance de repetição" : "Possível duplicidade"} ({dupScore}/100)
+                    {dupScore >= 80 ? "Alta chance de repetição" : "Possível duplicidade"} (
+                    {dupScore}/100)
                     {original.duplicate_of ? <GitCompareArrows className="h-3 w-3" /> : null}
                   </button>
                 )}
@@ -323,7 +370,9 @@ export function ConferenceDialog(props: {
 
         {/* ---------- Conteúdo: duas colunas com rolagem independente ---------- */}
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(390px,0.75fr)]">
-          <div className={`min-h-0 min-w-0 overflow-hidden ${mobileTab === "file" ? "flex" : "hidden"} lg:flex`}>
+          <div
+            className={`min-h-0 min-w-0 overflow-hidden ${mobileTab === "file" ? "flex" : "hidden"} lg:flex`}
+          >
             <ReceiptViewerPane
               preview={preview}
               fileName={original.file_name}
@@ -341,7 +390,8 @@ export function ConferenceDialog(props: {
             <div className="space-y-4">
               {isDirty && (
                 <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs text-primary">
-                  Você tem alterações não salvas. Clique em <strong>Salvar alterações</strong> para gravar.
+                  Você tem alterações não salvas. Clique em <strong>Salvar alterações</strong> para
+                  gravar.
                 </div>
               )}
 
@@ -349,9 +399,16 @@ export function ConferenceDialog(props: {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Data</Label>
-                    <Input type="date" value={draft.payment_date ?? ""} onChange={(e) => patchDraft({ payment_date: e.target.value || null })} />
+                    <Input
+                      type="date"
+                      value={draft.payment_date ?? ""}
+                      onChange={(e) => patchDraft({ payment_date: e.target.value || null })}
+                    />
                     {suggestionFor("payment_date") && (
-                      <SuggestionHint value={String(suggested.payment_date)} onApply={() => applySuggestion("payment_date")} />
+                      <SuggestionHint
+                        value={String(suggested.payment_date)}
+                        onApply={() => applySuggestion("payment_date")}
+                      />
                     )}
                   </div>
                   <div className="space-y-1">
@@ -360,23 +417,44 @@ export function ConferenceDialog(props: {
                       type="number"
                       step="0.01"
                       value={draft.amount ?? ""}
-                      onChange={(e) => patchDraft({ amount: e.target.value === "" ? null : Number(e.target.value) })}
+                      onChange={(e) =>
+                        patchDraft({
+                          amount: e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
                     />
-                    {suggestionFor("amount") && <SuggestionHint value={String(suggested.amount)} onApply={() => applySuggestion("amount")} />}
+                    {suggestionFor("amount") && (
+                      <SuggestionHint
+                        value={String(suggested.amount)}
+                        onApply={() => applySuggestion("amount")}
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1">
                   <Label>Destinatário</Label>
-                  <Input value={draft.recipient_name ?? ""} onChange={(e) => patchDraft({ recipient_name: e.target.value || null })} />
+                  <Input
+                    value={draft.recipient_name ?? ""}
+                    onChange={(e) => patchDraft({ recipient_name: e.target.value || null })}
+                  />
                   {suggestionFor("recipient_name") && (
-                    <SuggestionHint value={String(suggested.recipient_name)} onApply={() => applySuggestion("recipient_name")} />
+                    <SuggestionHint
+                      value={String(suggested.recipient_name)}
+                      onApply={() => applySuggestion("recipient_name")}
+                    />
                   )}
                 </div>
                 <div className="space-y-1">
                   <Label>CPF/CNPJ do destinatário</Label>
-                  <Input value={draft.recipient_tax_id ?? ""} onChange={(e) => patchDraft({ recipient_tax_id: e.target.value || null })} />
+                  <Input
+                    value={draft.recipient_tax_id ?? ""}
+                    onChange={(e) => patchDraft({ recipient_tax_id: e.target.value || null })}
+                  />
                   {suggestionFor("recipient_tax_id") && (
-                    <SuggestionHint value={String(suggested.recipient_tax_id)} onApply={() => applySuggestion("recipient_tax_id")} />
+                    <SuggestionHint
+                      value={String(suggested.recipient_tax_id)}
+                      onApply={() => applySuggestion("recipient_tax_id")}
+                    />
                   )}
                 </div>
               </Section>
@@ -385,7 +463,10 @@ export function ConferenceDialog(props: {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Forma de pagamento</Label>
-                    <Select value={draft.payment_method ?? undefined} onValueChange={(v) => patchDraft({ payment_method: v })}>
+                    <Select
+                      value={draft.payment_method ?? undefined}
+                      onValueChange={(v) => patchDraft({ payment_method: v })}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
@@ -399,21 +480,41 @@ export function ConferenceDialog(props: {
                     </Select>
                     {suggestionFor("payment_method") && (
                       <SuggestionHint
-                        value={paymentMethodLabel[suggested.payment_method as keyof typeof paymentMethodLabel] ?? String(suggested.payment_method)}
+                        value={
+                          paymentMethodLabel[
+                            suggested.payment_method as keyof typeof paymentMethodLabel
+                          ] ?? String(suggested.payment_method)
+                        }
                         onApply={() => applySuggestion("payment_method")}
                       />
                     )}
                   </div>
                   <div className="space-y-1">
                     <Label>Código de autenticação</Label>
-                    <Input value={draft.auth_code ?? ""} onChange={(e) => patchDraft({ auth_code: e.target.value || null })} />
-                    {suggestionFor("auth_code") && <SuggestionHint value={String(suggested.auth_code)} onApply={() => applySuggestion("auth_code")} />}
+                    <Input
+                      value={draft.auth_code ?? ""}
+                      onChange={(e) => patchDraft({ auth_code: e.target.value || null })}
+                    />
+                    {suggestionFor("auth_code") && (
+                      <SuggestionHint
+                        value={String(suggested.auth_code)}
+                        onApply={() => applySuggestion("auth_code")}
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1">
                   <Label>Banco informado no comprovante</Label>
-                  <Input value={draft.bank_name ?? ""} onChange={(e) => patchDraft({ bank_name: e.target.value || null })} />
-                  {suggestionFor("bank_name") && <SuggestionHint value={String(suggested.bank_name)} onApply={() => applySuggestion("bank_name")} />}
+                  <Input
+                    value={draft.bank_name ?? ""}
+                    onChange={(e) => patchDraft({ bank_name: e.target.value || null })}
+                  />
+                  {suggestionFor("bank_name") && (
+                    <SuggestionHint
+                      value={String(suggested.bank_name)}
+                      onApply={() => applySuggestion("bank_name")}
+                    />
+                  )}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
@@ -423,8 +524,12 @@ export function ConferenceDialog(props: {
                       onValueChange={(v) => {
                         const bankId = v === "none" ? null : v;
                         const keepAccount = accounts.find((a) => a.id === draft.account_id);
-                        const compatible = !keepAccount || !bankId || keepAccount.bank_id === bankId;
-                        patchDraft({ bank_id: bankId, ...(compatible ? {} : { account_id: null }) });
+                        const compatible =
+                          !keepAccount || !bankId || keepAccount.bank_id === bankId;
+                        patchDraft({
+                          bank_id: bankId,
+                          ...(compatible ? {} : { account_id: null }),
+                        });
                       }}
                     >
                       <SelectTrigger>
@@ -442,7 +547,10 @@ export function ConferenceDialog(props: {
                   </div>
                   <div className="space-y-1">
                     <Label>Conta utilizada</Label>
-                    <Select value={draft.account_id ?? "none"} onValueChange={(v) => patchDraft({ account_id: v === "none" ? null : v })}>
+                    <Select
+                      value={draft.account_id ?? "none"}
+                      onValueChange={(v) => patchDraft({ account_id: v === "none" ? null : v })}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Nenhuma" />
                       </SelectTrigger>
@@ -456,7 +564,9 @@ export function ConferenceDialog(props: {
                       </SelectContent>
                     </Select>
                     {availableAccounts.length === 0 && (
-                      <p className="pt-1 text-xs text-muted-foreground">Nenhuma conta compatível com o banco e o perfil selecionados.</p>
+                      <p className="pt-1 text-xs text-muted-foreground">
+                        Nenhuma conta compatível com o banco e o perfil selecionados.
+                      </p>
                     )}
                   </div>
                 </div>
@@ -465,7 +575,10 @@ export function ConferenceDialog(props: {
               <Section title="Classificação">
                 <div className="space-y-1">
                   <Label>Tipo do lançamento</Label>
-                  <Select value={draft.transaction_type ?? undefined} onValueChange={(v) => patchDraft({ transaction_type: v })}>
+                  <Select
+                    value={draft.transaction_type ?? undefined}
+                    onValueChange={(v) => patchDraft({ transaction_type: v })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="—" />
                     </SelectTrigger>
@@ -479,7 +592,11 @@ export function ConferenceDialog(props: {
                   </Select>
                   {suggestionFor("transaction_type") && (
                     <SuggestionHint
-                      value={transactionTypeLabel[suggested.transaction_type as keyof typeof transactionTypeLabel] ?? String(suggested.transaction_type)}
+                      value={
+                        transactionTypeLabel[
+                          suggested.transaction_type as keyof typeof transactionTypeLabel
+                        ] ?? String(suggested.transaction_type)
+                      }
                       onApply={() => applySuggestion("transaction_type")}
                     />
                   )}
@@ -488,7 +605,10 @@ export function ConferenceDialog(props: {
                   <Label>Categoria</Label>
                   <div className="flex items-center gap-2">
                     <div className="min-w-0 flex-1">
-                      <Select value={draft.category_id ?? undefined} onValueChange={(v) => patchDraft({ category_id: v })}>
+                      <Select
+                        value={draft.category_id ?? undefined}
+                        onValueChange={(v) => patchDraft({ category_id: v })}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
@@ -501,22 +621,36 @@ export function ConferenceDialog(props: {
                         </SelectContent>
                       </Select>
                     </div>
-                    <NewCategoryPopover defaultType={draft.transaction_type ?? null} onCreate={onCreateCategory} />
+                    <NewCategoryPopover
+                      defaultType={draft.transaction_type ?? null}
+                      onCreate={onCreateCategory}
+                    />
                   </div>
                   {suggestionFor("category_id") && (
                     <SuggestionHint
-                      value={categories.find((c) => c.id === suggested.category_id)?.name ?? "Categoria sugerida"}
+                      value={
+                        categories.find((c) => c.id === suggested.category_id)?.name ??
+                        "Categoria sugerida"
+                      }
                       onApply={() => applySuggestion("category_id")}
                     />
                   )}
                 </div>
                 <div className="space-y-1">
                   <Label>Descrição</Label>
-                  <Textarea rows={3} value={draft.description ?? ""} onChange={(e) => patchDraft({ description: e.target.value || null })} />
+                  <Textarea
+                    rows={3}
+                    value={draft.description ?? ""}
+                    onChange={(e) => patchDraft({ description: e.target.value || null })}
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label>Observações</Label>
-                  <Textarea rows={2} value={draft.notes ?? ""} onChange={(e) => patchDraft({ notes: e.target.value || null })} />
+                  <Textarea
+                    rows={2}
+                    value={draft.notes ?? ""}
+                    onChange={(e) => patchDraft({ notes: e.target.value || null })}
+                  />
                 </div>
               </Section>
 
@@ -527,7 +661,8 @@ export function ConferenceDialog(props: {
                     value={draft.profile_id ?? undefined}
                     onValueChange={(v) => {
                       const property = properties.find((p) => p.id === draft.property_id);
-                      const keepProperty = !property || !property.profile_id || property.profile_id === v;
+                      const keepProperty =
+                        !property || !property.profile_id || property.profile_id === v;
                       patchDraft({ profile_id: v, ...(keepProperty ? {} : { property_id: null }) });
                     }}
                   >
@@ -545,7 +680,10 @@ export function ConferenceDialog(props: {
                 </div>
                 <div className="space-y-1">
                   <Label>Imóvel vinculado</Label>
-                  <Select value={draft.property_id ?? "none"} onValueChange={(v) => patchDraft({ property_id: v === "none" ? null : v })}>
+                  <Select
+                    value={draft.property_id ?? "none"}
+                    onValueChange={(v) => patchDraft({ property_id: v === "none" ? null : v })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Nenhum" />
                     </SelectTrigger>
@@ -560,7 +698,10 @@ export function ConferenceDialog(props: {
                   </Select>
                   {suggestionFor("property_id") && (
                     <SuggestionHint
-                      value={properties.find((p) => p.id === suggested.property_id)?.name ?? "Imóvel sugerido"}
+                      value={
+                        properties.find((p) => p.id === suggested.property_id)?.name ??
+                        "Imóvel sugerido"
+                      }
                       onApply={() => applySuggestion("property_id")}
                     />
                   )}
@@ -588,15 +729,23 @@ export function ConferenceDialog(props: {
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Rejeitar este comprovante?</AlertDialogTitle>
-                      <AlertDialogDescription>Ele não entrará no dashboard nem nos relatórios.</AlertDialogDescription>
+                      <AlertDialogDescription>
+                        Ele não entrará no dashboard nem nos relatórios.
+                      </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="space-y-2 py-2">
                       <Label>Motivo da rejeição</Label>
-                      <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="Descreva o motivo, se necessário" />
+                      <Textarea
+                        value={rejectNote}
+                        onChange={(e) => setRejectNote(e.target.value)}
+                        placeholder="Descreva o motivo, se necessário"
+                      />
                     </div>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Voltar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onReject(rejectNote)}>Confirmar</AlertDialogAction>
+                      <AlertDialogAction onClick={() => onReject(rejectNote)}>
+                        Confirmar
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -617,13 +766,16 @@ export function ConferenceDialog(props: {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Possível duplicidade detectada</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Este comprovante parece semelhante a outro já salvo. Confirme somente se revisou o arquivo, valor, data, destinatário,
-                          banco e código de autenticação.
+                          Este comprovante parece semelhante a outro já salvo. Confirme somente se
+                          revisou o arquivo, valor, data, destinatário, banco e código de
+                          autenticação.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Voltar</AlertDialogCancel>
-                        <AlertDialogAction onClick={onApprove}>Aprovar mesmo assim</AlertDialogAction>
+                        <AlertDialogAction onClick={onApprove}>
+                          Aprovar mesmo assim
+                        </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>

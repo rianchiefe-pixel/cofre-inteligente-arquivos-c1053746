@@ -42,7 +42,15 @@ function clampZoom(v: number) {
   return Math.min(4, Math.max(0.4, v));
 }
 
-function ZoomPanFrame({ zoom, setZoom, children }: { zoom: number; setZoom: (fn: (z: number) => number) => void; children: React.ReactNode }) {
+function ZoomPanFrame({
+  zoom,
+  setZoom,
+  children,
+}: {
+  zoom: number;
+  setZoom: (fn: (z: number) => number) => void;
+  children: React.ReactNode;
+}) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [natural, setNatural] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -100,7 +108,14 @@ function ZoomPanFrame({ zoom, setZoom, children }: { zoom: number; setZoom: (fn:
           height: natural.h ? natural.h * zoom : undefined,
         }}
       >
-        <div ref={innerRef} style={{ transform: `scale(${zoom})`, transformOrigin: "top left", display: "inline-block" }}>
+        <div
+          ref={innerRef}
+          style={{
+            transform: `scale(${zoom})`,
+            transformOrigin: "top left",
+            display: "inline-block",
+          }}
+        >
           {children}
         </div>
       </div>
@@ -147,7 +162,10 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
         if (!cancelled) setState("ready");
       } catch (error) {
         if (!cancelled) {
-          if (hasCanvas || (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0)) {
+          if (
+            hasCanvas ||
+            (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0)
+          ) {
             setCanvasReady(true);
             setState("ready");
           } else {
@@ -174,8 +192,8 @@ function PdfCanvasPreview({ url, fileName }: { url: string; fileName?: string | 
       )}
       {failedBeforeCanvas && (
         <div className="p-6 text-center text-sm text-muted-foreground">
-          <FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar {fileName ?? "este PDF"} dentro da conferência. Use abrir em
-          nova aba ou baixar.
+          <FileText className="mx-auto mb-2 h-8 w-8" /> Não foi possível renderizar{" "}
+          {fileName ?? "este PDF"} dentro da conferência. Use abrir em nova aba ou baixar.
           {errorText ? <span className="mt-2 block text-xs opacity-70">{errorText}</span> : null}
         </div>
       )}
@@ -213,21 +231,45 @@ export function ReceiptViewerPane({
     <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-border bg-muted/30 lg:border-r">
       {/* Barra de ferramentas fixa */}
       <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card/70 px-3 py-2">
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z - 0.2))} title="Diminuir zoom">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setZoom((z) => clampZoom(z - 0.2))}
+          title="Diminuir zoom"
+        >
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <span className="min-w-[3.25rem] text-center text-xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z + 0.2))} title="Aumentar zoom">
+        <span className="min-w-[3.25rem] text-center text-xs tabular-nums text-muted-foreground">
+          {Math.round(zoom * 100)}%
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setZoom((z) => clampZoom(z + 0.2))}
+          title="Aumentar zoom"
+        >
           <ZoomIn className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(() => 1)} title="Redefinir zoom">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setZoom(() => 1)}
+          title="Redefinir zoom"
+        >
           <Maximize2 className="h-4 w-4" />
         </Button>
         <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
         {preview.url && (
           <Button asChild variant="ghost" size="sm" className="h-8">
             <a href={preview.url} target="_blank" rel="noreferrer">
-              <ExternalLink className="h-4 w-4" /> <span className="hidden sm:inline">Nova aba</span>
+              <ExternalLink className="h-4 w-4" />{" "}
+              <span className="hidden sm:inline">Nova aba</span>
             </a>
           </Button>
         )}
@@ -238,7 +280,13 @@ export function ReceiptViewerPane({
             </a>
           </Button>
         )}
-        <Button variant="ghost" size="sm" className="ml-auto h-8" onClick={onAnalyze} disabled={busy}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-8"
+          onClick={onAnalyze}
+          disabled={busy}
+        >
           <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">{analyzeLabel}</span>
         </Button>
       </div>
@@ -260,7 +308,9 @@ export function ReceiptViewerPane({
                   alt={fileName ?? "Comprovante"}
                   className="block max-w-none rounded"
                   draggable={false}
-                  onError={() => onPreviewError("A imagem não pôde ser exibida dentro da conferência.")}
+                  onError={() =>
+                    onPreviewError("A imagem não pôde ser exibida dentro da conferência.")
+                  }
                 />
               </ZoomPanFrame>
             ) : mime === "application/pdf" ? (
@@ -270,19 +320,23 @@ export function ReceiptViewerPane({
             ) : (
               <div className="grid h-full place-items-center p-6 text-center text-sm text-muted-foreground">
                 <div>
-                  <FileText className="mx-auto mb-2 h-8 w-8" /> Este tipo de arquivo deve ser aberto ou baixado para conferência.
+                  <FileText className="mx-auto mb-2 h-8 w-8" /> Este tipo de arquivo deve ser aberto
+                  ou baixado para conferência.
                 </div>
               </div>
             )
           ) : (
             <div className="grid h-full place-items-center p-6 text-center text-sm text-muted-foreground">
               <div>
-                <FileText className="mx-auto mb-2 h-8 w-8" /> {preview.error ?? "Não foi possível carregar a prévia do comprovante."}
+                <FileText className="mx-auto mb-2 h-8 w-8" />{" "}
+                {preview.error ?? "Não foi possível carregar a prévia do comprovante."}
               </div>
             </div>
           )}
         </div>
-        {preview.error && preview.url && <p className="mt-2 text-xs text-destructive">{preview.error}</p>}
+        {preview.error && preview.url && (
+          <p className="mt-2 text-xs text-destructive">{preview.error}</p>
+        )}
       </div>
     </div>
   );

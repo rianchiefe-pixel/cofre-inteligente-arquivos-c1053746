@@ -7,18 +7,74 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@/lib/format";
-import { CheckCircle2, XCircle, AlertTriangle, Search, ExternalLink, FileText, Loader2, Inbox, Copy, Archive, Trash2, GitCompareArrows, Download, Plus, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Search,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Inbox,
+  Copy,
+  Archive,
+  Trash2,
+  GitCompareArrows,
+  Download,
+  Plus,
+  RefreshCw,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { approveReceipt, rejectReceipt, bulkReceiptAction, bulkUpdateReceipts, deleteReceipts, analyzeReceipt, updateReceiptConference } from "@/lib/receipts.functions";
+import {
+  approveReceipt,
+  rejectReceipt,
+  bulkReceiptAction,
+  bulkUpdateReceipts,
+  deleteReceipts,
+  analyzeReceipt,
+  updateReceiptConference,
+} from "@/lib/receipts.functions";
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
 import { ConferenceDialog } from "@/components/vault/conference-dialog";
@@ -29,7 +85,14 @@ export const Route = createFileRoute("/_authenticated/app/vault")({
   component: VaultPage,
 });
 
-type QuickFilter = "all" | "pending" | "suspected" | "high_dup" | "approved" | "rejected" | "archived";
+type QuickFilter =
+  | "all"
+  | "pending"
+  | "suspected"
+  | "high_dup"
+  | "approved"
+  | "rejected"
+  | "archived";
 
 type PreviewState = {
   loading: boolean;
@@ -39,10 +102,20 @@ type PreviewState = {
   isObjectUrl?: boolean;
 };
 
-const EMPTY_PREVIEW: PreviewState = { loading: false, url: null, downloadUrl: null, error: null, isObjectUrl: false };
+const EMPTY_PREVIEW: PreviewState = {
+  loading: false,
+  url: null,
+  downloadUrl: null,
+  error: null,
+  isObjectUrl: false,
+};
 
 function stripAccents(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function normalizeDateValue(value: unknown): string | null {
@@ -103,7 +176,8 @@ function deepFind(source: unknown, aliases: string[], depth = 0): unknown {
   const record = source as Record<string, unknown>;
   for (const key of Object.keys(record)) {
     const normalized = stripAccents(key).replace(/[\s_-]+/g, "");
-    if (aliases.some((alias) => normalized === stripAccents(alias).replace(/[\s_-]+/g, ""))) return record[key];
+    if (aliases.some((alias) => normalized === stripAccents(alias).replace(/[\s_-]+/g, "")))
+      return record[key];
   }
   for (const value of Object.values(record)) {
     if (value && typeof value === "object") {
@@ -126,9 +200,14 @@ function buildAutoDescription(receipt: any) {
   if (receipt.description) return receipt.description;
   const parts: string[] = [];
   const recipient = receipt.recipient_name ? `para ${receipt.recipient_name}` : null;
-  const amount = receipt.amount != null ? `no valor de ${currencyBRL(Number(receipt.amount))}` : null;
+  const amount =
+    receipt.amount != null ? `no valor de ${currencyBRL(Number(receipt.amount))}` : null;
   const date = receipt.payment_date ? `realizado em ${dateBR(receipt.payment_date)}` : null;
-  const by = receipt.bank_name ? `pelo banco ${receipt.bank_name}` : receipt.payment_method ? `via ${paymentMethodLabel[receipt.payment_method as keyof typeof paymentMethodLabel] ?? receipt.payment_method}` : null;
+  const by = receipt.bank_name
+    ? `pelo banco ${receipt.bank_name}`
+    : receipt.payment_method
+      ? `via ${paymentMethodLabel[receipt.payment_method as keyof typeof paymentMethodLabel] ?? receipt.payment_method}`
+      : null;
   if (recipient) parts.push(recipient);
   if (amount) parts.push(amount);
   if (date) parts.push(date);
@@ -140,23 +219,57 @@ function buildAutoDescription(receipt: any) {
 function hydrateReceiptForConference(receipt: any, categories: any[] = [], properties: any[] = []) {
   const ocr = receipt.ocr_data && typeof receipt.ocr_data === "object" ? receipt.ocr_data : {};
   const hydrated = { ...receipt };
-  hydrated.payment_date = hydrated.payment_date ?? normalizeDateValue(deepFind(ocr, ["payment_date", "data_pagamento", "data", "detected_date"]));
-  hydrated.amount = hydrated.amount ?? normalizeAmountValue(deepFind(ocr, ["amount", "valor", "valor_pago", "detected_amount"]));
-  hydrated.recipient_name = hydrated.recipient_name ?? firstText(deepFind(ocr, ["recipient_name", "beneficiario", "favorecido", "destinatario", "payee", "detected_payee"]));
-  hydrated.recipient_tax_id = hydrated.recipient_tax_id ?? firstText(deepFind(ocr, ["recipient_tax_id", "cpf_cnpj", "documento"]));
-  hydrated.bank_name = hydrated.bank_name ?? firstText(deepFind(ocr, ["bank_name", "banco", "banco_origem", "detected_bank"]));
-  hydrated.auth_code = hydrated.auth_code ?? firstText(deepFind(ocr, ["auth_code", "codigo_autenticacao", "autenticacao", "id_transacao", "e2e"]));
-  hydrated.payment_method = hydrated.payment_method ?? normalizePaymentValue(deepFind(ocr, ["payment_method", "forma_pagamento", "metodo_pagamento"]));
-  hydrated.transaction_type = hydrated.transaction_type ?? normalizeTransactionValue(deepFind(ocr, ["transaction_type", "tipo_transacao", "tipo"]));
-  hydrated.description = hydrated.description ?? firstText(deepFind(ocr, ["description", "descricao", "historico"]));
+  hydrated.payment_date =
+    hydrated.payment_date ??
+    normalizeDateValue(deepFind(ocr, ["payment_date", "data_pagamento", "data", "detected_date"]));
+  hydrated.amount =
+    hydrated.amount ??
+    normalizeAmountValue(deepFind(ocr, ["amount", "valor", "valor_pago", "detected_amount"]));
+  hydrated.recipient_name =
+    hydrated.recipient_name ??
+    firstText(
+      deepFind(ocr, [
+        "recipient_name",
+        "beneficiario",
+        "favorecido",
+        "destinatario",
+        "payee",
+        "detected_payee",
+      ]),
+    );
+  hydrated.recipient_tax_id =
+    hydrated.recipient_tax_id ??
+    firstText(deepFind(ocr, ["recipient_tax_id", "cpf_cnpj", "documento"]));
+  hydrated.bank_name =
+    hydrated.bank_name ??
+    firstText(deepFind(ocr, ["bank_name", "banco", "banco_origem", "detected_bank"]));
+  hydrated.auth_code =
+    hydrated.auth_code ??
+    firstText(
+      deepFind(ocr, ["auth_code", "codigo_autenticacao", "autenticacao", "id_transacao", "e2e"]),
+    );
+  hydrated.payment_method =
+    hydrated.payment_method ??
+    normalizePaymentValue(deepFind(ocr, ["payment_method", "forma_pagamento", "metodo_pagamento"]));
+  hydrated.transaction_type =
+    hydrated.transaction_type ??
+    normalizeTransactionValue(deepFind(ocr, ["transaction_type", "tipo_transacao", "tipo"]));
+  hydrated.description =
+    hydrated.description ?? firstText(deepFind(ocr, ["description", "descricao", "historico"]));
 
-  const suggestedCategory = firstText(deepFind(ocr, ["suggested_category", "categoria_sugerida", "categoria", "category"]));
+  const suggestedCategory = firstText(
+    deepFind(ocr, ["suggested_category", "categoria_sugerida", "categoria", "category"]),
+  );
   if (!hydrated.category_id && suggestedCategory) {
-    hydrated.category_id = categories.find((c) => stripAccents(c.name) === stripAccents(suggestedCategory))?.id ?? null;
+    hydrated.category_id =
+      categories.find((c) => stripAccents(c.name) === stripAccents(suggestedCategory))?.id ?? null;
   }
-  const suggestedProperty = firstText(deepFind(ocr, ["property", "imovel", "imovel_vinculado", "property_name"]));
+  const suggestedProperty = firstText(
+    deepFind(ocr, ["property", "imovel", "imovel_vinculado", "property_name"]),
+  );
   if (!hydrated.property_id && suggestedProperty) {
-    hydrated.property_id = properties.find((p) => stripAccents(p.name) === stripAccents(suggestedProperty))?.id ?? null;
+    hydrated.property_id =
+      properties.find((p) => stripAccents(p.name) === stripAccents(suggestedProperty))?.id ?? null;
   }
   hydrated.description = buildAutoDescription(hydrated);
   return hydrated;
@@ -173,21 +286,47 @@ function getStoragePath(receipt: any) {
 }
 
 function hasExtractedConferenceData(receipt: any) {
-  return Boolean(receipt.payment_date || receipt.amount != null || receipt.recipient_name || receipt.bank_name || receipt.auth_code || receipt.payment_method || receipt.transaction_type || receipt.category_id);
+  return Boolean(
+    receipt.payment_date ||
+    receipt.amount != null ||
+    receipt.recipient_name ||
+    receipt.bank_name ||
+    receipt.auth_code ||
+    receipt.payment_method ||
+    receipt.transaction_type ||
+    receipt.category_id,
+  );
 }
 
 function statusBadge(s: string) {
-  if (s === "approved") return <Badge className="bg-success text-success-foreground hover:bg-success">Aprovado</Badge>;
-  if (s === "duplicate") return <Badge className="bg-orange-500 text-white hover:bg-orange-500">Duplicado</Badge>;
+  if (s === "approved")
+    return <Badge className="bg-success text-success-foreground hover:bg-success">Aprovado</Badge>;
+  if (s === "duplicate")
+    return <Badge className="bg-orange-500 text-white hover:bg-orange-500">Duplicado</Badge>;
   if (s === "rejected") return <Badge variant="destructive">Rejeitado</Badge>;
-  if (s === "archived") return <Badge variant="secondary" className="bg-muted text-muted-foreground">Arquivado</Badge>;
+  if (s === "archived")
+    return (
+      <Badge variant="secondary" className="bg-muted text-muted-foreground">
+        Arquivado
+      </Badge>
+    );
   return <Badge className="bg-yellow-500 text-white hover:bg-yellow-500">Pendente</Badge>;
 }
 
 function dupScoreBadge(score: number | null | undefined) {
   const s = Number(score ?? 0);
-  if (s >= 80) return <Badge className="gap-1 bg-destructive text-destructive-foreground hover:bg-destructive"><AlertTriangle className="h-3 w-3" /> Alta {s}</Badge>;
-  if (s >= 50) return <Badge className="gap-1 bg-yellow-500 text-white hover:bg-yellow-500"><AlertTriangle className="h-3 w-3" /> Possível {s}</Badge>;
+  if (s >= 80)
+    return (
+      <Badge className="gap-1 bg-destructive text-destructive-foreground hover:bg-destructive">
+        <AlertTriangle className="h-3 w-3" /> Alta {s}
+      </Badge>
+    );
+  if (s >= 50)
+    return (
+      <Badge className="gap-1 bg-yellow-500 text-white hover:bg-yellow-500">
+        <AlertTriangle className="h-3 w-3" /> Possível {s}
+      </Badge>
+    );
   return <span className="text-xs text-muted-foreground">—</span>;
 }
 
@@ -228,16 +367,43 @@ function VaultPage() {
     };
   }, [preview.isObjectUrl, preview.url]);
 
-  const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
-  const categories = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [] });
-  const properties = useQuery({ queryKey: ["properties", "conference"], queryFn: async () => (await supabase.from("properties").select("id, name, profile_id").order("name")).data ?? [] });
-  const accounts = useQuery({ queryKey: ["accounts", "conference"], queryFn: async () => (await supabase.from("accounts").select("id, nickname, bank_id, profile_id").order("nickname")).data ?? [] });
-  const banks = useQuery({ queryKey: ["banks"], queryFn: async () => (await supabase.from("banks").select("id, name").order("name")).data ?? [] });
+  const profiles = useQuery({
+    queryKey: ["profiles"],
+    queryFn: async () =>
+      (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [],
+  });
+  const categories = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () =>
+      (await supabase.from("categories").select("id, name").order("name")).data ?? [],
+  });
+  const properties = useQuery({
+    queryKey: ["properties", "conference"],
+    queryFn: async () =>
+      (await supabase.from("properties").select("id, name, profile_id").order("name")).data ?? [],
+  });
+  const accounts = useQuery({
+    queryKey: ["accounts", "conference"],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("accounts")
+          .select("id, nickname, bank_id, profile_id")
+          .order("nickname")
+      ).data ?? [],
+  });
+  const banks = useQuery({
+    queryKey: ["banks"],
+    queryFn: async () => (await supabase.from("banks").select("id, name").order("name")).data ?? [],
+  });
 
   const receipts = useQuery({
     queryKey: ["receipts", quick, profileId, bankId, categoryId],
     queryFn: async () => {
-      let qb = supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").order("created_at", { ascending: false });
+      let qb = supabase
+        .from("receipts")
+        .select("*, categories(name), financial_profiles(name), banks(name)")
+        .order("created_at", { ascending: false });
       if (quick === "pending") qb = qb.eq("status", "pending");
       else if (quick === "approved") qb = qb.eq("status", "approved");
       else if (quick === "rejected") qb = qb.eq("status", "rejected");
@@ -253,13 +419,17 @@ function VaultPage() {
     },
   });
 
-  useEffect(() => { setSelectedIds(new Set()); }, [quick, profileId, bankId, categoryId]);
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [quick, profileId, bankId, categoryId]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return receipts.data ?? [];
     return (receipts.data ?? []).filter((r: any) =>
-      [r.recipient_name, r.description, r.bank_name, r.auth_code, String(r.amount ?? "")].filter(Boolean).some((v: string) => v.toLowerCase().includes(term)),
+      [r.recipient_name, r.description, r.bank_name, r.auth_code, String(r.amount ?? "")]
+        .filter(Boolean)
+        .some((v: string) => v.toLowerCase().includes(term)),
     );
   }, [q, receipts.data]);
 
@@ -269,7 +439,11 @@ function VaultPage() {
     else setSelectedIds(new Set(filtered.map((r: any) => r.id)));
   };
   const toggleOne = (id: string) => {
-    setSelectedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
   };
 
   const invalidate = () => {
@@ -284,8 +458,13 @@ function VaultPage() {
     try {
       const res = await bulkAction({ data: { receiptIds: Array.from(selectedIds), action } });
       toast.success(`${res.count} comprovante(s) atualizados`);
-      setSelectedIds(new Set()); invalidate();
-    } catch (e: any) { toast.error(e.message ?? "Falha na ação"); } finally { setBusy(false); }
+      setSelectedIds(new Set());
+      invalidate();
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha na ação");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const doBulkPatch = async (patch: any, label: string) => {
@@ -295,7 +474,11 @@ function VaultPage() {
       const res = await bulkUpdate({ data: { receiptIds: Array.from(selectedIds), patch } });
       toast.success(`${label} aplicado a ${res.count} comprovante(s)`);
       invalidate();
-    } catch (e: any) { toast.error(e.message ?? "Falha"); } finally { setBusy(false); }
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const doBulkDelete = async () => {
@@ -304,9 +487,13 @@ function VaultPage() {
     try {
       const res = await bulkDelete({ data: { receiptIds: Array.from(selectedIds) } });
       if (res.storageWarning) {
-        toast.warning(`${res.count} lançamento(s) excluídos, mas o arquivo não pôde ser removido do armazenamento.`, {
-          description: "O registro já não existe mais. Tente remover o arquivo novamente mais tarde.",
-        });
+        toast.warning(
+          `${res.count} lançamento(s) excluídos, mas o arquivo não pôde ser removido do armazenamento.`,
+          {
+            description:
+              "O registro já não existe mais. Tente remover o arquivo novamente mais tarde.",
+          },
+        );
       } else {
         toast.success(
           `${res.count} lançamento(s) excluídos` +
@@ -314,8 +501,13 @@ function VaultPage() {
             (res.filesKept ? ` · ${res.filesKept} arquivo(s) preservados (em uso)` : ""),
         );
       }
-      setSelectedIds(new Set()); invalidate();
-    } catch (e: any) { toast.error(e.message ?? "Falha"); } finally { setBusy(false); }
+      setSelectedIds(new Set());
+      invalidate();
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const openEdit = async (r: any) => {
@@ -329,24 +521,49 @@ function VaultPage() {
 
     const path = getStoragePath(r);
     if (!path) {
-      setPreview({ loading: false, url: null, downloadUrl: null, error: "Este comprovante não tem caminho de arquivo salvo." });
+      setPreview({
+        loading: false,
+        url: null,
+        downloadUrl: null,
+        error: "Este comprovante não tem caminho de arquivo salvo.",
+      });
       return;
     }
     const [{ data, error }, downloadResult, downloaded] = await Promise.all([
       supabase.storage.from("receipts").createSignedUrl(path, 60 * 10),
-      (supabase.storage.from("receipts") as any).createSignedUrl(path, 60 * 10, { download: r.file_name ?? true }),
+      (supabase.storage.from("receipts") as any).createSignedUrl(path, 60 * 10, {
+        download: r.file_name ?? true,
+      }),
       supabase.storage.from("receipts").download(path),
     ]);
     if (downloaded.error || !downloaded.data) {
-      setPreview({ loading: false, url: null, downloadUrl: null, error: `Arquivo não encontrado no bucket receipts para o caminho: ${path}`, isObjectUrl: false });
+      setPreview({
+        loading: false,
+        url: null,
+        downloadUrl: null,
+        error: `Arquivo não encontrado no bucket receipts para o caminho: ${path}`,
+        isObjectUrl: false,
+      });
       return;
     }
     const objectUrl = URL.createObjectURL(downloaded.data);
     if (error || !data?.signedUrl) {
-      setPreview({ loading: false, url: objectUrl, downloadUrl: objectUrl, error: error?.message ?? null, isObjectUrl: true });
+      setPreview({
+        loading: false,
+        url: objectUrl,
+        downloadUrl: objectUrl,
+        error: error?.message ?? null,
+        isObjectUrl: true,
+      });
       return;
     }
-    setPreview({ loading: false, url: objectUrl, downloadUrl: downloadResult?.data?.signedUrl ?? data.signedUrl, error: null, isObjectUrl: true });
+    setPreview({
+      loading: false,
+      url: objectUrl,
+      downloadUrl: downloadResult?.data?.signedUrl ?? data.signedUrl,
+      error: null,
+      isObjectUrl: true,
+    });
   };
 
   // Deep-link: open a specific receipt's review dialog via ?receipt=<id>
@@ -370,16 +587,30 @@ function VaultPage() {
       }
       navigate({ search: {}, replace: true });
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.receipt]);
 
   const CONFERENCE_FIELDS = [
-    "payment_date","amount","recipient_name","recipient_tax_id","bank_name","auth_code",
-    "payment_method","transaction_type","category_id","description","notes",
-    "profile_id","property_id","bank_id","account_id",
+    "payment_date",
+    "amount",
+    "recipient_name",
+    "recipient_tax_id",
+    "bank_name",
+    "auth_code",
+    "payment_method",
+    "transaction_type",
+    "category_id",
+    "description",
+    "notes",
+    "profile_id",
+    "property_id",
+    "bank_id",
+    "account_id",
   ] as const;
-  type ConfField = typeof CONFERENCE_FIELDS[number];
+  type ConfField = (typeof CONFERENCE_FIELDS)[number];
 
   const isDirty = useMemo(() => {
     if (!original || !draft) return false;
@@ -388,7 +619,7 @@ function VaultPage() {
       const b = (draft as any)[k] ?? null;
       return a !== b;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [original, draft]);
 
   const setDraftField = (field: ConfField, value: any) => {
@@ -426,7 +657,9 @@ function VaultPage() {
       setConfirmDiscard(true);
     } else {
       closeEditing();
-      toast.info("Nenhuma alteração foi salva. O comprovante continuará disponível para conferência.");
+      toast.info(
+        "Nenhuma alteração foi salva. O comprovante continuará disponível para conferência.",
+      );
     }
   };
 
@@ -486,7 +719,11 @@ function VaultPage() {
     try {
       const res = await analyze({ data: { receiptId: original.id } });
       if (!res.ok) throw new Error(res.error ?? "Não foi possível analisar o comprovante");
-      const { data } = await supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").eq("id", original.id).single();
+      const { data } = await supabase
+        .from("receipts")
+        .select("*, categories(name), financial_profiles(name), banks(name)")
+        .eq("id", original.id)
+        .single();
       if (data) await openEdit(data);
       invalidate();
       toast.success("Comprovante analisado");
@@ -520,7 +757,13 @@ function VaultPage() {
     if (!original) return;
     setBusy(true);
     try {
-      await reject({ data: { receiptId: original.id, reason: "rejected", note: (note ?? rejectNote) || undefined } });
+      await reject({
+        data: {
+          receiptId: original.id,
+          reason: "rejected",
+          note: (note ?? rejectNote) || undefined,
+        },
+      });
       toast.success("Comprovante rejeitado");
       invalidate();
       closeEditing();
@@ -535,7 +778,9 @@ function VaultPage() {
     <div className="space-y-6 pb-24">
       <div>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Cofre de comprovantes</h1>
-        <p className="text-sm text-muted-foreground">Conferência em lote, comparação de duplicados e organização.</p>
+        <p className="text-sm text-muted-foreground">
+          Conferência em lote, comparação de duplicados e organização.
+        </p>
       </div>
 
       <Tabs value={quick} onValueChange={(v) => setQuick(v as QuickFilter)}>
@@ -554,41 +799,68 @@ function VaultPage() {
         <div className="grid gap-3 md:grid-cols-4">
           <div className="relative md:col-span-2">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por destinatário, valor, descrição, banco…" className="pl-9" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar por destinatário, valor, descrição, banco…"
+              className="pl-9"
+            />
           </div>
           <Select value={profileId} onValueChange={setProfileId}>
-            <SelectTrigger><SelectValue placeholder="Perfil" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Perfil" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os perfis</SelectItem>
-              {(profiles.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {(profiles.data ?? []).map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={bankId} onValueChange={setBankId}>
-            <SelectTrigger><SelectValue placeholder="Banco" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Banco" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os bancos</SelectItem>
-              {(banks.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {(banks.data ?? []).map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as categorias</SelectItem>
-              {(categories.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {(categories.data ?? []).map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </Card>
 
       {receipts.isLoading ? (
-        <Card className="p-10 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></Card>
+        <Card className="p-10 text-center">
+          <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+        </Card>
       ) : filtered.length === 0 ? (
         <Card className="p-10 text-center">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
             <Inbox className="h-6 w-6" />
           </div>
           <p className="text-sm font-medium">Nenhum comprovante encontrado</p>
-          <p className="mt-1 text-xs text-muted-foreground">Ajuste os filtros ou envie novos comprovantes.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ajuste os filtros ou envie novos comprovantes.
+          </p>
         </Card>
       ) : (
         <>
@@ -598,7 +870,9 @@ function VaultPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-8"><Checkbox checked={allSelected} onCheckedChange={toggleAll} /></TableHead>
+                    <TableHead className="w-8">
+                      <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                    </TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Valor</TableHead>
@@ -615,28 +889,64 @@ function VaultPage() {
                 <TableBody>
                   {filtered.map((r: any) => {
                     const checked = selectedIds.has(r.id);
-                    const highlight = r.duplicate_score >= 80 ? "bg-destructive/5" : r.duplicate_score >= 50 ? "bg-yellow-500/5" : "";
+                    const highlight =
+                      r.duplicate_score >= 80
+                        ? "bg-destructive/5"
+                        : r.duplicate_score >= 50
+                          ? "bg-yellow-500/5"
+                          : "";
                     return (
-                      <TableRow key={r.id} className={`${highlight} cursor-pointer`} onClick={() => openEdit(r)}>
+                      <TableRow
+                        key={r.id}
+                        className={`${highlight} cursor-pointer`}
+                        onClick={() => openEdit(r)}
+                      >
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={checked} onCheckedChange={() => toggleOne(r.id)} />
                         </TableCell>
                         <TableCell>{statusBadge(r.status)}</TableCell>
-                        <TableCell className="whitespace-nowrap text-xs">{dateBR(r.payment_date)}</TableCell>
-                        <TableCell className="whitespace-nowrap text-sm font-semibold">{currencyBRL(Number(r.amount ?? 0))}</TableCell>
-                        <TableCell className="max-w-[180px] truncate text-sm">{r.recipient_name || "—"}</TableCell>
-                        <TableCell className="text-xs">{r.banks?.name ?? r.bank_name ?? "—"}</TableCell>
-                        <TableCell className="text-xs">{r.financial_profiles?.name ?? "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          {dateBR(r.payment_date)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm font-semibold">
+                          {currencyBRL(Number(r.amount ?? 0))}
+                        </TableCell>
+                        <TableCell className="max-w-[180px] truncate text-sm">
+                          {r.recipient_name || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {r.banks?.name ?? r.bank_name ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {r.financial_profiles?.name ?? "—"}
+                        </TableCell>
                         <TableCell className="text-xs">{r.categories?.name ?? "—"}</TableCell>
-                        <TableCell className="text-xs">{r.transaction_type ? transactionTypeLabel[r.transaction_type as keyof typeof transactionTypeLabel] : "—"}</TableCell>
+                        <TableCell className="text-xs">
+                          {r.transaction_type
+                            ? transactionTypeLabel[
+                                r.transaction_type as keyof typeof transactionTypeLabel
+                              ]
+                            : "—"}
+                        </TableCell>
                         <TableCell>{dupScoreBadge(r.duplicate_score)}</TableCell>
-                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{dateBR(r.created_at)}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                          {dateBR(r.created_at)}
+                        </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">
                             {r.duplicate_of && (
-                              <Button variant="ghost" size="sm" onClick={() => setCompareId(r.id)} title="Comparar duplicado"><GitCompareArrows className="h-4 w-4" /></Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setCompareId(r.id)}
+                                title="Comparar duplicado"
+                              >
+                                <GitCompareArrows className="h-4 w-4" />
+                              </Button>
                             )}
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>Editar</Button>
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                              Editar
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -651,24 +961,40 @@ function VaultPage() {
           <div className="space-y-2 md:hidden">
             {filtered.map((r: any) => {
               const checked = selectedIds.has(r.id);
-              const highlight = r.duplicate_score >= 80 ? "border-destructive/50" : r.duplicate_score >= 50 ? "border-yellow-500/50" : "";
+              const highlight =
+                r.duplicate_score >= 80
+                  ? "border-destructive/50"
+                  : r.duplicate_score >= 50
+                    ? "border-yellow-500/50"
+                    : "";
               return (
                 <Card key={r.id} className={`p-3 ${highlight}`}>
                   <div className="flex items-start gap-3">
-                    <Checkbox checked={checked} onCheckedChange={() => toggleOne(r.id)} className="mt-1" />
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggleOne(r.id)}
+                      className="mt-1"
+                    />
                     <button onClick={() => openEdit(r)} className="flex-1 min-w-0 text-left">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-medium">{r.recipient_name || r.description || "Comprovante"}</p>
+                        <p className="truncate text-sm font-medium">
+                          {r.recipient_name || r.description || "Comprovante"}
+                        </p>
                         {statusBadge(r.status)}
                         {dupScoreBadge(r.duplicate_score)}
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {dateBR(r.payment_date)} • {r.banks?.name ?? r.bank_name ?? "—"} • {r.categories?.name ?? "sem categoria"}
+                        {dateBR(r.payment_date)} • {r.banks?.name ?? r.bank_name ?? "—"} •{" "}
+                        {r.categories?.name ?? "sem categoria"}
                       </p>
-                      <p className="mt-1 text-sm font-semibold">{currencyBRL(Number(r.amount ?? 0))}</p>
+                      <p className="mt-1 text-sm font-semibold">
+                        {currencyBRL(Number(r.amount ?? 0))}
+                      </p>
                     </button>
                     {r.duplicate_of && (
-                      <Button variant="ghost" size="icon" onClick={() => setCompareId(r.id)}><GitCompareArrows className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setCompareId(r.id)}>
+                        <GitCompareArrows className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
                 </Card>
@@ -684,26 +1010,113 @@ function VaultPage() {
           <div className="mx-auto flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm">
               <Badge variant="secondary">{selectedIds.size} selecionado(s)</Badge>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Limpar</Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                Limpar
+              </Button>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             </div>
             <div className="flex flex-wrap gap-2">
-              {canApprove && <BulkConfirm label="Aprovar" icon={CheckCircle2} tone="success" count={selectedIds.size} onConfirm={() => doBulk("approve")} disabled={busy} />}
-              {canApprove && <BulkConfirm label="Rejeitar" icon={XCircle} tone="destructive" count={selectedIds.size} onConfirm={() => doBulk("reject")} disabled={busy} />}
-              {canApprove && <BulkConfirm label="Marcar duplicado" icon={Copy} tone="warning" count={selectedIds.size} onConfirm={() => doBulk("duplicate")} disabled={busy} />}
-              {canBulk && <BulkConfirm label="Arquivar" icon={Archive} tone="secondary" count={selectedIds.size} onConfirm={() => doBulk("archive")} disabled={busy} />}
-              {canDelete && <BulkConfirm label="Excluir" icon={Trash2} tone="destructive" count={selectedIds.size} onConfirm={doBulkDelete} disabled={busy} destructive />}
-              {canBulk && <BulkFieldSelect label="Categoria" placeholder="Alterar categoria" options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ category_id: v }, "Categoria")} disabled={busy} />}
-              {canBulk && <BulkFieldSelect label="Perfil" placeholder="Alterar perfil" options={(profiles.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ profile_id: v }, "Perfil")} disabled={busy} />}
-              {canBulk && <BulkFieldSelect label="Banco" placeholder="Alterar banco" options={(banks.data ?? []).map((c) => ({ value: c.id, label: c.name }))} onPick={(v) => doBulkPatch({ bank_id: v }, "Banco")} disabled={busy} />}
-              {canBulk && <BulkFieldSelect label="Tipo" placeholder="Alterar tipo" options={Object.entries(transactionTypeLabel).map(([v, l]) => ({ value: v, label: l }))} onPick={(v) => doBulkPatch({ transaction_type: v }, "Tipo")} disabled={busy} />}
+              {canApprove && (
+                <BulkConfirm
+                  label="Aprovar"
+                  icon={CheckCircle2}
+                  tone="success"
+                  count={selectedIds.size}
+                  onConfirm={() => doBulk("approve")}
+                  disabled={busy}
+                />
+              )}
+              {canApprove && (
+                <BulkConfirm
+                  label="Rejeitar"
+                  icon={XCircle}
+                  tone="destructive"
+                  count={selectedIds.size}
+                  onConfirm={() => doBulk("reject")}
+                  disabled={busy}
+                />
+              )}
+              {canApprove && (
+                <BulkConfirm
+                  label="Marcar duplicado"
+                  icon={Copy}
+                  tone="warning"
+                  count={selectedIds.size}
+                  onConfirm={() => doBulk("duplicate")}
+                  disabled={busy}
+                />
+              )}
+              {canBulk && (
+                <BulkConfirm
+                  label="Arquivar"
+                  icon={Archive}
+                  tone="secondary"
+                  count={selectedIds.size}
+                  onConfirm={() => doBulk("archive")}
+                  disabled={busy}
+                />
+              )}
+              {canDelete && (
+                <BulkConfirm
+                  label="Excluir"
+                  icon={Trash2}
+                  tone="destructive"
+                  count={selectedIds.size}
+                  onConfirm={doBulkDelete}
+                  disabled={busy}
+                  destructive
+                />
+              )}
+              {canBulk && (
+                <BulkFieldSelect
+                  label="Categoria"
+                  placeholder="Alterar categoria"
+                  options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                  onPick={(v) => doBulkPatch({ category_id: v }, "Categoria")}
+                  disabled={busy}
+                />
+              )}
+              {canBulk && (
+                <BulkFieldSelect
+                  label="Perfil"
+                  placeholder="Alterar perfil"
+                  options={(profiles.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                  onPick={(v) => doBulkPatch({ profile_id: v }, "Perfil")}
+                  disabled={busy}
+                />
+              )}
+              {canBulk && (
+                <BulkFieldSelect
+                  label="Banco"
+                  placeholder="Alterar banco"
+                  options={(banks.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                  onPick={(v) => doBulkPatch({ bank_id: v }, "Banco")}
+                  disabled={busy}
+                />
+              )}
+              {canBulk && (
+                <BulkFieldSelect
+                  label="Tipo"
+                  placeholder="Alterar tipo"
+                  options={Object.entries(transactionTypeLabel).map(([v, l]) => ({
+                    value: v,
+                    label: l,
+                  }))}
+                  onPick={(v) => doBulkPatch({ transaction_type: v }, "Tipo")}
+                  disabled={busy}
+                />
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* Compare side-by-side */}
-      <CompareDialog receiptId={compareId} onClose={() => setCompareId(null)} onChanged={invalidate} />
+      <CompareDialog
+        receiptId={compareId}
+        onClose={() => setCompareId(null)}
+        onChanged={invalidate}
+      />
 
       {/* Área de conferência ampla */}
       {original && draft && (
@@ -728,7 +1141,10 @@ function VaultPage() {
           onDiscard={discardDraft}
           onSave={saveDraft}
           onApprove={approveCurrentReceipt}
-          onReject={(note) => { setRejectNote(note); void rejectCurrentReceipt(note); }}
+          onReject={(note) => {
+            setRejectNote(note);
+            void rejectCurrentReceipt(note);
+          }}
           onAnalyze={analyzeCurrentReceipt}
           onCompare={() => setCompareId(original.id)}
           onPreviewError={(message) => setPreview((prev) => ({ ...prev, error: message }))}
@@ -741,12 +1157,21 @@ function VaultPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Descartar alterações não salvas?</AlertDialogTitle>
             <AlertDialogDescription>
-              Suas alterações no comprovante não serão salvas. O comprovante continuará disponível para conferência.
+              Suas alterações no comprovante não serão salvas. O comprovante continuará disponível
+              para conferência.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Continuar editando</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmDiscard(false); closeEditing(); toast.info("Nenhuma alteração foi salva. O comprovante continuará disponível para conferência."); }}>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmDiscard(false);
+                closeEditing();
+                toast.info(
+                  "Nenhuma alteração foi salva. O comprovante continuará disponível para conferência.",
+                );
+              }}
+            >
               Descartar
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -756,18 +1181,46 @@ function VaultPage() {
   );
 }
 
-function BulkConfirm({ label, icon: Icon, tone, count, onConfirm, disabled, destructive }: { label: string; icon: any; tone: string; count: number; onConfirm: () => void | Promise<void>; disabled?: boolean; destructive?: boolean }) {
-  const variant = tone === "success" ? "success" : tone === "destructive" ? "destructive" : tone === "warning" ? "outline" : "secondary";
+function BulkConfirm({
+  label,
+  icon: Icon,
+  tone,
+  count,
+  onConfirm,
+  disabled,
+  destructive,
+}: {
+  label: string;
+  icon: any;
+  tone: string;
+  count: number;
+  onConfirm: () => void | Promise<void>;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  const variant =
+    tone === "success"
+      ? "success"
+      : tone === "destructive"
+        ? "destructive"
+        : tone === "warning"
+          ? "outline"
+          : "secondary";
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant={variant as any} size="sm" disabled={disabled}><Icon className="h-4 w-4" /> {label}</Button>
+        <Button variant={variant as any} size="sm" disabled={disabled}>
+          <Icon className="h-4 w-4" /> {label}
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{destructive ? "Excluir permanentemente?" : `Confirmar: ${label.toLowerCase()}`}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {destructive ? "Excluir permanentemente?" : `Confirmar: ${label.toLowerCase()}`}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            Você está prestes a {label.toLowerCase()} {count} comprovante{count > 1 ? "s" : ""}. Deseja continuar?
+            Você está prestes a {label.toLowerCase()} {count} comprovante{count > 1 ? "s" : ""}.
+            Deseja continuar?
             {destructive &&
               " O lançamento será apagado do banco de dados e o arquivo original será removido do armazenamento apenas se nenhum outro lançamento ou importação estiver usando o mesmo arquivo. Esta ação não pode ser desfeita."}
           </AlertDialogDescription>
@@ -781,15 +1234,38 @@ function BulkConfirm({ label, icon: Icon, tone, count, onConfirm, disabled, dest
   );
 }
 
-function BulkFieldSelect({ label, placeholder, options, onPick, disabled }: { label: string; placeholder: string; options: { value: string; label: string }[]; onPick: (v: string) => void; disabled?: boolean }) {
+function BulkFieldSelect({
+  label,
+  placeholder,
+  options,
+  onPick,
+  disabled,
+}: {
+  label: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  onPick: (v: string) => void;
+  disabled?: boolean;
+}) {
   const [val, setVal] = useState<string>("");
   const [pending, setPending] = useState<string | null>(null);
   return (
     <>
-      <Select value={val} onValueChange={(v) => { setPending(v); }}>
-        <SelectTrigger className="h-9 w-[180px] text-xs" disabled={disabled}><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <Select
+        value={val}
+        onValueChange={(v) => {
+          setPending(v);
+        }}
+      >
+        <SelectTrigger className="h-9 w-[180px] text-xs" disabled={disabled}>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
         <SelectContent>
-          {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       <AlertDialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
@@ -797,12 +1273,23 @@ function BulkFieldSelect({ label, placeholder, options, onPick, disabled }: { la
           <AlertDialogHeader>
             <AlertDialogTitle>Alterar {label.toLowerCase()} em massa?</AlertDialogTitle>
             <AlertDialogDescription>
-              Você está prestes a alterar {label.toLowerCase()} dos comprovantes selecionados para <strong>{options.find(o => o.value === pending)?.label}</strong>. Deseja continuar?
+              Você está prestes a alterar {label.toLowerCase()} dos comprovantes selecionados para{" "}
+              <strong>{options.find((o) => o.value === pending)?.label}</strong>. Deseja continuar?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (pending) { onPick(pending); setVal(""); } setPending(null); }}>Confirmar</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                if (pending) {
+                  onPick(pending);
+                  setVal("");
+                }
+                setPending(null);
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -810,7 +1297,15 @@ function BulkFieldSelect({ label, placeholder, options, onPick, disabled }: { la
   );
 }
 
-function CompareDialog({ receiptId, onClose, onChanged }: { receiptId: string | null; onClose: () => void; onChanged: () => void }) {
+function CompareDialog({
+  receiptId,
+  onClose,
+  onChanged,
+}: {
+  receiptId: string | null;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
   const approve = useServerFn(approveReceipt);
   const reject = useServerFn(rejectReceipt);
   const bulkAction = useServerFn(bulkReceiptAction);
@@ -820,14 +1315,32 @@ function CompareDialog({ receiptId, onClose, onChanged }: { receiptId: string | 
     queryKey: ["compare", receiptId],
     enabled: !!receiptId,
     queryFn: async () => {
-      const { data: newRec } = await supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").eq("id", receiptId!).single();
+      const { data: newRec } = await supabase
+        .from("receipts")
+        .select("*, categories(name), financial_profiles(name), banks(name)")
+        .eq("id", receiptId!)
+        .single();
       if (!newRec) return null;
       const { data: oldRec } = newRec.duplicate_of
-        ? await supabase.from("receipts").select("*, categories(name), financial_profiles(name), banks(name)").eq("id", newRec.duplicate_of).maybeSingle()
+        ? await supabase
+            .from("receipts")
+            .select("*, categories(name), financial_profiles(name), banks(name)")
+            .eq("id", newRec.duplicate_of)
+            .maybeSingle()
         : { data: null };
       const [newUrl, oldUrl] = await Promise.all([
-        newRec.file_path ? supabase.storage.from("receipts").createSignedUrl(newRec.file_path, 600).then(r => r.data?.signedUrl ?? null) : null,
-        oldRec?.file_path ? supabase.storage.from("receipts").createSignedUrl(oldRec.file_path, 600).then(r => r.data?.signedUrl ?? null) : null,
+        newRec.file_path
+          ? supabase.storage
+              .from("receipts")
+              .createSignedUrl(newRec.file_path, 600)
+              .then((r) => r.data?.signedUrl ?? null)
+          : null,
+        oldRec?.file_path
+          ? supabase.storage
+              .from("receipts")
+              .createSignedUrl(oldRec.file_path, 600)
+              .then((r) => r.data?.signedUrl ?? null)
+          : null,
       ]);
       return { newRec, oldRec, newUrl, oldUrl };
     },
@@ -836,32 +1349,58 @@ function CompareDialog({ receiptId, onClose, onChanged }: { receiptId: string | 
   const data = query.data;
   const reason = useMemo(() => {
     if (!data?.newRec || !data.oldRec) return "";
-    const n = data.newRec, o = data.oldRec;
-    if (n.file_hash && o.file_hash && n.file_hash === o.file_hash) return "Este comprovante tem exatamente o mesmo arquivo de outro já salvo.";
-    if (n.auth_code && n.auth_code === o.auth_code) return "Este comprovante tem o mesmo código de autenticação de outro comprovante.";
+    const n = data.newRec,
+      o = data.oldRec;
+    if (n.file_hash && o.file_hash && n.file_hash === o.file_hash)
+      return "Este comprovante tem exatamente o mesmo arquivo de outro já salvo.";
+    if (n.auth_code && n.auth_code === o.auth_code)
+      return "Este comprovante tem o mesmo código de autenticação de outro comprovante.";
     const sameAmount = Number(n.amount) === Number(o.amount);
     const sameDate = n.payment_date === o.payment_date;
-    const sameRecipient = n.recipient_name && o.recipient_name && n.recipient_name.toLowerCase() === o.recipient_name.toLowerCase();
-    if (sameAmount && sameDate && sameRecipient) return "Este comprovante parece repetido porque possui o mesmo valor, a mesma data e o mesmo destinatário de um comprovante já salvo.";
-    if (sameAmount && sameDate) return "Este comprovante tem o mesmo valor e a mesma data de outro comprovante já salvo.";
+    const sameRecipient =
+      n.recipient_name &&
+      o.recipient_name &&
+      n.recipient_name.toLowerCase() === o.recipient_name.toLowerCase();
+    if (sameAmount && sameDate && sameRecipient)
+      return "Este comprovante parece repetido porque possui o mesmo valor, a mesma data e o mesmo destinatário de um comprovante já salvo.";
+    if (sameAmount && sameDate)
+      return "Este comprovante tem o mesmo valor e a mesma data de outro comprovante já salvo.";
     return "Este comprovante tem semelhança alta com outro já salvo. Confira antes de aprovar.";
   }, [data]);
 
   const run = async (fn: () => Promise<any>, msg: string) => {
-    try { await fn(); toast.success(msg); onChanged(); onClose(); } catch (e: any) { toast.error(e.message ?? "Falha"); }
+    try {
+      await fn();
+      toast.success(msg);
+      onChanged();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha");
+    }
   };
 
   return (
-    <Dialog open={!!receiptId} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={!!receiptId}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-6xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><GitCompareArrows className="h-5 w-5" /> Comparação de duplicidade</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <GitCompareArrows className="h-5 w-5" /> Comparação de duplicidade
+          </DialogTitle>
           <DialogDescription>Confira lado a lado antes de decidir.</DialogDescription>
         </DialogHeader>
         {query.isLoading ? (
-          <div className="grid h-64 place-items-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
+          <div className="grid h-64 place-items-center">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
         ) : !data ? (
-          <p className="text-sm text-muted-foreground">Não foi possível carregar os comprovantes.</p>
+          <p className="text-sm text-muted-foreground">
+            Não foi possível carregar os comprovantes.
+          </p>
         ) : (
           <>
             {reason && (
@@ -871,26 +1410,105 @@ function CompareDialog({ receiptId, onClose, onChanged }: { receiptId: string | 
               </div>
             )}
             <div className="grid gap-4 md:grid-cols-2">
-              <ReceiptPanel title="Comprovante novo" rec={data.newRec} url={data.newUrl} tone="new" />
+              <ReceiptPanel
+                title="Comprovante novo"
+                rec={data.newRec}
+                url={data.newUrl}
+                tone="new"
+              />
               {data.oldRec ? (
-                <ReceiptPanel title="Comprovante existente" rec={data.oldRec} url={data.oldUrl} tone="old" />
+                <ReceiptPanel
+                  title="Comprovante existente"
+                  rec={data.oldRec}
+                  url={data.oldUrl}
+                  tone="old"
+                />
               ) : (
-                <Card className="grid place-items-center p-8 text-sm text-muted-foreground">Nenhum comprovante existente vinculado.</Card>
+                <Card className="grid place-items-center p-8 text-sm text-muted-foreground">
+                  Nenhum comprovante existente vinculado.
+                </Card>
               )}
             </div>
             <div className="mt-2 flex flex-wrap justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => run(() => bulkAction({ data: { receiptIds: [data.newRec.id], action: "approve" } }), "Marcado como novo e aprovado")}>Manter como novo</Button>
-              <Button variant="outline" size="sm" onClick={() => run(() => reject({ data: { receiptId: data.newRec.id, reason: "duplicate" } }), "Novo marcado como duplicado")}>Marcar novo como duplicado</Button>
-              {data.oldRec && (() => { const oldRec = data.oldRec; return (
-                <Button variant="outline" size="sm" onClick={async () => {
-                  await bulkDelete({ data: { receiptIds: [oldRec.id] } });
-                  await approve({ data: { receiptId: data.newRec.id } });
-                  toast.success("Comprovante antigo substituído"); onChanged(); onClose();
-                }}>Substituir antigo pelo novo</Button>
-              ); })()}
-              <Button variant="outline" size="sm" onClick={() => run(() => bulkAction({ data: { receiptIds: [data.newRec.id], action: "archive" } }), "Novo arquivado")}>Arquivar novo</Button>
-              <Button variant="destructive" size="sm" onClick={() => run(() => reject({ data: { receiptId: data.newRec.id, reason: "rejected" } }), "Novo rejeitado")}>Rejeitar novo</Button>
-              <Button variant="success" size="sm" onClick={() => run(() => approve({ data: { receiptId: data.newRec.id } }), "Novo aprovado mesmo assim")}>Aprovar mesmo assim</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  run(
+                    () => bulkAction({ data: { receiptIds: [data.newRec.id], action: "approve" } }),
+                    "Marcado como novo e aprovado",
+                  )
+                }
+              >
+                Manter como novo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  run(
+                    () => reject({ data: { receiptId: data.newRec.id, reason: "duplicate" } }),
+                    "Novo marcado como duplicado",
+                  )
+                }
+              >
+                Marcar novo como duplicado
+              </Button>
+              {data.oldRec &&
+                (() => {
+                  const oldRec = data.oldRec;
+                  return (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        await bulkDelete({ data: { receiptIds: [oldRec.id] } });
+                        await approve({ data: { receiptId: data.newRec.id } });
+                        toast.success("Comprovante antigo substituído");
+                        onChanged();
+                        onClose();
+                      }}
+                    >
+                      Substituir antigo pelo novo
+                    </Button>
+                  );
+                })()}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  run(
+                    () => bulkAction({ data: { receiptIds: [data.newRec.id], action: "archive" } }),
+                    "Novo arquivado",
+                  )
+                }
+              >
+                Arquivar novo
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() =>
+                  run(
+                    () => reject({ data: { receiptId: data.newRec.id, reason: "rejected" } }),
+                    "Novo rejeitado",
+                  )
+                }
+              >
+                Rejeitar novo
+              </Button>
+              <Button
+                variant="success"
+                size="sm"
+                onClick={() =>
+                  run(
+                    () => approve({ data: { receiptId: data.newRec.id } }),
+                    "Novo aprovado mesmo assim",
+                  )
+                }
+              >
+                Aprovar mesmo assim
+              </Button>
             </div>
           </>
         )}
@@ -899,29 +1517,59 @@ function CompareDialog({ receiptId, onClose, onChanged }: { receiptId: string | 
   );
 }
 
-function ReceiptPanel({ title, rec, url, tone }: { title: string; rec: any; url: string | null; tone: "new" | "old" }) {
+function ReceiptPanel({
+  title,
+  rec,
+  url,
+  tone,
+}: {
+  title: string;
+  rec: any;
+  url: string | null;
+  tone: "new" | "old";
+}) {
   return (
     <Card className={`p-3 ${tone === "new" ? "border-primary/50" : "border-muted"}`}>
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+        </p>
         {statusBadge(rec.status)}
       </div>
       <div className="mb-3 h-64 overflow-hidden rounded border border-border bg-muted/40">
         {url ? (
-          rec.file_mime?.startsWith("image/")
-            ? <img src={url} alt={title} className="h-full w-full object-contain" />
-            : <iframe src={url} title={title} className="h-full w-full" />
-        ) : <div className="grid h-full place-items-center text-xs text-muted-foreground">Sem prévia</div>}
+          rec.file_mime?.startsWith("image/") ? (
+            <img src={url} alt={title} className="h-full w-full object-contain" />
+          ) : (
+            <iframe src={url} title={title} className="h-full w-full" />
+          )
+        ) : (
+          <div className="grid h-full place-items-center text-xs text-muted-foreground">
+            Sem prévia
+          </div>
+        )}
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <dt className="text-muted-foreground">Valor</dt><dd className="font-medium">{currencyBRL(Number(rec.amount ?? 0))}</dd>
-        <dt className="text-muted-foreground">Data</dt><dd>{dateBR(rec.payment_date)}</dd>
-        <dt className="text-muted-foreground">Destinatário</dt><dd className="truncate">{rec.recipient_name ?? "—"}</dd>
-        <dt className="text-muted-foreground">Banco</dt><dd>{rec.banks?.name ?? rec.bank_name ?? "—"}</dd>
-        <dt className="text-muted-foreground">Cód. autenticação</dt><dd className="truncate">{rec.auth_code ?? "—"}</dd>
-        <dt className="text-muted-foreground">Categoria</dt><dd>{rec.categories?.name ?? "—"}</dd>
-        <dt className="text-muted-foreground">Perfil</dt><dd>{rec.financial_profiles?.name ?? "—"}</dd>
-        <dt className="text-muted-foreground">Tipo</dt><dd>{rec.transaction_type ? transactionTypeLabel[rec.transaction_type as keyof typeof transactionTypeLabel] : "—"}</dd>
+        <dt className="text-muted-foreground">Valor</dt>
+        <dd className="font-medium">{currencyBRL(Number(rec.amount ?? 0))}</dd>
+        <dt className="text-muted-foreground">Data</dt>
+        <dd>{dateBR(rec.payment_date)}</dd>
+        <dt className="text-muted-foreground">Destinatário</dt>
+        <dd className="truncate">{rec.recipient_name ?? "—"}</dd>
+        <dt className="text-muted-foreground">Banco</dt>
+        <dd>{rec.banks?.name ?? rec.bank_name ?? "—"}</dd>
+        <dt className="text-muted-foreground">Cód. autenticação</dt>
+        <dd className="truncate">{rec.auth_code ?? "—"}</dd>
+        <dt className="text-muted-foreground">Categoria</dt>
+        <dd>{rec.categories?.name ?? "—"}</dd>
+        <dt className="text-muted-foreground">Perfil</dt>
+        <dd>{rec.financial_profiles?.name ?? "—"}</dd>
+        <dt className="text-muted-foreground">Tipo</dt>
+        <dd>
+          {rec.transaction_type
+            ? transactionTypeLabel[rec.transaction_type as keyof typeof transactionTypeLabel]
+            : "—"}
+        </dd>
       </dl>
     </Card>
   );
