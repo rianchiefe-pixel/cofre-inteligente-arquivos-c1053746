@@ -257,7 +257,6 @@ export function ConferenceDialog(props: {
       }}
     >
       <DialogContent
-        showCloseButton={false}
         onEscapeKeyDown={(e) => {
           e.preventDefault();
           if (!busy) onRequestClose();
@@ -300,9 +299,7 @@ export function ConferenceDialog(props: {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => !busy && onRequestClose()} aria-label="Fechar conferência">
-                <X className="h-4 w-4" />
-              </Button>
+              <span className="w-6" />
             </div>
           </div>
 
