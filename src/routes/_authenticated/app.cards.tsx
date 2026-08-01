@@ -30,46 +30,44 @@ function CardsPage() {
 
   const create = useMutation({
     mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
       const additionalHolders = String(form.additional_holders || "")
         .split(/\n|,/)
         .map((s: string) => s.trim())
         .filter(Boolean);
-      const { additional_holders, ...rest } = form;
-      const payload = {
-        ...rest,
-        user_id: u.user!.id,
-        bank_id: form.bank_id || null,
-        profile_id: form.profile_id || null,
-        last4: form.last4 || null,
-        holder: form.holder || null,
-        closing_day: form.closing_day ? Number(form.closing_day) : null,
-        due_day: form.due_day ? Number(form.due_day) : null,
-        credit_limit: form.credit_limit ? Number(String(form.credit_limit).replace(",", ".")) : null,
-      };
-      const { data: created, error } = await supabase.from("cards").insert(payload).select("id").single();
-      if (error) throw error;
-      if (created && form.holder) {
-        await supabase.from("card_holders").insert({
-          user_id: u.user!.id,
-          card_id: created.id,
-          holder_name: form.holder,
+      // Cartão + titulares em uma única transação validada no servidor.
+      const holders = [
+        ...(form.holder ? [{ holder_name: form.holder, last4: form.last4 || null, is_primary: true }] : []),
+        ...additionalHolders.map((name: string) => ({ holder_name: name, is_primary: false })),
+      ];
+      const { data: res, error } = await supabase.rpc("create_card_with_holders_rpc", {
+        p_card: {
+          name: form.name,
+          brand: form.brand || null,
           last4: form.last4 || null,
-          is_primary: true,
-        });
-      }
-      if (created && additionalHolders.length) {
-        await supabase.from("card_holders").insert(
-          additionalHolders.map((name: string) => ({
-            user_id: u.user!.id,
-            card_id: created.id,
-            holder_name: name,
-            is_primary: false,
-          })),
-        );
-      }
+          holder: form.holder || null,
+          profile_id: form.profile_id || null,
+          bank_id: form.bank_id || null,
+          closing_day: form.closing_day ? Number(form.closing_day) : null,
+          due_day: form.due_day ? Number(form.due_day) : null,
+          credit_limit: form.credit_limit ? parseBrlAmount(form.credit_limit) : null,
+        } as never,
+        p_holders: holders as never,
+      });
+      if (error) throw new Error(error.message);
+      const created = Array.isArray(res) ? res[0] : res;
+      if (!created?.card_id) throw new Error("O cartão não foi confirmado pelo banco de dados.");
+      return created;
     },
-    onSuccess: () => { toast.success("Cartão criado"); setOpen(false); setForm({ name: "", brand: "visa", last4: "", closing_day: "", due_day: "", holder: "", profile_id: "", bank_id: "", credit_limit: "", additional_holders: "" }); qc.invalidateQueries({ queryKey: ["cards"] }); },
+    onSuccess: (created) => {
+      toast.success(
+        created.holders_created > 0
+          ? `Cartão criado com ${created.holders_created} titular(es)`
+          : "Cartão criado",
+      );
+      setOpen(false);
+      setForm({ name: "", brand: "visa", last4: "", closing_day: "", due_day: "", holder: "", profile_id: "", bank_id: "", credit_limit: "", additional_holders: "" });
+      qc.invalidateQueries({ queryKey: ["cards"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
