@@ -439,18 +439,19 @@ export const finalizeStatement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ statementId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // Pendentes viram "verificar depois" ao fechar.
-    await supabase
-      .from("card_transactions")
-      .update({ status: "later" })
-      .eq("statement_id", data.statementId)
-      .eq("user_id", userId)
-      .eq("status", "pending");
-    await supabase
-      .from("card_statements")
-      .update({ status: "approved" })
-      .eq("id", data.statementId)
-      .eq("user_id", userId);
-    return { ok: true };
+    const { supabase } = context;
+    // Transação única no banco: pendentes viram "verificar depois" e a fatura fecha.
+    const { data: res, error } = await supabase.rpc("finalize_card_statement_rpc", {
+      p_statement_id: data.statementId,
+    });
+    if (error) throw new Error(error.message);
+    const state = Array.isArray(res) ? res[0] : res;
+    if (state?.statement_status !== "approved") {
+      throw new Error("A finalização da fatura não foi confirmada pelo banco de dados.");
+    }
+    return {
+      ok: true as const,
+      approved: Number(state.approved_count ?? 0),
+      later: Number(state.later_count ?? 0),
+    };
   });
