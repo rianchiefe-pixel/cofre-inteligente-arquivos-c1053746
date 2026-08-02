@@ -257,56 +257,69 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Duplicate detection
+    // -------------------------------------------------------------------------
+    // Duplicidade: apenas provas fortes marcam duplicado. Mesmo valor e mesma
+    // data são apenas suspeita — duas despesas legítimas podem coincidir.
+    // -------------------------------------------------------------------------
     let duplicate_of: string | null = null;
-    if (extracted.amount && extracted.payment_date) {
-      const { data: dupes } = await supabase
-        .from("receipts")
-        .select("id")
-        .eq("amount", extracted.amount)
-        .eq("payment_date", extracted.payment_date)
-        .neq("id", rec.id)
-        .limit(1);
-      if (dupes && dupes.length > 0) duplicate_of = dupes[0].id;
-    }
-    if (!duplicate_of && extracted.auth_code) {
-      const { data: dupes } = await supabase
-        .from("receipts")
-        .select("id")
-        .eq("auth_code", extracted.auth_code)
-        .neq("id", rec.id)
-        .limit(1);
-      if (dupes && dupes.length > 0) duplicate_of = dupes[0].id;
-    }
-    if (!duplicate_of && rec.file_hash) {
-      const { data: dupes } = await supabase
+    let score = 0;
+
+    // Prova forte 1: arquivo idêntico (mesmo hash de conteúdo).
+    if (rec.file_hash) {
+      const { data: sameHash, error: hashErr } = await supabase
         .from("receipts")
         .select("id")
         .eq("file_hash", rec.file_hash)
         .neq("id", rec.id)
         .limit(1);
-      if (dupes && dupes.length > 0) duplicate_of = dupes[0].id;
+      if (hashErr) throw new Error(hashErr.message);
+      if (sameHash?.length) {
+        duplicate_of = sameHash[0].id;
+        score = 100;
+      }
     }
 
-    // Compute duplicate_score 0..100
-    let score = 0;
-    if (rec.file_hash) {
-      const { data: sameHash } = await supabase.from("receipts").select("id").eq("file_hash", rec.file_hash).neq("id", rec.id).limit(1);
-      if (sameHash && sameHash.length) score = Math.max(score, 100);
-    }
+    // Prova forte 2: mesmo código de autenticação da transação.
     if (extracted.auth_code) {
-      const { data: sameAuth } = await supabase.from("receipts").select("id").eq("auth_code", extracted.auth_code).neq("id", rec.id).limit(1);
-      if (sameAuth && sameAuth.length) score = Math.max(score, 95);
+      const { data: sameAuth, error: authErr } = await supabase
+        .from("receipts")
+        .select("id")
+        .eq("auth_code", extracted.auth_code)
+        .neq("id", rec.id)
+        .limit(1);
+      if (authErr) throw new Error(authErr.message);
+      if (sameAuth?.length) {
+        duplicate_of = duplicate_of ?? sameAuth[0].id;
+        score = Math.max(score, 95);
+      }
     }
+
+    // Sinal fraco: valor + data iguais. Gera suspeita para revisão humana,
+    // nunca marca como duplicado automaticamente.
     if (extracted.amount && extracted.payment_date) {
-      const { data: sameVD } = await supabase.from("receipts").select("id, recipient_name, bank_name").eq("amount", extracted.amount).eq("payment_date", extracted.payment_date).neq("id", rec.id).limit(3);
-      if (sameVD && sameVD.length) {
-        let s = 60;
+      const { data: sameVD, error: vdErr } = await supabase
+        .from("receipts")
+        .select("id, recipient_name, bank_name, profile_id, auth_code")
+        .eq("amount", extracted.amount)
+        .eq("payment_date", extracted.payment_date)
+        .neq("id", rec.id)
+        .limit(5);
+      if (vdErr) throw new Error(vdErr.message);
+      if (sameVD?.length) {
+        let s = 40; // suspeita base
         for (const d of sameVD) {
-          if (extracted.recipient_name && d.recipient_name && d.recipient_name.toLowerCase() === extracted.recipient_name.toLowerCase()) s += 15;
-          if (extracted.bank_name && d.bank_name && d.bank_name.toLowerCase() === extracted.bank_name.toLowerCase()) s += 10;
+          if (
+            extracted.recipient_name && d.recipient_name &&
+            d.recipient_name.toLowerCase() === extracted.recipient_name.toLowerCase()
+          ) s += 15;
+          if (
+            extracted.bank_name && d.bank_name &&
+            d.bank_name.toLowerCase() === extracted.bank_name.toLowerCase()
+          ) s += 10;
+          if (rec.profile_id && d.profile_id && d.profile_id === rec.profile_id) s += 5;
         }
-        score = Math.max(score, Math.min(s, 90));
+        // Teto abaixo de 80: sem prova forte nunca chega a "duplicado".
+        score = Math.max(score, Math.min(s, 75));
       }
     }
 
@@ -339,11 +352,13 @@ export const approveReceipt = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id, notes").eq("id", data.receiptId).single();
-    const { error } = await context.supabase
+    const { data: updated, error } = await context.supabase
       .from("receipts")
       .update({ status: "approved", approved_at: new Date().toISOString() })
-      .eq("id", data.receiptId);
+      .eq("id", data.receiptId)
+      .select("id");
     if (error) throw new Error(error.message);
+    if (!updated?.length) throw new Error("Comprovante não encontrado ou sem permissão para aprovar.");
     await logAudit(context.supabase, context.userId, {
       action: "approved", entity: "receipt", entity_id: data.receiptId,
       profile_id: prev?.profile_id, property_id: prev?.property_id,
@@ -357,8 +372,13 @@ export const rejectReceipt = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid(), reason: z.enum(["rejected", "duplicate"]).default("rejected"), note: z.string().optional() }).parse(data))
   .handler(async ({ data, context }) => {
     const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id, notes").eq("id", data.receiptId).single();
-    const { error } = await context.supabase.from("receipts").update({ status: data.reason, notes: data.note ?? prev?.notes ?? null }).eq("id", data.receiptId);
+    const { data: updated, error } = await context.supabase
+      .from("receipts")
+      .update({ status: data.reason, notes: data.note ?? prev?.notes ?? null })
+      .eq("id", data.receiptId)
+      .select("id");
     if (error) throw new Error(error.message);
+    if (!updated?.length) throw new Error("Comprovante não encontrado ou sem permissão para alterar.");
     await logAudit(context.supabase, context.userId, {
       action: data.reason === "duplicate" ? "marked_duplicate" : "rejected", entity: "receipt", entity_id: data.receiptId,
       profile_id: prev?.profile_id, property_id: prev?.property_id,
@@ -378,15 +398,29 @@ export const bulkReceiptAction = createServerFn({ method: "POST" })
     const status = map[data.action];
     const patch: any = { status };
     if (data.action === "approve") patch.approved_at = new Date().toISOString();
-    const { error } = await context.supabase.from("receipts").update(patch).in("id", data.receiptIds);
+    const { data: updated, error } = await context.supabase
+      .from("receipts")
+      .update(patch)
+      .in("id", data.receiptIds)
+      .select("id");
     if (error) throw new Error(error.message);
-    for (const id of data.receiptIds) {
+    const changedIds = (updated ?? []).map((r) => r.id);
+    if (changedIds.length === 0) {
+      throw new Error("Nenhum comprovante foi alterado. Verifique suas permissões.");
+    }
+    for (const id of changedIds) {
       await logAudit(context.supabase, context.userId, {
         action: `bulk_${data.action}`, entity: "receipt", entity_id: id,
         new_value: { status },
       });
     }
-    return { ok: true, count: data.receiptIds.length };
+    return {
+      ok: true,
+      count: changedIds.length,
+      requested: data.receiptIds.length,
+      skipped: data.receiptIds.length - changedIds.length,
+      ids: changedIds,
+    };
   });
 
 export const bulkUpdateReceipts = createServerFn({ method: "POST" })
@@ -403,14 +437,28 @@ export const bulkUpdateReceipts = createServerFn({ method: "POST" })
     }),
   }).parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("receipts").update(data.patch as any).in("id", data.receiptIds);
+    const { data: updated, error } = await context.supabase
+      .from("receipts")
+      .update(data.patch as any)
+      .in("id", data.receiptIds)
+      .select("id");
     if (error) throw new Error(error.message);
-    for (const id of data.receiptIds) {
+    const changedIds = (updated ?? []).map((r) => r.id);
+    if (changedIds.length === 0) {
+      throw new Error("Nenhum comprovante foi alterado. Verifique suas permissões.");
+    }
+    for (const id of changedIds) {
       await logAudit(context.supabase, context.userId, {
         action: "bulk_update", entity: "receipt", entity_id: id, new_value: data.patch,
       });
     }
-    return { ok: true, count: data.receiptIds.length };
+    return {
+      ok: true,
+      count: changedIds.length,
+      requested: data.receiptIds.length,
+      skipped: data.receiptIds.length - changedIds.length,
+      ids: changedIds,
+    };
   });
 
 export const deleteReceipts = createServerFn({ method: "POST" })
