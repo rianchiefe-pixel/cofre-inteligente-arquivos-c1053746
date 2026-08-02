@@ -7,12 +7,39 @@
 // ---------------------------------------------------------------------------
 
 import { supabase } from "@/integrations/supabase/client";
-import { formatBrlNumber, parseBrlAmount, parseMoneyToCents, paymentMethodLabel } from "@/lib/format";
+import { formatBrlNumber, parseBrlAmount, parseMoneyToCents, parseOcrMoneyToCents, paymentMethodLabel } from "@/lib/format";
 import { normalizeBank, type ReceiptFacts } from "@/lib/zip-import";
 import { isCardKind } from "@/lib/import-kind";
 import { assertMatchingAmounts } from "./persistence-validator";
+import {
+  isCardStatementFile,
+  isProcessedFile,
+  isSystemFile,
+  isUnreadableFile,
+  isDuplicateFile,
+  matchCardRowToItems,
+  normalizeMerchant,
+  unprocessedReason,
+  type ReconCardItem,
+} from "./reconciliation";
 
-export const MATCHER_BUILD_VERSION = "2026-07-25-sign-magnitude-fix";
+export const MATCHER_BUILD_VERSION = "2026-08-02-single-source-of-truth";
+
+const PAGE_SIZE = 1000;
+
+/** Carrega TODAS as páginas de uma consulta — nenhum limite silencioso. */
+async function fetchAllPages<T>(build: (from: number, to: number) => any): Promise<T[]> {
+  const out: T[] = [];
+  for (let page = 0; page < 200; page += 1) {
+    const from = page * PAGE_SIZE;
+    const { data, error } = await build(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const chunk = (data ?? []) as T[];
+    out.push(...chunk);
+    if (chunk.length < PAGE_SIZE) break;
+  }
+  return out;
+}
 
 
 export type MatchTier = "very_high" | "high" | "review" | "manual_confirmed" | "rejected" | "low" | "none";
