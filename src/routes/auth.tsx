@@ -188,6 +188,18 @@ function AuthPage() {
                 </div>
                 <Button variant="premium" className="w-full" type="submit" disabled={loading}>Criar conta</Button>
               </form>
+              {needsConfirmation && (
+                <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4">
+                  <p className="text-xs font-medium text-foreground">Confirme seu e-mail</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Enviamos um link de confirmação para <strong>{needsConfirmation}</strong>. Depois de confirmar, volte
+                    aqui e entre normalmente.
+                  </p>
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={handleResend} disabled={resending}>
+                    {resending ? "Reenviando…" : "Reenviar e-mail de confirmação"}
+                  </Button>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
 
