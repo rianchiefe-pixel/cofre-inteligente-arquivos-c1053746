@@ -757,6 +757,11 @@ function VaultPage() {
       toast.error("Salve ou descarte as alterações antes de aprovar.");
       return;
     }
+    if (!original) return;
+    if (isDirty) {
+      toast.error("Salve ou descarte as alterações antes de aprovar.");
+      return;
+    }
     setBusy(true);
     try {
       await approve({ data: { receiptId: original.id } });
