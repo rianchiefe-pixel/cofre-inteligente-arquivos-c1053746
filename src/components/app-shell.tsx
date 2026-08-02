@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRoles, hasPermission, highestRole, ROLE_LABEL, type Permission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { seedDemoData, resetDemoData } from "@/lib/demo.functions";
+import { isDemoEmail } from "@/lib/demo";
 
 const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Permission }[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
@@ -49,16 +50,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: roles } = useRoles();
   const top = highestRole(roles);
   const visibleNav = nav.filter((item) => !item.perm || hasPermission(roles, item.perm));
-  const isDemo = email === "demo@meucofre.com";
+  const isDemo = isDemoEmail(email);
   const [resetting, setResetting] = useState(false);
 
   const resetDemo = async () => {
     if (!confirm("Isso restaurará os dados fictícios da conta demo. Deseja continuar?")) return;
     setResetting(true);
     try {
-      await seedDemoData({ data: { reset: true } });
+      const result = await seedDemoData({ data: { reset: true } });
+      if (!result.ok || !result.seeded) throw new Error("O servidor não confirmou o seed.");
       await queryClient.invalidateQueries();
-      toast.success("Dados demo restaurados.");
+      toast.success(
+        result.filesFailed > 0
+          ? `Dados demo restaurados, mas ${result.filesFailed} arquivo(s) não foram removidos do armazenamento.`
+          : "Dados demo restaurados.",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao restaurar dados demo");
     } finally {
@@ -70,9 +76,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!confirm("Isso apagará TODOS os dados da conta demo (zerado). Deseja continuar?")) return;
     setResetting(true);
     try {
-      await resetDemoData();
+      const result = await resetDemoData();
+      if (!result.ok) throw new Error("O servidor não confirmou a limpeza.");
       await queryClient.invalidateQueries();
-      toast.success("Todos os dados demo foram apagados.");
+      toast.success(
+        result.filesFailed > 0
+          ? `Dados apagados, mas ${result.filesFailed} arquivo(s) permaneceram no armazenamento.`
+          : "Todos os dados demo foram apagados.",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao apagar dados demo");
     } finally {
