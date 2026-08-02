@@ -106,6 +106,8 @@ function ImportPage() {
     const stored = localStorage.getItem("mc.import.currentBatch");
     if (!stored) return;
     (async () => {
+      // Um lote parado há muito tempo não pode ficar eternamente "em andamento".
+      await supabase.rpc("fail_stale_import_batches_rpc", { p_minutes: 30 });
       const { data } = await supabase
         .from("import_batches")
         .select("*")
@@ -116,7 +118,18 @@ function ImportPage() {
         return;
       }
       setBatchId(data.id);
-      setPhase((data.phase as Phase) ?? "received");
+      if (data.status === "failed") {
+        setPhase("error");
+        setErrorMsg(
+          "A importação anterior foi interrompida e encerrada automaticamente. Envie a planilha novamente.",
+        );
+        localStorage.removeItem("mc.import.currentBatch");
+      } else if (data.status === "completed") {
+        setPhase("done");
+        localStorage.removeItem("mc.import.currentBatch");
+      } else {
+        setPhase((data.phase as Phase) ?? "received");
+      }
       setProgress(data.progress_percent ?? 0);
       setTotalRows(data.total_rows ?? 0);
       setSavedRows(data.saved_rows ?? 0);
