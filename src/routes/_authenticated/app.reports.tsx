@@ -282,7 +282,8 @@ function ReportsPage() {
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium">{currencyBRL(Number(r.amount ?? 0))}</td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">Nenhum registro nos filtros atuais.</td></tr>}
+              {!data.isLoading && !data.isError && rows.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">Nenhum registro nos filtros atuais.</td></tr>}
+              {data.isError && <tr><td colSpan={6} className="px-4 py-10 text-center text-destructive">Falha ao carregar os lançamentos.</td></tr>}
             </tbody>
           </table>
         </div>
