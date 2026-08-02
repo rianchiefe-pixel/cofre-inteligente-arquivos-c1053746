@@ -274,6 +274,8 @@ export type ExtractOptions = {
 const MAX_ZIP_ENTRIES = 5000;
 const MAX_ENTRY_BYTES = 60 * 1024 * 1024; // 60 MB por arquivo
 const MAX_TOTAL_BYTES = 800 * 1024 * 1024; // 800 MB descompactados por lote
+// Páginas por PDF que podem passar por OCR (evita travar o navegador).
+const MAX_OCR_PAGES = 20;
 
 export async function extractZipToStorage(opts: ExtractOptions): Promise<{
   filesTotal: number;
