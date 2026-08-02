@@ -513,6 +513,16 @@ export type ProcessOptions = {
 export async function processZipFiles(opts: ProcessOptions): Promise<void> {
   const { batchId, userId, runOcr, onProgress, signal } = opts;
 
+  // Registros sem arquivo real no armazenamento recebem motivo explícito e
+  // saem dos contadores de "órfãos"/"ilegíveis" do painel.
+  await supabase
+    .from("import_files")
+    .update({ exclusion_reason: "registro sem arquivo no armazenamento" })
+    .eq("batch_id", batchId)
+    .eq("user_id", userId)
+    .is("storage_path", null)
+    .is("duplicate_of", null);
+
   const { data: files } = await supabase
     .from("import_files")
     .select("id, storage_path, extension, original_path, mime_type")
@@ -636,6 +646,7 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
             status: "error",
             readable: false,
             error_message: e instanceof Error ? e.message : String(e),
+            exclusion_reason: "falha ao ler o conteúdo do arquivo",
           })
           .eq("id", f.id);
       } finally {
