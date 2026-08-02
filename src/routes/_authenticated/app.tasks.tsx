@@ -74,7 +74,8 @@ function TasksPage() {
   const quickStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const patch: any = { status };
-      if (status === "concluida") patch.completed_at = new Date().toISOString();
+      // Alternar rapidamente entre status precisa limpar a data de conclusão.
+      patch.completed_at = status === "concluida" ? new Date().toISOString() : null;
       const { error } = await sb.from("property_tasks").update(patch).eq("id", id);
       if (error) throw error;
     },
