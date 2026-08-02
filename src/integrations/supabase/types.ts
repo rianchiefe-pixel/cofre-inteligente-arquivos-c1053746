@@ -1712,6 +1712,10 @@ export type Database = {
           link_id: string
         }[]
       }
+      fail_stale_import_batches_rpc: {
+        Args: { p_minutes?: number }
+        Returns: number
+      }
       finalize_card_statement_rpc: {
         Args: { p_statement_id: string }
         Returns: {
@@ -1731,6 +1735,13 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      replace_auto_row_links_rpc: {
+        Args: { p_batch_id: string; p_links: Json }
+        Returns: {
+          deleted_links: number
+          inserted_links: number
+        }[]
       }
       require_permission: { Args: { _perm: string }; Returns: string }
       reset_demo_data_rpc: {
