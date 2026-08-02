@@ -35,10 +35,11 @@ run("termo forte + identidade vira alta e categoria específica", () => {
   assert.equal(s.categoryChild, "Emolumentos");
 });
 
-run("indício único isolado não é classificado automaticamente", () => {
+run("indício único isolado fica em confiança baixa (revisão manual)", () => {
   const s = classifyAdvocaciaReceipt({ id: "4", recipient_name: "Cartorio 5 Oficio" });
   assert.equal(s.matched, true);
-  assert.equal(s.confidence, "medium");
+  assert.equal(s.confidence, "low");
+  assert.equal(s.categoryChild, "Cartórios");
 });
 
 run("sem evidência não altera nada", () => {
