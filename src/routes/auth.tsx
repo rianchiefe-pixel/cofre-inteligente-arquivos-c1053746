@@ -8,10 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { ShieldCheck, PlayCircle } from "lucide-react";
-import { ensureDemoUser, seedDemoData } from "@/lib/demo.functions";
-
-const DEMO_EMAIL = "demo@meucofre.com";
-const DEMO_PASSWORD = "demo123456";
+import { startDemoSession, seedDemoData } from "@/lib/demo.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Entrar — Meu Cofre" }, { name: "robots", content: "noindex" }] }),
@@ -23,6 +20,8 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -32,26 +31,50 @@ function AuthPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return toast.error(error.message);
+    if (!data.session) return toast.error("Não foi possível abrir a sessão. Tente novamente.");
     toast.success("Bem-vindo ao Meu Cofre");
     navigate({ to: "/app" });
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    setNeedsConfirmation(null);
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/app` },
+      options: { emailRedirectTo: `${window.location.origin}/auth` },
     });
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Conta criada! Já pode entrar.");
-    navigate({ to: "/app" });
+    // Só navega quando a sessão realmente existe. Com confirmação de e-mail
+    // ativa, o Supabase devolve usuário sem sessão.
+    if (data.session) {
+      toast.success("Conta criada! Bem-vindo ao Meu Cofre.");
+      navigate({ to: "/app" });
+      return;
+    }
+    setNeedsConfirmation(email);
+    toast.info("Confirme seu e-mail para concluir o cadastro.");
+  };
+
+  const handleResend = async () => {
+    if (!needsConfirmation || resending) return;
+    setResending(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: needsConfirmation,
+      options: { emailRedirectTo: `${window.location.origin}/auth` },
+    });
+    setResending(false);
+    if (error) return toast.error(`Não foi possível reenviar: ${error.message}`);
+    toast.success("Enviamos um novo e-mail de confirmação.");
   };
 
   const handleGoogle = async () => {
@@ -60,22 +83,31 @@ function AuthPage() {
   };
 
   const handleDemo = async () => {
+    if (loading) return;
     setLoading(true);
+    let credentials: { email: string; password: string };
     try {
-      await ensureDemoUser();
+      credentials = await startDemoSession();
     } catch (err) {
       setLoading(false);
       return toast.error(err instanceof Error ? err.message : "Não foi possível iniciar o modo teste");
     }
-    const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
-    setLoading(false);
-    if (error) return toast.error("Modo teste indisponível: " + error.message);
-    // seed demo data (idempotente)
-    try {
-      await seedDemoData({ data: {} });
-    } catch (e) {
-      console.warn("demo seed:", e);
+    const { data: session, error } = await supabase.auth.signInWithPassword(credentials);
+    if (error || !session.session) {
+      setLoading(false);
+      return toast.error("Modo teste indisponível: " + (error?.message ?? "sessão não criada"));
     }
+    try {
+      const result = await seedDemoData({ data: {} });
+      if (!result.ok) throw new Error("Seed não confirmado pelo servidor");
+    } catch (e) {
+      setLoading(false);
+      await supabase.auth.signOut();
+      return toast.error(
+        e instanceof Error ? `Modo teste indisponível: ${e.message}` : "Não foi possível preparar os dados de demonstração",
+      );
+    }
+    setLoading(false);
     try {
       sessionStorage.setItem("meucofre:demo", "1");
     } catch {
