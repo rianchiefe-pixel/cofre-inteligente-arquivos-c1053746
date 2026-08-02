@@ -45,6 +45,8 @@ import {
 import { reprocessBatchFacts } from "@/lib/zip-import";
 import { currencyBRL } from "@/lib/format";
 import { isCardKind, ROW_KIND_LABEL, type RowKind } from "@/lib/import-kind";
+import { useServerFn } from "@tanstack/react-start";
+import { getReconciliationSummary } from "@/lib/reconciliation.functions";
 
 const ACCEPTED_RECEIPT_CONFIDENCES = new Set(["high", "very_high"]);
 
@@ -61,6 +63,15 @@ export function ImportMatches({ batchId }: { batchId: string }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<MatchProgress | null>(null);
   const [openRowId, setOpenRowId] = useState<string | null>(null);
+  const fetchSummary = useServerFn(getReconciliationSummary);
+
+  // Fonte única de verdade: o painel NÃO recalcula contadores.
+  const summary = useQuery({
+    queryKey: ["reconciliation-summary", batchId],
+    queryFn: () => fetchSummary({ data: { batchId } }),
+    enabled: !!batchId,
+    refetchInterval: busy ? 4000 : false,
+  });
 
   const rows = useQuery({
     queryKey: ["import-rows-match", batchId],
@@ -70,7 +81,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         .select("id, row_number, transaction_date, amount, payee, description, file_name, folder_path, source_id, invoice_number, bank, card, card_last4, payment_method, holder, page_number, kind")
         .eq("batch_id", batchId)
         .order("row_number")
-        .limit(2000);
+        .limit(20000);
       return data ?? [];
     },
     enabled: !!batchId,
@@ -95,10 +106,10 @@ export function ImportMatches({ batchId }: { batchId: string }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("import_files")
-        .select("id, file_name, original_path, folder, extension, page_count, status, readable, duplicate_of")
+        .select("id, file_name, original_path, folder, extension, page_count, status, readable, duplicate_of, document_type, error_message")
         .eq("batch_id", batchId)
         .order("original_path")
-        .limit(5000);
+        .limit(20000);
       return data ?? [];
     },
     enabled: !!batchId,
@@ -119,64 +130,27 @@ export function ImportMatches({ batchId }: { batchId: string }) {
     return map;
   }, [links.data]);
 
+  // Espelha exatamente o resumo do servidor (mesmos números do JSON).
   const stats = useMemo(() => {
-    const list = rows.data ?? [];
-    const fs = files.data ?? [];
-    let matched = 0;
-    let missing = 0;
-    let inReview = 0;
-    let cardRows = 0;
-    let cardMatched = 0;
-
-    for (const r of list) {
-      const rl = linksByRow.get(r.id) ?? [];
-      const primary = primaryReceiptLink(rl);
-      const hit = !!primary;
-
-      if (isCardKind((r as any).kind)) {
-        cardRows++;
-        if (hit) cardMatched++;
-        continue;
-      }
-
-      if (hit) {
-        matched++;
-      } else {
-        const hasReview = rl.some((l) => l.confidence === "review");
-        if (hasReview) inReview++;
-        else missing++;
-      }
-    }
-
-    const claimed = new Set(
-      (links.data ?? []).filter((l) => l.is_primary).map((l) => l.file_id),
-    );
-    const unreadable = fs.filter(
-      (f: any) => f.readable === false || f.status === "unreadable",
-    ).length;
-    const duplicates = fs.filter((f: any) => f.status === "duplicate").length;
-    const unmatchedFiles = fs.filter(
-      (f: any) =>
-        f.status !== "duplicate" &&
-        f.readable !== false &&
-        f.status !== "unreadable" &&
-        !claimed.has(f.id),
-    ).length;
-    const pendingFiles = fs.filter((f: any) => f.status === "uploaded").length;
-
+    const s = summary.data;
     return {
-      total: list.length,
-      matched,
-      missing,
-      inReview,
-      cardRows,
-      cardMatched,
-      unreadable,
-      duplicates,
-      unmatchedFiles,
-      pendingFiles,
+      total: s?.rows.total ?? 0,
+      matched: s?.rows.matched ?? 0,
+      missing: s?.rows.not_found ?? 0,
+      inReview: s?.rows.needs_review ?? 0,
+      cardRows: s?.rows.card_total ?? 0,
+      cardMatched: s?.rows.card_matched ?? 0,
+      unreadable: s?.files.unreadable ?? 0,
+      duplicates: s?.files.duplicate ?? 0,
+      unmatchedFiles: s?.files.orphan ?? 0,
+      unprocessed: s?.files.unprocessed ?? 0,
+      failed: s?.files.failed ?? 0,
+      statements: s?.files.card_statement ?? 0,
+      filesTotal: s?.files.received ?? 0,
+      pendingFiles: s?.files.unprocessed ?? 0,
+      balanced: (s?.consistency.files_balanced ?? true) && (s?.consistency.rows_balanced ?? true),
     };
-  }, [rows.data, linksByRow, links.data, files.data]);
+  }, [summary.data]);
 
   async function runMatch() {
     setBusy(true);
@@ -194,6 +168,9 @@ export function ImportMatches({ batchId }: { batchId: string }) {
       unmatchedFiles: 0,
       duplicateFiles: 0,
       persistenceRejected: 0,
+      unprocessedFiles: 0,
+      filesTotal: stats.filesTotal,
+      filesDone: 0,
     });
 
     try {
@@ -224,6 +201,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
       );
       qc.invalidateQueries({ queryKey: ["import-row-files", batchId] });
       qc.invalidateQueries({ queryKey: ["import-files-simple", batchId] });
+      qc.invalidateQueries({ queryKey: ["reconciliation-summary", batchId] });
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao cruzar comprovantes");
     } finally {
@@ -242,8 +220,8 @@ export function ImportMatches({ batchId }: { batchId: string }) {
           v.{MATCHER_BUILD_VERSION}
         </span>
         <div className="ml-auto text-xs text-muted-foreground">
-
-          {stats.total} linhas · {stats.pendingFiles > 0 ? `${stats.pendingFiles} arquivos ainda processando` : "análise completa"}
+          {stats.total} linhas · {stats.filesTotal} arquivos ·{" "}
+          {stats.pendingFiles > 0 ? `${stats.pendingFiles} não processados` : "análise completa"}
         </div>
         <Button
           size="sm"
@@ -272,6 +250,9 @@ export function ImportMatches({ batchId }: { batchId: string }) {
               }
               const data = {
                 matcherVersion: MATCHER_BUILD_VERSION,
+                // Mesmos números exibidos no painel (fonte única do servidor)
+                reconciliationSummary: summary.data ?? null,
+                fileReports: summary.data?.file_reports ?? [],
                 summary: {
                   matched: progress.matched,
                   notFound: progress.notFound,
@@ -306,7 +287,7 @@ export function ImportMatches({ batchId }: { batchId: string }) {
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-7">
+      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
         <Bucket label="Vinculados" value={stats.matched} tone="ok" />
         <Bucket 
           label="Possíveis" 
@@ -333,7 +314,24 @@ export function ImportMatches({ batchId }: { batchId: string }) {
           value={stats.duplicates}
           icon={<Copy className="h-3.5 w-3.5" />}
         />
+        <Bucket
+          label="Não processados"
+          value={stats.unprocessed + stats.failed}
+          icon={<FileWarning className="h-3.5 w-3.5" />}
+          tone={stats.unprocessed + stats.failed > 0 ? "warn" : undefined}
+        />
       </div>
+
+      {summary.data && !stats.balanced && (
+        <p className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-400">
+          Divergência de contagem detectada neste lote. Baixe o diagnóstico JSON para ver arquivo por arquivo.
+        </p>
+      )}
+      {stats.statements > 0 && (
+        <p className="mb-3 text-[11px] text-muted-foreground">
+          {stats.statements} fatura(s) de cartão identificadas — os lançamentos são conciliados item a item.
+        </p>
+      )}
 
       {busy && progress && progress.rowsTotal > 0 && (
         <div className="mb-3 space-y-1.5">

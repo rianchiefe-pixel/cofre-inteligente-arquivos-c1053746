@@ -67,6 +67,62 @@ export function parseBrlAmount(raw: unknown): number | null {
 }
 
 /**
+ * Extrai todos os valores monetários de um texto (OCR / PDF) preservando o
+ * token original. Evita a concatenação de dois valores vizinhos
+ * ("R$ 15.987,66 100,00" → dois tokens, nunca um só).
+ */
+export function extractMoneyTokens(text: unknown): string[] {
+  const s = String(text ?? "");
+  if (!s) return [];
+  const re = /-?\s*R?\$?\s*\d{1,3}(?:\.\d{3})+,\d{2}|-?\s*R?\$?\s*\d+,\d{2}/g;
+  return (s.match(re) ?? []).map((t) => t.trim());
+}
+
+/**
+ * Parsing monetário para valores vindos de OCR, onde os separadores podem ter
+ * sido perdidos ("R$ 2.331,64" lido como "R$ 233164").
+ *
+ * Regra determinística:
+ * - com vírgula ou ponto decimal → usa o parser BRL normal;
+ * - sem separador algum e com 5+ dígitos → os dois últimos dígitos são os
+ *   centavos (contexto de OCR que removeu os separadores);
+ * - sem separador e com até 4 dígitos → valor inteiro em reais.
+ *
+ * Nunca multiplica por 100 um valor que já está em centavos.
+ */
+export function parseOcrMoneyToCents(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  if (typeof raw === "number") return Math.round(raw * 100);
+
+  const s = String(raw).trim();
+  if (!s) return null;
+
+  // Texto com mais de um valor: usa o primeiro token monetário completo.
+  const tokens = extractMoneyTokens(s);
+  if (tokens.length > 0) return parseMoneyToCents(tokens[0]);
+
+  const compact = s.replace(/\s+/g, "");
+  const negative = compact.startsWith("-") || (compact.startsWith("(") && compact.endsWith(")"));
+  const cleaned = s.replace(/R\$/gi, "").replace(/[^\d,.]/g, "");
+  if (!cleaned) return null;
+
+  if (!cleaned.includes(",") && !cleaned.includes(".")) {
+    const n = parseInt(cleaned, 10);
+    if (Number.isNaN(n)) return null;
+    const cents = cleaned.length >= 5 ? n : n * 100;
+    return negative ? -cents : cents;
+  }
+
+  return parseMoneyToCents(raw);
+}
+
+/** Comparação financeira canônica: magnitude em centavos inteiros. */
+export function sameMagnitudeCents(a: number | null, b: number | null): boolean {
+  if (a === null || b === null) return false;
+  return Math.abs(a) === Math.abs(b);
+}
+
+/**
  * Nome canônico da função central de parsing monetário brasileiro.
  * Interpreta "1.250.000,00", "1.250,50", "0,50", "-400,00", "R$ 12,00",
  * valores com espaços e valores entre parênteses (negativos).
