@@ -214,7 +214,7 @@ export const analyzeStatement = createServerFn({ method: "POST" })
     const { data: holders } = await supabase
       .from("card_holders")
       .select("id, holder_name, last4")
-      .eq("card_id", stmt.card_id);
+      .eq("card_id", stmt.card_id ?? "");
 
     await supabase
       .from("card_statements")
@@ -279,7 +279,7 @@ export const analyzeStatement = createServerFn({ method: "POST" })
     const { data: existingSeries } = await supabase
       .from("card_transactions")
       .select("original_series_id, installment_current")
-      .eq("card_id", stmt.card_id)
+      .eq("card_id", stmt.card_id ?? "")
       .not("original_series_id", "is", null);
     const existingKeys = new Set(
       (existingSeries ?? []).map(
@@ -308,7 +308,7 @@ export const analyzeStatement = createServerFn({ method: "POST" })
         (t.holder_name && holdersByName.get(normalizeKey(String(t.holder_name)))) ||
         null;
 
-      const series = seriesKey(stmt.card_id, description, amount, t.installment_total ?? null);
+      const series = seriesKey(stmt.card_id ?? "", description, amount, t.installment_total ?? null);
       const dedupKey = `${series}#${t.installment_current ?? ""}`;
       const isDup = existingKeys.has(dedupKey);
       if (isDup) dupCount += 1;
