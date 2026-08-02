@@ -418,6 +418,7 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
         extension: extOf(path),
         status: "error",
         error_message: e instanceof Error ? e.message : String(e),
+        exclusion_reason: "falha no envio do arquivo ao armazenamento",
       });
     } finally {
       progress.filesProcessed += 1;
@@ -437,7 +438,58 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
     })
     .eq("id", batchId);
 
+  // Duplicatas herdam os fatos do arquivo canônico já processado, para que
+  // participem da conciliação e nunca apareçam como "não processadas".
+  await hydrateDuplicateFiles(batchId);
+
   return { filesTotal: entries.length, filesErrors: errors };
+}
+
+// -----------------------------------------------------------------------------
+// Duplicatas: copiam texto/fatos/tipo do arquivo original (mesmo content_hash)
+// -----------------------------------------------------------------------------
+
+export async function hydrateDuplicateFiles(batchId: string): Promise<number> {
+  const { data: dups } = await supabase
+    .from("import_files")
+    .select("id, duplicate_of, extracted_text, ocr_data, document_type")
+    .eq("batch_id", batchId)
+    .not("duplicate_of", "is", null);
+
+  const pending = (dups ?? []).filter((d: any) => !d.extracted_text || !d.ocr_data);
+  if (!pending.length) return 0;
+
+  const parentIds = [...new Set(pending.map((d: any) => d.duplicate_of as string))];
+  const parents = new Map<string, any>();
+  for (let i = 0; i < parentIds.length; i += 200) {
+    const { data } = await supabase
+      .from("import_files")
+      .select("id, extracted_text, ocr_data, page_count, document_type, readable")
+      .in("id", parentIds.slice(i, i + 200));
+    for (const p of data ?? []) parents.set(p.id, p);
+  }
+
+  let updated = 0;
+  for (const d of pending as any[]) {
+    const p = parents.get(d.duplicate_of);
+    if (!p) continue;
+    const text = (p.extracted_text ?? null) as string | null;
+    const { error } = await supabase
+      .from("import_files")
+      .update({
+        extracted_text: d.extracted_text ?? text,
+        ocr_data: d.ocr_data ?? p.ocr_data,
+        page_count: p.page_count ?? null,
+        readable: p.readable ?? (text ? text.trim().length >= 20 : null),
+        document_type:
+          d.document_type && d.document_type !== "unknown"
+            ? d.document_type
+            : (p.document_type ?? "unknown"),
+      })
+      .eq("id", d.id);
+    if (!error) updated += 1;
+  }
+  return updated;
 }
 
 // -----------------------------------------------------------------------------
