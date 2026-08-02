@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { currencyBRL, parseBrlAmount, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
+import { revealPropertyCredential, savePropertyCredential } from "@/lib/credentials.functions";
 import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock } from "lucide-react";
 
 const sb = supabase as any;
@@ -474,12 +476,12 @@ export function CredentialsTab({ propertyId }: { propertyId: string; userId?: st
                   <Button size="sm" variant="ghost" onClick={() => copy(c.id + "_l", c.login)}>{copied === c.id + "_l" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</Button>
                 </div>
               )}
-              {c.password && (
+              {c.password_set_at && (
                 <div className="mt-1 grid grid-cols-[80px_minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
                   <span className="text-muted-foreground">Senha</span>
-                  <span className="truncate font-mono">{visible[c.id] ? c.password : "••••••••"}</span>
-                  <Button size="sm" variant="ghost" onClick={() => setVisible((v) => ({ ...v, [c.id]: !v[c.id] }))}>{visible[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}</Button>
-                  <Button size="sm" variant="ghost" onClick={() => copy(c.id + "_p", c.password)}>{copied === c.id + "_p" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</Button>
+                  <span className="truncate font-mono">{revealed[c.id] ?? "••••••••"}</span>
+                  <Button size="sm" variant="ghost" disabled={revealing === c.id} onClick={() => toggleReveal(c.id)}>{revealed[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => copyPassword(c.id)}>{copied === c.id + "_p" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</Button>
                 </div>
               )}
               {c.recovery_email && <p className="mt-2 text-xs text-muted-foreground">Recuperação: {c.recovery_email}</p>}
