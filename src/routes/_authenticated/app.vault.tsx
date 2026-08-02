@@ -762,7 +762,7 @@ function VaultPage() {
       await approve({ data: { receiptId: original.id } });
       toast.success("Aprovado");
       invalidate();
-      closeEditing();
+      await goToNextPending(original.id);
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao aprovar");
     } finally {
@@ -783,7 +783,7 @@ function VaultPage() {
       });
       toast.success("Comprovante rejeitado");
       invalidate();
-      closeEditing();
+      await goToNextPending(original.id);
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao rejeitar");
     } finally {
