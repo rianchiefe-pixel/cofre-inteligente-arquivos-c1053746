@@ -121,6 +121,7 @@ function ReportsPage() {
       brand,
       summary: [
         { label: "Total geral", value: currencyBRL(total) },
+        { label: "Gasto do mês (sem investimentos)", value: currencyBRL(total - totalInvested) },
         { label: "Investido", value: currencyBRL(totalInvested) },
         { label: "Gasto fixo", value: currencyBRL(totalFixed) },
         { label: "Gasto variável", value: currencyBRL(totalVariable) },
@@ -203,6 +204,15 @@ function ReportsPage() {
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Ticket médio</p><p className="mt-2 text-2xl font-bold">{currencyBRL(rows.length ? total / rows.length : 0)}</p></Card>
       </div>
 
+      {data.isError && (
+        <Card className="grid gap-3 border-destructive/40 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <p className="text-sm text-destructive">
+            Não foi possível carregar os lançamentos: {(data.error as any)?.message ?? "erro desconhecido"}. Os totais acima não representam o período.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => data.refetch()}><RefreshCw className="h-4 w-4" /> Tentar novamente</Button>
+        </Card>
+      )}
+
       <Card className="p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
@@ -230,17 +240,18 @@ function ReportsPage() {
               <p className="mt-1 text-xl font-bold">{currencyBRL(ledger.data?.totals.total ?? 0)}</p>
             </div>
             <div>
+              <p className="text-xs uppercase text-muted-foreground">Gasto (sem investimentos)</p>
+              <p className="mt-1 text-xl font-bold">{currencyBRL(ledger.data?.totals.spend ?? 0)}</p>
+              <p className="text-[11px] text-muted-foreground">investido: {currencyBRL(ledger.data?.totals.invested ?? 0)}</p>
+            </div>
+            <div>
               <p className="text-xs uppercase text-muted-foreground">Comprovantes</p>
               <p className="mt-1 text-xl font-bold">{currencyBRL(ledger.data?.totals.receipts ?? 0)}</p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Cartões</p>
               <p className="mt-1 text-xl font-bold">{currencyBRL(ledger.data?.totals.cards ?? 0)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">Fora do total</p>
-              <p className="mt-1 text-xl font-bold">{ledger.data?.totals.excluded ?? 0}</p>
-              <p className="text-[11px] text-muted-foreground">pagamentos de fatura e ajustes internos</p>
+              <p className="text-[11px] text-muted-foreground">{ledger.data?.totals.excluded ?? 0} fora do total (pagamentos de fatura)</p>
             </div>
           </div>
         )}
@@ -260,7 +271,8 @@ function ReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {rows.map((r: any) => (
+              {data.isLoading && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">Carregando lançamentos…</td></tr>}
+              {!data.isLoading && rows.map((r: any) => (
                 <tr key={r.id} className="hover:bg-muted/40">
                   <td className="whitespace-nowrap px-4 py-3">{dateBR(r.payment_date)}</td>
                   <td className="px-4 py-3">{r.recipient_name ?? "—"}</td>
