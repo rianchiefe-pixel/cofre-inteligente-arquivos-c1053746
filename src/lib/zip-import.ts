@@ -267,13 +267,19 @@ export type ExtractOptions = {
   file: File;
   runOcr?: boolean;
   onProgress?: ZipProgressCallback;
+  signal?: AbortSignal;
 };
+
+// Limites de segurança contra "ZIP bomb" e arquivos absurdos.
+const MAX_ZIP_ENTRIES = 5000;
+const MAX_ENTRY_BYTES = 60 * 1024 * 1024; // 60 MB por arquivo
+const MAX_TOTAL_BYTES = 800 * 1024 * 1024; // 800 MB descompactados por lote
 
 export async function extractZipToStorage(opts: ExtractOptions): Promise<{
   filesTotal: number;
   filesErrors: number;
 }> {
-  const { batchId, userId, file, onProgress } = opts;
+  const { batchId, userId, file, onProgress, signal } = opts;
 
   const zip = await JSZip.loadAsync(file);
   const entries: { path: string; entry: JSZip.JSZipObject }[] = [];
@@ -284,6 +290,12 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
     if (!clean) return;
     entries.push({ path: clean, entry });
   });
+
+  if (entries.length > MAX_ZIP_ENTRIES) {
+    throw new Error(
+      `O ZIP contém ${entries.length} arquivos, acima do limite de ${MAX_ZIP_ENTRIES}. Divida o envio em partes menores.`,
+    );
+  }
 
   const progress: ZipProgress = {
     filesFound: entries.length,
@@ -297,25 +309,43 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
   onProgress?.(progress);
 
   let errors = 0;
+  let totalBytes = 0;
 
   for (const { path, entry } of entries) {
+    if (signal?.aborted) break;
     progress.currentFile = path;
     try {
       const blob = await entry.async("blob");
       const buf = await blob.arrayBuffer();
+      if (buf.byteLength > MAX_ENTRY_BYTES) {
+        throw new Error(
+          `Arquivo maior que o limite de ${Math.round(MAX_ENTRY_BYTES / 1024 / 1024)} MB`,
+        );
+      }
+      totalBytes += buf.byteLength;
+      if (totalBytes > MAX_TOTAL_BYTES) {
+        throw new Error(
+          `Conteúdo descompactado passou de ${Math.round(MAX_TOTAL_BYTES / 1024 / 1024)} MB. Envio interrompido por segurança.`,
+        );
+      }
       const hash = await sha256Hex(buf);
       const name = path.split("/").pop() ?? path;
       const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
       const ext = extOf(name);
       const mime = blob.type || guessMime(ext);
 
-      // Duplicate detection (same hash for this user)
-      const { data: existing } = await supabase
+      // Duplicidade por conteúdo: sempre aponte para o arquivo ORIGINAL
+      // (o canônico, que tem duplicate_of nulo e caminho real no armazenamento).
+      const { data: canonicals } = await supabase
         .from("import_files")
-        .select("id")
+        .select("id, storage_path")
         .eq("user_id", userId)
         .eq("content_hash", hash)
-        .maybeSingle();
+        .is("duplicate_of", null)
+        .not("storage_path", "is", null)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      const existing = canonicals?.[0] ?? null;
 
       // Upload to private storage
       const storagePath = `import/${userId}/${batchId}/${hash.slice(0, 2)}/${hash}-${name}`;
