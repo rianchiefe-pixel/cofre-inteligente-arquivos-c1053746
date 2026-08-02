@@ -554,6 +554,118 @@ export type Database = {
           },
         ]
       }
+      classification_rules: {
+        Row: {
+          active: boolean
+          category_id: string | null
+          cost_center_id: string | null
+          created_at: string
+          id: string
+          name: string
+          profile_id: string
+          property_id: string | null
+          terms: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          category_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          profile_id: string
+          property_id?: string | null
+          terms?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          profile_id?: string
+          property_id?: string | null
+          terms?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classification_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_rules_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_rules_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_rules_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_centers: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          profile_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          profile_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          profile_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_centers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_profiles: {
         Row: {
           accent_color: string | null
@@ -1145,6 +1257,7 @@ export type Database = {
           cartorio: string | null
           cep: string | null
           city: string | null
+          cost_center_id: string | null
           cover_url: string | null
           created_at: string
           id: string
@@ -1169,6 +1282,7 @@ export type Database = {
           cartorio?: string | null
           cep?: string | null
           city?: string | null
+          cost_center_id?: string | null
           cover_url?: string | null
           created_at?: string
           id?: string
@@ -1193,6 +1307,7 @@ export type Database = {
           cartorio?: string | null
           cep?: string | null
           city?: string | null
+          cost_center_id?: string | null
           cover_url?: string | null
           created_at?: string
           id?: string
@@ -1211,6 +1326,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "properties_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "properties_profile_id_fkey"
             columns: ["profile_id"]
@@ -1463,6 +1585,7 @@ export type Database = {
           bank_name: string | null
           card_id: string | null
           category_id: string | null
+          cost_center_id: string | null
           created_at: string
           description: string | null
           duplicate_of: string | null
@@ -1503,6 +1626,7 @@ export type Database = {
           bank_name?: string | null
           card_id?: string | null
           category_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           duplicate_of?: string | null
@@ -1543,6 +1667,7 @@ export type Database = {
           bank_name?: string | null
           card_id?: string | null
           category_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           duplicate_of?: string | null
@@ -1601,6 +1726,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
             referencedColumns: ["id"]
           },
           {
@@ -1727,6 +1859,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_holding_organization_rpc: {
+        Args: { p_items: Json; p_profile_id: string; p_run_id: string }
+        Returns: {
+          applied: boolean
+          reason: string
+          receipt_id: string
+        }[]
+      }
       approve_import_row_rpc: {
         Args: { p_overrides?: Json; p_row_id: string }
         Returns: {
@@ -1788,6 +1928,13 @@ export type Database = {
           confidence: string
           is_primary: boolean
           link_id: string
+        }[]
+      }
+      ensure_cost_center_rpc: {
+        Args: { p_name: string; p_profile_id: string }
+        Returns: {
+          cost_center_id: string
+          created: boolean
         }[]
       }
       fail_stale_import_batches_rpc: {
@@ -1856,6 +2003,12 @@ export type Database = {
           confidence: string
           is_primary: boolean
           link_id: string
+        }[]
+      }
+      undo_holding_organization_rpc: {
+        Args: { p_run_id: string }
+        Returns: {
+          reverted: number
         }[]
       }
       upsert_account_rpc: {
