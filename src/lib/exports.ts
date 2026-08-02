@@ -187,7 +187,13 @@ export function exportXLSX<T>(payload: ReportPayload<T>) {
   // Data sheet
   const dataAoA: any[][] = [payload.columns.map((c) => c.header)];
   payload.rows.forEach((r) => {
-    dataAoA.push(payload.columns.map((c) => (c.get ? c.get(r) : (r as any)[c.key])));
+    dataAoA.push(
+      payload.columns.map((c) => {
+        const raw = c.get ? c.get(r) : (r as any)[c.key];
+        // Números permanecem números; apenas texto recebe proteção anti-fórmula.
+        return typeof raw === "number" ? raw : sanitizeSpreadsheetValue(raw);
+      }),
+    );
   });
   const wsData = XLSX.utils.aoa_to_sheet(dataAoA);
   wsData["!cols"] = payload.columns.map((c) => ({ wch: c.width ?? Math.max(12, c.header.length + 4) }));
