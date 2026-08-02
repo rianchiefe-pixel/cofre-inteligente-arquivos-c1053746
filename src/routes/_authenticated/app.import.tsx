@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -91,11 +92,12 @@ function ImportPage() {
   const profilesQ = useQuery({
     queryKey: ["profiles-min"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("financial_profiles")
         .select("id, name")
         .eq("archived", false)
         .order("name");
+      if (error) throw new Error(error.message);
       return data ?? [];
     },
   });
@@ -147,11 +149,12 @@ function ImportPage() {
   const history = useQuery({
     queryKey: ["import-batches"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("import_batches")
         .select("id, file_name, total_rows, saved_rows, phase, status, created_at, header_row, separator")
         .order("created_at", { ascending: false })
         .limit(20);
+      if (error) throw new Error(error.message);
       return data ?? [];
     },
   });
@@ -550,11 +553,19 @@ function ImportPage() {
           </Button>
         </div>
         {history.isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando…</p>
+          <LoadingState label="Carregando importações…" />
+        ) : history.isError ? (
+          <ErrorState
+            error={history.error}
+            title="Não foi possível carregar o histórico de importações"
+            retrying={history.isFetching}
+            onRetry={() => history.refetch()}
+          />
         ) : (history.data ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhuma importação registrada ainda.
-          </p>
+          <EmptyState
+            title="Nenhuma importação registrada"
+            description="Envie um extrato em CSV, Excel ou ZIP para começar a conciliação."
+          />
         ) : (
           <div className="divide-y divide-border">
             {(history.data ?? []).map((b) => (
