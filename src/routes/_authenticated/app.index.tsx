@@ -168,8 +168,19 @@ function Dashboard() {
         </div>
       </Card>
 
+      {dashboard.isError && (
+        <Card className="grid gap-3 border-destructive/40 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <p className="text-sm text-destructive">
+            Não foi possível carregar os dados do dashboard: {(dashboard.error as any)?.message ?? "erro desconhecido"}. Os números abaixo não são confiáveis.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => dashboard.refetch()}><RefreshCw className="h-4 w-4" /> Tentar novamente</Button>
+        </Card>
+      )}
+
+      {dashboard.isLoading && <p className="text-sm text-muted-foreground">Carregando indicadores do mês…</p>}
+
       <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Gasto no mês" value={currencyBRL(totalMonth)} icon={Wallet} />
+        <StatCard label="Gasto no mês (sem investimentos)" value={currencyBRL(totalMonth)} icon={Wallet} />
         <StatCard label="Investido no mês" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
         <StatCard label="Comprovantes aprovados" value={String(approvedReceipts.length)} icon={FileStack} tone="gold" />
         <StatCard label={pending > 0 ? "Pendentes de conferência" : "Possíveis duplicados"} value={String(pending || duplicates)} icon={AlertTriangle} tone={pending > 0 ? "warn" : "primary"} />
