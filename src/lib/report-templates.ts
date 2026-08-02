@@ -3,7 +3,8 @@ import autoTable from "jspdf-autotable";
 import { axisMoney, drawHBarChart, drawLineChart, type RGB } from "@/lib/report-charts";
 import { logExport } from "@/lib/exports";
 import { currencyBRL, dateBR } from "@/lib/format";
-import type { CategoryRow, LedgerEntry, MonthBlock, ReportDataset } from "@/lib/report-data";
+import { centsToNumber, type CategoryRow, type LedgerEntry, type MonthBlock, type ReportDataset } from "@/lib/report-data";
+import { assertReportDataset } from "@/lib/report-validation";
 
 const OLIVE: RGB = [198, 187, 33];
 const CREAM: RGB = [235, 230, 200];
@@ -42,6 +43,7 @@ function band(doc: jsPDF, y: number, x: number, w: number, text: string, fill: R
  * MODELO 1 — RELATÓRIO DE GASTOS (mês, categoria e subcategoria)
  * ========================================================================= */
 export async function generateMonthlyExpenseReport(data: ReportDataset, opts?: { title?: string }) {
+  assertReportDataset(data);
   const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
@@ -279,20 +281,34 @@ function consolidateCategories(data: ReportDataset, key: "despesaBlock" | "inves
   const map = new Map<string, number>();
   for (const m of data.months) for (const c of m[key].categories) map.set(c.name, (map.get(c.name) ?? 0) + c.value);
   const total = [...map.values()].reduce((s, v) => s + v, 0);
-  return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value, pct: total ? (value / total) * 100 : 0 }));
+  return [...map.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, value]) => ({ name, value, cents: Math.round(value * 100), pct: total ? (value / total) * 100 : 0 }));
 }
 
 /* =========================================================================
  * MODELO 2 — RELATÓRIO DE GASTOS FIXOS E VARIÁVEIS
+ * Um único snapshot (ReportDataset) alimenta tabelas, KPIs e gráficos.
  * ========================================================================= */
 export async function generateFixedVariableReport(data: ReportDataset) {
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const validation = assertReportDataset(data);
+
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const margin = 48;
   const contentW = pw - margin * 2;
+  const bottom = ph - margin;
 
-  // Capa / cabeçalho
+  const ensure = (y: number, needed: number) => {
+    if (y + needed > bottom) {
+      doc.addPage();
+      return margin;
+    }
+    return y;
+  };
+
+  // Cabeçalho
   let y = margin + 10;
   doc.setDrawColor(NAVY[0], NAVY[1], NAVY[2]);
   doc.setLineWidth(1.2);
@@ -301,81 +317,137 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   doc.setFontSize(16);
   doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
   doc.text("RELATÓRIO DE GASTOS FIXOS E VARIÁVEIS", pw / 2, y + 24, { align: "center" });
+  doc.setLineWidth(0.8);
   doc.line(margin, y + 36, margin + contentW, y + 36);
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(10.5);
   doc.setTextColor(30, 30, 30);
   doc.text(`Período: ${data.periodLabel}`, pw / 2, y + 56, { align: "center" });
   y += 78;
 
-  // 1. Resumo geral
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
-  doc.text("1. Resumo geral", margin, y);
-  doc.setTextColor(0, 0, 0);
-  const resumoBody = data.months.map((m) => [`${m.label} de ${m.year}`, money(m.fixed), money(m.variable), money(m.fixed + m.variable)]);
-  resumoBody.push(["TOTAL", money(data.totals.fixed), money(data.totals.variable), money(data.totals.fixed + data.totals.variable)]);
+  // 1. Resumo geral — Mês | Fixos | Variáveis | Total do mês
+  y = sectionTitle(doc, "1. Resumo geral", margin, y);
+  const resumoBody = data.months.map((m) => [
+    `${m.label} de ${m.year}`,
+    money(m.fixed),
+    money(m.variable),
+    money(centsToNumber(m.fixedCents + m.variableCents)),
+  ]);
+  resumoBody.push([
+    "TOTAL DO PERÍODO",
+    money(data.totals.fixed),
+    money(data.totals.variable),
+    money(centsToNumber(data.totals.fixedCents + data.totals.variableCents)),
+  ]);
   autoTable(doc, {
     startY: y + 10,
     head: [["Mês", "Gastos fixos", "Gastos variáveis", "Total do mês"]],
     body: resumoBody,
     theme: "grid",
-    styles: { fontSize: 9, cellPadding: 5, lineColor: [180, 190, 205], lineWidth: 0.4 },
+    rowPageBreak: "avoid",
+    styles: { fontSize: 9.5, cellPadding: 5, lineColor: [180, 190, 205], lineWidth: 0.4, textColor: [20, 20, 20] },
     headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
-    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+    columnStyles: { 0: { halign: "left" }, 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
     didParseCell: (d) => {
-      if (d.section === "body" && d.row.index === resumoBody.length - 1) { d.cell.styles.fillColor = NAVY_ROW; d.cell.styles.fontStyle = "bold"; }
+      if (d.section === "body" && d.row.index === resumoBody.length - 1) {
+        d.cell.styles.fillColor = NAVY_ROW;
+        d.cell.styles.fontStyle = "bold";
+      }
     },
     margin: { left: margin, right: margin },
   });
   y = lastY(doc) + 26;
 
   // 2. Detalhamento mensal
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
-  doc.text("2. Detalhamento mensal", margin, y);
-  doc.setTextColor(0, 0, 0);
-  y += 12;
+  y = ensure(y, 60);
+  y = sectionTitle(doc, "2. Detalhamento mensal", margin, y);
+  y += 6;
 
   data.months.forEach((m, idx) => {
-    if (idx > 0 || y > ph - 260) { doc.addPage(); y = margin; }
-    y = drawMonthSection(doc, m, idx + 1, margin, contentW, ph, y);
+    doc.addPage();
+    y = drawMonthSection(doc, m, idx + 1, margin, contentW, ph, margin);
   });
+
+  // Lançamentos pendentes de classificação
+  if (data.diagnostics.unclassified.length) {
+    doc.addPage();
+    y = sectionTitle(doc, "Lançamentos pendentes de classificação", margin, margin + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(90, 90, 90);
+    doc.text(
+      "Despesas sem classificação de gasto fixo ou variável no lançamento e na categoria. Os valores continuam somados no total de despesas.",
+      margin,
+      y + 12,
+      { maxWidth: contentW },
+    );
+    doc.setTextColor(0, 0, 0);
+    autoTable(doc, {
+      startY: y + 28,
+      head: [["Data", "Descrição", "Categoria", "Subcategoria", "Valor", "ID do lançamento"]],
+      body: data.diagnostics.unclassified.map((e) => [
+        dateBR(e.date),
+        e.notes || e.payee,
+        e.category,
+        e.subcategory,
+        money(e.amount),
+        e.id,
+      ]),
+      theme: "grid",
+      rowPageBreak: "avoid",
+      styles: { fontSize: 7.5, cellPadding: 3.5, overflow: "linebreak", lineColor: [180, 190, 205], lineWidth: 0.4 },
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
+      columnStyles: {
+        0: { cellWidth: contentW * 0.09, halign: "center" },
+        1: { cellWidth: contentW * 0.26 },
+        2: { cellWidth: contentW * 0.16 },
+        3: { cellWidth: contentW * 0.16 },
+        4: { cellWidth: contentW * 0.12, halign: "right" },
+        5: { cellWidth: contentW * 0.21, fontSize: 6 },
+      },
+      margin: { left: margin, right: margin },
+    });
+  }
 
   // 3. Consolidado geral
   doc.addPage();
-  y = margin;
-  y = highlightHeading(doc, "3. Consolidado geral", margin, y);
+  y = highlightHeading(doc, "3. Consolidado geral", margin, margin + 14);
   const consolidatedBody = [
     ["Gastos fixos", money(data.totals.fixed)],
     ["Gastos variáveis", money(data.totals.variable)],
+    ["Gastos não classificados", money(data.totals.unclassified)],
     ["Despesas", money(data.totals.despesas)],
     ["Investimentos", money(data.totals.investimentos)],
-    ["Total do período", money(data.totals.total)],
+    ["Total financeiro do período", money(data.totals.total)],
   ];
   autoTable(doc, {
-    startY: y + 10,
-    head: [["Indicador", "Valor"]],
+    startY: y + 12,
+    head: [["Indicador", "Valor do período"]],
     body: consolidatedBody,
     theme: "grid",
+    rowPageBreak: "avoid",
     styles: { fontSize: 9.5, cellPadding: 5, lineColor: [180, 190, 205], lineWidth: 0.4 },
     headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
     columnStyles: { 1: { halign: "right" } },
     didParseCell: (d) => {
-      if (d.section === "body" && d.row.index === consolidatedBody.length - 1) { d.cell.styles.fillColor = NAVY_ROW; d.cell.styles.fontStyle = "bold"; }
+      if (d.section === "body" && d.row.index === consolidatedBody.length - 1) {
+        d.cell.styles.fillColor = NAVY_ROW;
+        d.cell.styles.fontStyle = "bold";
+      }
     },
     margin: { left: margin, right: margin },
   });
   y = lastY(doc) + 24;
 
   if (data.months.length) {
+    const chartH = Math.min(320, ph - margin - y);
+    if (chartH < 220) { doc.addPage(); y = margin; }
     drawLineChart(doc, {
       x: margin,
       y,
       w: contentW,
-      h: Math.min(300, ph - y - margin),
-      title: "Evolução mensal - despesas, investimentos e gastos fixos/variáveis",
+      h: Math.min(320, ph - margin - y),
+      title: "Evolução mensal — despesas, investimentos e gastos fixos/variáveis",
       categories: data.months.map((m) => `${m.label.slice(0, 3)}/${String(m.year).slice(2)}`),
       series: [
         { name: "Total do mês", color: NAVY, values: data.months.map((m) => m.total) },
@@ -389,7 +461,22 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   }
 
   doc.save(`relatorio-gastos-fixos-variaveis-${data.from}-a-${data.to}.pdf`);
-  return logExport({ reportKind: "relatorio_gastos_fixos_variaveis", format: "pdf", filters: { from: data.from, to: data.to }, rowCount: data.entries.length });
+  const logged = await logExport({
+    reportKind: "relatorio_gastos_fixos_variaveis",
+    format: "pdf",
+    filters: { ...data.meta.filters, from: data.from, to: data.to },
+    rowCount: data.entries.length,
+  });
+  return { ...logged, warnings: validation.warnings };
+}
+
+function sectionTitle(doc: jsPDF, text: string, x: number, y: number) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
+  doc.text(text, x, y);
+  doc.setTextColor(0, 0, 0);
+  return y;
 }
 
 function highlightHeading(doc: jsPDF, text: string, x: number, y: number) {
@@ -404,7 +491,9 @@ function highlightHeading(doc: jsPDF, text: string, x: number, y: number) {
   return y + 16;
 }
 
-function categoryTable(doc: jsPDF, label: string, rows: CategoryRow[], total: number, margin: number, contentW: number, y: number) {
+function categoryTable(doc: jsPDF, label: string, rows: CategoryRow[], total: number, margin: number, contentW: number, y: number, ph: number) {
+  // Nunca deixar o título separado da tabela nem só o cabeçalho no pé da página.
+  if (y + 70 > ph - margin) { doc.addPage(); y = margin; }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
@@ -417,15 +506,16 @@ function categoryTable(doc: jsPDF, label: string, rows: CategoryRow[], total: nu
     head: [["Categoria", "Valor"]],
     body,
     theme: "grid",
-    styles: { fontSize: 8.5, cellPadding: 4, lineColor: [180, 190, 205], lineWidth: 0.4 },
+    rowPageBreak: "avoid",
+    styles: { fontSize: 8.5, cellPadding: 4, overflow: "linebreak", lineColor: [180, 190, 205], lineWidth: 0.4 },
     headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
-    columnStyles: { 0: { cellWidth: contentW * 0.66 }, 1: { halign: "right" } },
+    columnStyles: { 0: { cellWidth: contentW * 0.66, halign: "left" }, 1: { halign: "right" } },
     didParseCell: (d) => {
       if (d.section === "body" && d.row.index === body.length - 1) { d.cell.styles.fillColor = NAVY_ROW; d.cell.styles.fontStyle = "bold"; }
     },
     margin: { left: margin, right: margin },
   });
-  return lastY(doc) + 16;
+  return lastY(doc) + 18;
 }
 
 function drawMonthSection(doc: jsPDF, m: MonthBlock, index: number, margin: number, contentW: number, ph: number, startY: number) {
@@ -433,26 +523,29 @@ function drawMonthSection(doc: jsPDF, m: MonthBlock, index: number, margin: numb
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   const heading = `2.${index} ${m.label} de ${m.year}`;
-  const w = doc.getTextWidth(heading) + 12;
+  const w = doc.getTextWidth(heading) + 14;
   doc.setFillColor(YELLOW[0], YELLOW[1], YELLOW[2]);
   doc.rect(margin + (contentW - w) / 2, y - 12, w, 18, "F");
   doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
   doc.text(heading, margin + contentW / 2, y + 1, { align: "center" });
   doc.setTextColor(0, 0, 0);
-  y += 24;
+  y += 26;
 
-  y = categoryTable(doc, "Gastos fixos", m.fixedCategories, m.fixed, margin, contentW, y);
-  if (y > ph - 200) { doc.addPage(); y = margin; }
-  y = categoryTable(doc, "Gastos variáveis", m.variableCategories, m.variable, margin, contentW, y);
+  y = categoryTable(doc, "Gastos fixos", m.fixedCategories, m.fixed, margin, contentW, y, ph);
+  y = categoryTable(doc, "Gastos variáveis", m.variableCategories, m.variable, margin, contentW, y, ph);
+  if (m.unclassifiedCents > 0) {
+    y = categoryTable(doc, "Gastos não classificados", m.unclassifiedCategories, m.unclassified, margin, contentW, y, ph);
+  }
 
-  // Faixa de indicadores do mês
-  if (y > ph - 150) { doc.addPage(); y = margin; }
+  // Resumo do mês (KPIs) — mesmos números das tabelas e do gráfico.
+  if (y + 80 > ph - margin) { doc.addPage(); y = margin; }
   autoTable(doc, {
     startY: y,
     head: [["Total do mês", "Despesas", "Investimentos", "Gastos Fixos", "Gastos Variáveis"]],
     body: [[money(m.total), money(m.despesas), money(m.investimentos), money(m.fixed), money(m.variable)]],
     theme: "grid",
-    styles: { fontSize: 8.5, cellPadding: 5, halign: "center", lineColor: [180, 190, 205], lineWidth: 0.4 },
+    rowPageBreak: "avoid",
+    styles: { fontSize: 8.5, cellPadding: 6, halign: "center", lineColor: [180, 190, 205], lineWidth: 0.4 },
     headStyles: { fillColor: KPI_HEAD, textColor: NAVY_TEXT, fontStyle: "bold", halign: "center" },
     didParseCell: (d) => {
       if (d.section !== "body") return;
@@ -464,16 +557,17 @@ function drawMonthSection(doc: jsPDF, m: MonthBlock, index: number, margin: numb
     },
     margin: { left: margin, right: margin },
   });
-  y = lastY(doc) + 20;
+  y = lastY(doc) + 22;
 
-  // Comparativo do mês
-  if (y > ph - 190) { doc.addPage(); y = margin; }
+  // Comparativo mensal — gráfico inteiro na página, nunca cortado.
+  const chartH = 180;
+  if (y + chartH > ph - margin) { doc.addPage(); y = margin; }
   drawHBarChart(doc, {
     x: margin,
     y,
     w: contentW,
-    h: 170,
-    title: `Comparativo - ${m.label} de ${m.year}`,
+    h: chartH,
+    title: `Comparativo mensal — ${m.label} de ${m.year}`,
     items: [
       { label: "Gastos variáveis", value: m.variable, valueLabel: money(m.variable), color: TAN_LIGHT },
       { label: "Gastos fixos", value: m.fixed, valueLabel: money(m.fixed), color: TAN },
@@ -481,12 +575,12 @@ function drawMonthSection(doc: jsPDF, m: MonthBlock, index: number, margin: numb
       { label: "Despesas", value: m.despesas, valueLabel: money(m.despesas), color: RED },
       { label: "Total do mês", value: m.total, valueLabel: money(m.total), color: NAVY },
     ],
-    labelWidth: 96,
-    valueGap: 90,
-    fontSize: 7,
+    labelWidth: 100,
+    valueGap: 96,
+    fontSize: 7.5,
     valueFontStyle: "bold",
     axisFormatter: axisMoney,
     frame: false,
   });
-  return y + 178;
+  return y + chartH + 10;
 }
