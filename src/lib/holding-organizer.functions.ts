@@ -41,7 +41,7 @@ export const applyHoldingAdvocaciaPlan = createServerFn({ method: "POST" })
     const { data: result, error } = await supabase.rpc("apply_holding_organization_rpc", {
       p_profile_id: data.profileId,
       p_run_id: runId,
-      p_items: resolved.items,
+      p_items: resolved.items as unknown as never,
     });
     if (error) throw new Error(error.message);
 
