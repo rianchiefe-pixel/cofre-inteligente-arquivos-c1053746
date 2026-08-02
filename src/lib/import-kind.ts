@@ -84,6 +84,29 @@ export function isCardKind(kind?: string | null): boolean {
   return kind === "cartao_credito" || kind === "cartao_fatura";
 }
 
+/**
+ * Detector determinístico de lançamento de cartão de crédito, usado tanto pelo
+ * filtro da conferência quanto pelas ações em massa no servidor.
+ * Usa somente campos oficiais da linha (nada de sugestões de IA).
+ */
+export function isCreditCardRow(row: {
+  kind?: string | null;
+  payment_method?: string | null;
+  card?: string | null;
+  card_last4?: string | null;
+  description?: string | null;
+  category?: string | null;
+}): boolean {
+  if (isCardKind(row.kind)) return true;
+  if (row.card && String(row.card).trim()) return true;
+  if (row.card_last4 && String(row.card_last4).trim()) return true;
+  const method = norm(row.payment_method);
+  if (/credito|cart[aã]o/.test(method)) return true;
+  return isCardKind(
+    classifyRowKind(row.description ?? null, row.payment_method ?? null, row.category ?? null),
+  );
+}
+
 /** Rótulo humano em pt-BR. */
 export const ROW_KIND_LABEL: Record<RowKind, string> = {
   cartao_credito: "Cartão de crédito",
