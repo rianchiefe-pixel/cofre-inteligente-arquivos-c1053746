@@ -9,8 +9,25 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   createStatement,
   analyzeStatement,
+  attachStatementFile,
 } from "@/lib/card-statement.functions";
 import { extractStatementText, sha256Hex } from "@/lib/card-statement-client";
+
+const MAX_SIZE_BYTES = 25 * 1024 * 1024;
+const ALLOWED_EXT = ["pdf", "png", "jpg", "jpeg", "webp", "xlsx", "xls", "csv"];
+
+function sanitizeFileName(name: string) {
+  const dot = name.lastIndexOf(".");
+  const base = (dot > 0 ? name.slice(0, dot) : name)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+  const ext = (dot > 0 ? name.slice(dot + 1) : "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return `${base || "fatura"}${ext ? `.${ext}` : ""}`;
+}
 
 export function CardStatementImport({
   cardId,
@@ -26,23 +43,66 @@ export function CardStatementImport({
   const [err, setErr] = useState<string | null>(null);
   const createFn = useServerFn(createStatement);
   const analyzeFn = useServerFn(analyzeStatement);
+  const attachFn = useServerFn(attachStatementFile);
 
   async function handleFile(file: File) {
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!ALLOWED_EXT.includes(ext)) {
+      const msg = "Formato não suportado. Use PDF, imagem, planilha ou CSV.";
+      setErr(msg);
+      toast.error(msg);
+      return;
+    }
+    if (file.size === 0) {
+      const msg = "O arquivo está vazio.";
+      setErr(msg);
+      toast.error(msg);
+      return;
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      const msg = "Arquivo maior que 25 MB. Envie um arquivo menor.";
+      setErr(msg);
+      toast.error(msg);
+      return;
+    }
     setBusy(true);
     setErr(null);
     setPct(2);
-    setStage("Enviando arquivo");
+    setStage("Verificando arquivo");
+    let uploadedPath: string | null = null;
     try {
       const buf = await file.arrayBuffer();
       const hash = await sha256Hex(buf);
 
-      // Upload no bucket receipts
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sem sessão");
-      const path = `card-statements/${u.user.id}/${hash}-${file.name}`;
-      await supabase.storage
+
+      // Registra primeiro: se a fatura já existe, nada é enviado ao armazenamento.
+      setStage("Registrando fatura");
+      setPct(6);
+      const created = await createFn({
+        data: {
+          cardId,
+          sourceFileName: sanitizeFileName(file.name),
+          sourceHash: hash,
+          pagesTotal: null,
+        },
+      });
+      if (created.duplicate) {
+        toast.warning("Esta fatura já foi importada anteriormente.");
+        onDone?.(created.statementId);
+        return;
+      }
+
+      setStage("Enviando arquivo");
+      setPct(8);
+      const path = `card-statements/${u.user.id}/${hash}-${sanitizeFileName(file.name)}`;
+      const { error: upErr } = await supabase.storage
         .from("receipts")
         .upload(path, file, { upsert: true, contentType: file.type || undefined });
+      if (upErr) throw new Error(`Falha ao enviar o arquivo: ${upErr.message}`);
+      uploadedPath = path;
+      await attachFn({ data: { statementId: created.statementId, sourceFilePath: path } });
 
       setStage("Lendo páginas");
       setPct(10);
@@ -54,22 +114,7 @@ export function CardStatementImport({
       if (!text || text.trim().length < 20) {
         throw new Error("Não foi possível extrair texto legível da fatura");
       }
-
-      setStage("Registrando fatura");
-      const created = await createFn({
-        data: {
-          cardId,
-          sourceFileName: file.name,
-          sourceHash: hash,
-          sourceFilePath: path,
-          pagesTotal: pages,
-        },
-      });
-      if (created.duplicate) {
-        toast.warning("Esta fatura já foi importada anteriormente.");
-        onDone?.(created.statementId);
-        return;
-      }
+      void pages;
 
       setStage("Analisando lançamentos com IA (isso pode demorar)");
       setPct(80);
@@ -85,6 +130,11 @@ export function CardStatementImport({
       onDone?.(created.statementId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      // Limpa arquivo órfão: o registro da fatura não chegou a ser concluído.
+      if (uploadedPath) {
+        const { error: rmErr } = await supabase.storage.from("receipts").remove([uploadedPath]);
+        if (rmErr) console.warn("[fatura] arquivo órfão não removido:", uploadedPath, rmErr.message);
+      }
       setErr(msg);
       toast.error(msg);
     } finally {
