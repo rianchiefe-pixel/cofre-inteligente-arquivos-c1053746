@@ -31,7 +31,7 @@ async function encryptPassword(plain: string): Promise<string> {
   const key = await getKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const cipher = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plain)),
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv as unknown as BufferSource }, key, new TextEncoder().encode(plain)),
   );
   return `v1.${toBase64(iv)}.${toBase64(cipher)}`;
 }
@@ -41,9 +41,9 @@ async function decryptPassword(payload: string): Promise<string> {
   if (parts.length !== 3 || parts[0] !== "v1") throw new Error("Formato de senha inválido");
   const key = await getKey();
   const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: fromBase64(parts[1]) },
+    { name: "AES-GCM", iv: fromBase64(parts[1]) as unknown as BufferSource },
     key,
-    fromBase64(parts[2]),
+    fromBase64(parts[2]) as unknown as BufferSource,
   );
   return new TextDecoder().decode(plain);
 }
@@ -83,7 +83,7 @@ export const savePropertyCredential = createServerFn({ method: "POST" })
         recovery_email: data.recovery_email,
         notes: data.notes,
       },
-      p_password_cipher: cipher,
+      p_password_cipher: cipher ?? "",
       p_password_changed: passwordChanged,
     });
     if (error) throw new Error(error.message);
