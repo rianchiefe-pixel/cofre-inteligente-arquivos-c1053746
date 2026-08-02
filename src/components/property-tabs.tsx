@@ -671,20 +671,27 @@ export function PropertyTasksTab({ propertyId, userId }: { propertyId: string; u
   const quickStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const patch: any = { status };
-      if (status === "concluida") patch.completed_at = new Date().toISOString();
-      const { error } = await sb.from("property_tasks").update(patch).eq("id", id);
-      if (error) throw error;
+      // Reabrir uma tarefa concluída precisa zerar a data de conclusão.
+      patch.completed_at = status === "concluida" ? new Date().toISOString() : null;
+      const { data, error } = await sb.from("property_tasks").update(patch).eq("id", id).select("id");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) throw new Error("Nenhuma tarefa foi atualizada.");
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks", propertyId] }); qc.invalidateQueries({ queryKey: ["tasks-all"] }); },
+    onSuccess: () => { toast.success("Status atualizado"); qc.invalidateQueries({ queryKey: ["tasks", propertyId] }); qc.invalidateQueries({ queryKey: ["tasks-all"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível atualizar o status"),
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await sb.from("property_tasks").delete().eq("id", id);
-      if (error) throw error;
+      const { data, error } = await sb.from("property_tasks").delete().eq("id", id).select("id");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) throw new Error("A exclusão não foi confirmada pelo banco de dados.");
     },
     onSuccess: () => { toast.success("Tarefa excluída"); qc.invalidateQueries({ queryKey: ["tasks", propertyId] }); qc.invalidateQueries({ queryKey: ["tasks-all"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível excluir a tarefa"),
   });
+
+  const busy = save.isPending || quickStatus.isPending || remove.isPending;
 
   const openEdit = (t: any) => {
     setForm({
@@ -701,21 +708,23 @@ export function PropertyTasksTab({ propertyId, userId }: { propertyId: string; u
           <h3 className="text-lg font-semibold">Tarefas do imóvel</h3>
           <p className="text-sm text-muted-foreground">Pendências, reformas, documentação e acompanhamento.</p>
         </div>
-        <Button variant="premium" size="sm" onClick={() => { setForm(emptyTask); setOpen(true); }}><Plus className="h-4 w-4" /> Nova tarefa</Button>
+        <Button variant="premium" size="sm" disabled={busy} onClick={() => { setForm(emptyTask); setOpen(true); }}><Plus className="h-4 w-4" /> Nova tarefa</Button>
       </div>
 
-      {list.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> :
-       (list.data?.length ?? 0) === 0 ? (
-        <p className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">Nenhuma tarefa cadastrada.</p>
+      {list.isLoading ? <LoadingState label="Carregando tarefas…" /> :
+       list.isError ? (
+        <ErrorState error={list.error} onRetry={() => list.refetch()} retrying={list.isFetching} title="Não foi possível carregar as tarefas" />
+       ) : (list.data?.length ?? 0) === 0 ? (
+        <EmptyState title="Nenhuma tarefa cadastrada" description="Registre pendências, reformas e prazos deste imóvel." />
        ) : (
         <div className="space-y-2">
           {list.data!.map((t) => (
-            <TaskRow key={t.id} t={t} onEdit={() => openEdit(t)} onQuickStatus={(s) => quickStatus.mutate({ id: t.id, status: s })} onRemove={() => remove.mutate(t.id)} />
+            <TaskRow key={t.id} t={t} busy={busy} onEdit={() => openEdit(t)} onQuickStatus={(s) => { if (busy) return; quickStatus.mutate({ id: t.id, status: s }); }} onRemove={() => { if (busy) return; remove.mutate(t.id); }} />
           ))}
         </div>
        )}
 
-      <TaskEditor open={open} onOpenChange={(o) => { setOpen(o); if (!o) setForm(emptyTask); }} form={form} setForm={setForm} onSave={() => save.mutate()} saving={save.isPending} />
+      <TaskEditor open={open} onOpenChange={(o) => { setOpen(o); if (!o) setForm(emptyTask); }} form={form} setForm={setForm} onSave={() => { if (save.isPending) return; save.mutate(); }} saving={save.isPending} />
     </Card>
   );
 }
