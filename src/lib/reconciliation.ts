@@ -293,7 +293,7 @@ export interface FileReport {
   duplicate_of: string | null;
   document_type: string;
   extracted_text_length: number;
-  extracted_amount_raw: unknown;
+  extracted_amount_raw: string | number | null;
   extracted_amount_cents: number | null;
   extracted_date: string | null;
   extracted_payee: string | null;
@@ -459,10 +459,11 @@ export function summarizeReconciliation(input: {
             ? "credit_card_statement"
             : "receipt",
       extracted_text_length: textLength,
-      extracted_amount_raw: amountRaw,
+      extracted_amount_raw:
+        typeof amountRaw === "string" || typeof amountRaw === "number" ? amountRaw : null,
       extracted_amount_cents: parseOcrMoneyToCents(amountRaw),
-      extracted_date: ocr.date ?? null,
-      extracted_payee: ocr.payee ?? null,
+      extracted_date: ocr.date ? String(ocr.date) : null,
+      extracted_payee: ocr.payee ? String(ocr.payee) : null,
       linked_row_ids: linkedRowsByFile.get(file.id) ?? [],
       candidate_row_ids: candidateRowsByFile.get(file.id) ?? [],
     });
