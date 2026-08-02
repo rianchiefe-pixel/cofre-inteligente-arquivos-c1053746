@@ -3,7 +3,8 @@ import autoTable from "jspdf-autotable";
 import { axisMoney, drawHBarChart, drawLineChart, type RGB } from "@/lib/report-charts";
 import { logExport } from "@/lib/exports";
 import { currencyBRL, dateBR } from "@/lib/format";
-import type { CategoryRow, LedgerEntry, MonthBlock, ReportDataset } from "@/lib/report-data";
+import { centsToNumber, type CategoryRow, type LedgerEntry, type MonthBlock, type ReportDataset } from "@/lib/report-data";
+import { assertReportDataset } from "@/lib/report-validation";
 
 const OLIVE: RGB = [198, 187, 33];
 const CREAM: RGB = [235, 230, 200];
@@ -42,6 +43,7 @@ function band(doc: jsPDF, y: number, x: number, w: number, text: string, fill: R
  * MODELO 1 — RELATÓRIO DE GASTOS (mês, categoria e subcategoria)
  * ========================================================================= */
 export async function generateMonthlyExpenseReport(data: ReportDataset, opts?: { title?: string }) {
+  assertReportDataset(data);
   const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
