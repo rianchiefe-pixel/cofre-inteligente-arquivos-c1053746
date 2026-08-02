@@ -131,8 +131,8 @@ function PropertiesPage() {
         purpose: (form.purpose || null) as any,
         profile_id: form.profile_id || null,
         acquisition_date: form.acquisition_date || null,
-        acquisition_value: form.acquisition_value ? Number(form.acquisition_value.replace(",", ".")) : null,
-        market_value: form.market_value ? Number(form.market_value.replace(",", ".")) : null,
+        acquisition_value: centsToNumber(parseBrlAmountToCents(form.acquisition_value)),
+        market_value: centsToNumber(parseBrlAmountToCents(form.market_value)),
         cover_url: form.cover_url || null,
       };
       if (editId) {
