@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseBrlAmount } from "@/lib/format";
+import { isCreditCardRow } from "@/lib/import-kind";
 
 // ---------------------------------------------------------------------------
 // Parte 2 — Classificação e organização pela IA (server functions)
