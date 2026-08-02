@@ -292,17 +292,23 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
 type CredForm = { id?: string; service: string; website: string; access_link: string; login: string; password: string; recovery_email: string; notes: string; };
 const emptyCred: CredForm = { service: "", website: "", access_link: "", login: "", password: "", recovery_email: "", notes: "" };
 
-export function CredentialsTab({ propertyId, userId }: { propertyId: string; userId: string }) {
+const CRED_COLUMNS = "id, property_id, service, website, access_link, login, recovery_email, notes, password_set_at, created_at";
+
+export function CredentialsTab({ propertyId }: { propertyId: string; userId?: string }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CredForm>(emptyCred);
-  const [visible, setVisible] = useState<Record<string, boolean>>({});
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [revealing, setRevealing] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const saveCredential = useServerFn(savePropertyCredential);
+  const revealCredential = useServerFn(revealPropertyCredential);
 
   const list = useQuery({
     queryKey: ["credentials", propertyId],
     queryFn: async () => {
-      const { data, error } = await sb.from("property_credentials").select("*").eq("property_id", propertyId).order("created_at", { ascending: false });
+      // A senha nunca é lida em consultas gerais — apenas via ação explícita.
+      const { data, error } = await sb.from("property_credentials").select(CRED_COLUMNS).eq("property_id", propertyId).order("created_at", { ascending: false });
       if (error) throw error;
       return data as any[];
     },
@@ -310,21 +316,28 @@ export function CredentialsTab({ propertyId, userId }: { propertyId: string; use
 
   const save = useMutation({
     mutationFn: async () => {
-      const payload: any = {
-        user_id: userId, property_id: propertyId,
-        service: form.service, website: form.website || null, access_link: form.access_link || null,
-        login: form.login || null, password: form.password || null,
-        recovery_email: form.recovery_email || null, notes: form.notes || null,
-      };
-      if (form.id) {
-        const { error } = await sb.from("property_credentials").update(payload).eq("id", form.id);
-        if (error) throw error;
-      } else {
-        const { error } = await sb.from("property_credentials").insert(payload);
-        if (error) throw error;
-      }
+      return await saveCredential({
+        data: {
+          id: form.id ?? null,
+          property_id: propertyId,
+          service: form.service,
+          website: form.website || null,
+          access_link: form.access_link || null,
+          login: form.login || null,
+          recovery_email: form.recovery_email || null,
+          notes: form.notes || null,
+          // Em edição, campo vazio significa "manter a senha atual".
+          password: form.id ? (form.password ? form.password : null) : (form.password || null),
+        },
+      });
     },
-    onSuccess: () => { toast.success("Acesso salvo"); setOpen(false); setForm(emptyCred); qc.invalidateQueries({ queryKey: ["credentials", propertyId] }); },
+    onSuccess: () => {
+      toast.success("Acesso salvo");
+      setOpen(false);
+      setForm(emptyCred);
+      setRevealed({});
+      qc.invalidateQueries({ queryKey: ["credentials", propertyId] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -339,9 +352,41 @@ export function CredentialsTab({ propertyId, userId }: { propertyId: string; use
   const openEdit = (c: any) => {
     setForm({
       id: c.id, service: c.service ?? "", website: c.website ?? "", access_link: c.access_link ?? "",
-      login: c.login ?? "", password: c.password ?? "", recovery_email: c.recovery_email ?? "", notes: c.notes ?? "",
+      login: c.login ?? "", password: "", recovery_email: c.recovery_email ?? "", notes: c.notes ?? "",
     });
     setOpen(true);
+  };
+
+  const toggleReveal = async (id: string) => {
+    if (revealed[id]) {
+      setRevealed((v) => { const next = { ...v }; delete next[id]; return next; });
+      return;
+    }
+    setRevealing(id);
+    try {
+      const res = await revealCredential({ data: { id } });
+      if (!res.password) { toast.error("Senha não cadastrada"); return; }
+      setRevealed((v) => ({ ...v, [id]: res.password! }));
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao revelar senha");
+    } finally {
+      setRevealing(null);
+    }
+  };
+
+  const copyPassword = async (id: string) => {
+    let value = revealed[id];
+    if (!value) {
+      try {
+        const res = await revealCredential({ data: { id } });
+        if (!res.password) { toast.error("Senha não cadastrada"); return; }
+        value = res.password;
+      } catch (e: any) {
+        toast.error(e?.message ?? "Falha ao copiar senha");
+        return;
+      }
+    }
+    await copy(id + "_p", value);
   };
 
   const copy = async (id: string, value: string) => {
