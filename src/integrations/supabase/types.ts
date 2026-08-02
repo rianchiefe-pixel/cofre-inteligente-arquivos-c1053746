@@ -216,12 +216,15 @@ export type Database = {
       card_statements: {
         Row: {
           bank_name: string | null
-          card_id: string
+          batch_id: string | null
+          card_id: string | null
           closing_date: string | null
           created_at: string
+          document_type: string
           due_date: string | null
           error: string | null
           id: string
+          import_file_id: string | null
           minimum_payment: number | null
           pages_total: number | null
           period_end: string | null
@@ -239,12 +242,15 @@ export type Database = {
         }
         Insert: {
           bank_name?: string | null
-          card_id: string
+          batch_id?: string | null
+          card_id?: string | null
           closing_date?: string | null
           created_at?: string
+          document_type?: string
           due_date?: string | null
           error?: string | null
           id?: string
+          import_file_id?: string | null
           minimum_payment?: number | null
           pages_total?: number | null
           period_end?: string | null
@@ -262,12 +268,15 @@ export type Database = {
         }
         Update: {
           bank_name?: string | null
-          card_id?: string
+          batch_id?: string | null
+          card_id?: string | null
           closing_date?: string | null
           created_at?: string
+          document_type?: string
           due_date?: string | null
           error?: string | null
           id?: string
+          import_file_id?: string | null
           minimum_payment?: number | null
           pages_total?: number | null
           period_end?: string | null
@@ -285,10 +294,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "card_statements_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "card_statements_card_id_fkey"
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_statements_import_file_id_fkey"
+            columns: ["import_file_id"]
+            isOneToOne: false
+            referencedRelation: "import_files"
             referencedColumns: ["id"]
           },
         ]
@@ -297,7 +320,7 @@ export type Database = {
         Row: {
           amount: number | null
           card_holder_id: string | null
-          card_id: string
+          card_id: string | null
           category: string | null
           confidence: number | null
           country: string | null
@@ -311,11 +334,17 @@ export type Database = {
           kind: string | null
           last4: string | null
           low_confidence: boolean | null
+          match_score: number | null
+          match_status: string
+          matched_import_row_id: string | null
+          merchant_normalized: string | null
           notes: string | null
           original_series_id: string | null
+          page_number: number | null
           profile_id: string | null
           property_id: string | null
           raw: Json | null
+          raw_text: string | null
           statement_id: string
           status: string
           txn_date: string | null
@@ -325,7 +354,7 @@ export type Database = {
         Insert: {
           amount?: number | null
           card_holder_id?: string | null
-          card_id: string
+          card_id?: string | null
           category?: string | null
           confidence?: number | null
           country?: string | null
@@ -339,11 +368,17 @@ export type Database = {
           kind?: string | null
           last4?: string | null
           low_confidence?: boolean | null
+          match_score?: number | null
+          match_status?: string
+          matched_import_row_id?: string | null
+          merchant_normalized?: string | null
           notes?: string | null
           original_series_id?: string | null
+          page_number?: number | null
           profile_id?: string | null
           property_id?: string | null
           raw?: Json | null
+          raw_text?: string | null
           statement_id: string
           status?: string
           txn_date?: string | null
@@ -353,7 +388,7 @@ export type Database = {
         Update: {
           amount?: number | null
           card_holder_id?: string | null
-          card_id?: string
+          card_id?: string | null
           category?: string | null
           confidence?: number | null
           country?: string | null
@@ -367,11 +402,17 @@ export type Database = {
           kind?: string | null
           last4?: string | null
           low_confidence?: boolean | null
+          match_score?: number | null
+          match_status?: string
+          matched_import_row_id?: string | null
+          merchant_normalized?: string | null
           notes?: string | null
           original_series_id?: string | null
+          page_number?: number | null
           profile_id?: string | null
           property_id?: string | null
           raw?: Json | null
+          raw_text?: string | null
           statement_id?: string
           status?: string
           txn_date?: string | null
@@ -391,6 +432,13 @@ export type Database = {
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_transactions_matched_import_row_id_fkey"
+            columns: ["matched_import_row_id"]
+            isOneToOne: false
+            referencedRelation: "import_rows"
             referencedColumns: ["id"]
           },
           {
@@ -696,8 +744,10 @@ export type Database = {
           batch_id: string
           content_hash: string | null
           created_at: string
+          document_type: string
           duplicate_of: string | null
           error_message: string | null
+          exclusion_reason: string | null
           extension: string | null
           extracted_text: string | null
           file_name: string
@@ -720,8 +770,10 @@ export type Database = {
           batch_id: string
           content_hash?: string | null
           created_at?: string
+          document_type?: string
           duplicate_of?: string | null
           error_message?: string | null
+          exclusion_reason?: string | null
           extension?: string | null
           extracted_text?: string | null
           file_name: string
@@ -744,8 +796,10 @@ export type Database = {
           batch_id?: string
           content_hash?: string | null
           created_at?: string
+          document_type?: string
           duplicate_of?: string | null
           error_message?: string | null
+          exclusion_reason?: string | null
           extension?: string | null
           extracted_text?: string | null
           file_name?: string
