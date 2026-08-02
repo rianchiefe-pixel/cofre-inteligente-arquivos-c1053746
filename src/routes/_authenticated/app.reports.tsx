@@ -10,21 +10,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@/lib/format";
+import { monthRange } from "@/lib/date-range";
 import { useCan } from "@/lib/permissions";
 import { ExportMenu } from "@/components/export-menu";
 import type { ReportPayload } from "@/lib/exports";
+import { RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/reports")({
-  head: () => ({ meta: [{ title: "Relatórios — Meu Cofre" }] }),
+  head: () => ({
+    meta: [
+      { title: "Relatórios — Meu Cofre" },
+      { name: "description", content: "Filtre, consolide e exporte comprovantes e lançamentos de cartão em PDF, Excel ou CSV." },
+      { property: "og:title", content: "Relatórios — Meu Cofre" },
+      { property: "og:description", content: "Razão financeiro unificado com exportações auditadas." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ReportsPage,
 });
 
 function ReportsPage() {
   const canExport = useCan("exportReports");
-  const today = new Date();
-  const first = new Date(today.getFullYear(), today.getMonth(), 1);
-  const [from, setFrom] = useState(first.toISOString().slice(0, 10));
-  const [to, setTo] = useState(today.toISOString().slice(0, 10));
+  const initialRange = monthRange();
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
   const [profileId, setProfileId] = useState("all");
   const [type, setType] = useState("all");
   const [propertyId, setPropertyId] = useState("all");
@@ -41,15 +51,29 @@ function ReportsPage() {
   const data = useQuery({
     queryKey: ["report", from, to, profileId, type, propertyId],
     queryFn: async () => {
-      let q = supabase.from("receipts").select("*, categories(name), financial_profiles(name), properties(name)").eq("status", "approved").order("payment_date", { ascending: false });
-      if (from) q = q.gte("payment_date", from);
-      if (to) q = q.lte("payment_date", to);
-      if (profileId !== "all") q = q.eq("profile_id", profileId);
-      if (type !== "all") q = q.eq("transaction_type", type as any);
-      if (propertyId !== "all") q = q.eq("property_id", propertyId);
-      const { data, error } = await q.limit(1000);
-      if (error) throw error;
-      return data;
+      // Paginação completa: sem teto artificial de 1.000 registros.
+      const PAGE = 1000;
+      const all: any[] = [];
+      for (let offset = 0; offset < 100000; offset += PAGE) {
+        let q = supabase
+          .from("receipts")
+          .select("*, categories(name), financial_profiles(name), properties(name)")
+          .eq("status", "approved")
+          .order("payment_date", { ascending: false })
+          .order("id", { ascending: true })
+          .range(offset, offset + PAGE - 1);
+        if (from) q = q.gte("payment_date", from);
+        if (to) q = q.lte("payment_date", to);
+        if (profileId !== "all") q = q.eq("profile_id", profileId);
+        if (type !== "all") q = q.eq("transaction_type", type as any);
+        if (propertyId !== "all") q = q.eq("property_id", propertyId);
+        const { data, error } = await q;
+        if (error) throw error;
+        const page = data ?? [];
+        all.push(...page);
+        if (page.length < PAGE) break;
+      }
+      return all;
     },
   });
 
@@ -67,7 +91,6 @@ function ReportsPage() {
           profileId: profileId === "all" ? null : profileId,
           propertyId: propertyId === "all" ? null : propertyId,
           includeCards: true,
-          limit: 2000,
         },
       }),
   });
