@@ -211,10 +211,13 @@ export const analyzeStatement = createServerFn({ method: "POST" })
     if (!stmt) throw new Error("Fatura não encontrada");
 
     const card = (stmt as any).cards;
-    const { data: holders } = await supabase
-      .from("card_holders")
-      .select("id, holder_name, last4")
-      .eq("card_id", stmt.card_id ?? "");
+    const statementCardId: string | null = stmt.card_id ?? null;
+    const { data: holders } = statementCardId
+      ? await supabase
+          .from("card_holders")
+          .select("id, holder_name, last4")
+          .eq("card_id", statementCardId)
+      : { data: [] as Array<{ id: string; holder_name: string; last4: string | null }> };
 
     await supabase
       .from("card_statements")
@@ -276,11 +279,13 @@ export const analyzeStatement = createServerFn({ method: "POST" })
       .eq("id", stmt.id);
 
     // Carrega histórico de séries desse cartão para não recriar parcelas.
-    const { data: existingSeries } = await supabase
-      .from("card_transactions")
-      .select("original_series_id, installment_current")
-      .eq("card_id", stmt.card_id ?? "")
-      .not("original_series_id", "is", null);
+    const { data: existingSeries } = statementCardId
+      ? await supabase
+          .from("card_transactions")
+          .select("original_series_id, installment_current")
+          .eq("card_id", statementCardId)
+          .not("original_series_id", "is", null)
+      : { data: [] as Array<{ original_series_id: string | null; installment_current: number | null }> };
     const existingKeys = new Set(
       (existingSeries ?? []).map(
         (r) => `${r.original_series_id}#${r.installment_current ?? ""}`,
@@ -308,7 +313,7 @@ export const analyzeStatement = createServerFn({ method: "POST" })
         (t.holder_name && holdersByName.get(normalizeKey(String(t.holder_name)))) ||
         null;
 
-      const series = seriesKey(stmt.card_id ?? "", description, amount, t.installment_total ?? null);
+      const series = seriesKey(statementCardId ?? stmt.id, description, amount, t.installment_total ?? null);
       const dedupKey = `${series}#${t.installment_current ?? ""}`;
       const isDup = existingKeys.has(dedupKey);
       if (isDup) dupCount += 1;
