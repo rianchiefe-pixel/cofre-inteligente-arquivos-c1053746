@@ -73,7 +73,7 @@ export const savePropertyCredential = createServerFn({ method: "POST" })
     if (passwordChanged && data.password) cipher = await encryptPassword(data.password);
 
     const { data: result, error } = await supabase.rpc("upsert_property_credential_rpc", {
-      p_id: data.id ?? null,
+      p_id: (data.id ?? null) as unknown as string,
       p_property_id: data.property_id,
       p_credential: {
         service: data.service,
