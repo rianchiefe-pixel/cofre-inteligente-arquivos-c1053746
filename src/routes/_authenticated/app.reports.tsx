@@ -64,7 +64,12 @@ function ReportsPage() {
         toast.warning(`Relatório gerado, mas a auditoria falhou: ${result.auditError ?? "motivo desconhecido"}`);
         return;
       }
-      toast.success("Relatório gerado e registrado na auditoria.");
+      const warnings = (result as any)?.warnings as Array<{ message: string }> | undefined;
+      if (warnings?.length) {
+        toast.warning(`Relatório gerado com ${warnings.length} alerta(s) de conferência.`, { description: warnings[0].message });
+        return;
+      }
+      toast.success("Relatório gerado, conferido e registrado na auditoria.");
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao gerar o relatório.");
     } finally {
