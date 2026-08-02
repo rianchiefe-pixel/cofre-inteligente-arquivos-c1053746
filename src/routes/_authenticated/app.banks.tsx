@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { accountTypeLabel } from "@/lib/format";
-import { Plus, Landmark, Pencil, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Landmark, Pencil, Trash2 } from "lucide-react";
+import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/banks")({
   head: () => ({
@@ -147,10 +148,12 @@ function BanksPage() {
       {!hasProfiles && <Card className="p-6 text-sm text-muted-foreground">Crie um perfil primeiro em <strong>Perfis</strong>.</Card>}
 
       {(banks.isError || accounts.isError) && (
-        <Card className="grid gap-3 p-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-          <p className="text-sm text-destructive">Não foi possível carregar bancos e contas.</p>
-          <Button variant="outline" size="sm" onClick={() => { banks.refetch(); accounts.refetch(); }}><RefreshCw className="h-4 w-4" /> Tentar novamente</Button>
-        </Card>
+        <ErrorState
+          error={banks.error ?? accounts.error}
+          title="Não foi possível carregar bancos e contas"
+          retrying={banks.isFetching || accounts.isFetching}
+          onRetry={() => { banks.refetch(); accounts.refetch(); }}
+        />
       )}
 
       <section>
@@ -160,7 +163,7 @@ function BanksPage() {
             <Plus className="h-4 w-4" /> Novo banco
           </Button>
         </div>
-        {banks.isLoading && <p className="text-sm text-muted-foreground">Carregando bancos…</p>}
+        {banks.isLoading && <LoadingState label="Carregando bancos…" />}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {bankList.map((b: any) => (
             <Card key={b.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-4">
@@ -177,7 +180,7 @@ function BanksPage() {
               </div>
             </Card>
           ))}
-          {!banks.isLoading && bankList.length === 0 && <p className="text-sm text-muted-foreground">Nenhum banco cadastrado.</p>}
+          {!banks.isLoading && !banks.isError && bankList.length === 0 && <EmptyState title="Nenhum banco cadastrado" description="Cadastre os bancos usados nos seus lançamentos." />}
         </div>
       </section>
 
@@ -188,7 +191,7 @@ function BanksPage() {
             <Plus className="h-4 w-4" /> Nova conta
           </Button>
         </div>
-        {accounts.isLoading && <p className="text-sm text-muted-foreground">Carregando contas…</p>}
+        {accounts.isLoading && <LoadingState label="Carregando contas…" />}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {accList.map((a: any) => (
             <Card key={a.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 p-4">
@@ -203,14 +206,14 @@ function BanksPage() {
               </div>
             </Card>
           ))}
-          {!accounts.isLoading && accList.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma conta cadastrada.</p>}
+          {!accounts.isLoading && !accounts.isError && accList.length === 0 && <EmptyState title="Nenhuma conta cadastrada" description="Vincule contas correntes, poupanças e investimentos aos seus bancos." />}
         </div>
       </section>
 
       <Dialog open={openBank} onOpenChange={(o) => { setOpenBank(o); if (!o) { setBankId(null); setBank({ ...emptyBank }); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{bankId ? "Editar banco" : "Novo banco"}</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); saveBank.mutate(); }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); if (busy) return; saveBank.mutate(); }} className="space-y-4">
             <div className="space-y-2"><Label>Nome</Label><Input required value={bank.name} onChange={(e) => setBank({ ...bank, name: e.target.value })} placeholder="Ex.: Itaú" /></div>
             <div className="space-y-2">
               <Label>Perfil</Label>
@@ -232,7 +235,7 @@ function BanksPage() {
       <Dialog open={openAcc} onOpenChange={(o) => { setOpenAcc(o); if (!o) { setAccId(null); setAcc({ ...emptyAcc }); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{accId ? "Editar conta" : "Nova conta"}</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); saveAcc.mutate(); }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); if (busy) return; saveAcc.mutate(); }} className="space-y-4">
             <div className="space-y-2"><Label>Apelido</Label><Input required value={acc.nickname} onChange={(e) => setAcc({ ...acc, nickname: e.target.value })} placeholder="Ex.: Conta principal" /></div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -284,7 +287,7 @@ function BanksPage() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setRemoveBank(null)}>Cancelar</Button>
-              <Button variant="destructive" disabled={deleteBank.isPending} onClick={() => removeBank && deleteBank.mutate({ id: removeBank.id, to: reassign || null })}>Excluir</Button>
+              <Button variant="destructive" disabled={deleteBank.isPending} onClick={() => { if (busy) return; removeBank && deleteBank.mutate({ id: removeBank.id, to: reassign || null }); }}>Excluir</Button>
             </div>
           </div>
         </DialogContent>
@@ -304,7 +307,7 @@ function BanksPage() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setRemoveAcc(null)}>Cancelar</Button>
-              <Button variant="destructive" disabled={deleteAcc.isPending} onClick={() => removeAcc && deleteAcc.mutate({ id: removeAcc.id, to: reassign || null })}>Excluir</Button>
+              <Button variant="destructive" disabled={deleteAcc.isPending} onClick={() => { if (busy) return; removeAcc && deleteAcc.mutate({ id: removeAcc.id, to: reassign || null }); }}>Excluir</Button>
             </div>
           </div>
         </DialogContent>

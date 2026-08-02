@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { profileTypeLabel } from "@/lib/format";
 import { Plus, Building2, Pencil, Trash2, Upload, X, Image as ImageIcon } from "lucide-react";
 import { useCan } from "@/lib/permissions";
+import { LoadingState, ErrorState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/profiles")({
   head: () => ({ meta: [{ title: "Perfis — Meu Cofre" }] }),
@@ -35,14 +36,15 @@ function ProfilesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const profilesQuery = useQuery({
     queryKey: ["profiles"],
     queryFn: async () => {
       const { data, error } = await supabase.from("financial_profiles").select("*").order("created_at");
-      if (error) throw error;
-      return data;
+      if (error) throw new Error(error.message);
+      return data ?? [];
     },
   });
+  const { data, isLoading } = profilesQuery;
 
   const create = useMutation({
     mutationFn: async () => {
@@ -83,6 +85,9 @@ function ProfilesPage() {
     onSuccess: () => { toast.success("Perfil excluído"); qc.invalidateQueries({ queryKey: ["profiles"] }); },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Trava global de mutação: impede duplo clique e ações concorrentes.
+  const busy = create.isPending || remove.isPending;
 
   const openEdit = (p: any) => {
     setEditId(p.id);
@@ -131,7 +136,7 @@ function ProfilesPage() {
           </DialogTrigger>}
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
             <DialogHeader><DialogTitle>{editId ? "Editar perfil" : "Novo perfil"}</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); if (create.isPending) return; create.mutate(); }} className="space-y-4">
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex.: Holding Familiar" />
@@ -235,7 +240,7 @@ function ProfilesPage() {
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="premium" disabled={create.isPending}>{editId ? "Salvar" : "Criar perfil"}</Button>
+                <Button type="submit" variant="premium" disabled={create.isPending || !form.name}>{create.isPending ? "Salvando…" : editId ? "Salvar" : "Criar perfil"}</Button>
               </div>
             </form>
           </DialogContent>
@@ -243,7 +248,14 @@ function ProfilesPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando…</p>
+        <LoadingState label="Carregando perfis…" />
+      ) : profilesQuery.isError ? (
+        <ErrorState
+          error={profilesQuery.error}
+          onRetry={() => profilesQuery.refetch()}
+          retrying={profilesQuery.isFetching}
+          title="Não foi possível carregar os perfis"
+        />
       ) : data && data.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((p) => (
@@ -266,10 +278,10 @@ function ProfilesPage() {
                 {p.tax_id && <p className="text-xs text-muted-foreground">CPF/CNPJ: {p.tax_id}</p>}
                 {p.notes && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{p.notes}</p>}
                 <div className="mt-4 flex justify-end gap-2">
-                  {canManage && <Button size="sm" variant="ghost" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /> Editar</Button>}
+                  {canManage && <Button size="sm" variant="ghost" disabled={busy} onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /> Editar</Button>}
                   {canDelete && <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Excluir</Button>
+                      <Button size="sm" variant="ghost" disabled={busy} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Excluir</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -279,8 +291,8 @@ function ProfilesPage() {
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => remove.mutate(p.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                        <AlertDialogCancel disabled={remove.isPending}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction disabled={remove.isPending} onClick={(e) => { e.preventDefault(); if (remove.isPending) return; remove.mutate(p.id); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>}

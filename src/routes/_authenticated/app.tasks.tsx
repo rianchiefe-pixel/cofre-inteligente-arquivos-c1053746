@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { taskPriorityLabel, taskStatusLabel } from "@/lib/format";
 import { ListTodo, Plus, Search, AlertTriangle, CheckCircle2, Clock, ExternalLink } from "lucide-react";
 import { TaskEditor, TaskRow, daysUntil, emptyTask, type TaskForm } from "@/components/property-tabs";
+import { LoadingState, ErrorState } from "@/components/query-states";
 
 const sb = supabase as any;
 
@@ -76,19 +77,29 @@ function TasksPage() {
       const patch: any = { status };
       // Alternar rapidamente entre status precisa limpar a data de conclusão.
       patch.completed_at = status === "concluida" ? new Date().toISOString() : null;
-      const { error } = await sb.from("property_tasks").update(patch).eq("id", id);
-      if (error) throw error;
+      // Confirma a linha efetivamente atualizada: sem isso, um bloqueio de RLS
+      // retorna sucesso vazio e a interface mentiria para o usuário.
+      const { data, error } = await sb.from("property_tasks").update(patch).eq("id", id).select("id, status");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) throw new Error("Nenhuma tarefa foi atualizada.");
+      return data[0];
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks-all"] }),
+    onSuccess: () => { toast.success("Status atualizado"); qc.invalidateQueries({ queryKey: ["tasks-all"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível atualizar o status"),
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await sb.from("property_tasks").delete().eq("id", id);
-      if (error) throw error;
+      const { data, error } = await sb.from("property_tasks").delete().eq("id", id).select("id");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) throw new Error("A exclusão não foi confirmada pelo banco de dados.");
     },
     onSuccess: () => { toast.success("Tarefa excluída"); qc.invalidateQueries({ queryKey: ["tasks-all"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível excluir a tarefa"),
   });
+
+  // Trava única contra duplo clique e ações concorrentes na lista.
+  const busy = save.isPending || quickStatus.isPending || remove.isPending;
 
   const openEdit = (t: any) => {
     setForm({
@@ -199,8 +210,23 @@ function TasksPage() {
         </div>
       </Card>
 
-      {list.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> :
-       filtered.length === 0 ? (
+      {list.isLoading ? <LoadingState label="Carregando tarefas…" /> :
+       list.isError ? (
+        <ErrorState
+          error={list.error}
+          onRetry={() => list.refetch()}
+          retrying={list.isFetching}
+          title="Não foi possível carregar as tarefas"
+        />
+       ) : (list.data ?? []).length === 0 ? (
+        <Card className="p-10 text-center">
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
+            <ListTodo className="h-6 w-6" />
+          </div>
+          <p className="text-sm font-medium">Nenhuma tarefa cadastrada</p>
+          <p className="mt-1 text-xs text-muted-foreground">Crie a primeira tarefa para acompanhar prazos e responsáveis.</p>
+        </Card>
+       ) : filtered.length === 0 ? (
         <Card className="p-10 text-center">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
             <ListTodo className="h-6 w-6" />
@@ -216,8 +242,9 @@ function TasksPage() {
                 t={t}
                 showProperty
                 onEdit={() => openEdit(t)}
-                onQuickStatus={(s) => quickStatus.mutate({ id: t.id, status: s })}
-                onRemove={() => remove.mutate(t.id)}
+                busy={busy}
+                onQuickStatus={(s) => { if (busy) return; quickStatus.mutate({ id: t.id, status: s }); }}
+                onRemove={() => { if (busy) return; remove.mutate(t.id); }}
               />
               {t.property_id && (
                 <Link
@@ -235,7 +262,7 @@ function TasksPage() {
 
       <TaskEditor
         open={open} onOpenChange={(o) => { setOpen(o); if (!o) setForm(emptyTask); }}
-        form={form} setForm={setForm} onSave={() => save.mutate()} saving={save.isPending}
+        form={form} setForm={setForm} onSave={() => { if (save.isPending) return; save.mutate(); }} saving={save.isPending}
         showProperty properties={properties.data ?? []}
       />
     </div>

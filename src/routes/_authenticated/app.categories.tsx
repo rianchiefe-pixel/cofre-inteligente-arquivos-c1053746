@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { transactionTypeLabel } from "@/lib/format";
-import { Plus, Tag, Pencil, Trash2, Archive, ArchiveRestore, RefreshCw } from "lucide-react";
+import { Plus, Tag, Pencil, Trash2, Archive, ArchiveRestore } from "lucide-react";
+import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/categories")({
   head: () => ({
@@ -112,7 +113,7 @@ function CategoriesPage() {
       </div>
 
       <Card className="p-5">
-        <form onSubmit={(e) => { e.preventDefault(); if (name) create.mutate(); }} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_auto] md:items-end">
+        <form onSubmit={(e) => { e.preventDefault(); if (busy || !name) return; create.mutate(); }} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_auto] md:items-end">
           <div className="space-y-2"><Label>Nova categoria</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Manutenção predial" /></div>
           <div className="space-y-2">
             <Label>Tipo padrão</Label>
@@ -125,17 +126,19 @@ function CategoriesPage() {
         </form>
       </Card>
 
-      {cats.isLoading && <p className="text-sm text-muted-foreground">Carregando categorias…</p>}
+      {cats.isLoading && <LoadingState label="Carregando categorias…" />}
 
       {cats.isError && (
-        <Card className="grid gap-3 p-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-          <p className="text-sm text-destructive">Não foi possível carregar as categorias.</p>
-          <Button variant="outline" size="sm" onClick={() => cats.refetch()}><RefreshCw className="h-4 w-4" /> Tentar novamente</Button>
-        </Card>
+        <ErrorState
+          error={cats.error}
+          title="Não foi possível carregar as categorias"
+          retrying={cats.isFetching}
+          onRetry={() => cats.refetch()}
+        />
       )}
 
       {!cats.isLoading && !cats.isError && list.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">Nenhuma categoria cadastrada.</p>
+        <EmptyState title="Nenhuma categoria cadastrada" description="Crie categorias para organizar despesas, receitas e investimentos." />
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

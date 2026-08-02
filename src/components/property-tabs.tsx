@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { currencyBRL, parseBrlAmount, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
 import { revealPropertyCredential, savePropertyCredential } from "@/lib/credentials.functions";
 import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock } from "lucide-react";
+import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 const sb = supabase as any;
 
@@ -58,7 +59,12 @@ export function LeaseTab({ propertyId, userId }: { propertyId: string; userId: s
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (q.isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (q.isLoading) return <LoadingState label="Carregando dados da locação…" />;
+  if (q.isError) {
+    return (
+      <ErrorState error={q.error} onRetry={() => q.refetch()} retrying={q.isFetching} title="Não foi possível carregar a locação" />
+    );
+  }
 
   const set = (k: string, v: any) => setForm({ ...(form ?? q.data ?? {}), [k]: v });
 
@@ -68,7 +74,7 @@ export function LeaseTab({ propertyId, userId }: { propertyId: string; userId: s
         <h3 className="text-lg font-semibold">Dados da locação</h3>
         <p className="text-sm text-muted-foreground">Informações do contrato e do inquilino.</p>
       </div>
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
+      <form onSubmit={(e) => { e.preventDefault(); if (save.isPending) return; save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <Label>Nome do inquilino</Label>
           <Input value={current.tenant_name ?? ""} onChange={(e) => set("tenant_name", e.target.value)} />
@@ -195,7 +201,7 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
           </DialogTrigger>
           <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{form.id ? "Editar obrigação" : "Nova obrigação"}</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={(e) => { e.preventDefault(); if (save.isPending) return; save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tipo</Label>
                 <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v })}>
@@ -242,17 +248,19 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
                 <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
               <div className="sm:col-span-2 flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="premium" disabled={save.isPending}>Salvar</Button>
+                <Button type="button" variant="ghost" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" variant="premium" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {list.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> :
-       (list.data?.length ?? 0) === 0 ? (
-        <p className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">Nenhuma obrigação cadastrada ainda.</p>
+      {list.isLoading ? <LoadingState label="Carregando obrigações…" /> :
+       list.isError ? (
+        <ErrorState error={list.error} onRetry={() => list.refetch()} retrying={list.isFetching} title="Não foi possível carregar as obrigações" />
+       ) : (list.data?.length ?? 0) === 0 ? (
+        <EmptyState title="Nenhuma obrigação cadastrada" description="Cadastre IPTU, condomínio, seguros e outras obrigações recorrentes." />
        ) : (
         <div className="divide-y divide-border">
           {list.data!.map((o) => (
@@ -407,7 +415,7 @@ export function CredentialsTab({ propertyId }: { propertyId: string; userId?: st
           <DialogTrigger asChild><Button variant="premium" size="sm"><Plus className="h-4 w-4" /> Novo acesso</Button></DialogTrigger>
           <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{form.id ? "Editar acesso" : "Novo acesso"}</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={(e) => { e.preventDefault(); if (save.isPending) return; save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
                 <Label>Serviço ou fornecedor</Label>
                 <Input required value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })} placeholder="Ex.: Portal do IPTU" />
@@ -437,17 +445,19 @@ export function CredentialsTab({ propertyId }: { propertyId: string; userId?: st
                 <Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
               <div className="sm:col-span-2 flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="premium" disabled={save.isPending}>Salvar</Button>
+                <Button type="button" variant="ghost" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" variant="premium" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {list.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> :
-       (list.data?.length ?? 0) === 0 ? (
-        <p className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">Nenhum acesso cadastrado. As senhas são armazenadas apenas na sua conta e ficam ocultas por padrão.</p>
+      {list.isLoading ? <LoadingState label="Carregando acessos…" /> :
+       list.isError ? (
+        <ErrorState error={list.error} onRetry={() => list.refetch()} retrying={list.isFetching} title="Não foi possível carregar os acessos" />
+       ) : (list.data?.length ?? 0) === 0 ? (
+        <EmptyState title="Nenhum acesso cadastrado" description="As senhas ficam criptografadas na sua conta e ocultas por padrão." />
        ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {list.data!.map((c) => (
@@ -589,11 +599,13 @@ export function TaskEditor({ open, onOpenChange, form, setForm, onSave, saving, 
   );
 }
 
-export function TaskRow({ t, onEdit, onQuickStatus, onRemove, showProperty }: {
+export function TaskRow({ t, onEdit, onQuickStatus, onRemove, showProperty, busy }: {
   t: any; onEdit: () => void;
   onQuickStatus: (status: string) => void;
   onRemove: () => void;
   showProperty?: boolean;
+  /** Bloqueia todas as ações da linha enquanto alguma mutação está em andamento. */
+  busy?: boolean;
 }) {
   const d = daysUntil(t.due_date);
   const overdue = d != null && d < 0 && !["concluida", "cancelada"].includes(t.status);
@@ -616,13 +628,13 @@ export function TaskRow({ t, onEdit, onQuickStatus, onRemove, showProperty }: {
       </div>
       <div className="flex flex-col items-end gap-1">
         <div className="flex gap-1">
-          {t.status !== "concluida" && <Button size="sm" variant="ghost" title="Concluir" onClick={() => onQuickStatus("concluida")}><Check className="h-4 w-4 text-success" /></Button>}
-          <Button size="sm" variant="ghost" onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
+          {t.status !== "concluida" && <Button size="sm" variant="ghost" title="Concluir" disabled={busy} onClick={() => onQuickStatus("concluida")}><Check className="h-4 w-4 text-success" /></Button>}
+          <Button size="sm" variant="ghost" disabled={busy} onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
           <AlertDialog>
-            <AlertDialogTrigger asChild><Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+            <AlertDialogTrigger asChild><Button size="sm" variant="ghost" disabled={busy} className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onRemove} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
+              <AlertDialogFooter><AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={busy} onClick={(e) => { e.preventDefault(); if (busy) return; onRemove(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
@@ -669,20 +681,27 @@ export function PropertyTasksTab({ propertyId, userId }: { propertyId: string; u
   const quickStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const patch: any = { status };
-      if (status === "concluida") patch.completed_at = new Date().toISOString();
-      const { error } = await sb.from("property_tasks").update(patch).eq("id", id);
-      if (error) throw error;
+      // Reabrir uma tarefa concluída precisa zerar a data de conclusão.
+      patch.completed_at = status === "concluida" ? new Date().toISOString() : null;
+      const { data, error } = await sb.from("property_tasks").update(patch).eq("id", id).select("id");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) throw new Error("Nenhuma tarefa foi atualizada.");
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks", propertyId] }); qc.invalidateQueries({ queryKey: ["tasks-all"] }); },
+    onSuccess: () => { toast.success("Status atualizado"); qc.invalidateQueries({ queryKey: ["tasks", propertyId] }); qc.invalidateQueries({ queryKey: ["tasks-all"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível atualizar o status"),
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await sb.from("property_tasks").delete().eq("id", id);
-      if (error) throw error;
+      const { data, error } = await sb.from("property_tasks").delete().eq("id", id).select("id");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) throw new Error("A exclusão não foi confirmada pelo banco de dados.");
     },
     onSuccess: () => { toast.success("Tarefa excluída"); qc.invalidateQueries({ queryKey: ["tasks", propertyId] }); qc.invalidateQueries({ queryKey: ["tasks-all"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível excluir a tarefa"),
   });
+
+  const busy = save.isPending || quickStatus.isPending || remove.isPending;
 
   const openEdit = (t: any) => {
     setForm({
@@ -699,21 +718,23 @@ export function PropertyTasksTab({ propertyId, userId }: { propertyId: string; u
           <h3 className="text-lg font-semibold">Tarefas do imóvel</h3>
           <p className="text-sm text-muted-foreground">Pendências, reformas, documentação e acompanhamento.</p>
         </div>
-        <Button variant="premium" size="sm" onClick={() => { setForm(emptyTask); setOpen(true); }}><Plus className="h-4 w-4" /> Nova tarefa</Button>
+        <Button variant="premium" size="sm" disabled={busy} onClick={() => { setForm(emptyTask); setOpen(true); }}><Plus className="h-4 w-4" /> Nova tarefa</Button>
       </div>
 
-      {list.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> :
-       (list.data?.length ?? 0) === 0 ? (
-        <p className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">Nenhuma tarefa cadastrada.</p>
+      {list.isLoading ? <LoadingState label="Carregando tarefas…" /> :
+       list.isError ? (
+        <ErrorState error={list.error} onRetry={() => list.refetch()} retrying={list.isFetching} title="Não foi possível carregar as tarefas" />
+       ) : (list.data?.length ?? 0) === 0 ? (
+        <EmptyState title="Nenhuma tarefa cadastrada" description="Registre pendências, reformas e prazos deste imóvel." />
        ) : (
         <div className="space-y-2">
           {list.data!.map((t) => (
-            <TaskRow key={t.id} t={t} onEdit={() => openEdit(t)} onQuickStatus={(s) => quickStatus.mutate({ id: t.id, status: s })} onRemove={() => remove.mutate(t.id)} />
+            <TaskRow key={t.id} t={t} busy={busy} onEdit={() => openEdit(t)} onQuickStatus={(s) => { if (busy) return; quickStatus.mutate({ id: t.id, status: s }); }} onRemove={() => { if (busy) return; remove.mutate(t.id); }} />
           ))}
         </div>
        )}
 
-      <TaskEditor open={open} onOpenChange={(o) => { setOpen(o); if (!o) setForm(emptyTask); }} form={form} setForm={setForm} onSave={() => save.mutate()} saving={save.isPending} />
+      <TaskEditor open={open} onOpenChange={(o) => { setOpen(o); if (!o) setForm(emptyTask); }} form={form} setForm={setForm} onSave={() => { if (save.isPending) return; save.mutate(); }} saving={save.isPending} />
     </Card>
   );
 }
