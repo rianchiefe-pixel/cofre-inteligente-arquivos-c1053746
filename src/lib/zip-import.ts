@@ -486,30 +486,33 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
           const doc = await task.promise;
           pageCount = doc.numPages;
           const parts: string[] = [];
+          let ocrPages = 0;
           for (let p = 1; p <= doc.numPages; p += 1) {
             const page = await doc.getPage(p);
             const content = await page.getTextContent();
-            const pageText = content.items
+            let pageText = content.items
               .map((it: any) => ("str" in it ? it.str : ""))
               .join(" ");
+            // PDFs mistos: cada página com pouco texto nativo é lida por OCR
+            // individualmente, para não perder páginas digitalizadas.
+            if (runOcr && worker && pageText.trim().length < 20 && ocrPages < MAX_OCR_PAGES) {
+              const viewport = page.getViewport({ scale: 2 });
+              const canvas = document.createElement("canvas");
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              const ctx = canvas.getContext("2d")!;
+              await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+              const { data } = await worker.recognize(canvas);
+              pageText = data.text ?? "";
+              ocrPages += 1;
+              canvas.width = 0;
+              canvas.height = 0;
+            }
             parts.push(pageText);
             pages += 1;
             onProgress?.({ processed, total, pages, errors, current: f.original_path });
           }
           extractedText = parts.join("\n\n");
-
-          // Fallback OCR when native text is empty
-          if (runOcr && worker && extractedText.trim().length < 20) {
-            const first = await doc.getPage(1);
-            const viewport = first.getViewport({ scale: 2 });
-            const canvas = document.createElement("canvas");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext("2d")!;
-            await first.render({ canvasContext: ctx, viewport, canvas } as any).promise;
-            const { data } = await worker.recognize(canvas);
-            extractedText = data.text;
-          }
         } else if (IMAGE_EXTS.has(ext)) {
           if (runOcr && worker) {
             const { data } = await worker.recognize(signed.signedUrl);
