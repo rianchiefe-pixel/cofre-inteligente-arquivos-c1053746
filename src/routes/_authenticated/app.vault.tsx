@@ -331,6 +331,7 @@ function dupScoreBadge(score: number | null | undefined) {
 }
 
 function VaultPage() {
+  const PAGE_SIZE = 50;
   const qc = useQueryClient();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
