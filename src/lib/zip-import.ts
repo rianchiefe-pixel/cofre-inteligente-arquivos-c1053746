@@ -370,6 +370,7 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
 
       // Upload to private storage — chave SEMPRE ASCII segura ("Invalid key").
       const storagePath = `import/${userId}/${batchId}/${hash.slice(0, 2)}/${hash}-${storageSafeName(name)}`;
+      let uploadedPath = storagePath;
       if (!existing) {
         const { error: upErr } = await supabase.storage
           .from("receipts")
