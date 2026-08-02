@@ -193,11 +193,11 @@ function Dashboard() {
         </Card>
       )}
 
-      {dashboard.isLoading && <p className="text-sm text-muted-foreground">Carregando indicadores do mês…</p>}
+      {dashboard.isLoading && <p className="text-sm text-muted-foreground">Carregando indicadores do período…</p>}
 
       <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Gasto no mês (sem investimentos)" value={currencyBRL(totalMonth)} icon={Wallet} />
-        <StatCard label="Investido no mês" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
+        <StatCard label={`Gasto no período (${periodLabel}, sem investimentos)`} value={currencyBRL(totalMonth)} icon={Wallet} />
+        <StatCard label={`Investido (${periodLabel})`} value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
         <StatCard label="Comprovantes aprovados" value={String(approvedReceipts.length)} icon={FileStack} tone="gold" />
         <StatCard label={pending > 0 ? "Pendentes de conferência" : "Possíveis duplicados"} value={String(pending || duplicates)} icon={AlertTriangle} tone={pending > 0 ? "warn" : "primary"} />
       </div>
@@ -205,24 +205,24 @@ function Dashboard() {
       <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Pendentes de aprovação" value={String(pending)} icon={Clock} tone="warn" />
         <StatCard label="Possíveis duplicidades" value={String(duplicates)} icon={Copy} tone="gold" />
-        <StatCard label="Rejeitados no mês" value={String(rejectedMonth)} icon={XCircle} tone="warn" />
-        <StatCard label="Aprovados no mês" value={String(approvedMonth)} icon={FileStack} tone="success" />
+        <StatCard label="Rejeitados no período" value={String(rejectedMonth)} icon={XCircle} tone="warn" />
+        <StatCard label="Aprovados no período" value={String(approvedMonth)} icon={FileStack} tone="success" />
       </div>
 
       <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Imóveis ativos" value={String(activeProperties)} icon={Home} />
-        <StatCard label="Imóvel com maior gasto no mês" value={topPropertyAmount > 0 ? `${topPropertyName} · ${currencyBRL(topPropertyAmount)}` : "—"} icon={Building2} tone="gold" />
-        <StatCard label="Investido em imóveis (mês)" value={currencyBRL(totalInvestedProperties)} icon={PiggyBank} tone="success" />
+        <StatCard label="Imóvel com maior gasto no período" value={topPropertyAmount > 0 ? `${topPropertyName} · ${currencyBRL(topPropertyAmount)}` : "—"} icon={Building2} tone="gold" />
+        <StatCard label="Investido em imóveis (período)" value={currencyBRL(totalInvestedProperties)} icon={PiggyBank} tone="success" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="premium-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por categoria (mês)</h2>
+            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por categoria (período)</h2>
           </div>
           {byCategory.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste mês ainda.</p>
+            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste período ainda.</p>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={byCategory}>
@@ -241,10 +241,10 @@ function Dashboard() {
         <Card className="premium-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por banco (mês)</h2>
+            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por banco (período)</h2>
           </div>
           {byBank.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste mês ainda.</p>
+            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste período ainda.</p>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
