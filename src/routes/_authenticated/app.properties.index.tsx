@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { currencyBRL, propertyPurposeLabel, propertyStatusLabel, propertyTypeLabel } from "@/lib/format";
+import { centsToNumber, currencyBRL, parseBrlAmountToCents, propertyPurposeLabel, propertyStatusLabel, propertyTypeLabel } from "@/lib/format";
 import { Home, Plus, Pencil, Trash2, MapPin, ChevronRight, Archive, Search } from "lucide-react";
 import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
