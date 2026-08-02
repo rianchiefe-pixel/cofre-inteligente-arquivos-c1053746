@@ -751,6 +751,27 @@ function VaultPage() {
     }
   };
 
+  // Após aprovar/rejeitar, abre automaticamente o próximo comprovante pendente.
+  const goToNextPending = async (currentId: string) => {
+    let qb = supabase
+      .from("receipts")
+      .select("*, categories(name), financial_profiles(name), banks(name)")
+      .eq("status", "pending")
+      .neq("id", currentId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (profileId !== "all") qb = qb.eq("profile_id", profileId);
+    if (bankId !== "all") qb = qb.eq("bank_id", bankId);
+    if (categoryId !== "all") qb = qb.eq("category_id", categoryId);
+    const { data, error } = await qb.maybeSingle();
+    if (error || !data) {
+      closeEditing();
+      if (!error) toast.info("Nenhum comprovante pendente restante.");
+      return;
+    }
+    await openEdit(data);
+  };
+
   const approveCurrentReceipt = async () => {
     if (!original) return;
     if (isDirty) {
@@ -762,7 +783,7 @@ function VaultPage() {
       await approve({ data: { receiptId: original.id } });
       toast.success("Aprovado");
       invalidate();
-      closeEditing();
+      await goToNextPending(original.id);
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao aprovar");
     } finally {
@@ -783,7 +804,7 @@ function VaultPage() {
       });
       toast.success("Comprovante rejeitado");
       invalidate();
-      closeEditing();
+      await goToNextPending(original.id);
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao rejeitar");
     } finally {
