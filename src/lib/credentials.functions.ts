@@ -105,6 +105,16 @@ export const revealPropertyCredential = createServerFn({ method: "POST" })
     const cipher = row.password_cipher as string | null;
     const legacy = row.legacy_password as string | null;
     if (cipher) return { password: await decryptPassword(cipher), legacy: false };
-    if (legacy) return { password: legacy, legacy: true };
+    if (legacy) {
+      // Migra a senha antiga em texto puro para o formato criptografado.
+      const migrated = await encryptPassword(legacy);
+      const { error: migErr } = await context.supabase
+        .from("property_credentials")
+        .update({ password: null, password_cipher: migrated, password_set_at: new Date().toISOString() })
+        .eq("id", data.id)
+        .select("id");
+      if (migErr) throw new Error(migErr.message);
+      return { password: legacy, legacy: true };
+    }
     return { password: null, legacy: false };
   });
