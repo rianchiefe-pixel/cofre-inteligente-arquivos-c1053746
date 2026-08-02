@@ -85,16 +85,34 @@ function download(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Proteção contra CSV/Excel formula injection.
+ * Campos textuais iniciados por `=`, `+`, `-`, `@`, TAB ou CR são
+ * prefixados com apóstrofo para que a planilha trate como texto.
+ */
+export function sanitizeSpreadsheetValue(raw: unknown): string {
+  if (raw == null) return "";
+  const v = String(raw);
+  return /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+}
+
+export interface ExportAuditResult {
+  audited: boolean;
+  auditError: string | null;
+}
+
 export async function logExport(params: {
   reportKind: string;
   format: ExportFormat;
   filters?: Record<string, any>;
   rowCount?: number;
-}) {
+}): Promise<ExportAuditResult> {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth?.user) return;
-    await supabase.from("audit_logs").insert({
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    if (authError || !auth?.user) {
+      return { audited: false, auditError: authError?.message ?? "Sessão não identificada" };
+    }
+    const { data, error } = await supabase.from("audit_logs").insert({
       user_id: auth.user.id,
       action: "exported",
       entity: "report",
@@ -106,9 +124,12 @@ export async function logExport(params: {
         row_count: params.rowCount ?? 0,
       } as any,
       note: `Exportou ${params.reportKind} em ${params.format.toUpperCase()}`,
-    });
-  } catch {
-    /* audit failures do not break UX */
+    }).select("id");
+    if (error) return { audited: false, auditError: error.message };
+    if (!data || data.length !== 1) return { audited: false, auditError: "Registro de auditoria não confirmado" };
+    return { audited: true, auditError: null };
+  } catch (e: any) {
+    return { audited: false, auditError: e?.message ?? "Falha ao registrar auditoria" };
   }
 }
 
@@ -118,12 +139,12 @@ export function exportCSV<T>(payload: ReportPayload<T>) {
     payload.columns
       .map((c) => {
         const raw = c.get ? c.get(r) : (r as any)[c.key];
-        const v = raw == null ? "" : String(raw);
+        const v = sanitizeSpreadsheetValue(raw);
         return `"${v.replace(/"/g, '""')}"`;
       })
       .join(";"),
   );
-  const csv = [headers.join(";"), ...lines].join("\n");
+  const csv = [headers.map((h) => `"${sanitizeSpreadsheetValue(h).replace(/"/g, '""')}"`).join(";"), ...lines].join("\n");
   const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
   download(blob, `${payload.filename}.csv`);
   return logExport({ reportKind: payload.reportKind, format: "csv", filters: payload.filters, rowCount: payload.rows.length });
