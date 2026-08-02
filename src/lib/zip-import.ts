@@ -518,7 +518,8 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
     .select("id, storage_path, extension, original_path, mime_type")
     .eq("batch_id", batchId)
     .eq("user_id", userId)
-    .eq("status", "uploaded")
+    .in("status", ["uploaded", "error", "unreadable"])
+    .not("storage_path", "is", null)
     .order("created_at");
 
   const list = files ?? [];
@@ -620,6 +621,11 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
             page_count: pageCount ?? null,
             ocr_data: (Object.keys(ocrData).length ? ocrData : null) as any,
             progress: 100,
+            document_type: isStatementText(extractedText, f.original_path ?? "")
+              ? "credit_card_statement"
+              : "unknown",
+            error_message: null,
+            exclusion_reason: readable ? null : "texto insuficiente para leitura",
           })
           .eq("id", f.id);
       } catch (e) {
@@ -646,9 +652,17 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
         pdf_pages_processed: pages,
       })
       .eq("id", batchId);
+
+    await hydrateDuplicateFiles(batchId);
   } finally {
     if (worker) await worker.terminate();
   }
+}
+
+/** Detecção determinística de fatura de cartão a partir do texto/nome. */
+export function isStatementText(text: string, path = ""): boolean {
+  const hay = `${path} ${String(text ?? "").slice(0, 8000)}`;
+  return /fatura|limite\s+de\s+cr[eé]dito|pagamento\s+m[ií]nimo|cart[aã]o\s+de\s+cr[eé]dito/i.test(hay);
 }
 
 // -----------------------------------------------------------------------------
