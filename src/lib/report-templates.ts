@@ -177,11 +177,11 @@ export async function generateMonthlyExpenseReport(data: ReportDataset, opts?: {
         headStyles: { fillColor: OLIVE, textColor: BLACK, fontStyle: "bold", halign: "center" },
         columnStyles: {
           0: { cellWidth: contentW * 0.2 },
-          1: { cellWidth: contentW * 0.3 },
+          1: { cellWidth: contentW * 0.29 },
           2: { cellWidth: contentW * 0.07, halign: "center" },
           3: { cellWidth: contentW * 0.15 },
           4: { cellWidth: contentW * 0.14 },
-          5: { cellWidth: contentW * 0.14 },
+          5: { cellWidth: contentW * 0.13 },
         },
         margin: { left: margin, right: margin },
       });
@@ -210,10 +210,10 @@ export async function generateMonthlyExpenseReport(data: ReportDataset, opts?: {
             0: { cellWidth: contentW * 0.04, halign: "center" },
             1: { cellWidth: contentW * 0.07, halign: "center" },
             2: { cellWidth: contentW * 0.08, halign: "center" },
-            3: { cellWidth: contentW * 0.16 },
-            4: { cellWidth: contentW * 0.12 },
-            5: { cellWidth: contentW * 0.08, halign: "center" },
-            6: { cellWidth: contentW * 0.32 },
+            3: { cellWidth: contentW * 0.17 },
+            4: { cellWidth: contentW * 0.13 },
+            5: { cellWidth: contentW * 0.09, halign: "center" },
+            6: { cellWidth: contentW * 0.37 },
           },
           margin: { left: margin, right: margin },
         });

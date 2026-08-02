@@ -140,7 +140,7 @@ export interface LineOptions {
 export function drawLineChart(doc: jsPDF, o: LineOptions) {
   const titleH = o.title ? 20 : 0;
   const legendH = o.legend === false ? 0 : 30;
-  const leftPad = 62;
+  const leftPad = 74;
   const plotX = o.x + leftPad;
   const plotY = o.y + titleH;
   const plotW = o.w - leftPad - 10;
@@ -200,7 +200,7 @@ export function drawLineChart(doc: jsPDF, o: LineOptions) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6);
     doc.setTextColor(60, 60, 60);
-    const cx = o.x + 10;
+    const cx = o.x + 16;
     doc.text(o.axisTitle, cx, plotY + plotH / 2, { align: "center", angle: 90 });
   }
 
