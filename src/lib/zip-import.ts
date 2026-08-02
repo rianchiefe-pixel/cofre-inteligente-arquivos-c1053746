@@ -368,8 +368,8 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
         .limit(1);
       const existing = canonicals?.[0] ?? null;
 
-      // Upload to private storage
-      const storagePath = `import/${userId}/${batchId}/${hash.slice(0, 2)}/${hash}-${name}`;
+      // Upload to private storage — chave SEMPRE ASCII segura ("Invalid key").
+      const storagePath = `import/${userId}/${batchId}/${hash.slice(0, 2)}/${hash}-${storageSafeName(name)}`;
       if (!existing) {
         const { error: upErr } = await supabase.storage
           .from("receipts")
@@ -377,7 +377,15 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
             contentType: mime,
             upsert: true,
           });
-        if (upErr) throw upErr;
+        if (upErr) {
+          // Último recurso: chave mínima, apenas hash + extensão.
+          const fallbackPath = `import/${userId}/${batchId}/${hash.slice(0, 2)}/${hash}${ext ? `.${ext.replace(/[^a-z0-9]/gi, "")}` : ""}`;
+          const { error: fbErr } = await supabase.storage
+            .from("receipts")
+            .upload(fallbackPath, blob, { contentType: mime, upsert: true });
+          if (fbErr) throw upErr;
+          uploadedPath = fallbackPath;
+        }
       }
 
       const { error: insErr } = await supabase.from("import_files").insert({
@@ -390,7 +398,7 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
         mime_type: mime,
         size_bytes: buf.byteLength,
         content_hash: hash,
-        storage_path: existing ? null : storagePath,
+        storage_path: existing ? null : uploadedPath,
         duplicate_of: existing?.id ?? null,
         status: existing ? "duplicate" : "uploaded",
       });
