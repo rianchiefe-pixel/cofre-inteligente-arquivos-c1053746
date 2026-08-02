@@ -49,10 +49,12 @@ export function ImportZipPanel({ batchId }: Props) {
     if (!auth.user) return;
     setBusy("extract");
     try {
+      abortRef.current = new AbortController();
       await extractZipToStorage({
         batchId,
         userId: auth.user.id,
         file,
+        signal: abortRef.current.signal,
         onProgress: (p) => setProgress(p),
       });
       toast.success("ZIP extraído. Iniciando leitura dos arquivos…");
