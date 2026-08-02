@@ -60,6 +60,25 @@ function guessMime(ext: string): string {
   return map[ext] ?? "application/octet-stream";
 }
 
+/**
+ * Supabase Storage rejeita chaves com acentos, espaços finais e caracteres
+ * especiais ("Invalid key"). O nome original continua salvo em `file_name`;
+ * apenas a CHAVE do armazenamento é normalizada para ASCII seguro.
+ */
+export function storageSafeName(name: string): string {
+  const ext = extOf(name);
+  const base = (ext ? name.slice(0, name.length - ext.length - 1) : name)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "")
+    .slice(0, 80);
+  const safeExt = ext.replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
+  const safeBase = base || "arquivo";
+  return safeExt ? `${safeBase}.${safeExt}` : safeBase;
+}
+
 async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(digest))
@@ -349,8 +368,9 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
         .limit(1);
       const existing = canonicals?.[0] ?? null;
 
-      // Upload to private storage
-      const storagePath = `import/${userId}/${batchId}/${hash.slice(0, 2)}/${hash}-${name}`;
+      // Upload to private storage — chave SEMPRE ASCII segura ("Invalid key").
+      const storagePath = `import/${userId}/${batchId}/${hash.slice(0, 2)}/${hash}-${storageSafeName(name)}`;
+      let uploadedPath = storagePath;
       if (!existing) {
         const { error: upErr } = await supabase.storage
           .from("receipts")
@@ -358,7 +378,15 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
             contentType: mime,
             upsert: true,
           });
-        if (upErr) throw upErr;
+        if (upErr) {
+          // Último recurso: chave mínima, apenas hash + extensão.
+          const fallbackPath = `import/${userId}/${batchId}/${hash.slice(0, 2)}/${hash}${ext ? `.${ext.replace(/[^a-z0-9]/gi, "")}` : ""}`;
+          const { error: fbErr } = await supabase.storage
+            .from("receipts")
+            .upload(fallbackPath, blob, { contentType: mime, upsert: true });
+          if (fbErr) throw upErr;
+          uploadedPath = fallbackPath;
+        }
       }
 
       const { error: insErr } = await supabase.from("import_files").insert({
@@ -371,7 +399,7 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
         mime_type: mime,
         size_bytes: buf.byteLength,
         content_hash: hash,
-        storage_path: existing ? null : storagePath,
+        storage_path: existing ? null : uploadedPath,
         duplicate_of: existing?.id ?? null,
         status: existing ? "duplicate" : "uploaded",
       });
@@ -390,6 +418,7 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
         extension: extOf(path),
         status: "error",
         error_message: e instanceof Error ? e.message : String(e),
+        exclusion_reason: "falha no envio do arquivo ao armazenamento",
       });
     } finally {
       progress.filesProcessed += 1;
@@ -409,7 +438,58 @@ export async function extractZipToStorage(opts: ExtractOptions): Promise<{
     })
     .eq("id", batchId);
 
+  // Duplicatas herdam os fatos do arquivo canônico já processado, para que
+  // participem da conciliação e nunca apareçam como "não processadas".
+  await hydrateDuplicateFiles(batchId);
+
   return { filesTotal: entries.length, filesErrors: errors };
+}
+
+// -----------------------------------------------------------------------------
+// Duplicatas: copiam texto/fatos/tipo do arquivo original (mesmo content_hash)
+// -----------------------------------------------------------------------------
+
+export async function hydrateDuplicateFiles(batchId: string): Promise<number> {
+  const { data: dups } = await supabase
+    .from("import_files")
+    .select("id, duplicate_of, extracted_text, ocr_data, document_type")
+    .eq("batch_id", batchId)
+    .not("duplicate_of", "is", null);
+
+  const pending = (dups ?? []).filter((d: any) => !d.extracted_text || !d.ocr_data);
+  if (!pending.length) return 0;
+
+  const parentIds = [...new Set(pending.map((d: any) => d.duplicate_of as string))];
+  const parents = new Map<string, any>();
+  for (let i = 0; i < parentIds.length; i += 200) {
+    const { data } = await supabase
+      .from("import_files")
+      .select("id, extracted_text, ocr_data, page_count, document_type, readable")
+      .in("id", parentIds.slice(i, i + 200));
+    for (const p of data ?? []) parents.set(p.id, p);
+  }
+
+  let updated = 0;
+  for (const d of pending as any[]) {
+    const p = parents.get(d.duplicate_of);
+    if (!p) continue;
+    const text = (p.extracted_text ?? null) as string | null;
+    const { error } = await supabase
+      .from("import_files")
+      .update({
+        extracted_text: d.extracted_text ?? text,
+        ocr_data: d.ocr_data ?? p.ocr_data,
+        page_count: p.page_count ?? null,
+        readable: p.readable ?? (text ? text.trim().length >= 20 : null),
+        document_type:
+          d.document_type && d.document_type !== "unknown"
+            ? d.document_type
+            : (p.document_type ?? "unknown"),
+      })
+      .eq("id", d.id);
+    if (!error) updated += 1;
+  }
+  return updated;
 }
 
 // -----------------------------------------------------------------------------
@@ -433,12 +513,23 @@ export type ProcessOptions = {
 export async function processZipFiles(opts: ProcessOptions): Promise<void> {
   const { batchId, userId, runOcr, onProgress, signal } = opts;
 
+  // Registros sem arquivo real no armazenamento recebem motivo explícito e
+  // saem dos contadores de "órfãos"/"ilegíveis" do painel.
+  await supabase
+    .from("import_files")
+    .update({ exclusion_reason: "registro sem arquivo no armazenamento" })
+    .eq("batch_id", batchId)
+    .eq("user_id", userId)
+    .is("storage_path", null)
+    .is("duplicate_of", null);
+
   const { data: files } = await supabase
     .from("import_files")
     .select("id, storage_path, extension, original_path, mime_type")
     .eq("batch_id", batchId)
     .eq("user_id", userId)
-    .eq("status", "uploaded")
+    .in("status", ["uploaded", "error", "unreadable"])
+    .not("storage_path", "is", null)
     .order("created_at");
 
   const list = files ?? [];
@@ -540,6 +631,11 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
             page_count: pageCount ?? null,
             ocr_data: (Object.keys(ocrData).length ? ocrData : null) as any,
             progress: 100,
+            document_type: isStatementText(extractedText, f.original_path ?? "")
+              ? "credit_card_statement"
+              : "unknown",
+            error_message: null,
+            exclusion_reason: readable ? null : "texto insuficiente para leitura",
           })
           .eq("id", f.id);
       } catch (e) {
@@ -550,6 +646,7 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
             status: "error",
             readable: false,
             error_message: e instanceof Error ? e.message : String(e),
+            exclusion_reason: "falha ao ler o conteúdo do arquivo",
           })
           .eq("id", f.id);
       } finally {
@@ -566,9 +663,17 @@ export async function processZipFiles(opts: ProcessOptions): Promise<void> {
         pdf_pages_processed: pages,
       })
       .eq("id", batchId);
+
+    await hydrateDuplicateFiles(batchId);
   } finally {
     if (worker) await worker.terminate();
   }
+}
+
+/** Detecção determinística de fatura de cartão a partir do texto/nome. */
+export function isStatementText(text: string, path = ""): boolean {
+  const hay = `${path} ${String(text ?? "").slice(0, 8000)}`;
+  return /fatura|limite\s+de\s+cr[eé]dito|pagamento\s+m[ií]nimo|cart[aã]o\s+de\s+cr[eé]dito/i.test(hay);
 }
 
 // -----------------------------------------------------------------------------
