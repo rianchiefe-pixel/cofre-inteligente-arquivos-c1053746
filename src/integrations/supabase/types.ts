@@ -1697,6 +1697,30 @@ export type Database = {
           holders_created: number
         }[]
       }
+      delete_account_rpc: {
+        Args: { p_id: string; p_reassign_to: string }
+        Returns: {
+          deleted_id: string
+          reassigned_receipts: number
+        }[]
+      }
+      delete_bank_rpc: {
+        Args: { p_id: string; p_reassign_to: string }
+        Returns: {
+          deleted_id: string
+          reassigned_accounts: number
+          reassigned_cards: number
+          reassigned_receipts: number
+        }[]
+      }
+      delete_category_rpc: {
+        Args: { p_id: string; p_reassign_to: string }
+        Returns: {
+          deleted_id: string
+          orphaned_children: number
+          reassigned_receipts: number
+        }[]
+      }
       delete_receipts_safely: {
         Args: { p_receipt_ids: string[] }
         Returns: {
@@ -1753,6 +1777,14 @@ export type Database = {
           storage_paths: string[]
         }[]
       }
+      reveal_property_credential_rpc: {
+        Args: { p_id: string }
+        Returns: {
+          credential_id: string
+          legacy_password: string
+          password_cipher: string
+        }[]
+      }
       role_permissions: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: string[]
@@ -1770,6 +1802,36 @@ export type Database = {
           confidence: string
           is_primary: boolean
           link_id: string
+        }[]
+      }
+      upsert_account_rpc: {
+        Args: { p_account: Json; p_id: string }
+        Returns: {
+          account_id: string
+        }[]
+      }
+      upsert_bank_rpc: {
+        Args: { p_bank: Json; p_id: string }
+        Returns: {
+          bank_id: string
+        }[]
+      }
+      upsert_category_rpc: {
+        Args: { p_category: Json; p_id: string }
+        Returns: {
+          category_id: string
+        }[]
+      }
+      upsert_property_credential_rpc: {
+        Args: {
+          p_credential: Json
+          p_id: string
+          p_password_changed: boolean
+          p_password_cipher: string
+          p_property_id: string
+        }
+        Returns: {
+          credential_id: string
         }[]
       }
       upsert_property_lease_rpc: {
