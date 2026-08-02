@@ -358,12 +358,7 @@ export function ImportConference({
       if (f.type === "number") {
         // Valores monetários seguem o padrão BR: "1.880,00" → 1880.00.
         // Sempre gravamos positivo — a natureza está em transaction_type.
-        const n =
-          f.key === "amount"
-            ? parseBrlAmount(v)
-            : typeof v === "number"
-              ? v
-              : parseFloat(String(v).replace(/\./g, "").replace(",", "."));
+        const n = parseBrlAmount(v);
         if (n !== null && Number.isFinite(n)) overrides[f.key] = Math.abs(n);
       } else {
         overrides[f.key] = String(v);
