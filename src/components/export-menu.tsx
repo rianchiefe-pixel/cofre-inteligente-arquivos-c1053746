@@ -23,8 +23,14 @@ export function ExportMenu({ build, disabled, label = "Exportar", variant = "pre
         toast.error("Nada para exportar com os filtros atuais.");
         return;
       }
-      await runExport(fmt, payload);
-      toast.success(`Relatório ${fmt.toUpperCase()} gerado com sucesso.`);
+      const result = await runExport(fmt, payload);
+      if (result && result.audited === false) {
+        toast.warning(
+          `Relatório ${fmt.toUpperCase()} gerado, mas o registro de auditoria falhou: ${result.auditError ?? "motivo desconhecido"}`,
+        );
+        return;
+      }
+      toast.success(`Relatório ${fmt.toUpperCase()} gerado e registrado na auditoria.`);
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao gerar relatório.");
     } finally {
