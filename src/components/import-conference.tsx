@@ -527,6 +527,56 @@ export function ImportConference({
   }
 
   const reprocessFn = useServerFn(reprocessBatchAmounts);
+  const bulkFn = useServerFn(bulkDecideCreditCardRows);
+
+  // ---- Ações em massa: cartões de crédito pendentes -----------------------
+  const creditCardPendingRows = useMemo(
+    () =>
+      statusFilter === "credit_card"
+        ? filteredRows.filter(
+            (r: any) => (r.review_status ?? "pending") === "pending" && isCreditCardRow(r),
+          )
+        : [],
+    [statusFilter, filteredRows],
+  );
+  const [bulkAction, setBulkAction] = useState<null | "approve" | "reject">(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+
+  async function runBulk(action: "approve" | "reject") {
+    const ids = creditCardPendingRows.map((r: any) => r.id);
+    if (ids.length === 0) {
+      toast.info("Nenhum cartão de crédito pendente no filtro atual.");
+      return;
+    }
+    setBulkRunning(true);
+    try {
+      const res = await bulkFn({ data: { batchId, rowIds: ids, action } });
+      const verb = action === "approve" ? "aprovados" : "rejeitados";
+      if (res.failed.length > 0) {
+        toast.warning(
+          `${res.processed} de ${res.requested} ${verb}. Não processados: ${res.failed
+            .map((f) => f.error)
+            .slice(0, 5)
+            .join(" · ")}${res.failed.length > 5 ? ` · +${res.failed.length - 5}` : ""}`,
+          { duration: 12000 },
+        );
+      } else {
+        toast.success(`${res.processed} cartões de crédito ${verb}.`);
+      }
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["receipts"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["audit"] });
+      setActiveIdx(0);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha na ação em massa");
+    } finally {
+      setBulkRunning(false);
+      setBulkAction(null);
+    }
+  }
+
   const [reprocessing, setReprocessing] = useState(false);
   async function handleReprocessAmounts() {
     setReprocessing(true);
