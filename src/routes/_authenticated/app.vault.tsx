@@ -346,6 +346,8 @@ function VaultPage() {
   const canDelete = useCan("deleteData");
 
   const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [page, setPage] = useState(0);
   const [quick, setQuick] = useState<QuickFilter>("pending");
   const [profileId, setProfileId] = useState<string>("all");
   const [bankId, setBankId] = useState<string>("all");
@@ -397,12 +399,18 @@ function VaultPage() {
     queryFn: async () => (await supabase.from("banks").select("id, name").order("name")).data ?? [],
   });
 
+  // Busca é aplicada no servidor (com debounce) para não depender de um teto de linhas.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 350);
+    return () => clearTimeout(t);
+  }, [q]);
+
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, categoryId],
+    queryKey: ["receipts", quick, profileId, bankId, categoryId, debouncedQ, page],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
-        .select("*, categories(name), financial_profiles(name), banks(name)")
+        .select("*, categories(name), financial_profiles(name), banks(name)", { count: "exact" })
         .order("created_at", { ascending: false });
       if (quick === "pending") qb = qb.eq("status", "pending");
       else if (quick === "approved") qb = qb.eq("status", "approved");
@@ -413,25 +421,39 @@ function VaultPage() {
       if (profileId !== "all") qb = qb.eq("profile_id", profileId);
       if (bankId !== "all") qb = qb.eq("bank_id", bankId);
       if (categoryId !== "all") qb = qb.eq("category_id", categoryId);
-      const { data, error } = await qb.limit(300);
+      if (debouncedQ) {
+        const safe = debouncedQ.replace(/[%,()]/g, " ").trim();
+        if (safe) {
+          const like = `%${safe}%`;
+          const orParts = [
+            `recipient_name.ilike.${like}`,
+            `description.ilike.${like}`,
+            `bank_name.ilike.${like}`,
+            `auth_code.ilike.${like}`,
+            `file_name.ilike.${like}`,
+          ];
+          const numeric = Number(safe.replace(/\./g, "").replace(",", "."));
+          if (Number.isFinite(numeric) && safe.replace(/[^0-9]/g, "").length > 0) {
+            orParts.push(`amount.eq.${numeric}`);
+          }
+          qb = qb.or(orParts.join(","));
+        }
+      }
+      const from = page * PAGE_SIZE;
+      const { data, error, count } = await qb.range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
-      return data as any[];
+      return { rows: (data ?? []) as any[], total: count ?? 0 };
     },
   });
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [quick, profileId, bankId, categoryId]);
+    setPage(0);
+  }, [quick, profileId, bankId, categoryId, debouncedQ]);
 
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return receipts.data ?? [];
-    return (receipts.data ?? []).filter((r: any) =>
-      [r.recipient_name, r.description, r.bank_name, r.auth_code, String(r.amount ?? "")]
-        .filter(Boolean)
-        .some((v: string) => v.toLowerCase().includes(term)),
-    );
-  }, [q, receipts.data]);
+  const filtered = receipts.data?.rows ?? [];
+  const total = receipts.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const allSelected = filtered.length > 0 && filtered.every((r: any) => selectedIds.has(r.id));
   const toggleAll = () => {
