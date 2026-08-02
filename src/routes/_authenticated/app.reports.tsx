@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { getUnifiedLedger } from "@/lib/finance.functions";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ function ReportsPage() {
   const [profileId, setProfileId] = useState("all");
   const [type, setType] = useState("all");
   const [propertyId, setPropertyId] = useState("all");
+  const ledgerFn = useServerFn(getUnifiedLedger);
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const selectedBrand = useQuery({
@@ -52,6 +55,22 @@ function ReportsPage() {
 
   const rows = data.data ?? [];
   const total = useMemo(() => rows.reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
+
+  // Razão unificado (comprovantes + lançamentos de cartão, sem dupla contagem).
+  const ledger = useQuery({
+    queryKey: ["ledger", from, to, profileId, propertyId],
+    queryFn: () =>
+      ledgerFn({
+        data: {
+          from: from || undefined,
+          to: to || undefined,
+          profileId: profileId === "all" ? null : profileId,
+          propertyId: propertyId === "all" ? null : propertyId,
+          includeCards: true,
+          limit: 2000,
+        },
+      }),
+  });
 
   const buildPayload = (): ReportPayload => {
     const b = selectedBrand.data as any;
@@ -160,6 +179,49 @@ function ReportsPage() {
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Comprovantes</p><p className="mt-2 text-2xl font-bold">{rows.length}</p></Card>
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Ticket médio</p><p className="mt-2 text-2xl font-bold">{currencyBRL(rows.length ? total / rows.length : 0)}</p></Card>
       </div>
+
+      <Card className="p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">Razão unificado</p>
+            <p className="text-xs text-muted-foreground">
+              Comprovantes aprovados + lançamentos de cartão, sem dupla contagem do pagamento da fatura.
+            </p>
+          </div>
+          {ledger.isError && (
+            <Button variant="outline" size="sm" onClick={() => ledger.refetch()}>
+              Tentar novamente
+            </Button>
+          )}
+        </div>
+        {ledger.isLoading ? (
+          <p className="mt-3 text-xs text-muted-foreground">Calculando…</p>
+        ) : ledger.isError ? (
+          <p className="mt-3 text-xs text-destructive">
+            {(ledger.error as any)?.message ?? "Não foi possível calcular o razão."}
+          </p>
+        ) : (
+          <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Total consolidado</p>
+              <p className="mt-1 text-xl font-bold">{currencyBRL(ledger.data?.totals.total ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Comprovantes</p>
+              <p className="mt-1 text-xl font-bold">{currencyBRL(ledger.data?.totals.receipts ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Cartões</p>
+              <p className="mt-1 text-xl font-bold">{currencyBRL(ledger.data?.totals.cards ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Fora do total</p>
+              <p className="mt-1 text-xl font-bold">{ledger.data?.totals.excluded ?? 0}</p>
+              <p className="text-[11px] text-muted-foreground">pagamentos de fatura e ajustes internos</p>
+            </div>
+          </div>
+        )}
+      </Card>
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
