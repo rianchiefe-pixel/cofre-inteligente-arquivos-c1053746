@@ -129,7 +129,7 @@ export async function generateMonthlyExpenseReport(data: ReportDataset, opts?: {
         .slice()
         .sort((a, b) => a.value - b.value)
         .map((c) => ({ label: c.name, value: c.value, valueLabel: money(c.value) }));
-      const chartH = Math.min(ph - y - margin - 10, Math.max(160, chartItems.length * 16 + 60));
+      const chartH = Math.max(200, ph - y - margin - 10);
       drawHBarChart(doc, {
         x: margin,
         y,
@@ -210,10 +210,10 @@ export async function generateMonthlyExpenseReport(data: ReportDataset, opts?: {
             0: { cellWidth: contentW * 0.04, halign: "center" },
             1: { cellWidth: contentW * 0.07, halign: "center" },
             2: { cellWidth: contentW * 0.08, halign: "center" },
-            3: { cellWidth: contentW * 0.18 },
-            4: { cellWidth: contentW * 0.13 },
-            5: { cellWidth: contentW * 0.09, halign: "center" },
-            6: { cellWidth: contentW * 0.41 },
+            3: { cellWidth: contentW * 0.16 },
+            4: { cellWidth: contentW * 0.12 },
+            5: { cellWidth: contentW * 0.08, halign: "center" },
+            6: { cellWidth: contentW * 0.32 },
           },
           margin: { left: margin, right: margin },
         });
@@ -482,6 +482,7 @@ function drawMonthSection(doc: jsPDF, m: MonthBlock, index: number, margin: numb
       { label: "Total do mês", value: m.total, valueLabel: money(m.total), color: NAVY },
     ],
     labelWidth: 96,
+    valueGap: 90,
     fontSize: 7,
     valueFontStyle: "bold",
     axisFormatter: axisMoney,

@@ -49,7 +49,7 @@ export function drawHBarChart(doc: jsPDF, o: HBarOptions) {
   const items = o.items;
   const fontSize = o.fontSize ?? 6;
   const labelW = o.labelWidth ?? Math.min(120, o.w * 0.22);
-  const rightPad = 12;
+  const rightPad = o.valueGap ?? 78;
   const titleH = o.title ? 18 : 0;
   const axisH = o.axisTitle ? 26 : 16;
   const plotX = o.x + labelW;
