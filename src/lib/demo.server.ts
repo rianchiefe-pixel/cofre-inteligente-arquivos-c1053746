@@ -1,13 +1,15 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isDemoEmail } from "./demo";
-
-export { supabaseAdmin };
 
 // -------------------- Demo data seed --------------------
 
-async function isDemoUser(supabase: any, userId: string): Promise<boolean> {
-  const { data } = await supabase.auth.getUser();
-  return data?.user?.id === userId && data?.user?.email?.toLowerCase() === DEMO_EMAIL;
+/** Só contas de demonstração (efêmeras ou a legada) podem semear/limpar. */
+export async function assertDemoUser(supabase: any, userId: string): Promise<void> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error(`Não foi possível validar a sessão: ${error.message}`);
+  const user = data?.user;
+  if (!user || user.id !== userId || !isDemoEmail(user.email)) {
+    throw new Error("Esta ação está disponível apenas para contas de demonstração.");
+  }
 }
 
 function daysAgo(n: number): string {
@@ -18,14 +20,14 @@ function daysAgo(n: number): string {
 
 // Limpeza transacional no banco (ordem de dependências e nomes reais das tabelas
 // ficam do lado do Postgres). Devolve os caminhos de arquivos liberados.
-async function wipeDemoData(supabase: any, _userId: string): Promise<string[]> {
+export async function wipeDemoData(supabase: any, _userId: string): Promise<string[]> {
   const { data, error } = await supabase.rpc("reset_demo_data_rpc");
   if (error) throw new Error(`Falha ao limpar dados: ${error.message}`);
   const state = Array.isArray(data) ? data[0] : data;
   return (state?.storage_paths ?? []) as string[];
 }
 
-async function removeStorageFiles(supabase: any, paths: string[]): Promise<string[]> {
+export async function removeStorageFiles(supabase: any, paths: string[]): Promise<string[]> {
   const unique = Array.from(new Set(paths.filter(Boolean)));
   if (unique.length === 0) return [];
   const failed: string[] = [];
@@ -37,7 +39,7 @@ async function removeStorageFiles(supabase: any, paths: string[]): Promise<strin
   return failed;
 }
 
-async function runSeed(supabase: any, userId: string) {
+export async function runSeed(supabase: any, userId: string) {
   // ----- Profiles -----
   const profilesInput = [
     { name: "Pessoal", type: "pessoa_fisica", color: "#1e3a8a", primary_color: "#1e3a8a", accent_color: "#c9a24a" },
@@ -67,7 +69,8 @@ async function runSeed(supabase: any, userId: string) {
   const existingNames = new Set((existingCats ?? []).map((c: any) => c.name));
   for (const c of extraCats) {
     if (!existingNames.has(c.name)) {
-      await supabase.from("categories").insert({ ...c, user_id: userId });
+      const { error } = await supabase.from("categories").insert({ ...c, user_id: userId });
+      if (error) throw new Error(`categoria ${c.name}: ${error.message}`);
     }
   }
   const { data: allCats } = await supabase.from("categories").select("id, name").eq("user_id", userId);
@@ -119,10 +122,11 @@ async function runSeed(supabase: any, userId: string) {
     { name: "Santander Holding", bank: "Santander", brand: "mastercard", last4: "7788", closing_day: 10, due_day: 20, profile: "Holding Familiar" },
   ];
   for (const c of cardsInput) {
-    await supabase.from("cards").insert({
+    const { error } = await supabase.from("cards").insert({
       user_id: userId, profile_id: profiles[c.profile], bank_id: banks[c.bank],
       name: c.name, brand: c.brand, last4: c.last4, closing_day: c.closing_day, due_day: c.due_day,
     });
+    if (error) throw new Error(`cartão ${c.name}: ${error.message}`);
   }
 
   // ----- Properties -----
@@ -292,6 +296,29 @@ async function runSeed(supabase: any, userId: string) {
     { action: "archive", entity: "property", entity_id: properties["Terreno Urbano"], property_id: properties["Terreno Urbano"], note: "Imóvel arquivado" },
   ];
   for (const a of auditRows) {
-    await supabase.from("audit_logs").insert({ ...a, user_id: userId });
+    const { error } = await supabase.from("audit_logs").insert({ ...a, user_id: userId });
+    if (error) throw new Error(`auditoria ${a.action}: ${error.message}`);
   }
+}
+
+/**
+ * Limpeza + seed como uma unidade: se qualquer etapa do seed falhar, o estado
+ * parcial é removido e o erro é propagado. Nunca reportamos sucesso parcial.
+ */
+export async function resetAndSeed(supabase: any, userId: string) {
+  await assertDemoUser(supabase, userId);
+  const paths = await wipeDemoData(supabase, userId);
+  const failedFiles = await removeStorageFiles(supabase, paths);
+  try {
+    await runSeed(supabase, userId);
+  } catch (e: any) {
+    // rollback: remove tudo o que o seed alcançou a gravar
+    try {
+      await wipeDemoData(supabase, userId);
+    } catch {
+      /* preserva o erro original abaixo */
+    }
+    throw new Error(`Seed de demonstração falhou e foi revertido: ${e?.message ?? "erro desconhecido"}`);
+  }
+  return { filesRemoved: paths.length - failedFiles.length, filesFailed: failedFiles.length };
 }
