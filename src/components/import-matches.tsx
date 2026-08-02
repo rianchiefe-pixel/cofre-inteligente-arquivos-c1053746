@@ -250,6 +250,9 @@ export function ImportMatches({ batchId }: { batchId: string }) {
               }
               const data = {
                 matcherVersion: MATCHER_BUILD_VERSION,
+                // Mesmos números exibidos no painel (fonte única do servidor)
+                reconciliationSummary: summary.data ?? null,
+                fileReports: summary.data?.file_reports ?? [],
                 summary: {
                   matched: progress.matched,
                   notFound: progress.notFound,
