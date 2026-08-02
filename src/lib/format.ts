@@ -74,6 +74,12 @@ export function parseBrlAmount(raw: unknown): number | null {
  */
 export const parseBrlAmountToCents = parseMoneyToCents;
 
+/** Converte centavos inteiros para o número decimal usado nas colunas numeric. */
+export function centsToNumber(cents: number | null | undefined): number | null {
+  if (cents === null || cents === undefined || !Number.isFinite(cents)) return null;
+  return cents / 100;
+}
+
 export function formatBrlNumber(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(Number(n))) return "";
   return Math.abs(Number(n)).toLocaleString("pt-BR", {
