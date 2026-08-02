@@ -660,6 +660,9 @@ export function ImportConference({
                 <SelectItem value="possible">Possíveis ({counts.possible})</SelectItem>
                 <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
                 <SelectItem value="duplicate">Duplicidades ({counts.dup})</SelectItem>
+                <SelectItem value="credit_card">
+                  Cartões de crédito ({counts.creditCardPending})
+                </SelectItem>
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
@@ -672,6 +675,38 @@ export function ImportConference({
                 <SelectItem value="INVESTIMENTO">Investimento</SelectItem>
               </SelectContent>
             </Select>
+            {statusFilter === "credit_card" && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-full border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300"
+                  onClick={() => setBulkAction("approve")}
+                  disabled={bulkRunning || creditCardPendingRows.length === 0}
+                >
+                  {bulkRunning ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                  )}
+                  Aprovar todos os cartões ({creditCardPendingRows.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-full border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300"
+                  onClick={() => setBulkAction("reject")}
+                  disabled={bulkRunning || creditCardPendingRows.length === 0}
+                >
+                  {bulkRunning ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <XCircle className="mr-1 h-3 w-3" />
+                  )}
+                  Rejeitar todos os cartões ({creditCardPendingRows.length})
+                </Button>
+              </>
+            )}
             <Button
               size="sm"
               variant="ghost"
