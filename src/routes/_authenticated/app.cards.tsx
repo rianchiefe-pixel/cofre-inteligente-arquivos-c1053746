@@ -11,9 +11,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Plus, CreditCard, ArrowRight } from "lucide-react";
 import { currencyBRL, parseBrlAmount } from "@/lib/format";
+import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/cards")({
-  head: () => ({ meta: [{ title: "Cartões — Meu Cofre" }] }),
+  head: () => ({
+    meta: [
+      { title: "Cartões — Meu Cofre" },
+      { name: "description", content: "Gerencie cartões de crédito, titulares e faturas dos seus perfis financeiros." },
+      { property: "og:title", content: "Cartões — Meu Cofre" },
+      { property: "og:description", content: "Cartões, titulares adicionais e faturas em um só lugar." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: CardsPage,
 });
 
@@ -24,9 +35,33 @@ function CardsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({ name: "", brand: "visa", last4: "", closing_day: "", due_day: "", holder: "", profile_id: "", bank_id: "", credit_limit: "", additional_holders: "" });
 
-  const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
-  const banks = useQuery({ queryKey: ["banks"], queryFn: async () => (await supabase.from("banks").select("id, name, profile_id")).data ?? [] });
-  const cards = useQuery({ queryKey: ["cards"], queryFn: async () => (await supabase.from("cards").select("*, banks(name), financial_profiles(name)").order("created_at")).data ?? [] });
+  const profiles = useQuery({
+    queryKey: ["profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("financial_profiles").select("id, name").order("name");
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+  const banks = useQuery({
+    queryKey: ["banks"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("banks").select("id, name, profile_id");
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+  const cards = useQuery({
+    queryKey: ["cards"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cards")
+        .select("*, banks(name), financial_profiles(name)")
+        .order("created_at");
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
 
   const create = useMutation({
     mutationFn: async () => {
@@ -79,7 +114,7 @@ function CardsPage() {
           <DialogTrigger asChild><Button variant="premium" disabled={(profiles.data ?? []).length === 0}><Plus className="h-4 w-4" /> Novo cartão</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Novo cartão</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); if (create.isPending) return; create.mutate(); }} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2"><Label>Nome</Label><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex.: Nubank Ultravioleta" /></div>
                 <div className="space-y-2">
@@ -119,11 +154,26 @@ function CardsPage() {
                 <Label>Adicionais (um por linha ou separados por vírgula)</Label>
                 <Input value={form.additional_holders} onChange={(e) => setForm({ ...form, additional_holders: e.target.value })} placeholder="Ex.: Maria Silva, João Silva" />
               </div>
-              <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit" variant="premium" disabled={create.isPending || !form.profile_id}>Criar</Button></div>
+              <div className="flex justify-end gap-2"><Button type="button" variant="ghost" disabled={create.isPending} onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit" variant="premium" disabled={create.isPending || !form.profile_id || !form.name}>{create.isPending ? "Criando…" : "Criar"}</Button></div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
+
+      {cards.isLoading && <LoadingState label="Carregando cartões…" />}
+      {cards.isError && (
+        <ErrorState error={cards.error} onRetry={() => cards.refetch()} retrying={cards.isFetching} title="Não foi possível carregar os cartões" />
+      )}
+      {!cards.isLoading && !cards.isError && (cards.data ?? []).length === 0 && (
+        <EmptyState
+          title="Nenhum cartão cadastrado"
+          description={
+            (profiles.data ?? []).length === 0
+              ? "Crie um perfil financeiro antes de cadastrar cartões."
+              : "Cadastre um cartão para importar faturas e conciliar compras."
+          }
+        />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {(cards.data ?? []).map((c: any) => (
@@ -144,7 +194,6 @@ function CardsPage() {
             </div>
           </Card>
         ))}
-        {(cards.data ?? []).length === 0 && <p className="text-sm text-muted-foreground">Nenhum cartão cadastrado.</p>}
       </div>
     </div>
   );
