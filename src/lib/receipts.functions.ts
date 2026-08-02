@@ -391,15 +391,29 @@ export const bulkReceiptAction = createServerFn({ method: "POST" })
     const status = map[data.action];
     const patch: any = { status };
     if (data.action === "approve") patch.approved_at = new Date().toISOString();
-    const { error } = await context.supabase.from("receipts").update(patch).in("id", data.receiptIds);
+    const { data: updated, error } = await context.supabase
+      .from("receipts")
+      .update(patch)
+      .in("id", data.receiptIds)
+      .select("id");
     if (error) throw new Error(error.message);
-    for (const id of data.receiptIds) {
+    const changedIds = (updated ?? []).map((r) => r.id);
+    if (changedIds.length === 0) {
+      throw new Error("Nenhum comprovante foi alterado. Verifique suas permissões.");
+    }
+    for (const id of changedIds) {
       await logAudit(context.supabase, context.userId, {
         action: `bulk_${data.action}`, entity: "receipt", entity_id: id,
         new_value: { status },
       });
     }
-    return { ok: true, count: data.receiptIds.length };
+    return {
+      ok: true,
+      count: changedIds.length,
+      requested: data.receiptIds.length,
+      skipped: data.receiptIds.length - changedIds.length,
+      ids: changedIds,
+    };
   });
 
 export const bulkUpdateReceipts = createServerFn({ method: "POST" })
@@ -416,14 +430,28 @@ export const bulkUpdateReceipts = createServerFn({ method: "POST" })
     }),
   }).parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("receipts").update(data.patch as any).in("id", data.receiptIds);
+    const { data: updated, error } = await context.supabase
+      .from("receipts")
+      .update(data.patch as any)
+      .in("id", data.receiptIds)
+      .select("id");
     if (error) throw new Error(error.message);
-    for (const id of data.receiptIds) {
+    const changedIds = (updated ?? []).map((r) => r.id);
+    if (changedIds.length === 0) {
+      throw new Error("Nenhum comprovante foi alterado. Verifique suas permissões.");
+    }
+    for (const id of changedIds) {
       await logAudit(context.supabase, context.userId, {
         action: "bulk_update", entity: "receipt", entity_id: id, new_value: data.patch,
       });
     }
-    return { ok: true, count: data.receiptIds.length };
+    return {
+      ok: true,
+      count: changedIds.length,
+      requested: data.receiptIds.length,
+      skipped: data.receiptIds.length - changedIds.length,
+      ids: changedIds,
+    };
   });
 
 export const deleteReceipts = createServerFn({ method: "POST" })
