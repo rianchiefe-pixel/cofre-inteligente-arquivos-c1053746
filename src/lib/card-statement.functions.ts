@@ -94,6 +94,32 @@ export const createStatement = createServerFn({ method: "POST" })
     return { statementId: row.id, duplicate: false };
   });
 
+// ---- 1b. Vincula o arquivo enviado à fatura já registrada ------------------
+
+export const attachStatementFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        statementId: z.string().uuid(),
+        sourceFilePath: z.string().min(1).max(500),
+      })
+      .strict()
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: updated, error } = await supabase
+      .from("card_statements")
+      .update({ source_file_path: data.sourceFilePath })
+      .eq("id", data.statementId)
+      .eq("user_id", userId)
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (!updated?.length) throw new Error("Fatura não encontrada ou sem permissão.");
+    return { ok: true };
+  });
+
 // ---- 2. Analisa o texto extraído da fatura --------------------------------
 
 const AI_SYSTEM = "Você é um leitor especialista de faturas de cartão de crédito brasileiras. Responda APENAS com JSON válido, sem markdown, sem cercas de código.";
