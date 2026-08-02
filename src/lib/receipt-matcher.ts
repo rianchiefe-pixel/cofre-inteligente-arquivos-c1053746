@@ -827,15 +827,74 @@ export async function matchBatchReceipts(
     progress.diagnostics?.push(rowDiag);
   }
 
-  // Cartão de crédito: lógica simplificada para diagnóstico
-  const cardFileFacts = fileFacts.filter((f: any) => {
-    const hay = `${f.file_name} ${f.textNorm}`;
-    return /fatura|cartao de credito|cart[aã]o de cr[eé]dito|final \d{4}/i.test(hay);
-  });
-  for (const row of rowList) {
-    if (!isCardKind(row.kind)) continue;
-    progress.cardRows += 1;
-    if (manualRows.has(row.id)) { progress.cardMatched += 1; continue; }
+  // ---------------------------------------------------------------------------
+  // Cartão de crédito: concilia cada operação da planilha com o lançamento
+  // correspondente dentro da fatura (uma fatura comprova N operações).
+  // ---------------------------------------------------------------------------
+  const statements = await fetchAllPages<any>((from, to) =>
+    supabase.from("card_statements").select("id").eq("batch_id", batchId).range(from, to),
+  );
+  const statementIds = statements.map((s) => s.id as string);
+  let cardItems: ReconCardItem[] = [];
+  for (let i = 0; i < statementIds.length; i += 100) {
+    const chunk = statementIds.slice(i, i + 100);
+    const part = await fetchAllPages<any>((from, to) =>
+      supabase
+        .from("card_transactions")
+        .select(
+          "id, statement_id, txn_date, description, merchant_normalized, amount, last4, installment_current, installment_total, page_number, matched_import_row_id, match_status",
+        )
+        .in("statement_id", chunk)
+        .range(from, to),
+    );
+    cardItems.push(...(part as ReconCardItem[]));
+  }
+
+  const cardRows = rowList.filter((r: any) => isCardKind(r.kind));
+  progress.cardRows = cardRows.length;
+  const takenItems = new Set<string>(
+    cardItems
+      .filter((it) => it.matched_import_row_id && it.match_status === "matched")
+      .map((it) => it.id),
+  );
+  const cardUpdates: { id: string; row_id: string | null; status: string }[] = [];
+
+  for (const row of cardRows) {
+    const already = cardItems.find((it) => it.matched_import_row_id === row.id);
+    if (manualRows.has(row.id) || already) {
+      progress.cardMatched += 1;
+      continue;
+    }
+    const pool = cardItems.filter((it) => !takenItems.has(it.id));
+    const decision = matchCardRowToItems(row, pool);
+    if (decision.status === "matched" && decision.itemId) {
+      takenItems.add(decision.itemId);
+      cardUpdates.push({ id: decision.itemId, row_id: row.id, status: "matched" });
+      progress.cardMatched += 1;
+    } else if (decision.status === "ambiguous" && decision.candidates.length > 0) {
+      for (const cand of decision.candidates) {
+        cardUpdates.push({ id: cand, row_id: null, status: "ambiguous" });
+      }
+    }
+    progress.diagnostics?.push({
+      rowId: row.id,
+      rowNumber: row.row_number,
+      rowAmountRaw: row.amount,
+      rowDateRaw: row.transaction_date,
+      rowPayee: row.payee ?? row.description ?? null,
+      kind: "credit_card",
+      decision: decision.status,
+      reason: decision.reason,
+      merchantNormalized: normalizeMerchant(row.payee ?? row.description ?? ""),
+      candidates: decision.candidates,
+    } as any);
+  }
+
+  for (const upd of cardUpdates) {
+    await supabase
+      .from("card_transactions")
+      .update({ matched_import_row_id: upd.row_id, match_status: upd.status })
+      .eq("id", upd.id);
   }
 
   // ---------------------------------------------------------------------------
