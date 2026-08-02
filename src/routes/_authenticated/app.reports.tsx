@@ -230,6 +230,29 @@ function ReportsPage() {
         </div>
       </Card>
 
+      {canExport && (
+        <Card className="p-5">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold">Relatórios modelo</p>
+              <p className="text-xs text-muted-foreground">
+                Mesma formatação dos relatórios oficiais — mês, categoria, subcategoria, memória de cálculo e gráficos.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" disabled={modelLoading !== null} onClick={() => runModelReport("monthly")}>
+                {modelLoading === "monthly" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                Relatório de gastos (mensal)
+              </Button>
+              <Button variant="outline" disabled={modelLoading !== null} onClick={() => runModelReport("fixed")}>
+                {modelLoading === "fixed" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                Gastos fixos e variáveis
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Total</p><p className="mt-2 text-2xl font-bold">{currencyBRL(total)}</p></Card>
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Comprovantes</p><p className="mt-2 text-2xl font-bold">{rows.length}</p></Card>
