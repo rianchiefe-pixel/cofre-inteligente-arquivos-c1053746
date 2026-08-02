@@ -558,6 +558,9 @@ export interface MatchProgress {
   unmatchedFiles: number;
   duplicateFiles: number;
   persistenceRejected: number;
+  unprocessedFiles: number;
+  filesTotal: number;
+  filesDone: number;
   diagnostics?: MatchDiagnostics[];
   filesDiagnostics?: {
     files: FileDiagnostic[];
@@ -585,21 +588,60 @@ export async function matchBatchReceipts(
   const userId = u.user?.id;
   if (!userId) throw new Error("Sessão expirada");
 
-  const [{ data: rows }, { data: files }] = await Promise.all([
-    supabase.from("import_rows").select("*").eq("batch_id", batchId).limit(5000),
-    supabase
-      .from("import_files")
-      .select("id, file_name, original_path, folder, extension, extracted_text, ocr_data, page_count, duplicate_of, status, readable")
-      .eq("batch_id", batchId)
-      .in("status", ["ready", "processed", "completed", "done", "duplicate"])
-      .limit(5000),
+  // TODOS os registros do lote, com paginação interna e SEM filtro de status:
+  // arquivos com falha ou pendentes precisam aparecer na contabilização.
+  const [rowList, allFiles] = await Promise.all([
+    fetchAllPages<any>((from, to) =>
+      supabase.from("import_rows").select("*").eq("batch_id", batchId).order("row_number").range(from, to),
+    ),
+    fetchAllPages<any>((from, to) =>
+      supabase
+        .from("import_files")
+        .select(
+          "id, file_name, original_path, folder, extension, extracted_text, ocr_data, page_count, duplicate_of, status, readable, error_message, storage_path, document_type",
+        )
+        .eq("batch_id", batchId)
+        .order("original_path")
+        .range(from, to),
+    ),
   ]);
 
-  const rowList = rows ?? [];
-  const rawFiles = files ?? [];
+  // Faturas de cartão recebem tipo próprio e saem do cruzamento 1:1.
+  const statementFileIds = new Set(
+    allFiles.filter((f: any) => isCardStatementFile(f)).map((f: any) => f.id as string),
+  );
+  const needsTypeUpdate = allFiles.filter(
+    (f: any) => statementFileIds.has(f.id) && f.document_type !== "credit_card_statement",
+  );
+  for (let i = 0; i < needsTypeUpdate.length; i += 200) {
+    const chunk = needsTypeUpdate.slice(i, i + 200).map((f: any) => f.id);
+    await supabase
+      .from("import_files")
+      .update({ document_type: "credit_card_statement" })
+      .in("id", chunk);
+  }
 
-  const duplicateFiles = rawFiles.filter((f: any) => f.status === "duplicate").length;
-  const unreadableFiles = rawFiles.filter((f: any) => f.readable === false).length;
+  // Arquivos elegíveis ao cruzamento de comprovante único.
+  const rawFiles = allFiles.filter(
+    (f: any) =>
+      !isSystemFile(f) &&
+      !isUnreadableFile(f) &&
+      !statementFileIds.has(f.id) &&
+      (isProcessedFile(f) || isDuplicateFile(f)),
+  );
+  const unprocessedList = allFiles.filter(
+    (f: any) => !isSystemFile(f) && !isDuplicateFile(f) && !isUnreadableFile(f) && !isProcessedFile(f),
+  );
+
+  const duplicateFiles = allFiles.filter((f: any) => isDuplicateFile(f)).length;
+  const unreadableFiles = allFiles.filter((f: any) => isUnreadableFile(f)).length;
+  const unprocessedFiles = unprocessedList.length;
+  if (unprocessedFiles > 0) {
+    console.warn(
+      `[Matcher] ${unprocessedFiles} arquivo(s) fora do processamento:`,
+      unprocessedList.slice(0, 20).map((f: any) => `${f.file_name}: ${unprocessedReason(f)}`),
+    );
+  }
 
   // Duplicates carry no extracted_text/ocr_data — hydrate them from the
   // original file (same content_hash) so the matcher can score them too.
@@ -673,11 +715,14 @@ export async function matchBatchReceipts(
     unmatchedFiles: 0,
     duplicateFiles,
     persistenceRejected: 0,
+    unprocessedFiles,
+    filesTotal: allFiles.length,
+    filesDone: rawFiles.length + duplicateFiles + unreadableFiles,
     diagnostics: [],
     filesDiagnostics: {
       files: [],
       summary: {
-        total_files_queried: rawFiles.length,
+        total_files_queried: allFiles.length,
         total_files_loaded: fileFacts.length,
         total_files_included_in_matching: 0,
         total_files_without_text: 0,
