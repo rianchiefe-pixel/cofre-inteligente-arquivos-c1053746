@@ -106,15 +106,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       return null;
     };
     const normalizeAmount = (value: unknown): number | null => {
-      if (typeof value === "number" && Number.isFinite(value)) return value;
-      if (typeof value !== "string") return null;
-      const cleaned = value.replace(/R\$/gi, "").replace(/\s/g, "").trim();
-      if (!cleaned) return null;
-      const normalized = cleaned.includes(",")
-        ? cleaned.replace(/\./g, "").replace(",", ".")
-        : cleaned;
-      const parsed = Number(normalized.replace(/[^\d.-]/g, ""));
-      return Number.isFinite(parsed) ? parsed : null;
+      return centsToNumber(parseBrlAmountToCents(value));
     };
     const normalizeString = (value: unknown): string | null => {
       if (typeof value !== "string") return null;
