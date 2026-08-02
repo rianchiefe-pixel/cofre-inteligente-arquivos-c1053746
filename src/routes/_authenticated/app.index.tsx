@@ -2,17 +2,28 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { currencyBRL } from "@/lib/format";
+import { isWithinRange, monthRange } from "@/lib/date-range";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Wallet, PiggyBank, FileStack, AlertTriangle, TrendingUp, Clock, XCircle, Copy, Home, Building2 } from "lucide-react";
+import { Wallet, PiggyBank, FileStack, AlertTriangle, TrendingUp, Clock, XCircle, Copy, Home, Building2, RefreshCw } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/app/")({
-  head: () => ({ meta: [{ title: "Dashboard — Meu Cofre" }] }),
+  head: () => ({
+    meta: [
+      { title: "Dashboard — Meu Cofre" },
+      { name: "description", content: "Visão geral do mês: gastos, investimentos, comprovantes pendentes e desempenho por imóvel." },
+      { property: "og:title", content: "Dashboard — Meu Cofre" },
+      { property: "og:description", content: "Acompanhe os indicadores financeiros do seu cofre." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: Dashboard,
 });
 
@@ -48,38 +59,46 @@ function Dashboard() {
   const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name, status").order("name")).data ?? [] });
   const profilesList = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
 
-  const { data } = useQuery({
+  const dashboard = useQuery({
     queryKey: ["dashboard", propertyId, profileId],
     queryFn: async () => {
-      const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
-      let rq = supabase.from("receipts").select("id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, categories(name), profile_id, financial_profiles(name), property_id, properties(name)");
-      if (propertyId !== "all") rq = rq.eq("property_id", propertyId);
-      if (profileId !== "all") rq = rq.eq("profile_id", profileId);
-      const [receipts, profiles, banks] = await Promise.all([
-        rq,
-        supabase.from("financial_profiles").select("id"),
-        supabase.from("banks").select("id"),
-      ]);
-      return {
-        receipts: receipts.data ?? [],
-        profiles: profiles.data ?? [],
-        banks: banks.data ?? [],
-        monthStart: start,
-      };
+      // Mês corrente calculado em data local — sem deslocamento de UTC.
+      const range = monthRange();
+      const PAGE = 1000;
+      const receipts: any[] = [];
+      for (let offset = 0; offset < 100000; offset += PAGE) {
+        let rq = supabase
+          .from("receipts")
+          .select(
+            "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, categories(name), profile_id, financial_profiles(name), property_id, properties(name)",
+          )
+          .order("payment_date", { ascending: false })
+          .order("id", { ascending: true })
+          .range(offset, offset + PAGE - 1);
+        if (propertyId !== "all") rq = rq.eq("property_id", propertyId);
+        if (profileId !== "all") rq = rq.eq("profile_id", profileId);
+        const { data, error } = await rq;
+        if (error) throw new Error(error.message);
+        const page = data ?? [];
+        receipts.push(...page);
+        if (page.length < PAGE) break;
+      }
+      return { receipts, range };
     },
   });
 
-  const receipts = data?.receipts ?? [];
-  const monthStart = data?.monthStart ?? new Date();
+  const receipts = (dashboard.data?.receipts ?? []) as any[];
+  const range = dashboard.data?.range ?? monthRange();
   // Regra 10: rejeitados e duplicados NÃO entram nos totais do dashboard.
   const validReceipts = receipts.filter((r) => r.status !== "rejected" && r.status !== "duplicate");
   const approvedReceipts = validReceipts.filter((r) => r.status === "approved");
-  const monthReceipts = approvedReceipts.filter((r) => r.payment_date && new Date(r.payment_date) >= monthStart);
-  const totalMonth = monthReceipts.reduce((s, r) => s + Number(r.amount ?? 0), 0);
+  const monthReceipts = approvedReceipts.filter((r) => isWithinRange(r.payment_date, range.from, range.to));
+  // Regra explícita: investimento NÃO entra em "gasto do mês".
   const totalInvested = monthReceipts.filter((r) => r.transaction_type === "investimento").reduce((s, r) => s + Number(r.amount ?? 0), 0);
+  const totalMonth = monthReceipts.reduce((s, r) => s + Number(r.amount ?? 0), 0) - totalInvested;
   const pending = receipts.filter((r) => r.status === "pending").length;
   const duplicates = receipts.filter((r) => r.status === "duplicate").length;
-  const rejectedMonth = receipts.filter((r) => r.status === "rejected" && r.created_at && new Date(r.created_at) >= monthStart).length;
+  const rejectedMonth = receipts.filter((r) => r.status === "rejected" && isWithinRange(r.created_at, range.from, range.to)).length;
   const approvedMonth = monthReceipts.length;
 
   // Property metrics (respect current profile filter, ignore property filter for aggregates)
