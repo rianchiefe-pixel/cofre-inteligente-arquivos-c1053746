@@ -62,7 +62,9 @@ import {
   classifyImportRow,
   setImportRowStatus,
   reprocessBatchAmounts,
+  bulkDecideCreditCardRows,
 } from "@/lib/import.functions";
+import { isCreditCardRow } from "@/lib/import-kind";
 import {
   attachFileManually,
   detachRowFile,
@@ -148,7 +150,7 @@ export function ImportConference({
   const classifyFn = useServerFn(classifyImportRow);
 
   const [statusFilter, setStatusFilter] = useState<
-    "all" | ReviewStatus | "identified" | "possible" | "no_receipt" | "duplicate"
+    "all" | ReviewStatus | "identified" | "possible" | "no_receipt" | "duplicate" | "credit_card"
   >("pending");
   const [typeFilter, setTypeFilter] = useState<"all" | "DESPESA" | "INVESTIMENTO">("all");
   const [textFilter, setTextFilter] = useState("");
@@ -289,6 +291,9 @@ export function ImportConference({
       if (statusFilter === "possible" && rowState !== "possible") return false;
       if (statusFilter === "no_receipt" && rowState !== "no_receipt") return false;
       if (statusFilter === "duplicate" && !duplicateIds.has(r.id)) return false;
+      // Cartões de crédito: somente pendentes de conferência
+      if (statusFilter === "credit_card" && !(status === "pending" && isCreditCardRow(r)))
+        return false;
 
       if (
         statusFilter !== "all" &&
@@ -296,6 +301,7 @@ export function ImportConference({
         statusFilter !== "possible" &&
         statusFilter !== "no_receipt" &&
         statusFilter !== "duplicate" &&
+        statusFilter !== "credit_card" &&
         status !== statusFilter
       )
         return false;
@@ -411,6 +417,9 @@ export function ImportConference({
       identified,
       possible,
       dup: duplicateIds.size,
+      creditCardPending: list.filter(
+        (r: any) => (r.review_status ?? "pending") === "pending" && isCreditCardRow(r),
+      ).length,
     };
   }, [rowsQ.data, linksByRow, duplicateIds]);
 
