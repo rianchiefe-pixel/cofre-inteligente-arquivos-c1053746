@@ -62,7 +62,9 @@ import {
   classifyImportRow,
   setImportRowStatus,
   reprocessBatchAmounts,
+  bulkDecideCreditCardRows,
 } from "@/lib/import.functions";
+import { isCreditCardRow } from "@/lib/import-kind";
 import {
   attachFileManually,
   detachRowFile,
@@ -148,7 +150,7 @@ export function ImportConference({
   const classifyFn = useServerFn(classifyImportRow);
 
   const [statusFilter, setStatusFilter] = useState<
-    "all" | ReviewStatus | "identified" | "possible" | "no_receipt" | "duplicate"
+    "all" | ReviewStatus | "identified" | "possible" | "no_receipt" | "duplicate" | "credit_card"
   >("pending");
   const [typeFilter, setTypeFilter] = useState<"all" | "DESPESA" | "INVESTIMENTO">("all");
   const [textFilter, setTextFilter] = useState("");
@@ -289,6 +291,9 @@ export function ImportConference({
       if (statusFilter === "possible" && rowState !== "possible") return false;
       if (statusFilter === "no_receipt" && rowState !== "no_receipt") return false;
       if (statusFilter === "duplicate" && !duplicateIds.has(r.id)) return false;
+      // Cartões de crédito: somente pendentes de conferência
+      if (statusFilter === "credit_card" && !(status === "pending" && isCreditCardRow(r)))
+        return false;
 
       if (
         statusFilter !== "all" &&
@@ -296,6 +301,7 @@ export function ImportConference({
         statusFilter !== "possible" &&
         statusFilter !== "no_receipt" &&
         statusFilter !== "duplicate" &&
+        statusFilter !== "credit_card" &&
         status !== statusFilter
       )
         return false;
@@ -411,6 +417,9 @@ export function ImportConference({
       identified,
       possible,
       dup: duplicateIds.size,
+      creditCardPending: list.filter(
+        (r: any) => (r.review_status ?? "pending") === "pending" && isCreditCardRow(r),
+      ).length,
     };
   }, [rowsQ.data, linksByRow, duplicateIds]);
 
@@ -518,6 +527,56 @@ export function ImportConference({
   }
 
   const reprocessFn = useServerFn(reprocessBatchAmounts);
+  const bulkFn = useServerFn(bulkDecideCreditCardRows);
+
+  // ---- Ações em massa: cartões de crédito pendentes -----------------------
+  const creditCardPendingRows = useMemo(
+    () =>
+      statusFilter === "credit_card"
+        ? filteredRows.filter(
+            (r: any) => (r.review_status ?? "pending") === "pending" && isCreditCardRow(r),
+          )
+        : [],
+    [statusFilter, filteredRows],
+  );
+  const [bulkAction, setBulkAction] = useState<null | "approve" | "reject">(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+
+  async function runBulk(action: "approve" | "reject") {
+    const ids = creditCardPendingRows.map((r: any) => r.id);
+    if (ids.length === 0) {
+      toast.info("Nenhum cartão de crédito pendente no filtro atual.");
+      return;
+    }
+    setBulkRunning(true);
+    try {
+      const res = await bulkFn({ data: { batchId, rowIds: ids, action } });
+      const verb = action === "approve" ? "aprovados" : "rejeitados";
+      if (res.failed.length > 0) {
+        toast.warning(
+          `${res.processed} de ${res.requested} ${verb}. Não processados: ${res.failed
+            .map((f) => f.error)
+            .slice(0, 5)
+            .join(" · ")}${res.failed.length > 5 ? ` · +${res.failed.length - 5}` : ""}`,
+          { duration: 12000 },
+        );
+      } else {
+        toast.success(`${res.processed} cartões de crédito ${verb}.`);
+      }
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["receipts"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["audit"] });
+      setActiveIdx(0);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha na ação em massa");
+    } finally {
+      setBulkRunning(false);
+      setBulkAction(null);
+    }
+  }
+
   const [reprocessing, setReprocessing] = useState(false);
   async function handleReprocessAmounts() {
     setReprocessing(true);
@@ -601,6 +660,9 @@ export function ImportConference({
                 <SelectItem value="possible">Possíveis ({counts.possible})</SelectItem>
                 <SelectItem value="no_receipt">Sem comprovante ({counts.no})</SelectItem>
                 <SelectItem value="duplicate">Duplicidades ({counts.dup})</SelectItem>
+                <SelectItem value="credit_card">
+                  Cartões de crédito ({counts.creditCardPending})
+                </SelectItem>
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
@@ -613,6 +675,38 @@ export function ImportConference({
                 <SelectItem value="INVESTIMENTO">Investimento</SelectItem>
               </SelectContent>
             </Select>
+            {statusFilter === "credit_card" && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-full border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300"
+                  onClick={() => setBulkAction("approve")}
+                  disabled={bulkRunning || creditCardPendingRows.length === 0}
+                >
+                  {bulkRunning ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                  )}
+                  Aprovar todos os cartões ({creditCardPendingRows.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-full border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300"
+                  onClick={() => setBulkAction("reject")}
+                  disabled={bulkRunning || creditCardPendingRows.length === 0}
+                >
+                  {bulkRunning ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <XCircle className="mr-1 h-3 w-3" />
+                  )}
+                  Rejeitar todos os cartões ({creditCardPendingRows.length})
+                </Button>
+              </>
+            )}
             <Button
               size="sm"
               variant="ghost"
@@ -755,6 +849,38 @@ export function ImportConference({
             <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>
+
+        {/* Confirmação da ação em massa (cartões de crédito pendentes) */}
+        <Dialog open={bulkAction !== null} onOpenChange={(o) => !o && !bulkRunning && setBulkAction(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {bulkAction === "approve"
+                  ? "Aprovar todos os cartões de crédito?"
+                  : "Rejeitar todos os cartões de crédito?"}
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Esta ação afeta <span className="font-semibold text-foreground">{creditCardPendingRows.length}</span>{" "}
+              {creditCardPendingRows.length === 1 ? "lançamento" : "lançamentos"} de cartão de crédito
+              {" "}pendentes de conferência no filtro atual. Lançamentos já aprovados, rejeitados ou marcados
+              como “ver depois” não serão alterados.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setBulkAction(null)} disabled={bulkRunning}>
+                Cancelar
+              </Button>
+              <Button
+                variant={bulkAction === "approve" ? "default" : "destructive"}
+                onClick={() => bulkAction && runBulk(bulkAction)}
+                disabled={bulkRunning}
+              >
+                {bulkRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {bulkAction === "approve" ? "Aprovar" : "Rejeitar"} {creditCardPendingRows.length}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

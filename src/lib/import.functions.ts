@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseBrlAmount } from "@/lib/format";
+import { isCreditCardRow } from "@/lib/import-kind";
 
 // ---------------------------------------------------------------------------
 // Parte 2 — Classificação e organização pela IA (server functions)
@@ -640,6 +641,134 @@ export const setImportRowStatus = createServerFn({ method: "POST" })
 
 // ---- Reprocessa valores monetários salvos incorretamente ------------------
 // Ex.: R$ 1.880,00 gravado como -1.88, R$ 15,11 gravado como -1511.
+
+// ---------------------------------------------------------------------------
+// Ações em massa — somente cartões de crédito pendentes
+// ---------------------------------------------------------------------------
+
+const BulkInput = z.object({
+  batchId: z.string().uuid(),
+  rowIds: z.array(z.string().uuid()).min(1).max(2000),
+  action: z.enum(["approve", "reject"]),
+  reason: z.string().optional(),
+});
+
+export const bulkDecideCreditCardRows = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => BulkInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Recarrega no servidor: só linhas do lote informado e ainda pendentes.
+    const { data: rows, error: rowsErr } = await supabase
+      .from("import_rows")
+      .select("id, row_number, batch_id, review_status, category, payment_method, card, card_last4")
+      .eq("batch_id", data.batchId)
+      .in("id", data.rowIds);
+    if (rowsErr) throw new Error(rowsErr.message);
+
+    const eligible = (rows ?? []).filter(
+      (r) => (r.review_status ?? "pending") === "pending" && isCreditCardRow(r),
+    );
+    const skipped = data.rowIds.filter((id) => !eligible.some((r) => r.id === id));
+
+    const done: string[] = [];
+    const failed: Array<{ rowId: string; error: string }> = [];
+    const categoryCache = new Map<string, string>();
+
+    for (const row of eligible) {
+      try {
+        if (data.action === "reject") {
+          const { data: res, error } = await supabase.rpc("set_import_row_review_rpc", {
+            p_row_id: row.id,
+            p_status: "rejected",
+            p_reason: data.reason ?? "Rejeição em massa — cartões de crédito",
+          });
+          if (error) throw new Error(error.message);
+          const state = Array.isArray(res) ? res[0] : res;
+          if (state?.row_review_status !== "rejected") {
+            throw new Error("Rejeição não confirmada pelo banco");
+          }
+        } else {
+          const rpcOverrides: Record<string, unknown> = {};
+          const method = normalizePaymentMethod(row.payment_method);
+          if (method) rpcOverrides.payment_method = method;
+
+          const catName = (row.category ?? "").trim();
+          if (catName) {
+            const key = normalizeKey(catName);
+            let categoryId = categoryCache.get(key) ?? null;
+            if (!categoryId) {
+              const { data: cat } = await supabase
+                .from("categories")
+                .select("id")
+                .eq("user_id", userId)
+                .ilike("name", catName)
+                .maybeSingle();
+              if (cat) categoryId = cat.id;
+              else {
+                const { data: newCat, error: newCatErr } = await supabase
+                  .from("categories")
+                  .insert({ user_id: userId, name: catName, default_type: "gasto_variavel" })
+                  .select("id")
+                  .single();
+                if (newCatErr || !newCat) throw new Error(newCatErr?.message ?? "Falha ao criar categoria");
+                categoryId = newCat.id;
+              }
+              categoryCache.set(key, categoryId);
+            }
+            rpcOverrides.category_id = categoryId;
+          }
+
+          const { data: rpcRows, error: rpcErr } = await supabase.rpc("approve_import_row_rpc", {
+            p_row_id: row.id,
+            p_overrides: rpcOverrides as never,
+          });
+          if (rpcErr) throw new Error(rpcErr.message);
+          const persisted = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+          if (!persisted?.receipt_id || persisted.row_review_status !== "approved") {
+            throw new Error("Aprovação não confirmada pelo banco");
+          }
+        }
+        done.push(row.id);
+      } catch (e: any) {
+        failed.push({
+          rowId: row.id,
+          error: `Linha ${row.row_number}: ${e?.message ?? "erro desconhecido"}`,
+        });
+      }
+    }
+
+    try {
+      await supabase.from("audit_logs").insert({
+        user_id: userId,
+        action: data.action === "approve" ? "bulk_approve_credit_card_rows" : "bulk_reject_credit_card_rows",
+        entity: "import_rows",
+        entity_id: data.batchId,
+        new_value: {
+          batch_id: data.batchId,
+          requested: data.rowIds.length,
+          processed: done.length,
+          failed: failed.length,
+          skipped: skipped.length,
+          row_ids: done,
+          failed_row_ids: failed.map((f) => f.rowId),
+          at: new Date().toISOString(),
+        } as never,
+        note: `Ação em massa (cartões de crédito pendentes): ${done.length} de ${data.rowIds.length} processados`,
+      });
+    } catch {
+      /* auditoria não deve interromper a operação */
+    }
+
+    return {
+      ok: true as const,
+      processed: done.length,
+      requested: data.rowIds.length,
+      skipped: skipped.length,
+      failed,
+    };
+  });
 
 export const reprocessBatchAmounts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
