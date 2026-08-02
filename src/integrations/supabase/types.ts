@@ -1416,7 +1416,7 @@ export type Database = {
           file_hash: string | null
           file_mime: string | null
           file_name: string | null
-          file_path: string
+          file_path: string | null
           file_size: number | null
           id: string
           import_batch_id: string | null
@@ -1456,7 +1456,7 @@ export type Database = {
           file_hash?: string | null
           file_mime?: string | null
           file_name?: string | null
-          file_path: string
+          file_path?: string | null
           file_size?: number | null
           id?: string
           import_batch_id?: string | null
@@ -1496,7 +1496,7 @@ export type Database = {
           file_hash?: string | null
           file_mime?: string | null
           file_name?: string | null
-          file_path?: string
+          file_path?: string | null
           file_size?: number | null
           id?: string
           import_batch_id?: string | null

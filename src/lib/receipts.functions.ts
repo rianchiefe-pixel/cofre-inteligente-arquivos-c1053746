@@ -48,6 +48,8 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
     const { data: rec, error } = await supabase.from("receipts").select("*").eq("id", data.receiptId).single();
     if (error || !rec) throw new Error("Comprovante não encontrado");
 
+    if (!rec.file_path) throw new Error("Este lançamento não possui comprovante anexado.");
+
     await supabase.from("receipts").update({ ocr_status: "processing" }).eq("id", rec.id);
 
     // Download file as base64
