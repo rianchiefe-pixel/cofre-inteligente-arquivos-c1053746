@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { taskPriorityLabel, taskStatusLabel } from "@/lib/format";
 import { ListTodo, Plus, Search, AlertTriangle, CheckCircle2, Clock, ExternalLink } from "lucide-react";
 import { TaskEditor, TaskRow, daysUntil, emptyTask, type TaskForm } from "@/components/property-tabs";
+import { LoadingState, ErrorState } from "@/components/query-states";
 
 const sb = supabase as any;
 
