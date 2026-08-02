@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { currencyBRL } from "@/lib/format";
-import { isWithinRange, monthRange } from "@/lib/date-range";
+import { allTimeRange, isWithinRange, monthRange, monthsBackRange } from "@/lib/date-range";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,15 +55,19 @@ function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: strin
 function Dashboard() {
   const [propertyId, setPropertyId] = useState<string>("all");
   const [profileId, setProfileId] = useState<string>("all");
+  const [period, setPeriod] = useState<"current" | "3m" | "12m" | "all">("12m");
+  const periodLabel =
+    period === "current" ? "mês atual" : period === "3m" ? "últimos 3 meses" : period === "12m" ? "últimos 12 meses" : "todo o período";
 
   const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name, status").order("name")).data ?? [] });
   const profilesList = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
 
   const dashboard = useQuery({
-    queryKey: ["dashboard", propertyId, profileId],
+    queryKey: ["dashboard", propertyId, profileId, period],
     queryFn: async () => {
-      // Mês corrente calculado em data local — sem deslocamento de UTC.
-      const range = monthRange();
+      // Período escolhido, calculado em data local — sem deslocamento de UTC.
+      const range =
+        period === "current" ? monthRange() : period === "3m" ? monthsBackRange(3) : period === "12m" ? monthsBackRange(12) : allTimeRange();
       const PAGE = 1000;
       const receipts: any[] = [];
       for (let offset = 0; offset < 100000; offset += PAGE) {
@@ -88,7 +92,7 @@ function Dashboard() {
   });
 
   const receipts = (dashboard.data?.receipts ?? []) as any[];
-  const range = dashboard.data?.range ?? monthRange();
+  const range = dashboard.data?.range ?? monthsBackRange(12);
   // Regra 10: rejeitados e duplicados NÃO entram nos totais do dashboard.
   const validReceipts = receipts.filter((r) => r.status !== "rejected" && r.status !== "duplicate");
   const approvedReceipts = validReceipts.filter((r) => r.status === "approved");
@@ -140,11 +144,23 @@ function Dashboard() {
         <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
           Dashboard
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Visão geral do seu cofre — mês atual.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Visão geral do seu cofre — {periodLabel}.</p>
       </header>
 
       <Card className="premium-card p-4">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Período</Label>
+            <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current">Mês atual</SelectItem>
+                <SelectItem value="3m">Últimos 3 meses</SelectItem>
+                <SelectItem value="12m">Últimos 12 meses</SelectItem>
+                <SelectItem value="all">Todo o período</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1">
             <Label className="text-xs">Filtrar por perfil</Label>
             <Select value={profileId} onValueChange={setProfileId}>
@@ -177,11 +193,11 @@ function Dashboard() {
         </Card>
       )}
 
-      {dashboard.isLoading && <p className="text-sm text-muted-foreground">Carregando indicadores do mês…</p>}
+      {dashboard.isLoading && <p className="text-sm text-muted-foreground">Carregando indicadores do período…</p>}
 
       <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Gasto no mês (sem investimentos)" value={currencyBRL(totalMonth)} icon={Wallet} />
-        <StatCard label="Investido no mês" value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
+        <StatCard label={`Gasto no período (${periodLabel}, sem investimentos)`} value={currencyBRL(totalMonth)} icon={Wallet} />
+        <StatCard label={`Investido (${periodLabel})`} value={currencyBRL(totalInvested)} icon={PiggyBank} tone="success" />
         <StatCard label="Comprovantes aprovados" value={String(approvedReceipts.length)} icon={FileStack} tone="gold" />
         <StatCard label={pending > 0 ? "Pendentes de conferência" : "Possíveis duplicados"} value={String(pending || duplicates)} icon={AlertTriangle} tone={pending > 0 ? "warn" : "primary"} />
       </div>
@@ -189,24 +205,24 @@ function Dashboard() {
       <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Pendentes de aprovação" value={String(pending)} icon={Clock} tone="warn" />
         <StatCard label="Possíveis duplicidades" value={String(duplicates)} icon={Copy} tone="gold" />
-        <StatCard label="Rejeitados no mês" value={String(rejectedMonth)} icon={XCircle} tone="warn" />
-        <StatCard label="Aprovados no mês" value={String(approvedMonth)} icon={FileStack} tone="success" />
+        <StatCard label="Rejeitados no período" value={String(rejectedMonth)} icon={XCircle} tone="warn" />
+        <StatCard label="Aprovados no período" value={String(approvedMonth)} icon={FileStack} tone="success" />
       </div>
 
       <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Imóveis ativos" value={String(activeProperties)} icon={Home} />
-        <StatCard label="Imóvel com maior gasto no mês" value={topPropertyAmount > 0 ? `${topPropertyName} · ${currencyBRL(topPropertyAmount)}` : "—"} icon={Building2} tone="gold" />
-        <StatCard label="Investido em imóveis (mês)" value={currencyBRL(totalInvestedProperties)} icon={PiggyBank} tone="success" />
+        <StatCard label="Imóvel com maior gasto no período" value={topPropertyAmount > 0 ? `${topPropertyName} · ${currencyBRL(topPropertyAmount)}` : "—"} icon={Building2} tone="gold" />
+        <StatCard label="Investido em imóveis (período)" value={currencyBRL(totalInvestedProperties)} icon={PiggyBank} tone="success" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="premium-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por categoria (mês)</h2>
+            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por categoria (período)</h2>
           </div>
           {byCategory.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste mês ainda.</p>
+            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste período ainda.</p>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={byCategory}>
@@ -225,10 +241,10 @@ function Dashboard() {
         <Card className="premium-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por banco (mês)</h2>
+            <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por banco (período)</h2>
           </div>
           {byBank.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste mês ainda.</p>
+            <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste período ainda.</p>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>

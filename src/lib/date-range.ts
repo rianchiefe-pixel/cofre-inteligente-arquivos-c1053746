@@ -24,3 +24,18 @@ export function isWithinRange(value: string | null | undefined, from: string, to
   const day = String(value).slice(0, 10);
   return day >= from && day <= to;
 }
+
+/**
+ * Intervalo dos últimos `months` meses (inclui o mês corrente inteiro).
+ * Usado nos painéis: aprovações de meses anteriores precisam entrar no cálculo.
+ */
+export function monthsBackRange(months: number, ref: Date = new Date()): { from: string; to: string } {
+  const from = new Date(ref.getFullYear(), ref.getMonth() - (months - 1), 1);
+  const to = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+  return { from: toLocalISODate(from), to: toLocalISODate(to) };
+}
+
+/** Intervalo aberto — sem recorte de período. */
+export function allTimeRange(): { from: string; to: string } {
+  return { from: "0001-01-01", to: "9999-12-31" };
+}
