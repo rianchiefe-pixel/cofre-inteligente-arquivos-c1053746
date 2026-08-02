@@ -37,6 +37,25 @@ export interface LedgerEntry {
 const CREDIT_KINDS = new Set(["estorno", "credito"]);
 const INTERNAL_KINDS = new Set(["pagamento", "cancelada"]);
 
+/** Página do PostgREST: leitura completa exige paginar, não usar limit fixo. */
+const PAGE_SIZE = 1000;
+
+async function fetchAllPages<T>(
+  build: (fromRow: number, toRow: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  maxRows: number,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let offset = 0; offset < maxRows; offset += PAGE_SIZE) {
+    const end = Math.min(offset + PAGE_SIZE, maxRows) - 1;
+    const { data, error } = await build(offset, end);
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    out.push(...page);
+    if (page.length < end - offset + 1) break;
+  }
+  return out;
+}
+
 export const getUnifiedLedger = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -47,7 +66,8 @@ export const getUnifiedLedger = createServerFn({ method: "GET" })
         profileId: z.string().uuid().nullable().optional(),
         propertyId: z.string().uuid().nullable().optional(),
         includeCards: z.boolean().default(true),
-        limit: z.number().int().min(1).max(5000).default(2000),
+        /** Teto de segurança da leitura paginada (não é limite de página). */
+        maxRows: z.number().int().min(1).max(100000).default(50000),
       })
       .strict()
       .parse(d ?? {}),
@@ -55,38 +75,41 @@ export const getUnifiedLedger = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    let rq = supabase
-      .from("receipts")
-      .select(
-        "id, payment_date, amount, description, recipient_name, bank_name, transaction_type, profile_id, property_id, card_id, categories(name)",
-      )
-      .eq("status", "approved")
-      .order("payment_date", { ascending: false })
-      .limit(data.limit);
-    if (data.from) rq = rq.gte("payment_date", data.from);
-    if (data.to) rq = rq.lte("payment_date", data.to);
-    if (data.profileId) rq = rq.eq("profile_id", data.profileId);
-    if (data.propertyId) rq = rq.eq("property_id", data.propertyId);
-    const { data: receipts, error: rErr } = await rq;
-    if (rErr) throw new Error(rErr.message);
+    const receipts = await fetchAllPages<any>((start, end) => {
+      let rq = supabase
+        .from("receipts")
+        .select(
+          "id, payment_date, amount, description, recipient_name, bank_name, transaction_type, profile_id, property_id, card_id, categories(name)",
+        )
+        .eq("status", "approved")
+        .order("payment_date", { ascending: false })
+        .order("id", { ascending: true })
+        .range(start, end);
+      if (data.from) rq = rq.gte("payment_date", data.from);
+      if (data.to) rq = rq.lte("payment_date", data.to);
+      if (data.profileId) rq = rq.eq("profile_id", data.profileId);
+      if (data.propertyId) rq = rq.eq("property_id", data.propertyId);
+      return rq as any;
+    }, data.maxRows);
 
     let cardRows: any[] = [];
     if (data.includeCards) {
-      let cq = supabase
-        .from("card_transactions")
-        .select(
-          "id, txn_date, amount, description, category, kind, profile_id, property_id, card_id, status",
-        )
-        .eq("status", "approved")
-        .order("txn_date", { ascending: false })
-        .limit(data.limit);
-      if (data.from) cq = cq.gte("txn_date", data.from);
-      if (data.to) cq = cq.lte("txn_date", data.to);
-      if (data.profileId) cq = cq.eq("profile_id", data.profileId);
-      if (data.propertyId) cq = cq.eq("property_id", data.propertyId);
-      const { data: txns, error: cErr } = await cq;
-      if (cErr) throw new Error(cErr.message);
-      cardRows = txns ?? [];
+      cardRows = await fetchAllPages<any>((start, end) => {
+        let cq = supabase
+          .from("card_transactions")
+          .select(
+            "id, txn_date, amount, description, category, kind, profile_id, property_id, card_id, status",
+          )
+          .eq("status", "approved")
+          .order("txn_date", { ascending: false })
+          .order("id", { ascending: true })
+          .range(start, end);
+        if (data.from) cq = cq.gte("txn_date", data.from);
+        if (data.to) cq = cq.lte("txn_date", data.to);
+        if (data.profileId) cq = cq.eq("profile_id", data.profileId);
+        if (data.propertyId) cq = cq.eq("property_id", data.propertyId);
+        return cq as any;
+      }, data.maxRows);
     }
 
     const entries: LedgerEntry[] = [];
@@ -151,10 +174,22 @@ export const getUnifiedLedger = createServerFn({ method: "GET" })
       .filter((e) => e.source === "card")
       .reduce((s, e) => s + e.signed_amount, 0);
 
+    /**
+     * Regra explícita: investimento NÃO entra em "gasto do mês".
+     * `spend` = tudo que é despesa/gasto; `invested` = aportes.
+     */
+    const INVEST_KINDS = new Set(["investimento", "patrimonial"]);
+    const invested = entries
+      .filter((e) => e.counted && INVEST_KINDS.has(String(e.kind ?? "")))
+      .reduce((s, e) => s + e.signed_amount, 0);
+    const spend = total - invested;
+
     return {
       entries,
       totals: {
         total,
+        spend,
+        invested,
         receipts: receiptTotal,
         cards: cardTotal,
         excluded: entries.filter((e) => !e.counted).length,
