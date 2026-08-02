@@ -43,7 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@/lib/format";
+import { centsToNumber, currencyBRL, dateBR, parseBrlAmountToCents, paymentMethodLabel, transactionTypeLabel } from "@/lib/format";
 import {
   CheckCircle2,
   XCircle,
@@ -133,13 +133,7 @@ function normalizeDateValue(value: unknown): string | null {
 }
 
 function normalizeAmountValue(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return null;
-  const text = value.replace(/R\$/gi, "").replace(/\s/g, "").trim();
-  if (!text) return null;
-  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
-  const parsed = Number(normalized.replace(/[^\d.-]/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
+  return centsToNumber(parseBrlAmountToCents(value));
 }
 
 function normalizePaymentValue(value: unknown): string | null {
@@ -433,8 +427,8 @@ function VaultPage() {
             `auth_code.ilike.${like}`,
             `file_name.ilike.${like}`,
           ];
-          const numeric = Number(safe.replace(/\./g, "").replace(",", "."));
-          if (Number.isFinite(numeric) && safe.replace(/[^0-9]/g, "").length > 0) {
+          const numeric = centsToNumber(parseBrlAmountToCents(safe));
+          if (numeric !== null && Number.isFinite(numeric) && safe.replace(/[^0-9]/g, "").length > 0) {
             orParts.push(`amount.eq.${numeric}`);
           }
           qb = qb.or(orParts.join(","));

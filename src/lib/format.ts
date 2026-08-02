@@ -66,6 +66,20 @@ export function parseBrlAmount(raw: unknown): number | null {
   return cents !== null ? cents / 100 : null;
 }
 
+/**
+ * Nome canônico da função central de parsing monetário brasileiro.
+ * Interpreta "1.250.000,00", "1.250,50", "0,50", "-400,00", "R$ 12,00",
+ * valores com espaços e valores entre parênteses (negativos).
+ * Retorna centavos inteiros (nunca float) ou null.
+ */
+export const parseBrlAmountToCents = parseMoneyToCents;
+
+/** Converte centavos inteiros para o número decimal usado nas colunas numeric. */
+export function centsToNumber(cents: number | null | undefined): number | null {
+  if (cents === null || cents === undefined || !Number.isFinite(cents)) return null;
+  return cents / 100;
+}
+
 export function formatBrlNumber(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(Number(n))) return "";
   return Math.abs(Number(n)).toLocaleString("pt-BR", {
