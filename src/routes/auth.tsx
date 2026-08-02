@@ -11,6 +11,7 @@ import { ShieldCheck, PlayCircle } from "lucide-react";
 import { startDemoSession, seedDemoData } from "@/lib/demo.functions";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({ meta: [{ title: "Entrar — Meu Cofre" }, { name: "robots", content: "noindex" }] }),
   component: AuthPage,
 });
