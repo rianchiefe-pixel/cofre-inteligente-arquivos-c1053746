@@ -74,7 +74,7 @@ export function LeaseTab({ propertyId, userId }: { propertyId: string; userId: s
         <h3 className="text-lg font-semibold">Dados da locação</h3>
         <p className="text-sm text-muted-foreground">Informações do contrato e do inquilino.</p>
       </div>
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
+      <form onSubmit={(e) => { e.preventDefault(); if (save.isPending) return; save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <Label>Nome do inquilino</Label>
           <Input value={current.tenant_name ?? ""} onChange={(e) => set("tenant_name", e.target.value)} />
@@ -201,7 +201,7 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
           </DialogTrigger>
           <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{form.id ? "Editar obrigação" : "Nova obrigação"}</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={(e) => { e.preventDefault(); if (save.isPending) return; save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tipo</Label>
                 <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v })}>
@@ -415,7 +415,7 @@ export function CredentialsTab({ propertyId }: { propertyId: string; userId?: st
           <DialogTrigger asChild><Button variant="premium" size="sm"><Plus className="h-4 w-4" /> Novo acesso</Button></DialogTrigger>
           <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{form.id ? "Editar acesso" : "Novo acesso"}</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={(e) => { e.preventDefault(); if (save.isPending) return; save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
                 <Label>Serviço ou fornecedor</Label>
                 <Input required value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })} placeholder="Ex.: Portal do IPTU" />
