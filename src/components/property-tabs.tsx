@@ -476,14 +476,12 @@ export function CredentialsTab({ propertyId }: { propertyId: string; userId?: st
                   <Button size="sm" variant="ghost" onClick={() => copy(c.id + "_l", c.login)}>{copied === c.id + "_l" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</Button>
                 </div>
               )}
-              {c.password_set_at && (
-                <div className="mt-1 grid grid-cols-[80px_minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
+              <div className="mt-1 grid grid-cols-[80px_minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
                   <span className="text-muted-foreground">Senha</span>
                   <span className="truncate font-mono">{revealed[c.id] ?? "••••••••"}</span>
                   <Button size="sm" variant="ghost" disabled={revealing === c.id} onClick={() => toggleReveal(c.id)}>{revealed[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}</Button>
                   <Button size="sm" variant="ghost" onClick={() => copyPassword(c.id)}>{copied === c.id + "_p" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</Button>
-                </div>
-              )}
+              </div>
               {c.recovery_email && <p className="mt-2 text-xs text-muted-foreground">Recuperação: {c.recovery_email}</p>}
               {c.notes && <p className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap">{c.notes}</p>}
             </div>
