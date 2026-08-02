@@ -849,6 +849,38 @@ export function ImportConference({
             <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>
+
+        {/* Confirmação da ação em massa (cartões de crédito pendentes) */}
+        <Dialog open={bulkAction !== null} onOpenChange={(o) => !o && !bulkRunning && setBulkAction(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {bulkAction === "approve"
+                  ? "Aprovar todos os cartões de crédito?"
+                  : "Rejeitar todos os cartões de crédito?"}
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Esta ação afeta <span className="font-semibold text-foreground">{creditCardPendingRows.length}</span>{" "}
+              {creditCardPendingRows.length === 1 ? "lançamento" : "lançamentos"} de cartão de crédito
+              {" "}pendentes de conferência no filtro atual. Lançamentos já aprovados, rejeitados ou marcados
+              como “ver depois” não serão alterados.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setBulkAction(null)} disabled={bulkRunning}>
+                Cancelar
+              </Button>
+              <Button
+                variant={bulkAction === "approve" ? "default" : "destructive"}
+                onClick={() => bulkAction && runBulk(bulkAction)}
+                disabled={bulkRunning}
+              >
+                {bulkRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {bulkAction === "approve" ? "Aprovar" : "Rejeitar"} {creditCardPendingRows.length}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
