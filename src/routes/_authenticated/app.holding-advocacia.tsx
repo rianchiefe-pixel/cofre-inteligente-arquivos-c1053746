@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
-import { formatBRL } from "@/lib/format";
+import { currencyBRL } from "@/lib/format";
 import {
   getHoldingAdvocaciaPlan,
   applyHoldingAdvocaciaPlan,
@@ -137,7 +137,7 @@ function HoldingAdvocaciaPage() {
           aria-label="Selecionar lançamento"
         />
         <span className="text-muted-foreground">{item.paymentDate ?? "—"}</span>
-        <span className="font-medium tabular-nums">{formatBRL(item.amount)}</span>
+        <span className="font-medium tabular-nums">{currencyBRL(item.amount)}</span>
         <div className="min-w-0">
           <p className="truncate font-medium text-foreground">{item.recipient}</p>
           <p className="truncate text-xs text-muted-foreground">{item.reason}</p>
