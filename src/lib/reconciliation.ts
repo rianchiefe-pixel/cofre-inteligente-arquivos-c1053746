@@ -216,12 +216,14 @@ export interface CardMatchDecision {
   status: CardMatchStatus;
   score: number;
   reason: string;
+  /** ids dos lançamentos de fatura considerados (para revisão manual). */
+  candidates: string[];
 }
 
 export function matchCardRowToItems(row: ReconRow, items: ReconCardItem[]): CardMatchDecision {
   const rowCents = parseMoneyToCents(row.amount);
   if (rowCents === null || rowCents === 0)
-    return { rowId: row.id, itemId: null, status: "unmatched", score: 0, reason: "operação sem valor" };
+    return { rowId: row.id, itemId: null, status: "unmatched", score: 0, reason: "operação sem valor", candidates: [] };
 
   const rowMerchant = normalizeMerchant(row.payee ?? row.description ?? "");
   const rowLast4 = String(row.card_last4 ?? "").replace(/\D/g, "").slice(-4);
@@ -254,10 +256,18 @@ export function matchCardRowToItems(row: ReconRow, items: ReconCardItem[]): Card
     .sort((a, b) => b.score - a.score);
 
   if (scored.length === 0)
-    return { rowId: row.id, itemId: null, status: "unmatched", score: 0, reason: "nenhum item de fatura com o mesmo valor" };
+    return {
+      rowId: row.id,
+      itemId: null,
+      status: "unmatched",
+      score: 0,
+      reason: "nenhum item de fatura com o mesmo valor",
+      candidates: [],
+    };
 
   const top = scored[0];
   const tie = scored.length > 1 && scored[1].score === top.score;
+  const candidateIds = scored.slice(0, 3).map((s) => s.item.id);
 
   if (tie)
     return {
@@ -266,15 +276,37 @@ export function matchCardRowToItems(row: ReconRow, items: ReconCardItem[]): Card
       status: "ambiguous",
       score: top.score,
       reason: "mesmo valor em vários lançamentos da fatura — revisão manual",
+      candidates: candidateIds,
     };
 
   if (top.diff !== null && top.diff <= 3 && top.overlap >= 0.6)
-    return { rowId: row.id, itemId: top.item.id, status: "matched", score: top.score, reason: "valor + data + estabelecimento" };
+    return {
+      rowId: row.id,
+      itemId: top.item.id,
+      status: "matched",
+      score: top.score,
+      reason: "valor + data + estabelecimento",
+      candidates: candidateIds,
+    };
 
   if (top.diff !== null && top.diff <= 7)
-    return { rowId: row.id, itemId: top.item.id, status: "possible", score: top.score, reason: "valor + data, estabelecimento duvidoso" };
+    return {
+      rowId: row.id,
+      itemId: top.item.id,
+      status: "possible",
+      score: top.score,
+      reason: "valor + data, estabelecimento duvidoso",
+      candidates: candidateIds,
+    };
 
-  return { rowId: row.id, itemId: null, status: "unmatched", score: top.score, reason: "sem data compatível" };
+  return {
+    rowId: row.id,
+    itemId: null,
+    status: "unmatched",
+    score: top.score,
+    reason: "sem data compatível",
+    candidates: candidateIds,
+  };
 }
 
 // ---- resumo ---------------------------------------------------------------
