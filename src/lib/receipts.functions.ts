@@ -352,11 +352,13 @@ export const approveReceipt = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id, notes").eq("id", data.receiptId).single();
-    const { error } = await context.supabase
+    const { data: updated, error } = await context.supabase
       .from("receipts")
       .update({ status: "approved", approved_at: new Date().toISOString() })
-      .eq("id", data.receiptId);
+      .eq("id", data.receiptId)
+      .select("id");
     if (error) throw new Error(error.message);
+    if (!updated?.length) throw new Error("Comprovante não encontrado ou sem permissão para aprovar.");
     await logAudit(context.supabase, context.userId, {
       action: "approved", entity: "receipt", entity_id: data.receiptId,
       profile_id: prev?.profile_id, property_id: prev?.property_id,
@@ -370,8 +372,13 @@ export const rejectReceipt = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid(), reason: z.enum(["rejected", "duplicate"]).default("rejected"), note: z.string().optional() }).parse(data))
   .handler(async ({ data, context }) => {
     const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id, notes").eq("id", data.receiptId).single();
-    const { error } = await context.supabase.from("receipts").update({ status: data.reason, notes: data.note ?? prev?.notes ?? null }).eq("id", data.receiptId);
+    const { data: updated, error } = await context.supabase
+      .from("receipts")
+      .update({ status: data.reason, notes: data.note ?? prev?.notes ?? null })
+      .eq("id", data.receiptId)
+      .select("id");
     if (error) throw new Error(error.message);
+    if (!updated?.length) throw new Error("Comprovante não encontrado ou sem permissão para alterar.");
     await logAudit(context.supabase, context.userId, {
       action: data.reason === "duplicate" ? "marked_duplicate" : "rejected", entity: "receipt", entity_id: data.receiptId,
       profile_id: prev?.profile_id, property_id: prev?.property_id,
