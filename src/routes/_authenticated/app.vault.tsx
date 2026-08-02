@@ -875,6 +875,16 @@ function VaultPage() {
         <Card className="p-10 text-center">
           <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
         </Card>
+      ) : receipts.isError ? (
+        <Card className="p-10 text-center">
+          <p className="text-sm font-medium">Não foi possível carregar os comprovantes</p>
+          <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+            {(receipts.error as any)?.message ?? "Erro inesperado ao consultar o Cofre."}
+          </p>
+          <Button className="mt-4" variant="outline" onClick={() => receipts.refetch()}>
+            Tentar novamente
+          </Button>
+        </Card>
       ) : filtered.length === 0 ? (
         <Card className="p-10 text-center">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
@@ -1023,6 +1033,32 @@ function VaultPage() {
                 </Card>
               );
             })}
+          </div>
+
+          {/* Paginação servidor */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
+            <p className="text-xs text-muted-foreground">
+              {total} comprovante(s) • página {page + 1} de {totalPages}
+              {receipts.isFetching && " • atualizando…"}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0 || receipts.isFetching}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page + 1 >= totalPages || receipts.isFetching}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Próxima
+              </Button>
+            </div>
           </div>
         </>
       )}
