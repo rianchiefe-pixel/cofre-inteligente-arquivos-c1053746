@@ -914,19 +914,24 @@ export async function matchBatchReceipts(
     return !rowsWithPrimary.has(r.id) && !rowsWithReview.has(r.id);
   }).length;
 
-  // 3. Execução "Transacional": Limpar antigos e inserir novos
-  await supabase
-    .from("import_row_files")
-    .delete()
-    .eq("batch_id", batchId)
-    .eq("is_manual", false);
-
-  for (let i = 0; i < finalPayload.length; i += 500) {
-    const chunk = finalPayload.slice(i, i + 500);
-    const { error } = await supabase.from("import_row_files").upsert(chunk as any, {
-      onConflict: "row_id,file_id,page_number",
-    });
-    if (error) throw new Error(`Falha no reprocessamento transacional: ${error.message}`);
+  // 3. Reprocessamento realmente transacional: o banco valida o payload,
+  // remove os vínculos automáticos antigos e grava os novos na mesma transação.
+  // Vínculos manuais e recusados pelo usuário são preservados pela RPC.
+  const links = finalPayload.map((p) => ({
+    row_id: p.row_id,
+    file_id: p.file_id,
+    page_number: p.page_number ?? null,
+    score: p.score ?? 0,
+    confidence: p.confidence,
+    is_primary: !!p.is_primary,
+    match_reasons: p.match_reasons ?? [],
+  }));
+  const { error: replaceError } = await supabase.rpc("replace_auto_row_links_rpc", {
+    p_batch_id: batchId,
+    p_links: links as never,
+  });
+  if (replaceError) {
+    throw new Error(`Falha no reprocessamento transacional: ${replaceError.message}`);
   }
 
   // Arquivos sem vínculo (nem automático nem manual nem revisão).
