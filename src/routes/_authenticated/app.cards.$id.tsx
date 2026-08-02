@@ -17,9 +17,20 @@ import { ArrowLeft, CreditCard, Eye } from "lucide-react";
 import { CardStatementImport } from "@/components/card-statement-import";
 import { CardStatementReview } from "@/components/card-statement-review";
 import { currencyBRL } from "@/lib/format";
+import { LoadingState, ErrorState, NotFoundState, EmptyState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/cards/$id")({
-  head: () => ({ meta: [{ title: "Cartão — Meu Cofre" }] }),
+  head: () => ({
+    meta: [
+      { title: "Detalhe do cartão — Meu Cofre" },
+      { name: "description", content: "Faturas, titulares e limites do cartão selecionado." },
+      { property: "og:title", content: "Detalhe do cartão — Meu Cofre" },
+      { property: "og:description", content: "Acompanhe faturas importadas e titulares do cartão." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: CardDetailPage,
 });
 
@@ -29,35 +40,64 @@ function CardDetailPage() {
 
   const card = useQuery({
     queryKey: ["card", id],
-    queryFn: async () =>
-      (
-        await supabase
-          .from("cards")
-          .select("*, banks(name), financial_profiles(name, color)")
-          .eq("id", id)
-          .single()
-      ).data,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cards")
+        .select("*, banks(name), financial_profiles(name, color)")
+        .eq("id", id)
+        .maybeSingle();
+      // maybeSingle: ausência de linha é "não encontrado", não é erro de rede.
+      if (error) throw new Error(error.message);
+      return data ?? null;
+    },
   });
 
   const holders = useQuery({
     queryKey: ["card-holders", id],
-    queryFn: async () =>
-      (await supabase.from("card_holders").select("*").eq("card_id", id)).data ?? [],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("card_holders").select("*").eq("card_id", id);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
   });
 
   const statements = useQuery({
     queryKey: ["card-statements", id],
-    queryFn: async () =>
-      (
-        await supabase
-          .from("card_statements")
-          .select("*")
-          .eq("card_id", id)
-          .order("created_at", { ascending: false })
-      ).data ?? [],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("card_statements")
+        .select("*")
+        .eq("card_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
   });
 
-  if (!card.data) return <div className="p-6 text-sm text-muted-foreground">Carregando…</div>;
+  if (card.isLoading) return <LoadingState label="Carregando cartão…" />;
+  if (card.isError) {
+    return (
+      <ErrorState
+        error={card.error}
+        onRetry={() => card.refetch()}
+        retrying={card.isFetching}
+        title="Não foi possível carregar o cartão"
+      />
+    );
+  }
+  if (!card.data) {
+    return (
+      <NotFoundState
+        title="Cartão não encontrado"
+        description="Este cartão pode ter sido excluído ou pertence a outra conta."
+        action={
+          <Button asChild variant="outline" size="sm">
+            <Link to="/app/cards"><ArrowLeft className="h-4 w-4" /> Voltar para cartões</Link>
+          </Button>
+        }
+      />
+    );
+  }
   const c = card.data as any;
 
   return (
@@ -166,7 +206,7 @@ function CardDetailPage() {
               {(statements.data ?? []).length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="py-6 text-center text-xs text-muted-foreground">
-                    Nenhuma fatura importada ainda.
+                    <EmptyState title="Nenhuma fatura importada" description="Importe o PDF ou CSV da fatura para conciliar as compras." />
                   </TableCell>
                 </TableRow>
               )}
