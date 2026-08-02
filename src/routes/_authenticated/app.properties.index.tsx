@@ -16,6 +16,7 @@ import { centsToNumber, currencyBRL, parseBrlAmountToCents, propertyPurposeLabel
 import { Home, Plus, Pencil, Trash2, MapPin, ChevronRight, Archive, Search } from "lucide-react";
 import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
+import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/properties/")({
   head: () => ({ meta: [{ title: "Imóveis — Meu Cofre" }] }),
@@ -174,6 +175,9 @@ function PropertiesPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Trava contra duplo clique / ações concorrentes nos cartões de imóvel.
+  const busy = save.isPending || archive.isPending || remove.isPending;
+
   const openEdit = (p: any) => {
     setEditId(p.id);
     setForm({
@@ -221,7 +225,7 @@ function PropertiesPage() {
           </DialogTrigger>
           <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
             <DialogHeader><DialogTitle>{editId ? "Editar imóvel" : "Novo imóvel"}</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-6">
+            <form onSubmit={(e) => { e.preventDefault(); if (save.isPending) return; save.mutate(); }} className="space-y-6">
               <section className="space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dados básicos</p>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -329,8 +333,8 @@ function PropertiesPage() {
               </section>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="premium" disabled={save.isPending}>{editId ? "Salvar" : "Cadastrar"}</Button>
+                <Button type="button" variant="ghost" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" variant="premium" disabled={save.isPending || !form.name}>{save.isPending ? "Salvando…" : editId ? "Salvar" : "Cadastrar"}</Button>
               </div>
             </form>
           </DialogContent>
@@ -377,7 +381,19 @@ function PropertiesPage() {
       </Card>
 
       {list.isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando…</p>
+        <LoadingState label="Carregando imóveis…" />
+      ) : list.isError ? (
+        <ErrorState
+          error={list.error}
+          onRetry={() => list.refetch()}
+          retrying={list.isFetching}
+          title="Não foi possível carregar os imóveis"
+        />
+      ) : (list.data ?? []).length === 0 ? (
+        <EmptyState
+          title="Nenhum imóvel cadastrado"
+          description="Cadastre um imóvel para acompanhar despesas, reformas, locações e investimentos."
+        />
       ) : filtered.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p: any) => {
@@ -427,13 +443,13 @@ function PropertiesPage() {
                       </Link>
                     </Button>
                     <div className="flex flex-wrap gap-1">
-                      {canManage && <Button size="sm" variant="ghost" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>}
+                      {canManage && <Button size="sm" variant="ghost" disabled={busy} onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>}
                       {canManage && p.status !== "arquivado" && (
-                        <Button size="sm" variant="ghost" onClick={() => archive.mutate(p)} title="Arquivar"><Archive className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => { if (busy) return; archive.mutate(p); }} title="Arquivar"><Archive className="h-4 w-4" /></Button>
                       )}
                       {canDelete && <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="ghost" disabled={busy} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
@@ -441,8 +457,8 @@ function PropertiesPage() {
                             <AlertDialogDescription>Os comprovantes vinculados perdem apenas o vínculo com o imóvel — não são excluídos.</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => remove.mutate(p)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                            <AlertDialogCancel disabled={remove.isPending}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction disabled={remove.isPending} onClick={(e) => { e.preventDefault(); if (busy) return; remove.mutate(p); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>}
