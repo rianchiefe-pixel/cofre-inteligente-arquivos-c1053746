@@ -166,7 +166,26 @@ function CardDetailPage() {
 
       <Card className="p-5">
         <h2 className="text-sm font-semibold">Faturas importadas</h2>
-        <div className="mt-3 overflow-auto">
+        {statements.isLoading && <LoadingState label="Carregando faturas…" />}
+        {statements.isError && (
+          <div className="mt-3">
+            <ErrorState
+              error={statements.error}
+              onRetry={() => statements.refetch()}
+              retrying={statements.isFetching}
+              title="Não foi possível carregar as faturas"
+            />
+          </div>
+        )}
+        {!statements.isLoading && !statements.isError && (statements.data ?? []).length === 0 && (
+          <div className="mt-3">
+            <EmptyState
+              title="Nenhuma fatura importada"
+              description="Importe o PDF ou CSV da fatura para conciliar as compras deste cartão."
+            />
+          </div>
+        )}
+        <div className={`mt-3 overflow-auto ${(statements.data ?? []).length === 0 || statements.isError ? "hidden" : ""}`}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -203,13 +222,6 @@ function CardDetailPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {(statements.data ?? []).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-xs text-muted-foreground">
-                    <EmptyState title="Nenhuma fatura importada" description="Importe o PDF ou CSV da fatura para conciliar as compras." />
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>
