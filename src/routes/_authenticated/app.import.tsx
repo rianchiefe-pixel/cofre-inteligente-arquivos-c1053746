@@ -169,6 +169,7 @@ function ImportPage() {
       setDetection(null);
       setTotalRows(0);
       setSavedRows(0);
+      let createdBatchId: string | null = null;
       try {
         const { data: u } = await supabase.auth.getUser();
         const userId = u.user?.id;
@@ -193,6 +194,7 @@ function ImportPage() {
           .select("id")
           .single();
         if (bErr || !batch) throw new Error(bErr?.message ?? "Não foi possível iniciar");
+        createdBatchId = batch.id;
         setBatchId(batch.id);
         localStorage.setItem("mc.import.currentBatch", batch.id);
 
@@ -284,7 +286,10 @@ function ImportPage() {
               return null;
             })(),
           }));
-          const { error: rowErr } = await supabase.from("import_rows").insert(payload as any);
+          // Idempotente: reenviar/retomar o mesmo lote não duplica linhas.
+          const { error: rowErr } = await supabase
+            .from("import_rows")
+            .upsert(payload as any, { onConflict: "batch_id,row_number" });
           if (rowErr) throw new Error(`Linha ${slice[0].row_number}: ${rowErr.message}`);
           saved += slice.length;
           setSavedRows(saved);
@@ -296,14 +301,20 @@ function ImportPage() {
           });
         }
 
+        const { count: persistedRows } = await supabase
+          .from("import_rows")
+          .select("id", { count: "exact", head: true })
+          .eq("batch_id", batch.id);
+
         // Done
         setPhase("done");
         setProgress(100);
         await updateBatch(batch.id, {
-          phase: "saving",
+          phase: "done",
           progress_percent: 100,
           status: "completed",
-          imported_count: saved,
+          saved_rows: persistedRows ?? saved,
+          imported_count: persistedRows ?? saved,
           finished_at: new Date().toISOString(),
         });
         localStorage.removeItem("mc.import.currentBatch");
@@ -314,12 +325,16 @@ function ImportPage() {
         setPhase("error");
         setErrorMsg(e.message ?? String(e));
         toast.error(e.message ?? "Falha na importação");
-        if (batchId) {
-          await updateBatch(batchId, {
+        const failedId = createdBatchId ?? batchId;
+        if (failedId) {
+          await updateBatch(failedId, {
             status: "failed",
             phase: "error",
+            error_count: 1,
+            finished_at: new Date().toISOString(),
           });
         }
+        localStorage.removeItem("mc.import.currentBatch");
       }
     },
     [qc, updateBatch, batchId, scopeChoice],
