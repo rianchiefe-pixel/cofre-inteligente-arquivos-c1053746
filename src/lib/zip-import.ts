@@ -79,23 +79,6 @@ export function storageSafeName(name: string): string {
   return safeExt ? `${safeBase}.${safeExt}` : safeBase;
 }
 
-function legacyGuessMime(ext: string): string {
-  const map: Record<string, string> = {
-    pdf: "application/pdf",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-    heic: "image/heic",
-    heif: "image/heif",
-    tif: "image/tiff",
-    tiff: "image/tiff",
-    bmp: "image/bmp",
-    gif: "image/gif",
-  };
-  return map[ext] ?? "application/octet-stream";
-}
-
 async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(digest))
