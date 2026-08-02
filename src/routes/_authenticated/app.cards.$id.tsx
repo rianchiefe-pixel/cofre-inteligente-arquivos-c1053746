@@ -142,7 +142,18 @@ function CardDetailPage() {
 
           <Card className="p-5">
             <h2 className="text-sm font-semibold">Titulares identificados</h2>
-            {holders.data && holders.data.length > 0 ? (
+            {holders.isError ? (
+              <div className="mt-3">
+                <ErrorState
+                  error={holders.error}
+                  onRetry={() => holders.refetch()}
+                  retrying={holders.isFetching}
+                  title="Não foi possível carregar os titulares"
+                />
+              </div>
+            ) : holders.isLoading ? (
+              <LoadingState label="Carregando titulares…" />
+            ) : holders.data && holders.data.length > 0 ? (
               <ul className="mt-3 flex flex-wrap gap-2">
                 {holders.data.map((h: any) => (
                   <li
