@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { currencyBRL, parseBrlAmount, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
 import { revealPropertyCredential, savePropertyCredential } from "@/lib/credentials.functions";
 import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock } from "lucide-react";
+import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 const sb = supabase as any;
 
@@ -58,7 +59,12 @@ export function LeaseTab({ propertyId, userId }: { propertyId: string; userId: s
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (q.isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (q.isLoading) return <LoadingState label="Carregando dados da locação…" />;
+  if (q.isError) {
+    return (
+      <ErrorState error={q.error} onRetry={() => q.refetch()} retrying={q.isFetching} title="Não foi possível carregar a locação" />
+    );
+  }
 
   const set = (k: string, v: any) => setForm({ ...(form ?? q.data ?? {}), [k]: v });
 
@@ -242,17 +248,19 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
                 <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
               <div className="sm:col-span-2 flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="premium" disabled={save.isPending}>Salvar</Button>
+                <Button type="button" variant="ghost" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" variant="premium" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {list.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> :
-       (list.data?.length ?? 0) === 0 ? (
-        <p className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">Nenhuma obrigação cadastrada ainda.</p>
+      {list.isLoading ? <LoadingState label="Carregando obrigações…" /> :
+       list.isError ? (
+        <ErrorState error={list.error} onRetry={() => list.refetch()} retrying={list.isFetching} title="Não foi possível carregar as obrigações" />
+       ) : (list.data?.length ?? 0) === 0 ? (
+        <EmptyState title="Nenhuma obrigação cadastrada" description="Cadastre IPTU, condomínio, seguros e outras obrigações recorrentes." />
        ) : (
         <div className="divide-y divide-border">
           {list.data!.map((o) => (
@@ -437,17 +445,19 @@ export function CredentialsTab({ propertyId }: { propertyId: string; userId?: st
                 <Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
               <div className="sm:col-span-2 flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" variant="premium" disabled={save.isPending}>Salvar</Button>
+                <Button type="button" variant="ghost" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" variant="premium" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {list.isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> :
-       (list.data?.length ?? 0) === 0 ? (
-        <p className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">Nenhum acesso cadastrado. As senhas são armazenadas apenas na sua conta e ficam ocultas por padrão.</p>
+      {list.isLoading ? <LoadingState label="Carregando acessos…" /> :
+       list.isError ? (
+        <ErrorState error={list.error} onRetry={() => list.refetch()} retrying={list.isFetching} title="Não foi possível carregar os acessos" />
+       ) : (list.data?.length ?? 0) === 0 ? (
+        <EmptyState title="Nenhum acesso cadastrado" description="As senhas ficam criptografadas na sua conta e ocultas por padrão." />
        ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {list.data!.map((c) => (
