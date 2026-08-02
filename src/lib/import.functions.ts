@@ -384,6 +384,7 @@ const RowOverrides = z
     payment_method: z.string().nullable().optional(),
     payee: z.string().nullable().optional(),
     account: z.string().nullable().optional(),
+    holder: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     amount: z.number().finite().nullable().optional(),
     currency: z.string().nullable().optional(),
