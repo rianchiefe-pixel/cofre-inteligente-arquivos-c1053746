@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { profileTypeLabel } from "@/lib/format";
 import { Plus, Building2, Pencil, Trash2, Upload, X, Image as ImageIcon } from "lucide-react";
 import { useCan } from "@/lib/permissions";
+import { LoadingState, ErrorState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/profiles")({
   head: () => ({ meta: [{ title: "Perfis — Meu Cofre" }] }),
@@ -135,7 +136,7 @@ function ProfilesPage() {
           </DialogTrigger>}
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
             <DialogHeader><DialogTitle>{editId ? "Editar perfil" : "Novo perfil"}</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); if (create.isPending) return; create.mutate(); }} className="space-y-4">
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex.: Holding Familiar" />
