@@ -14,7 +14,10 @@ import { monthRange } from "@/lib/date-range";
 import { useCan } from "@/lib/permissions";
 import { ExportMenu } from "@/components/export-menu";
 import type { ReportPayload } from "@/lib/exports";
-import { RefreshCw } from "lucide-react";
+import { loadReportDataset } from "@/lib/report-data";
+import { generateFixedVariableReport, generateMonthlyExpenseReport } from "@/lib/report-templates";
+import { toast } from "sonner";
+import { FileText, Loader2, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/reports")({
   head: () => ({
@@ -38,7 +41,36 @@ function ReportsPage() {
   const [profileId, setProfileId] = useState("all");
   const [type, setType] = useState("all");
   const [propertyId, setPropertyId] = useState("all");
+  const [modelLoading, setModelLoading] = useState<"monthly" | "fixed" | null>(null);
   const ledgerFn = useServerFn(getUnifiedLedger);
+
+  const runModelReport = async (model: "monthly" | "fixed") => {
+    try {
+      setModelLoading(model);
+      const dataset = await loadReportDataset({
+        from,
+        to,
+        profileId: profileId === "all" ? null : profileId,
+        propertyId: propertyId === "all" ? null : propertyId,
+      });
+      if (!dataset.months.length) {
+        toast.error("Nenhum lançamento aprovado no período selecionado.");
+        return;
+      }
+      const result = model === "monthly"
+        ? await generateMonthlyExpenseReport(dataset)
+        : await generateFixedVariableReport(dataset);
+      if (result && result.audited === false) {
+        toast.warning(`Relatório gerado, mas a auditoria falhou: ${result.auditError ?? "motivo desconhecido"}`);
+        return;
+      }
+      toast.success("Relatório gerado e registrado na auditoria.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar o relatório.");
+    } finally {
+      setModelLoading(null);
+    }
+  };
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const selectedBrand = useQuery({
@@ -197,6 +229,29 @@ function ReportsPage() {
           {canExport && <ExportMenu build={buildPayload} disabled={rows.length === 0} />}
         </div>
       </Card>
+
+      {canExport && (
+        <Card className="p-5">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold">Relatórios modelo</p>
+              <p className="text-xs text-muted-foreground">
+                Mesma formatação dos relatórios oficiais — mês, categoria, subcategoria, memória de cálculo e gráficos.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" disabled={modelLoading !== null} onClick={() => runModelReport("monthly")}>
+                {modelLoading === "monthly" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                Relatório de gastos (mensal)
+              </Button>
+              <Button variant="outline" disabled={modelLoading !== null} onClick={() => runModelReport("fixed")}>
+                {modelLoading === "fixed" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                Gastos fixos e variáveis
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Total</p><p className="mt-2 text-2xl font-bold">{currencyBRL(total)}</p></Card>
