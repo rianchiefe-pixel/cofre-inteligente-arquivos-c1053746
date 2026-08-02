@@ -60,6 +60,42 @@ function guessMime(ext: string): string {
   return map[ext] ?? "application/octet-stream";
 }
 
+/**
+ * Supabase Storage rejeita chaves com acentos, espaços finais e caracteres
+ * especiais ("Invalid key"). O nome original continua salvo em `file_name`;
+ * apenas a CHAVE do armazenamento é normalizada para ASCII seguro.
+ */
+export function storageSafeName(name: string): string {
+  const ext = extOf(name);
+  const base = (ext ? name.slice(0, name.length - ext.length - 1) : name)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "")
+    .slice(0, 80);
+  const safeExt = ext.replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
+  const safeBase = base || "arquivo";
+  return safeExt ? `${safeBase}.${safeExt}` : safeBase;
+}
+
+function legacyGuessMime(ext: string): string {
+  const map: Record<string, string> = {
+    pdf: "application/pdf",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    heic: "image/heic",
+    heif: "image/heif",
+    tif: "image/tiff",
+    tiff: "image/tiff",
+    bmp: "image/bmp",
+    gif: "image/gif",
+  };
+  return map[ext] ?? "application/octet-stream";
+}
+
 async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(digest))
