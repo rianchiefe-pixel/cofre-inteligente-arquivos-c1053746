@@ -347,13 +347,16 @@ export function summarizeReconciliation(input: {
 }): ReconciliationSummary {
   const { batchId, rows, files, links, cardItems } = input;
 
+  const existingFileIds = new Set(files.map((f) => f.id));
+
+  // Vínculo cujo arquivo não existe mais no lote não vale como comprovante.
   const linksByRow = new Map<string, ReconLink[]>();
   for (const l of links) {
+    if (!existingFileIds.has(l.file_id)) continue;
     if (!linksByRow.has(l.row_id)) linksByRow.set(l.row_id, []);
     linksByRow.get(l.row_id)!.push(l);
   }
 
-  const existingFileIds = new Set(files.map((f) => f.id));
   const linkedFileIds = new Set<string>();
   const reviewFileIds = new Set<string>();
   const linkedRowsByFile = new Map<string, string[]>();
