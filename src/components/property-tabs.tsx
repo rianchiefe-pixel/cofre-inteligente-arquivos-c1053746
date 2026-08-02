@@ -589,11 +589,13 @@ export function TaskEditor({ open, onOpenChange, form, setForm, onSave, saving, 
   );
 }
 
-export function TaskRow({ t, onEdit, onQuickStatus, onRemove, showProperty }: {
+export function TaskRow({ t, onEdit, onQuickStatus, onRemove, showProperty, busy }: {
   t: any; onEdit: () => void;
   onQuickStatus: (status: string) => void;
   onRemove: () => void;
   showProperty?: boolean;
+  /** Bloqueia todas as ações da linha enquanto alguma mutação está em andamento. */
+  busy?: boolean;
 }) {
   const d = daysUntil(t.due_date);
   const overdue = d != null && d < 0 && !["concluida", "cancelada"].includes(t.status);
@@ -616,13 +618,13 @@ export function TaskRow({ t, onEdit, onQuickStatus, onRemove, showProperty }: {
       </div>
       <div className="flex flex-col items-end gap-1">
         <div className="flex gap-1">
-          {t.status !== "concluida" && <Button size="sm" variant="ghost" title="Concluir" onClick={() => onQuickStatus("concluida")}><Check className="h-4 w-4 text-success" /></Button>}
-          <Button size="sm" variant="ghost" onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
+          {t.status !== "concluida" && <Button size="sm" variant="ghost" title="Concluir" disabled={busy} onClick={() => onQuickStatus("concluida")}><Check className="h-4 w-4 text-success" /></Button>}
+          <Button size="sm" variant="ghost" disabled={busy} onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
           <AlertDialog>
-            <AlertDialogTrigger asChild><Button size="sm" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+            <AlertDialogTrigger asChild><Button size="sm" variant="ghost" disabled={busy} className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader><AlertDialogTitle>Excluir tarefa?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onRemove} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
+              <AlertDialogFooter><AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={busy} onClick={(e) => { e.preventDefault(); if (busy) return; onRemove(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
