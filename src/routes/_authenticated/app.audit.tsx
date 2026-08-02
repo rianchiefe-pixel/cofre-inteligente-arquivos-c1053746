@@ -13,11 +13,60 @@ import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
 import { ExportMenu } from "@/components/export-menu";
 import type { ReportPayload } from "@/lib/exports";
+import { useServerFn } from "@tanstack/react-start";
+import { getIntegrationsHealth } from "@/lib/health.functions";
+import { CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/audit")({
-  head: () => ({ meta: [{ title: "Auditoria — Meu Cofre" }] }),
+  head: () => ({
+    meta: [
+      { title: "Auditoria — Meu Cofre" },
+      { name: "description", content: "Histórico completo de alterações, exportações e estado das integrações do cofre." },
+      { property: "og:title", content: "Auditoria — Meu Cofre" },
+      { property: "og:description", content: "Rastreie cada alteração feita no seu cofre financeiro." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: AuditGate,
 });
+
+function IntegrationsHealth() {
+  const healthFn = useServerFn(getIntegrationsHealth);
+  const health = useQuery({ queryKey: ["integrations-health"], queryFn: () => healthFn({}) });
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold">Integrações do servidor</p>
+          <p className="text-xs text-muted-foreground">Confirma a configuração sem exibir nenhuma chave secreta.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => health.refetch()} disabled={health.isFetching}>
+          <RefreshCw className="h-4 w-4" /> {health.isFetching ? "Verificando…" : "Verificar"}
+        </Button>
+      </div>
+      {health.isError && (
+        <p className="mt-3 text-xs text-destructive">
+          Falha ao verificar: {(health.error as any)?.message ?? "erro desconhecido"}
+        </p>
+      )}
+      {health.data && (
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          {health.data.checks.map((c) => (
+            <li key={c.id} className="flex items-center gap-2 text-xs">
+              {c.ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
+              <span className={c.ok ? "text-muted-foreground" : "text-destructive"}>
+                {c.label} — {c.ok ? "configurada" : "não configurada"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
 
 function AuditGate() {
   const canView = useCan("viewAudit");
@@ -120,6 +169,8 @@ function AuditPage() {
         </div>
         {canExport && <ExportMenu build={buildPayload} disabled={filtered.length === 0} variant="outline" />}
       </header>
+
+      <IntegrationsHealth />
 
       <Card className="p-4">
         <div className="grid gap-3 md:grid-cols-4">
