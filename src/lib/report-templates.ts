@@ -281,7 +281,9 @@ function consolidateCategories(data: ReportDataset, key: "despesaBlock" | "inves
   const map = new Map<string, number>();
   for (const m of data.months) for (const c of m[key].categories) map.set(c.name, (map.get(c.name) ?? 0) + c.value);
   const total = [...map.values()].reduce((s, v) => s + v, 0);
-  return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value, pct: total ? (value / total) * 100 : 0 }));
+  return [...map.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, value]) => ({ name, value, cents: Math.round(value * 100), pct: total ? (value / total) * 100 : 0 }));
 }
 
 /* =========================================================================
@@ -462,7 +464,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   const logged = await logExport({
     reportKind: "relatorio_gastos_fixos_variaveis",
     format: "pdf",
-    filters: { from: data.from, to: data.to, ...data.meta.filters },
+    filters: { ...data.meta.filters, from: data.from, to: data.to },
     rowCount: data.entries.length,
   });
   return { ...logged, warnings: validation.warnings };

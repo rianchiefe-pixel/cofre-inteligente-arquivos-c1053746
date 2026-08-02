@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
 import {
   classifyKind,
   classifySpend,
@@ -13,6 +13,35 @@ import {
 import { validateReportDataset } from "./report-validation";
 import { isWithinRange, monthRange } from "./date-range";
 import { currencyBRL } from "./format";
+
+
+/* ------------------------- runner mínimo (padrão do projeto) ------------------------- */
+let failed = 0;
+let passed = 0;
+function describe(name: string, fn: () => void) {
+  console.log(`\n▸ ${name}`);
+  fn();
+}
+function it(name: string, fn: () => void) {
+  try {
+    fn();
+    passed++;
+    console.log(`  ✅ ${name}`);
+  } catch (e: any) {
+    failed++;
+    console.error(`  ❌ ${name}: ${e?.message}`);
+  }
+}
+function expect(actual: any) {
+  return {
+    toBe: (v: any) => assert.strictEqual(actual, v),
+    not: { toBe: (v: any) => assert.notStrictEqual(actual, v) },
+    toEqual: (v: any) => assert.deepStrictEqual(actual, v),
+    toMatch: (re: RegExp) => assert.ok(re.test(String(actual)), `${actual} !~ ${re}`),
+    toBeGreaterThan: (v: number) => assert.ok(actual > v, `${actual} <= ${v}`),
+    toHaveLength: (n: number) => assert.strictEqual(actual.length, n),
+  };
+}
 
 /* ---------- helpers de fixture (nenhum valor entra no código de produção) ---------- */
 
@@ -264,3 +293,10 @@ describe("conferência do relatório", () => {
     expect(r.errors.some((e) => e.code === "no_rows")).toBe(true);
   });
 });
+
+if (failed === 0) {
+  console.log(`\n✨ ${passed} testes do relatório de gastos fixos e variáveis passaram.`);
+} else {
+  console.error(`\n🚨 ${failed} testes falharam.`);
+  process.exitCode = 1;
+}
