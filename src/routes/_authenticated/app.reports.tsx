@@ -14,7 +14,10 @@ import { monthRange } from "@/lib/date-range";
 import { useCan } from "@/lib/permissions";
 import { ExportMenu } from "@/components/export-menu";
 import type { ReportPayload } from "@/lib/exports";
-import { RefreshCw } from "lucide-react";
+import { loadReportDataset } from "@/lib/report-data";
+import { generateFixedVariableReport, generateMonthlyExpenseReport } from "@/lib/report-templates";
+import { toast } from "sonner";
+import { FileText, Loader2, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/reports")({
   head: () => ({
@@ -38,7 +41,36 @@ function ReportsPage() {
   const [profileId, setProfileId] = useState("all");
   const [type, setType] = useState("all");
   const [propertyId, setPropertyId] = useState("all");
+  const [modelLoading, setModelLoading] = useState<"monthly" | "fixed" | null>(null);
   const ledgerFn = useServerFn(getUnifiedLedger);
+
+  const runModelReport = async (model: "monthly" | "fixed") => {
+    try {
+      setModelLoading(model);
+      const dataset = await loadReportDataset({
+        from,
+        to,
+        profileId: profileId === "all" ? null : profileId,
+        propertyId: propertyId === "all" ? null : propertyId,
+      });
+      if (!dataset.months.length) {
+        toast.error("Nenhum lançamento aprovado no período selecionado.");
+        return;
+      }
+      const result = model === "monthly"
+        ? await generateMonthlyExpenseReport(dataset)
+        : await generateFixedVariableReport(dataset);
+      if (result && result.audited === false) {
+        toast.warning(`Relatório gerado, mas a auditoria falhou: ${result.auditError ?? "motivo desconhecido"}`);
+        return;
+      }
+      toast.success("Relatório gerado e registrado na auditoria.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar o relatório.");
+    } finally {
+      setModelLoading(null);
+    }
+  };
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const selectedBrand = useQuery({
