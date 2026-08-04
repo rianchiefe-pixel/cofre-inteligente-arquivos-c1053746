@@ -46,7 +46,7 @@ export const fixPessoalCategories = createServerFn({ method: "POST" })
         .select("id")
         .eq("user_id", userId)
         .eq("name", group.parent)
-        .eq("parent_id", null) // Garante que é raiz
+        .is("parent_id", null) // Correctly check for null using .is()
         .maybeSingle();
 
       if (!parent) {
