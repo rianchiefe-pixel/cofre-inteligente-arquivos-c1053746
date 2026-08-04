@@ -88,8 +88,7 @@ export function validateReportDataset(data: ReportDataset): ValidationResult {
   }
   for (const c of data.diagnostics.conflicts) {
     const issue = { code: "class_conflict", message: `Conflito de classificação na categoria "${c.category}": ${brl(c.fixedCents)} como fixo e ${brl(c.variableCents)} como variável.` };
-    if (c.explicit) warnings.push(issue);
-    else errors.push(issue);
+    warnings.push(issue);
   }
   for (const c of data.diagnostics.typeConflicts) {
     warnings.push({ code: "type_conflict", message: `Lançamento ${c.id} está como "${c.transactionType}" mas a categoria "${c.category}" tem padrão "${c.categoryDefaultType}".` });
