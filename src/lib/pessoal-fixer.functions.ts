@@ -118,12 +118,12 @@ export const fixPessoalCategories = createServerFn({ method: "POST" })
       .from("categories")
       .update({ archived: true })
       .eq("user_id", userId)
-      .not("id", "in", `(${newCatIds.join(',')})`);
+      .not("id", "in", `(${newCatIds.join(",")})`);
 
-    return { 
-      success: true, 
-      profileId, 
+    return {
+      success: true,
+      profileId,
       categoriesCount: newCatIds.length,
-      movedCount
+      movedCount,
     };
   });
