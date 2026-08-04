@@ -21,12 +21,11 @@ export const fixPessoalCategories = createServerFn({ method: "POST" })
     const profileId = profile.id;
 
     // 2. Mapeamento de migração (Origem -> Novo)
-    // Isso ajuda a mover lançamentos de categorias antigas para as novas antes de arquivá-las.
     const migrationMap: Record<string, { parent: string; child: string }> = {
       "Energia": { parent: "Habitação", child: "Energia Elétrica" },
       "Água": { parent: "Habitação", child: "Água e Esgoto" },
       "Internet": { parent: "Habitação", child: "Internet e TV" },
-      "IPTU": { parent: "Impostos e Taxas", child: "Imposto de Renda" }, // Ou adicionar IPTU em Habitação se preferir
+      "IPTU": { parent: "Impostos e Taxas", child: "Imposto de Renda" },
       "Alimentação": { parent: "Alimentação", child: "Restaurantes e Bares" },
       "Mercado": { parent: "Alimentação", child: "Supermercado" },
       "Transporte": { parent: "Transporte", child: "Uber e Apps" },
@@ -37,16 +36,15 @@ export const fixPessoalCategories = createServerFn({ method: "POST" })
     };
 
     // 3. Garantir a nova taxonomia no banco
-    const categoryMap = new Map<string, string>(); // nome -> id
+    const categoryMap = new Map<string, string>();
 
     for (const group of PESSOAL_TAXONOMY) {
-      // Garantir Pai
-      let { data: parent, error: parentError } = await supabase
+      let { data: parent } = await supabase
         .from("categories")
         .select("id")
         .eq("user_id", userId)
         .eq("name", group.parent)
-        .is("parent_id", null) // Correctly check for null using .is()
+        .is("parent_id", null)
         .maybeSingle();
 
       if (!parent) {
@@ -61,9 +59,8 @@ export const fixPessoalCategories = createServerFn({ method: "POST" })
       
       categoryMap.set(group.parent, parent!.id);
 
-      // Garantir Filhos
       for (const child of group.children) {
-        let { data: childCat, error: childError } = await supabase
+        let { data: childCat } = await supabase
           .from("categories")
           .select("id")
           .eq("user_id", userId)
@@ -91,7 +88,6 @@ export const fixPessoalCategories = createServerFn({ method: "POST" })
     }
 
     // 4. Mover lançamentos existentes
-    // Buscamos categorias ativas do usuário que não estão na nova taxonomia (ou que coincidem com o mapa)
     const { data: oldCats } = await supabase
       .from("categories")
       .select("id, name")
@@ -116,18 +112,18 @@ export const fixPessoalCategories = createServerFn({ method: "POST" })
       }
     }
 
-    // 5. Arquivar categorias antigas que não são pais na nova taxonomia e nem filhos
-    const newCatIds = new Set(Array.from(categoryMap.values()));
+    // 5. Arquivar categorias antigas
+    const newCatIds = Array.from(categoryMap.values());
     const { error: archiveError } = await supabase
       .from("categories")
       .update({ archived: true })
       .eq("user_id", userId)
-      .not("id", "in", `(${Array.from(newCatIds).join(',')})`);
+      .not("id", "in", `(${newCatIds.join(',')})`);
 
     return { 
       success: true, 
       profileId, 
-      categoriesCount: newCatIds.size,
+      categoriesCount: newCatIds.length,
       movedCount
     };
   });
