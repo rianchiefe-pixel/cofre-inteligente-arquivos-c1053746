@@ -11,8 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { transactionTypeLabel } from "@/lib/format";
-import { Plus, Tag, Pencil, Trash2, Archive, ArchiveRestore } from "lucide-react";
+import { Plus, Tag, Pencil, Trash2, Archive, ArchiveRestore, Sparkles } from "lucide-react";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
+import { useServerFn } from "@tanstack/react-start";
+import { fixPessoalCategories } from "@/lib/pessoal-fixer.functions";
 
 export const Route = createFileRoute("/_authenticated/app/categories")({
   head: () => ({
@@ -39,6 +41,8 @@ function CategoriesPage() {
   const [editType, setEditType] = useState("gasto_variavel");
   const [removing, setRemoving] = useState<CatRow | null>(null);
   const [reassignTo, setReassignTo] = useState<string>("");
+  const [fixing, setFixing] = useState(false);
+  const fixPessoal = useServerFn(fixPessoalCategories);
 
   const cats = useQuery({
     queryKey: ["categories"],
@@ -109,7 +113,31 @@ function CategoriesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Categorias</h1>
-        <p className="text-sm text-muted-foreground">Ajuste as categorias para refletir a sua realidade.</p>
+        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-muted-foreground">Ajuste as categorias para refletir a sua realidade.</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 gap-2 border-accent/40 text-accent hover:bg-accent/5"
+            disabled={fixing || cats.isLoading}
+            onClick={async () => {
+              if (!confirm("Esta ação irá aplicar a taxonomia oficial ao Perfil Pessoal, movendo lançamentos compatíveis e arquivando categorias antigas. Deseja continuar?")) return;
+              setFixing(true);
+              try {
+                const res = await fixPessoal();
+                toast.success(`Taxonomia aplicada: ${res.categoriesCount} categorias criadas/verificadas e ${res.movedCount} grupos de lançamentos movidos.`);
+                invalidate();
+              } catch (e: any) {
+                toast.error(e.message ?? "Falha ao corrigir categorias");
+              } finally {
+                setFixing(false);
+              }
+            }}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Padronizar Perfil Pessoal
+          </Button>
+        </div>
       </div>
 
       <Card className="p-5">
