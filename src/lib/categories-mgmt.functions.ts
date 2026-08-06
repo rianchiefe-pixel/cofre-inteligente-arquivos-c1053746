@@ -29,9 +29,9 @@ export const getCategoryStats = createServerFn({ method: "GET" })
   .handler(async ({ data: input, context }) => {
     const { supabase } = await getSupabaseClient(input, context);
 
-    // Nota: categories table in types does not have profile_id directly, 
-    // but receipts do. In a multi-tenant system categories are usually 
-    // shared or user-specific. We use the connection's context.
+    // Nota: A tabela categories no schema atual não possui profile_id, 
+    // indicando que as categorias são globais ou filtradas pelo user_id do contexto.
+    // Em uma holding consolidada, usamos o contexto da conexão para garantir o escopo.
     const { data: categories, count, error } = await supabase
       .from("categories")
       .select("id, name, default_type, archived, parent_id", { count: "exact" });
