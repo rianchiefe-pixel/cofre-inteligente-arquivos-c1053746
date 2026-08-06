@@ -27,6 +27,9 @@ import { transactionTypeLabel } from "@/lib/format";
 import { LoadingState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/categories")({
+  head: () => ({
+    meta: [{ title: "Organização de Categorias — Meu Cofre" }],
+  }),
   component: CategoriesMgmtPage,
 });
 
