@@ -32,10 +32,9 @@ export async function analyzeCategoriesWithAI(profileId: string, token?: string)
     .select("id, name, default_type, archived, parent_id");
     // .eq("profile_id", targetProfileId) -- If table had profile_id, categories are global in this schema
   
-  // Note: Since 'categories' table seems to lack 'profile_id' in types but 
-  // 'receipts' has it, we assume categories are filtered by user_id or similar 
-  // in a real scenario, but based on current types, we'll fetch all and filter if possible.
-  // Actually, I'll fetch receipts counts to help with deduplication decision.
+  // Nota: Como a tabela 'categories' parece não ter 'profile_id' diretamente, 
+  // mas 'receipts' tem, buscamos a contagem de lançamentos por categoria 
+  // para o perfil alvo, o que ajuda a decidir qual categoria manter na mesclagem.
   
   const { data: receipts } = await supabaseAdmin
     .from("receipts")
