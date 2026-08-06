@@ -121,7 +121,7 @@ export function DeduplicationReview({ profileId, token, onRefresh }: Deduplicati
             <div className="flex flex-col md:flex-row justify-between gap-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant={group.confidence === "very_high" ? "premium" : "secondary"} className="text-[10px] uppercase tracking-wider">
+                  <Badge variant={group.confidence === "very_high" ? "default" : "secondary"} className="text-[10px] uppercase tracking-wider">
                     Confiança {group.confidence === "very_high" ? "Muito Alta" : "Alta"}
                   </Badge>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
