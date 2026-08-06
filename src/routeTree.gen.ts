@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AcessoTemporarioCategoriasTokenRouteImport } from './routes/acesso-temporario.categorias.$token'
 import { Route as AuthenticatedAppVaultRouteImport } from './routes/_authenticated/app.vault'
 import { Route as AuthenticatedAppUploadRouteImport } from './routes/_authenticated/app.upload'
 import { Route as AuthenticatedAppTasksRouteImport } from './routes/_authenticated/app.tasks'
@@ -53,6 +54,12 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AcessoTemporarioCategoriasTokenRoute =
+  AcessoTemporarioCategoriasTokenRouteImport.update({
+    id: '/acesso-temporario/categorias/$token',
+    path: '/acesso-temporario/categorias/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAppVaultRoute = AuthenticatedAppVaultRouteImport.update({
   id: '/vault',
   path: '/vault',
@@ -144,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/app/tasks': typeof AuthenticatedAppTasksRoute
   '/app/upload': typeof AuthenticatedAppUploadRoute
   '/app/vault': typeof AuthenticatedAppVaultRoute
+  '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
@@ -163,6 +171,7 @@ export interface FileRoutesByTo {
   '/app/tasks': typeof AuthenticatedAppTasksRoute
   '/app/upload': typeof AuthenticatedAppUploadRoute
   '/app/vault': typeof AuthenticatedAppVaultRoute
+  '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
@@ -185,6 +194,7 @@ export interface FileRoutesById {
   '/_authenticated/app/tasks': typeof AuthenticatedAppTasksRoute
   '/_authenticated/app/upload': typeof AuthenticatedAppUploadRoute
   '/_authenticated/app/vault': typeof AuthenticatedAppVaultRoute
+  '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/_authenticated/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/app/tasks'
     | '/app/upload'
     | '/app/vault'
+    | '/acesso-temporario/categorias/$token'
     | '/app/'
     | '/app/cards/$id'
     | '/app/properties/$id'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/app/tasks'
     | '/app/upload'
     | '/app/vault'
+    | '/acesso-temporario/categorias/$token'
     | '/app'
     | '/app/cards/$id'
     | '/app/properties/$id'
@@ -247,6 +259,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/tasks'
     | '/_authenticated/app/upload'
     | '/_authenticated/app/vault'
+    | '/acesso-temporario/categorias/$token'
     | '/_authenticated/app/'
     | '/_authenticated/app/cards/$id'
     | '/_authenticated/app/properties/$id'
@@ -257,6 +270,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  AcessoTemporarioCategoriasTokenRoute: typeof AcessoTemporarioCategoriasTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -295,6 +309,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/acesso-temporario/categorias/$token': {
+      id: '/acesso-temporario/categorias/$token'
+      path: '/acesso-temporario/categorias/$token'
+      fullPath: '/acesso-temporario/categorias/$token'
+      preLoaderRoute: typeof AcessoTemporarioCategoriasTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app/vault': {
       id: '/_authenticated/app/vault'
@@ -462,17 +483,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  AcessoTemporarioCategoriasTokenRoute: AcessoTemporarioCategoriasTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
