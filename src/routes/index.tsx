@@ -3,6 +3,16 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, Sparkles, FolderLock, ScanLine, LayoutDashboard, Building2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Meu Cofre — Gestão Inteligente de Comprovantes e Patrimônio" },
+      { name: "description", content: "Organize comprovantes, despesas e investimentos com IA. Feito para holdings, empresas e gestores de imóveis. Segurança e precisão patrimonial." },
+      { property: "og:title", content: "Meu Cofre — Gestão Inteligente de Comprovantes e Patrimônio" },
+      { property: "og:description", content: "Organize comprovantes, despesas e investimentos com IA. Feito para holdings, empresas e gestores de imóveis." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" }
+    ],
+  }),
   component: Landing,
 });
 
