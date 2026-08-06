@@ -28,7 +28,10 @@ import { LoadingState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/categories")({
   head: () => ({
-    meta: [{ title: "Organização de Categorias — Meu Cofre" }],
+    meta: [
+      { title: "Organização de Categorias — Meu Cofre" },
+      { name: "description", content: "Central de gestão e organização de categorias para o perfil Holding." }
+    ],
   }),
   component: CategoriesMgmtPage,
 });
