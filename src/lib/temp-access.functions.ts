@@ -1,13 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { crypto } from "crypto";
+import { randomBytes } from "crypto";
 
 const TOKEN_PURPOSE = 'category_organization';
 
 export const generateTempAccessToken = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ profileId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
+    if (!context?.supabase) {
+       throw new Response('Internal Server Error', { status: 500 });
+    }
     // Check if user is authenticated (admin)
     const { data: { user }, error: authError } = await context.supabase.auth.getUser();
     if (authError || !user) {
