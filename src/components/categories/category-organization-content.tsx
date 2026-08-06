@@ -28,9 +28,10 @@ interface CategoryOrganizationContentProps {
   profileId?: string;
   token?: string;
   readOnly?: boolean;
+  onlyDuplicates?: boolean;
 }
 
-export function CategoryOrganizationContent({ profileId, token, readOnly = false }: CategoryOrganizationContentProps) {
+export function CategoryOrganizationContent({ profileId, token, readOnly = false, onlyDuplicates = false }: CategoryOrganizationContentProps) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -102,20 +103,24 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-        <StatCard label="Total" value={stats?.total} />
-        <StatCard label="Principais" value={stats?.main} />
-        <StatCard label="Subcategorias" value={stats?.sub} />
-        <StatCard label="Arquivadas" value={stats?.archived} />
-        <StatCard label="Sem tipo" value={stats?.unclassified} color="text-warning" />
-        <StatCard label="Duplicatas" value={stats?.duplicates} color="text-destructive" />
-      </div>
+      {onlyDuplicates && (
+        <DeduplicationReview 
+          profileId={profileId || ""} 
+          token={token} 
+          onRefresh={() => qc.invalidateQueries({ queryKey: ["categories-mgmt"] })} 
+        />
+      )}
 
-      <DeduplicationReview 
-        profileId={profileId || ""} 
-        token={token} 
-        onRefresh={() => qc.invalidateQueries({ queryKey: ["categories-mgmt"] })} 
-      />
+      {!onlyDuplicates && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
+          <StatCard label="Total" value={stats?.total} />
+          <StatCard label="Principais" value={stats?.main} />
+          <StatCard label="Subcategorias" value={stats?.sub} />
+          <StatCard label="Arquivadas" value={stats?.archived} />
+          <StatCard label="Sem tipo" value={stats?.unclassified} color="text-warning" />
+          <StatCard label="Duplicatas" value={stats?.duplicates} color="text-destructive" />
+        </div>
+      )}
 
       <Card className="p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
