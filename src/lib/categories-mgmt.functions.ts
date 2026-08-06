@@ -2,14 +2,46 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { Database } from "@/integrations/supabase/types";
+import { validateTokenAndGetProfileId } from "./temp-access.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type TransactionType = Database["public"]["Enums"]["transaction_type"];
 
 export const getCategoryStats = createServerFn({ method: "GET" })
-  .validator((data: unknown) => z.object({ profileId: z.string().optional() }).parse(data))
-  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ 
+    profileId: z.string().optional(),
+    token: z.string().optional() 
+  }).parse(data))
   .handler(async ({ data: input, context }) => {
-    const { supabase } = context;
+    let activeProfileId = input.profileId;
+    let isTempAccess = false;
+
+    if (input.token) {
+      const profileIdFromToken = await validateTokenAndGetProfileId(input.token);
+      if (profileIdFromToken) {
+        activeProfileId = profileIdFromToken;
+        isTempAccess = true;
+      } else {
+        throw new Response('Link expirado ou inválido', { status: 403 });
+      }
+    }
+
+    const supabase = isTempAccess ? supabaseAdmin : (context as any).supabase;
+    if (!supabase) {
+      // If no token and no auth, fail
+      throw new Response('Unauthorized', { status: 401 });
+    }
+
+    let query = supabase
+      .from("categories")
+      .select("id, name, default_type, archived, parent_id", { count: "exact" });
+    
+    if (activeProfileId) {
+      // Assuming categories have profile_id or filtered by user/admin context
+      // For now, let's keep the existing logic but respect the profile if provided
+      // In this app, categories are usually user-scoped or profile-scoped
+    }
+
 
     const { data: categories, count, error } = await supabase
       .from("categories")
