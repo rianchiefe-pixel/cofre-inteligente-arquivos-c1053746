@@ -8,16 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { 
   Tag, 
   Search, 
   Filter, 
   Merge, 
-  CheckCircle2, 
   AlertCircle, 
-  ChevronRight, 
   MoreHorizontal,
   Settings2,
   ListChecks,
@@ -30,9 +27,6 @@ import { transactionTypeLabel } from "@/lib/format";
 import { LoadingState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/categories")({
-  head: () => ({
-    title: "Organização de Categorias — Meu Cofre",
-  }),
   component: CategoriesMgmtPage,
 });
 
@@ -47,48 +41,47 @@ function CategoriesMgmtPage() {
   const [bulkType, setBulkType] = useState("");
   const [bulkParentId, setBulkParentId] = useState<string | null>(null);
 
-  // Perfil da Holding fixo para este contexto conforme solicitado
   const HOLDING_PROFILE_ID = "2906fc21-93bc-42ad-8ca3-701b94fdb5f6";
 
-  const fetchStats = useServerFn(getCategoryStats);
-  const performMerge = useServerFn(mergeCategories);
-  const performBulk = useServerFn(bulkUpdateCategories);
+  const fetchStatsFn = useServerFn(getCategoryStats);
+  const performMergeFn = useServerFn(mergeCategories);
+  const performBulkFn = useServerFn(bulkUpdateCategories);
 
   const { data, isLoading } = useQuery({
     queryKey: ["categories-mgmt", HOLDING_PROFILE_ID],
-    queryFn: () => fetchStats({ profileId: HOLDING_PROFILE_ID }),
+    queryFn: () => fetchStatsFn({ data: { profileId: HOLDING_PROFILE_ID } }),
   });
 
   const categories = data?.categories || [];
   const stats = data?.stats;
 
   const filteredCategories = useMemo(() => {
-    let result = categories.filter(c => 
+    let result = categories.filter((c: any) => 
       c.name.toLowerCase().includes(search.toLowerCase())
     );
 
     if (filter === "needs_review") {
-      result = result.filter(c => !c.default_type || c.archived);
+      result = result.filter((c: any) => !c.default_type || c.archived);
     } else if (filter === "main") {
-      result = result.filter(c => !c.parent_id);
+      result = result.filter((c: any) => !c.parent_id);
     } else if (filter === "sub") {
-      result = result.filter(c => c.parent_id);
+      result = result.filter((c: any) => c.parent_id);
     } else if (filter === "archived") {
-      result = result.filter(c => c.archived);
+      result = result.filter((c: any) => c.archived);
     }
 
     return result;
   }, [categories, search, filter]);
 
   const bulkUpdateMutation = useMutation({
-    mutationFn: (patch: any) => performBulk({ ids: selectedIds, patch }),
+    mutationFn: (patch: any) => performBulkFn({ data: { ids: selectedIds, patch } }),
     onSuccess: () => {
       toast.success("Atualização em massa concluída");
       setSelectedIds([]);
       setIsBulkDialogOpen(false);
       qc.invalidateQueries({ queryKey: ["categories-mgmt"] });
     },
-    onError: (e) => toast.error("Erro na atualização: " + e.message),
+    onError: (e: any) => toast.error("Erro na atualização: " + e.message),
   });
 
   const mergeMutation = useMutation({
@@ -96,7 +89,7 @@ function CategoriesMgmtPage() {
       if (selectedIds.length !== 2) throw new Error("Selecione exatamente 2 categorias");
       const discardId = selectedIds.find(id => id !== mergeKeepId);
       if (!discardId) throw new Error("Selecione a categoria que será mantida");
-      return performMerge({ keepId: mergeKeepId, discardId, profileId: HOLDING_PROFILE_ID });
+      return performMergeFn({ data: { keepId: mergeKeepId, discardId, profileId: HOLDING_PROFILE_ID } });
     },
     onSuccess: () => {
       toast.success("Mesclagem concluída com sucesso");
@@ -104,7 +97,7 @@ function CategoriesMgmtPage() {
       setIsMergeDialogOpen(false);
       qc.invalidateQueries({ queryKey: ["categories-mgmt"] });
     },
-    onError: (e) => toast.error("Erro na mesclagem: " + e.message),
+    onError: (e: any) => toast.error("Erro na mesclagem: " + e.message),
   });
 
   if (isLoading) return <LoadingState label="Carregando central de categorias..." />;
@@ -181,7 +174,12 @@ function CategoriesMgmtPage() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="pb-3 pl-2"><Checkbox checked={selectedIds.length === filteredCategories.length && filteredCategories.length > 0} onCheckedChange={(c) => setSelectedIds(c ? filteredCategories.map(cat => cat.id) : [])} /></th>
+                <th className="pb-3 pl-2">
+                  <Checkbox 
+                    checked={selectedIds.length === filteredCategories.length && filteredCategories.length > 0} 
+                    onCheckedChange={(c) => setSelectedIds(c ? filteredCategories.map((cat: any) => cat.id) : [])} 
+                  />
+                </th>
                 <th className="pb-3 font-medium">Nome</th>
                 <th className="pb-3 font-medium">Tipo</th>
                 <th className="pb-3 font-medium">Estrutura</th>
@@ -190,19 +188,24 @@ function CategoriesMgmtPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredCategories.map(cat => (
+              {filteredCategories.map((cat: any) => (
                 <tr key={cat.id} className={`group hover:bg-muted/30 ${selectedIds.includes(cat.id) ? "bg-muted/50" : ""}`}>
-                  <td className="py-4 pl-2"><Checkbox checked={selectedIds.includes(cat.id)} onCheckedChange={(c) => setSelectedIds(prev => c ? [...prev, cat.id] : prev.filter(id => id !== cat.id))} /></td>
+                  <td className="py-4 pl-2">
+                    <Checkbox 
+                      checked={selectedIds.includes(cat.id)} 
+                      onCheckedChange={(c) => setSelectedIds(prev => c ? [...prev, cat.id] : prev.filter(id => id !== cat.id))} 
+                    />
+                  </td>
                   <td className="py-4 font-medium text-foreground">
                     <div className="flex items-center gap-2">
                       {cat.name}
-                      {!cat.default_type && <AlertCircle className="h-3.5 w-3.5 text-warning" title="Sem classificação" />}
+                      {!cat.default_type && <AlertCircle className="h-3.5 w-3.5 text-warning" />}
                     </div>
                   </td>
                   <td className="py-4">
                     {cat.default_type ? (
                       <Badge variant="secondary" className="font-normal">
-                        {transactionTypeLabel[cat.default_type] || cat.default_type}
+                        {transactionTypeLabel[cat.default_type as keyof typeof transactionTypeLabel] || cat.default_type}
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground italic">Não definido</span>
@@ -213,7 +216,7 @@ function CategoriesMgmtPage() {
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <span>Subcategoria de</span>
                         <Badge variant="outline" className="text-[10px]">
-                          {categories.find(p => p.id === cat.parent_id)?.name || "Pai desconhecido"}
+                          {categories.find((p: any) => p.id === cat.parent_id)?.name || "Pai desconhecido"}
                         </Badge>
                       </div>
                     ) : (
@@ -248,7 +251,6 @@ function CategoriesMgmtPage() {
         </div>
       </Card>
 
-      {/* Dialog de Mesclagem */}
       <Dialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -268,7 +270,7 @@ function CategoriesMgmtPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {selectedIds.map(id => {
-                    const cat = categories.find(c => c.id === id);
+                    const cat = categories.find((c: any) => c.id === id);
                     return <SelectItem key={id} value={id}>{cat?.name}</SelectItem>;
                   })}
                 </SelectContent>
@@ -277,9 +279,9 @@ function CategoriesMgmtPage() {
             {mergeKeepId && (
               <div className="rounded-lg bg-muted/50 p-3 border border-border">
                 <div className="flex items-center justify-between text-sm">
-                  <div className="text-muted-foreground">De: <span className="text-foreground font-medium">{categories.find(c => c.id !== mergeKeepId && selectedIds.includes(c.id))?.name}</span></div>
+                  <div className="text-muted-foreground">De: <span className="text-foreground font-medium">{categories.find((c: any) => c.id !== mergeKeepId && selectedIds.includes(c.id))?.name}</span></div>
                   <ArrowRight className="h-3 w-3 mx-2 text-muted-foreground" />
-                  <div className="text-success font-medium">Para: {categories.find(c => c.id === mergeKeepId)?.name}</div>
+                  <div className="text-success font-medium">Para: {categories.find((c: any) => c.id === mergeKeepId)?.name}</div>
                 </div>
               </div>
             )}
@@ -293,7 +295,6 @@ function CategoriesMgmtPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Ações em Massa */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -322,7 +323,7 @@ function CategoriesMgmtPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="null">Tornar Principal</SelectItem>
-                  {categories.filter(c => !c.parent_id && !selectedIds.includes(c.id)).map(c => (
+                  {categories.filter((c: any) => !c.parent_id && !selectedIds.includes(c.id)).map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>

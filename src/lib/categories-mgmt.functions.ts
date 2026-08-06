@@ -1,32 +1,33 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { Database } from "@/integrations/supabase/types";
+
+type TransactionType = Database["public"]["Enums"]["transaction_type"];
 
 export const getCategoryStats = createServerFn({ method: "GET" })
   .validator((data: unknown) => z.object({ profileId: z.string().optional() }).parse(data))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data: input, context }) => {
     const { supabase } = context;
-    const { profileId } = input;
 
-    // Nota: categories no schema atual não tem profile_id, mas a solicitação foca na Holding.
-    // Usaremos user_id do perfil da Holding para filtrar, ou traremos todas do usuário.
-    let query = supabase.from("categories").select("id, name, default_type, archived, parent_id", { count: "exact" });
+    const { data: categories, count, error } = await supabase
+      .from("categories")
+      .select("id, name, default_type, archived, parent_id", { count: "exact" });
     
-    const { data: categories, count, error } = await query;
     if (error) throw error;
 
     const stats = {
       total: count || 0,
-      main: categories?.filter((c: any) => !c.parent_id).length || 0,
-      sub: categories?.filter((c: any) => c.parent_id).length || 0,
-      archived: categories?.filter((c: any) => c.archived).length || 0,
-      unclassified: categories?.filter((c: any) => !c.default_type).length || 0,
+      main: categories?.filter((c) => !c.parent_id).length || 0,
+      sub: categories?.filter((c) => c.parent_id).length || 0,
+      archived: categories?.filter((c) => c.archived).length || 0,
+      unclassified: categories?.filter((c) => !c.default_type).length || 0,
       duplicates: 0
     };
 
     const names = new Set();
-    categories?.forEach((c: any) => {
+    categories?.forEach((c) => {
       const n = c.name.toLowerCase().trim();
       if (names.has(n)) stats.duplicates++;
       names.add(n);
@@ -46,7 +47,6 @@ export const mergeCategories = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { keepId, discardId, profileId } = input;
 
-    // 1. Transferir lançamentos
     const { error: errorReceipts } = await supabase
       .from("receipts")
       .update({ category_id: keepId })
@@ -55,7 +55,6 @@ export const mergeCategories = createServerFn({ method: "POST" })
     
     if (errorReceipts) throw errorReceipts;
 
-    // 2. Arquivar a categoria descartada
     const { error: errorArchive } = await supabase
       .from("categories")
       .update({ archived: true })
@@ -80,9 +79,15 @@ export const bulkUpdateCategories = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { ids, patch } = input;
 
+    // Converte default_type para o enum correto se presente
+    const updatePayload: any = { ...patch };
+    if (patch.default_type) {
+      updatePayload.default_type = patch.default_type as TransactionType;
+    }
+
     const { error } = await supabase
       .from("categories")
-      .update(patch)
+      .update(updatePayload)
       .in("id", ids);
 
     if (error) throw error;
