@@ -28,7 +28,7 @@ function TempCategoryAccessPage() {
   useEffect(() => {
     async function checkToken() {
       try {
-        const result = await validate({ token });
+        const result = await validate({ data: { token } });
         setAccessData(result as any);
       } catch (error) {
         setAccessData({ valid: false });
