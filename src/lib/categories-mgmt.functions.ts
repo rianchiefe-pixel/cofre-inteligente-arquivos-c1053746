@@ -3,49 +3,46 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 export const getCategoryStats = createServerFn({ method: "GET" })
+  .validator((data: unknown) => z.object({ profileId: z.string().optional() }).parse(data))
   .middleware([requireSupabaseAuth])
-  .input(z.object({ profileId: z.string().optional() }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ data: input, context }) => {
     const { supabase } = context;
     const { profileId } = input;
 
+    // Nota: categories no schema atual não tem profile_id, mas a solicitação foca na Holding.
+    // Usaremos user_id do perfil da Holding para filtrar, ou traremos todas do usuário.
     let query = supabase.from("categories").select("id, name, default_type, archived, parent_id", { count: "exact" });
-    if (profileId) query = query.eq("profile_id", profileId);
-
+    
     const { data: categories, count, error } = await query;
     if (error) throw error;
 
-    // Em um sistema real, faríamos joins ou múltiplas queries para contar lançamentos.
-    // Para o MVP de organização, focaremos nos metadados da categoria.
-    
     const stats = {
       total: count || 0,
-      main: categories?.filter(c => !c.parent_id).length || 0,
-      sub: categories?.filter(c => c.parent_id).length || 0,
-      archived: categories?.filter(c => c.archived).length || 0,
-      unclassified: categories?.filter(c => !c.default_type).length || 0,
-      // Simulando detecção de duplicidade básica por nome (case insensitive)
+      main: categories?.filter((c: any) => !c.parent_id).length || 0,
+      sub: categories?.filter((c: any) => c.parent_id).length || 0,
+      archived: categories?.filter((c: any) => c.archived).length || 0,
+      unclassified: categories?.filter((c: any) => !c.default_type).length || 0,
       duplicates: 0
     };
 
     const names = new Set();
-    categories?.forEach(c => {
+    categories?.forEach((c: any) => {
       const n = c.name.toLowerCase().trim();
       if (names.has(n)) stats.duplicates++;
       names.add(n);
     });
 
-    return { categories, stats };
+    return { categories: categories || [], stats };
   });
 
 export const mergeCategories = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .input(z.object({
+  .validator((data: unknown) => z.object({
     keepId: z.string(),
     discardId: z.string(),
     profileId: z.string()
-  }))
-  .handler(async ({ input, context }) => {
+  }).parse(data))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data: input, context }) => {
     const { supabase } = context;
     const { keepId, discardId, profileId } = input;
 
@@ -70,16 +67,16 @@ export const mergeCategories = createServerFn({ method: "POST" })
   });
 
 export const bulkUpdateCategories = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .input(z.object({
+  .validator((data: unknown) => z.object({
     ids: z.array(z.string()),
     patch: z.object({
       default_type: z.string().optional(),
       parent_id: z.string().nullable().optional(),
       archived: z.boolean().optional()
     })
-  }))
-  .handler(async ({ input, context }) => {
+  }).parse(data))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data: input, context }) => {
     const { supabase } = context;
     const { ids, patch } = input;
 
