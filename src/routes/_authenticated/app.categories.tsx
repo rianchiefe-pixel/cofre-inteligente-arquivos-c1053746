@@ -1,30 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
-import { Card } from "@/components/ui/card";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { 
-  Tag, 
-  Search, 
-  Filter, 
-  Merge, 
-  AlertCircle, 
-  MoreHorizontal,
-  Settings2,
+  Link as LinkIcon,
   ListChecks,
   History,
-  ArrowRight
+  Copy,
+  ExternalLink,
+  ShieldCheck,
+  XCircle
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { getCategoryStats, mergeCategories, bulkUpdateCategories } from "@/lib/categories-mgmt.functions";
-import { transactionTypeLabel } from "@/lib/format";
-import { LoadingState } from "@/components/query-states";
+import { CategoryOrganizationContent } from "@/components/categories/category-organization-content";
+import { generateTempAccessToken, getActiveTempAccessToken, revokeTempAccessToken } from "@/lib/temp-access.functions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export const Route = createFileRoute("/_authenticated/app/categories")({
   head: () => ({
@@ -38,75 +31,45 @@ export const Route = createFileRoute("/_authenticated/app/categories")({
 
 function CategoriesMgmtPage() {
   const qc = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
-  const [mergeKeepId, setMergeKeepId] = useState("");
-  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
-  const [bulkType, setBulkType] = useState("");
-  const [bulkParentId, setBulkParentId] = useState<string | null>(null);
-
   const HOLDING_PROFILE_ID = "2906fc21-93bc-42ad-8ca3-701b94fdb5f6";
+  const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
 
-  const fetchStatsFn = useServerFn(getCategoryStats);
-  const performMergeFn = useServerFn(mergeCategories);
-  const performBulkFn = useServerFn(bulkUpdateCategories);
+  const generateTokenFn = useServerFn(generateTempAccessToken);
+  const getActiveTokenFn = useServerFn(getActiveTempAccessToken);
+  const revokeTokenFn = useServerFn(revokeTempAccessToken);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["categories-mgmt", HOLDING_PROFILE_ID],
-    queryFn: () => fetchStatsFn({ data: { profileId: HOLDING_PROFILE_ID } }),
+  const { data: activeToken, isLoading: isLoadingToken } = useQuery({
+    queryKey: ["active-temp-token", HOLDING_PROFILE_ID],
+    queryFn: () => getActiveTokenFn({ data: { profileId: HOLDING_PROFILE_ID } }),
   });
 
-  const categories = data?.categories || [];
-  const stats = data?.stats;
-
-  const filteredCategories = useMemo(() => {
-    let result = categories.filter((c: any) => 
-      c.name.toLowerCase().includes(search.toLowerCase())
-    );
-
-    if (filter === "needs_review") {
-      result = result.filter((c: any) => !c.default_type || c.archived);
-    } else if (filter === "main") {
-      result = result.filter((c: any) => !c.parent_id);
-    } else if (filter === "sub") {
-      result = result.filter((c: any) => c.parent_id);
-    } else if (filter === "archived") {
-      result = result.filter((c: any) => c.archived);
-    }
-
-    return result;
-  }, [categories, search, filter]);
-
-  const bulkUpdateMutation = useMutation({
-    mutationFn: (patch: any) => performBulkFn({ data: { ids: selectedIds, patch } }),
+  const generateMutation = useMutation({
+    mutationFn: () => generateTokenFn({ data: { profileId: HOLDING_PROFILE_ID } }),
     onSuccess: () => {
-      toast.success("Atualização em massa concluída");
-      setSelectedIds([]);
-      setIsBulkDialogOpen(false);
-      qc.invalidateQueries({ queryKey: ["categories-mgmt"] });
+      toast.success("Link de acesso gerado com sucesso!");
+      qc.invalidateQueries({ queryKey: ["active-temp-token"] });
+      setIsTokenDialogOpen(true);
     },
-    onError: (e: any) => toast.error("Erro na atualização: " + e.message),
+    onError: (e: any) => toast.error("Erro ao gerar link: " + e.message),
   });
 
-  const mergeMutation = useMutation({
-    mutationFn: () => {
-      if (selectedIds.length !== 2) throw new Error("Selecione exatamente 2 categorias");
-      const discardId = selectedIds.find(id => id !== mergeKeepId);
-      if (!discardId) throw new Error("Selecione a categoria que será mantida");
-      return performMergeFn({ data: { keepId: mergeKeepId, discardId, profileId: HOLDING_PROFILE_ID } });
-    },
+  const revokeMutation = useMutation({
+    mutationFn: (tokenId: string) => revokeTokenFn({ data: { tokenId } }),
     onSuccess: () => {
-      toast.success("Mesclagem concluída com sucesso");
-      setSelectedIds([]);
-      setIsMergeDialogOpen(false);
-      qc.invalidateQueries({ queryKey: ["categories-mgmt"] });
+      toast.success("Acesso temporário revogado.");
+      qc.invalidateQueries({ queryKey: ["active-temp-token"] });
     },
-    onError: (e: any) => toast.error("Erro na mesclagem: " + e.message),
+    onError: (e: any) => toast.error("Erro ao revogar: " + e.message),
   });
 
-  if (isLoading) return <LoadingState label="Carregando central de categorias..." />;
+  const tempAccessUrl = activeToken 
+    ? `${window.location.origin}/acesso-temporario/categorias/${activeToken.token}`
+    : "";
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(tempAccessUrl);
+    toast.success("Link copiado para a área de transferência!");
+  };
 
   return (
     <div className="space-y-6">
@@ -115,7 +78,22 @@ function CategoriesMgmtPage() {
           <h1 className="text-2xl font-bold tracking-tight">Organização de Categorias</h1>
           <p className="text-sm text-muted-foreground">Gestão centralizada para Advocacia Leliane Pereira (Holding)</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {activeToken ? (
+            <Button variant="outline" size="sm" className="gap-2 border-success/30 text-success hover:bg-success/5" onClick={() => setIsTokenDialogOpen(true)}>
+              <ShieldCheck className="h-4 w-4" /> Link Ativo
+            </Button>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2" 
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending}
+            >
+              <LinkIcon className="h-4 w-4" /> Gerar Link 24h
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-2">
             <History className="h-4 w-4" /> Auditoria
           </Button>
@@ -125,248 +103,67 @@ function CategoriesMgmtPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-        <StatCard label="Total" value={stats?.total} />
-        <StatCard label="Principais" value={stats?.main} />
-        <StatCard label="Subcategorias" value={stats?.sub} />
-        <StatCard label="Arquivadas" value={stats?.archived} />
-        <StatCard label="Sem tipo" value={stats?.unclassified} color="text-warning" />
-        <StatCard label="Duplicatas" value={stats?.duplicates} color="text-destructive" />
-      </div>
+      <CategoryOrganizationContent profileId={HOLDING_PROFILE_ID} />
 
-      <Card className="p-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-1 items-center gap-2 max-w-md">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nome..." 
-                className="pl-9"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filtrar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="needs_review">Precisa de Revisão</SelectItem>
-                <SelectItem value="main">Principais</SelectItem>
-                <SelectItem value="sub">Subcategorias</SelectItem>
-                <SelectItem value="archived">Arquivadas</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedIds.length > 0 && (
-            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-              <span className="text-xs font-medium text-muted-foreground">{selectedIds.length} selecionadas</span>
-              {selectedIds.length === 2 && (
-                <Button variant="outline" size="sm" className="gap-2 text-accent border-accent/20" onClick={() => setIsMergeDialogOpen(true)}>
-                  <Merge className="h-4 w-4" /> Mesclar
-                </Button>
-              )}
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => setIsBulkDialogOpen(true)}>
-                <Settings2 className="h-4 w-4" /> Ações em massa
+      <Dialog open={isTokenDialogOpen} onOpenChange={setIsTokenDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Acesso Temporário Seguro</DialogTitle>
+            <DialogDescription>
+              Este link permite que terceiros organizem categorias sem login. Expira automaticamente em 24h.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
+              <div className="flex-1 text-xs truncate font-mono text-muted-foreground">
+                {tempAccessUrl}
+              </div>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={copyToClipboard}>
+                <Copy className="h-4 w-4" />
               </Button>
             </div>
-          )}
-        </div>
 
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground">
-                <th className="pb-3 pl-2">
-                  <Checkbox 
-                    checked={selectedIds.length === filteredCategories.length && filteredCategories.length > 0} 
-                    onCheckedChange={(c) => setSelectedIds(c ? filteredCategories.map((cat: any) => cat.id) : [])} 
-                  />
-                </th>
-                <th className="pb-3 font-medium">Nome</th>
-                <th className="pb-3 font-medium">Tipo</th>
-                <th className="pb-3 font-medium">Estrutura</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredCategories.map((cat: any) => (
-                <tr key={cat.id} className={`group hover:bg-muted/30 ${selectedIds.includes(cat.id) ? "bg-muted/50" : ""}`}>
-                  <td className="py-4 pl-2">
-                    <Checkbox 
-                      checked={selectedIds.includes(cat.id)} 
-                      onCheckedChange={(c) => setSelectedIds(prev => c ? [...prev, cat.id] : prev.filter(id => id !== cat.id))} 
-                    />
-                  </td>
-                  <td className="py-4 font-medium text-foreground">
-                    <div className="flex items-center gap-2">
-                      {cat.name}
-                      {!cat.default_type && <AlertCircle className="h-3.5 w-3.5 text-warning" />}
-                    </div>
-                  </td>
-                  <td className="py-4">
-                    {cat.default_type ? (
-                      <Badge variant="secondary" className="font-normal">
-                        {transactionTypeLabel[cat.default_type as keyof typeof transactionTypeLabel] || cat.default_type}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground italic">Não definido</span>
-                    )}
-                  </td>
-                  <td className="py-4">
-                    {cat.parent_id ? (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span>Subcategoria de</span>
-                        <Badge variant="outline" className="text-[10px]">
-                          {categories.find((p: any) => p.id === cat.parent_id)?.name || "Pai desconhecido"}
-                        </Badge>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-medium text-accent uppercase tracking-wider">Principal</span>
-                    )}
-                  </td>
-                  <td className="py-4">
-                    {cat.archived ? (
-                      <Badge variant="outline" className="text-muted-foreground">Inativo/Arquivado</Badge>
-                    ) : (
-                      <Badge variant="outline" className="border-success/30 text-success bg-success/5">Ativo</Badge>
-                    )}
-                  </td>
-                  <td className="py-4 text-right">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredCategories.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-muted text-muted-foreground mb-3">
-                <Tag className="h-6 w-6" />
-              </div>
-              <h3 className="text-base font-semibold">Nenhuma categoria encontrada</h3>
-              <p className="text-sm text-muted-foreground mt-1">Tente ajustar seus filtros ou busca.</p>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      <Dialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Merge className="h-5 w-5 text-accent" /> Mesclar Categorias
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Você está mesclando duas categorias. Todos os lançamentos serão transferidos para a categoria mantida e a outra será arquivada.
-            </p>
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Qual categoria deseja MANTER?</label>
-              <Select value={mergeKeepId} onValueChange={setMergeKeepId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a definitiva" />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedIds.map(id => {
-                    const cat = categories.find((c: any) => c.id === id);
-                    return <SelectItem key={id} value={id}>{cat?.name}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            {mergeKeepId && (
-              <div className="rounded-lg bg-muted/50 p-3 border border-border">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="text-muted-foreground">De: <span className="text-foreground font-medium">{categories.find((c: any) => c.id !== mergeKeepId && selectedIds.includes(c.id))?.name}</span></div>
-                  <ArrowRight className="h-3 w-3 mx-2 text-muted-foreground" />
-                  <div className="text-success font-medium">Para: {categories.find((c: any) => c.id === mergeKeepId)?.name}</div>
+            {activeToken && (
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Expira em:</p>
+                  <p className="font-medium">
+                    {format(new Date(activeToken.expires_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Acessos:</p>
+                  <p className="font-medium">{activeToken.access_count || 0}</p>
                 </div>
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsMergeDialogOpen(false)}>Cancelar</Button>
-            <Button variant="premium" disabled={!mergeKeepId || mergeMutation.isPending} onClick={() => mergeMutation.mutate()}>
-              {mergeMutation.isPending ? "Processando..." : "Confirmar Mesclagem"}
+
+          <DialogFooter className="flex sm:justify-between gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5" 
+              onClick={() => {
+                if (confirm("Tem certeza que deseja revogar este acesso imediatamente?")) {
+                  revokeMutation.mutate(activeToken!.id);
+                  setIsTokenDialogOpen(false);
+                }
+              }}
+              disabled={revokeMutation.isPending}
+            >
+              <XCircle className="h-4 w-4" /> Revogar Link
             </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setIsTokenDialogOpen(false)}>Fechar</Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => window.open(tempAccessUrl, '_blank')}>
+                <ExternalLink className="h-4 w-4" /> Testar Link
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ações em Massa ({selectedIds.length} selecionadas)</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-5 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Alterar Tipo</label>
-              <Select value={bulkType} onValueChange={setBulkType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Manter atual" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(transactionTypeLabel).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>{l}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Mover para Categoria Principal</label>
-              <Select value={bulkParentId || "null"} onValueChange={(v) => setBulkParentId(v === "null" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Manter atual" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="null">Tornar Principal</SelectItem>
-                  {categories.filter((c: any) => !c.parent_id && !selectedIds.includes(c.id)).map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="rounded-lg bg-warning/5 border border-warning/20 p-3">
-              <div className="flex gap-2">
-                <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                <p className="text-xs text-warning-foreground">
-                  Esta alteração afetará as definições de {selectedIds.length} categorias. Lançamentos vinculados não serão movidos, apenas a classificação da categoria será alterada.
-                </p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsBulkDialogOpen(false)}>Cancelar</Button>
-            <Button variant="premium" disabled={bulkUpdateMutation.isPending} onClick={() => {
-              const patch: any = {};
-              if (bulkType) patch.default_type = bulkType;
-              if (bulkParentId !== undefined) patch.parent_id = bulkParentId;
-              bulkUpdateMutation.mutate(patch);
-            }}>
-              Aplicar Alterações
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function StatCard({ label, value, color = "text-foreground" }: { label: string; value?: number; color?: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-      <p className={`text-xl font-bold mt-1 ${color}`}>{value ?? 0}</p>
     </div>
   );
 }

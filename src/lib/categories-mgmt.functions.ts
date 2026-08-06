@@ -2,14 +2,32 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { Database } from "@/integrations/supabase/types";
+import { validateTokenAndGetProfileId } from "./temp-access.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type TransactionType = Database["public"]["Enums"]["transaction_type"];
 
+async function getSupabaseClient(input: { token?: string }, context: any) {
+  if (input.token) {
+    const profileIdFromToken = await validateTokenAndGetProfileId(input.token);
+    if (profileIdFromToken) {
+      return { supabase: supabaseAdmin, profileId: profileIdFromToken, isTemp: true };
+    }
+    throw new Response('Link expirado ou inválido', { status: 403 });
+  }
+
+  const { supabase } = context;
+  if (!supabase) throw new Response('Unauthorized', { status: 401 });
+  return { supabase, profileId: null, isTemp: false };
+}
+
 export const getCategoryStats = createServerFn({ method: "GET" })
-  .validator((data: unknown) => z.object({ profileId: z.string().optional() }).parse(data))
-  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ 
+    profileId: z.string().optional(),
+    token: z.string().optional() 
+  }).parse(data))
   .handler(async ({ data: input, context }) => {
-    const { supabase } = context;
+    const { supabase } = await getSupabaseClient(input, context);
 
     const { data: categories, count, error } = await supabase
       .from("categories")
@@ -19,15 +37,15 @@ export const getCategoryStats = createServerFn({ method: "GET" })
 
     const stats = {
       total: count || 0,
-      main: categories?.filter((c) => !c.parent_id).length || 0,
-      sub: categories?.filter((c) => c.parent_id).length || 0,
-      archived: categories?.filter((c) => c.archived).length || 0,
-      unclassified: categories?.filter((c) => !c.default_type).length || 0,
+      main: categories?.filter((c: any) => !c.parent_id).length || 0,
+      sub: categories?.filter((c: any) => c.parent_id).length || 0,
+      archived: categories?.filter((c: any) => c.archived).length || 0,
+      unclassified: categories?.filter((c: any) => !c.default_type).length || 0,
       duplicates: 0
     };
 
     const names = new Set();
-    categories?.forEach((c) => {
+    categories?.forEach((c: any) => {
       const n = c.name.toLowerCase().trim();
       if (names.has(n)) stats.duplicates++;
       names.add(n);
@@ -40,18 +58,21 @@ export const mergeCategories = createServerFn({ method: "POST" })
   .validator((data: unknown) => z.object({
     keepId: z.string(),
     discardId: z.string(),
-    profileId: z.string()
+    profileId: z.string(),
+    token: z.string().optional()
   }).parse(data))
-  .middleware([requireSupabaseAuth])
   .handler(async ({ data: input, context }) => {
-    const { supabase } = context;
+    const { supabase, profileId: tokenProfileId } = await getSupabaseClient(input, context);
     const { keepId, discardId, profileId } = input;
+
+    // Se for acesso via token, garante que o profileId bate
+    const targetProfileId = tokenProfileId || profileId;
 
     const { error: errorReceipts } = await supabase
       .from("receipts")
       .update({ category_id: keepId })
       .eq("category_id", discardId)
-      .eq("profile_id", profileId);
+      .eq("profile_id", targetProfileId);
     
     if (errorReceipts) throw errorReceipts;
 
@@ -72,14 +93,14 @@ export const bulkUpdateCategories = createServerFn({ method: "POST" })
       default_type: z.string().optional(),
       parent_id: z.string().nullable().optional(),
       archived: z.boolean().optional()
-    })
+    }),
+    token: z.string().optional(),
+    profileId: z.string().optional()
   }).parse(data))
-  .middleware([requireSupabaseAuth])
   .handler(async ({ data: input, context }) => {
-    const { supabase } = context;
+    const { supabase } = await getSupabaseClient(input, context);
     const { ids, patch } = input;
 
-    // Converte default_type para o enum correto se presente
     const updatePayload: any = { ...patch };
     if (patch.default_type) {
       updatePayload.default_type = patch.default_type as TransactionType;

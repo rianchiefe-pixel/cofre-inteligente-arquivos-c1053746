@@ -1833,6 +1833,62 @@ export type Database = {
           },
         ]
       }
+      temporary_access_tokens: {
+        Row: {
+          access_count: number
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          first_accessed_at: string | null
+          id: string
+          last_accessed_at: string | null
+          metadata: Json | null
+          profile_id: string
+          purpose: string
+          revoked_at: string | null
+          revoked_by: string | null
+          token: string
+        }
+        Insert: {
+          access_count?: number
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          first_accessed_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          metadata?: Json | null
+          profile_id: string
+          purpose?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          token: string
+        }
+        Update: {
+          access_count?: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          first_accessed_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          metadata?: Json | null
+          profile_id?: string
+          purpose?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "temporary_access_tokens_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
