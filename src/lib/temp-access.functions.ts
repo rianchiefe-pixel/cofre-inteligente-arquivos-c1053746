@@ -1,33 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { randomBytes } from "crypto";
 
 const TOKEN_PURPOSE = 'category_organization';
 
 export const generateTempAccessToken = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ profileId: z.string().uuid() }).parse(data))
+  .validator((data: unknown) => z.object({ profileId: z.string().uuid() }).parse(data))
+  .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    if (!context?.supabase) {
-       throw new Response('Internal Server Error', { status: 500 });
-    }
-    // Check if user is authenticated (admin)
-    const { data: { user }, error: authError } = await context.supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Response('Unauthorized', { status: 401 });
-    }
+    const { supabase, userId } = context;
 
     // Revoke existing active tokens for this profile and purpose
     await supabaseAdmin
       .from('temporary_access_tokens')
-      .update({ revoked_at: new Date().toISOString(), revoked_by: user.id })
+      .update({ revoked_at: new Date().toISOString(), revoked_by: userId })
       .eq('profile_id', data.profileId)
       .eq('purpose', TOKEN_PURPOSE)
       .is('revoked_at', null)
       .gt('expires_at', new Date().toISOString());
 
     // Generate a secure random token
-    const token = crypto.randomBytes(32).toString('hex');
+    const token = randomBytes(32).toString('hex');
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
 
@@ -38,7 +33,7 @@ export const generateTempAccessToken = createServerFn({ method: "POST" })
         token: token,
         purpose: TOKEN_PURPOSE,
         expires_at: expiresAt.toISOString(),
-        created_by: user.id
+        created_by: userId
       })
       .select()
       .single();
@@ -49,7 +44,8 @@ export const generateTempAccessToken = createServerFn({ method: "POST" })
   });
 
 export const getActiveTempAccessToken = createServerFn({ method: "GET" })
-  .inputValidator((data) => z.object({ profileId: z.string().uuid() }).parse(data))
+  .validator((data: unknown) => z.object({ profileId: z.string().uuid() }).parse(data))
+  .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => {
     const { data: token, error } = await supabaseAdmin
       .from('temporary_access_tokens')
@@ -67,16 +63,14 @@ export const getActiveTempAccessToken = createServerFn({ method: "GET" })
   });
 
 export const revokeTempAccessToken = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ tokenId: z.string().uuid() }).parse(data))
+  .validator((data: unknown) => z.object({ tokenId: z.string().uuid() }).parse(data))
+  .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const { data: { user }, error: authError } = await context.supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Response('Unauthorized', { status: 401 });
-    }
+    const { userId } = context;
 
     const { error } = await supabaseAdmin
       .from('temporary_access_tokens')
-      .update({ revoked_at: new Date().toISOString(), revoked_by: user.id })
+      .update({ revoked_at: new Date().toISOString(), revoked_by: userId })
       .eq('id', data.tokenId);
 
     if (error) throw error;
@@ -84,7 +78,7 @@ export const revokeTempAccessToken = createServerFn({ method: "POST" })
   });
 
 export const validateTempToken = createServerFn({ method: "GET" })
-  .inputValidator((data) => z.object({ token: z.string() }).parse(data))
+  .validator((data: unknown) => z.object({ token: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { data: tokenData, error } = await supabaseAdmin
       .from('temporary_access_tokens')
@@ -112,7 +106,7 @@ export const validateTempToken = createServerFn({ method: "GET" })
     return {
       valid: true,
       profileId: tokenData.profile_id,
-      profileName: tokenData.financial_profiles.name,
+      profileName: (tokenData as any).financial_profiles?.name || 'Perfil',
       expiresAt: tokenData.expires_at
     };
   });
