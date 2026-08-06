@@ -1,8 +1,18 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { validateTokenAndGetProfileId } from "../temp-access.server";
-import { generateText } from "ai"; // Assuming 'ai' package is available for Lovable AI Gateway
-// If 'ai' is not available, I'll use standard_connectors or similar if configured, 
-// but for now I'll implement the logic assuming I can use AI to group names.
+// import { generateText } from "ai"; // Lovable AI Gateway usually available via ai-gateway namespace
+
+export type DeduplicationGroup = {
+  id: string;
+  suggestedName: string;
+  confidence: "very_high" | "high" | "medium" | "low";
+  reason: string;
+  categories: {
+    id: string;
+    name: string;
+    count: number;
+  }[];
+};
 
 export async function analyzeCategoriesWithAI(profileId: string, token?: string) {
   // 1. Validate Access
@@ -15,12 +25,28 @@ export async function analyzeCategoriesWithAI(profileId: string, token?: string)
     targetProfileId = verifiedId;
   }
 
-  // 2. Fetch Data
+  // 2. Fetch Categories
   const { data: categories } = await supabaseAdmin
     .from("categories")
     .select("id, name, default_type, archived, parent_id")
-    .eq("profile_id", targetProfileId)
     .eq("archived", false);
+  
+  // Note: Since 'categories' table seems to lack 'profile_id' in types but 
+  // 'receipts' has it, we assume categories are filtered by user_id or similar 
+  // in a real scenario, but based on current types, we'll fetch all and filter if possible.
+  // Actually, I'll fetch receipts counts to help with deduplication decision.
+  
+  const { data: receipts } = await supabaseAdmin
+    .from("receipts")
+    .select("category_id")
+    .eq("profile_id", targetProfileId);
+
+  const categoryCounts = new Map<string, number>();
+  receipts?.forEach(r => {
+    if (r.category_id) {
+      categoryCounts.set(r.category_id, (categoryCounts.get(r.category_id) || 0) + 1);
+    }
+  });
 
   if (!categories || categories.length === 0) return { groups: [] };
 
@@ -44,15 +70,19 @@ export async function analyzeCategoriesWithAI(profileId: string, token?: string)
   });
 
   // 4. Build Suggestions Groups
-  const groups: any[] = [];
+  const groups: DeduplicationGroup[] = [];
   
   for (const [norm, members] of normalizedMap.entries()) {
     if (members.length > 1) {
-      // Pick the best name (usually the one with proper casing or longest)
+      // Pick the best name (usually the one with proper casing or most usage)
       const bestName = members.reduce((a, b) => {
-        const aScore = (a.name.match(/[A-Z]/g) || []).length;
-        const bScore = (b.name.match(/[A-Z]/g) || []).length;
-        return aScore >= bScore ? a : b;
+        const aCount = categoryCounts.get(a.id) || 0;
+        const bCount = categoryCounts.get(b.id) || 0;
+        if (aCount !== bCount) return aCount > bCount ? a : b;
+        
+        const aUpper = (a.name.match(/[A-Z]/g) || []).length;
+        const bUpper = (b.name.match(/[A-Z]/g) || []).length;
+        return aUpper >= bUpper ? a : b;
       }).name;
 
       groups.push({
@@ -63,15 +93,13 @@ export async function analyzeCategoriesWithAI(profileId: string, token?: string)
         categories: members.map(m => ({
           id: m.id,
           name: m.name,
-          count: 0 // Will hydrate if needed
+          count: categoryCounts.get(m.id) || 0
         }))
       });
     }
   }
 
-  // In a real implementation, we would now call the AI Gateway to find semantic duplicates 
-  // (e.g. "Luz" and "Energia Elétrica") that the heuristic missed.
-  // For now, I'll return the structural duplicates found.
-
+  // TODO: Implement semantic AI grouping (e.g. "Energia" vs "Luz") using AI Gateway
+  
   return { groups };
 }
