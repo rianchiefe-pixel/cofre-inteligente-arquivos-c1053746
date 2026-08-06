@@ -142,9 +142,9 @@ function CategoriesMgmtPage() {
 
           <DialogFooter className="flex sm:justify-between gap-2">
             <Button 
-              variant="destructive-outline" 
+              variant="outline" 
               size="sm" 
-              className="gap-2" 
+              className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5" 
               onClick={() => {
                 if (confirm("Tem certeza que deseja revogar este acesso imediatamente?")) {
                   revokeMutation.mutate(activeToken!.id);
