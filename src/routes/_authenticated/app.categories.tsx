@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { 
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/app/categories")({
 function CategoriesMgmtPage() {
   const qc = useQueryClient();
   const HOLDING_PROFILE_ID = "2906fc21-93bc-42ad-8ca3-701b94fdb5f6";
+  const [activeTab, setActiveTab] = useState("all");
   const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
 
   const generateTokenFn = useServerFn(generateTempAccessToken);
@@ -103,7 +105,30 @@ function CategoriesMgmtPage() {
         </div>
       </div>
 
-      <CategoryOrganizationContent profileId={HOLDING_PROFILE_ID} />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="all">Todas as Categorias</TabsTrigger>
+          <TabsTrigger value="duplicates" className="gap-2">
+            Revisão Inteligente
+            {activeTab !== "duplicates" && (
+              <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+            )}
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="all">
+          <CategoryOrganizationContent profileId={HOLDING_PROFILE_ID} />
+        </TabsContent>
+
+        <TabsContent value="duplicates">
+          <div className="space-y-6">
+            <p className="text-sm text-muted-foreground">
+              A IA analisou suas categorias e identificou possíveis duplicidades baseadas em nomes, acentos e padrões de uso.
+            </p>
+            <CategoryOrganizationContent profileId={HOLDING_PROFILE_ID} onlyDuplicates />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isTokenDialogOpen} onOpenChange={setIsTokenDialogOpen}>
         <DialogContent className="sm:max-w-md">
