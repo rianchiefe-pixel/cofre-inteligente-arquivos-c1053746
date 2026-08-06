@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getCategoryStats, mergeCategories, bulkUpdateCategories } from "@/lib/categories-mgmt.functions";
+import { DeduplicationReview } from "./deduplication-review";
 import { transactionTypeLabel } from "@/lib/format";
 import { LoadingState } from "@/components/query-states";
 
@@ -109,6 +110,12 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
         <StatCard label="Sem tipo" value={stats?.unclassified} color="text-warning" />
         <StatCard label="Duplicatas" value={stats?.duplicates} color="text-destructive" />
       </div>
+
+      <DeduplicationReview 
+        profileId={profileId || ""} 
+        token={token} 
+        onRefresh={() => qc.invalidateQueries({ queryKey: ["categories-mgmt"] })} 
+      />
 
       <Card className="p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

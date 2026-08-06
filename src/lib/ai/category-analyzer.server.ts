@@ -26,10 +26,11 @@ export async function analyzeCategoriesWithAI(profileId: string, token?: string)
   }
 
   // 2. Fetch Categories
+  // Note: Standard project structure uses standard filters.
   const { data: categories } = await supabaseAdmin
     .from("categories")
-    .select("id, name, default_type, archived, parent_id")
-    .eq("archived", false);
+    .select("id, name, default_type, archived, parent_id");
+    // .eq("profile_id", targetProfileId) -- If table had profile_id, categories are global in this schema
   
   // Note: Since 'categories' table seems to lack 'profile_id' in types but 
   // 'receipts' has it, we assume categories are filtered by user_id or similar 
