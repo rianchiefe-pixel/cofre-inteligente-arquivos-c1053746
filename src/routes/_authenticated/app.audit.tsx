@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useMemo } from "react";
-import { ShieldAlert, AlertCircle, Info, Database } from "lucide-react";
+import { ShieldAlert, AlertCircle, Info, Database, ShieldCheck } from "lucide-react";
 import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -43,11 +43,11 @@ function AuditPage() {
         </p>
       </header>
 
-      <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle className="font-bold uppercase tracking-wide">A AUDITORIA AINDA NÃO ESTÁ VÁLIDA</AlertTitle>
-        <AlertDescription className="text-sm mt-1 font-medium">
-          Detectada divergência de versionamento entre a base Excel disponível e os totais do PDF Oficial.
+      <Alert variant="default" className="bg-blue-500/5 border-blue-500/20">
+        <Info className="h-4 w-4 text-blue-500" />
+        <AlertTitle className="font-bold uppercase tracking-wide text-blue-700">A AUDITORIA DE JANEIRO ESTÁ ENCERRADA</AlertTitle>
+        <AlertDescription className="text-sm mt-1 font-medium text-blue-600">
+          Diagnóstico concluído: Fontes com versionamentos diferentes — diferença não implica erro automaticamente.
         </AlertDescription>
       </Alert>
 
@@ -88,12 +88,25 @@ function AuditPage() {
             </p>
             <div className="grid gap-3 pt-2">
               <div className="flex justify-between items-center text-xs p-2 rounded bg-background border border-border/40">
-                <span className="font-medium text-muted-foreground">RELATÓRIO PDF OFICIAL</span>
-                <Badge variant="outline" className="font-mono text-[10px] border-foreground/20">R$ 202.529,59</Badge>
+                <span className="font-medium text-muted-foreground">Fonte PDF</span>
+                <div className="text-right">
+                  <Badge variant="outline" className="font-mono text-[10px] border-foreground/20">Referência histórica agregada</Badge>
+                  <p className="text-[9px] mt-1 text-muted-foreground italic">R$ 202.529,59</p>
+                </div>
               </div>
-              <div className="flex justify-between items-center text-xs p-2 rounded bg-background border border-destructive/30 text-destructive">
-                <span className="font-medium uppercase">PLANILHA XLSX UTILIZADA</span>
-                <Badge variant="destructive" className="font-mono text-[10px]">R$ 155.195,26</Badge>
+              <div className="flex justify-between items-center text-xs p-2 rounded bg-background border border-border/40">
+                <span className="font-medium text-muted-foreground">Fonte XLSX</span>
+                <div className="text-right">
+                  <Badge variant="outline" className="font-mono text-[10px] border-foreground/20">Versão transacional disponível</Badge>
+                  <p className="text-[9px] mt-1 text-muted-foreground italic">R$ 155.195,26</p>
+                </div>
+              </div>
+              <div className="flex justify-between items-center text-xs p-2 rounded bg-background border border-border/40">
+                <span className="font-medium text-muted-foreground">Banco</span>
+                <div className="text-right">
+                  <Badge variant="outline" className="font-mono text-[10px] border-foreground/20">Base operacional atual</Badge>
+                  <p className="text-[9px] mt-1 text-muted-foreground italic">Base de Verdade</p>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -183,24 +196,27 @@ function AuditPage() {
           <div className="absolute inset-0 bg-gradient-to-tr from-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <CardContent className="p-10 text-center space-y-6 relative z-10">
             <div className="flex justify-center">
-              <div className="h-16 w-16 rounded-full border-4 border-background flex items-center justify-center animate-bounce">
-                <XCircle className="h-10 w-10 text-background" />
+              <div className="h-16 w-16 rounded-full border-4 border-background flex items-center justify-center">
+                <ShieldCheck className="h-10 w-10 text-background" />
               </div>
             </div>
-            <h2 className="text-3xl font-black uppercase tracking-tighter">BLOQUEIO DE AUDITORIA</h2>
+            <h2 className="text-3xl font-black uppercase tracking-tighter">CONCLUSÃO DA AUDITORIA</h2>
             <div className="max-w-xl mx-auto space-y-2">
               <p className="text-sm font-medium opacity-90 leading-relaxed uppercase">
-                A planilha disponível e o relatório oficial PDF são bases de dados diferentes.
+                A planilha XLSX e o PDF Oficial são versionamentos diferentes.
               </p>
               <p className="text-[10px] opacity-60 font-mono">
-                Não é permitido prosseguir para Fevereiro ou reconciliar Janeiro com fontes divergentes.
+                Divergências de valor/existência não implicam erro no sistema. 
+                O Banco atual é a fonte de verdade para a operação.
               </p>
             </div>
             <div className="pt-4 flex flex-col items-center gap-4">
               <div className="px-6 py-2 rounded-full bg-background text-foreground text-[10px] font-black tracking-widest border border-background/20 shadow-xl uppercase">
                 NENHUMA ALTERAÇÃO REALIZADA NO BANCO: SIM
               </div>
-              <p className="text-[9px] font-mono opacity-40 uppercase tracking-widest">PRIMEIRO IDENTIFIQUE QUAL É A FONTE CORRETA DE JANEIRO.</p>
+              <p className="text-[9px] font-mono opacity-40 uppercase tracking-widest italic">
+                LEANDRO C TEDROS: Presente no banco / ausente na versão XLSX de referência.
+              </p>
             </div>
           </CardContent>
         </Card>
