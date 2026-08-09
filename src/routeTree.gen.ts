@@ -27,6 +27,7 @@ import { Route as AuthenticatedAppCardsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAppBanksRouteImport } from './routes/_authenticated/app.banks'
 import { Route as AuthenticatedAppAuditRouteImport } from './routes/_authenticated/app.audit'
 import { Route as AuthenticatedAppPropertiesIndexRouteImport } from './routes/_authenticated/app.properties.index'
+import { Route as AuthenticatedAppCardsIndexRouteImport } from './routes/_authenticated/app.cards.index'
 import { Route as AuthenticatedAppPropertiesIdRouteImport } from './routes/_authenticated/app.properties.$id'
 import { Route as AuthenticatedAppCardsIdRouteImport } from './routes/_authenticated/app.cards.$id'
 
@@ -124,6 +125,12 @@ const AuthenticatedAppPropertiesIndexRoute =
     path: '/properties/',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppCardsIndexRoute =
+  AuthenticatedAppCardsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppCardsRoute,
+  } as any)
 const AuthenticatedAppPropertiesIdRoute =
   AuthenticatedAppPropertiesIdRouteImport.update({
     id: '/properties/$id',
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
+  '/app/cards/': typeof AuthenticatedAppCardsIndexRoute
   '/app/properties/': typeof AuthenticatedAppPropertiesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -162,7 +170,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
-  '/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
   '/app/categories': typeof AuthenticatedAppCategoriesRoute
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
+  '/app/cards': typeof AuthenticatedAppCardsIndexRoute
   '/app/properties': typeof AuthenticatedAppPropertiesIndexRoute
 }
 export interface FileRoutesById {
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/_authenticated/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
+  '/_authenticated/app/cards/': typeof AuthenticatedAppCardsIndexRoute
   '/_authenticated/app/properties/': typeof AuthenticatedAppPropertiesIndexRoute
 }
 export interface FileRouteTypes {
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/cards/$id'
     | '/app/properties/$id'
+    | '/app/cards/'
     | '/app/properties/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -228,7 +238,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/audit'
     | '/app/banks'
-    | '/app/cards'
     | '/app/categories'
     | '/app/holding-advocacia'
     | '/app/import'
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/cards/$id'
     | '/app/properties/$id'
+    | '/app/cards'
     | '/app/properties'
   id:
     | '__root__'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/'
     | '/_authenticated/app/cards/$id'
     | '/_authenticated/app/properties/$id'
+    | '/_authenticated/app/cards/'
     | '/_authenticated/app/properties/'
   fileRoutesById: FileRoutesById
 }
@@ -401,6 +412,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppPropertiesIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/cards/': {
+      id: '/_authenticated/app/cards/'
+      path: '/'
+      fullPath: '/app/cards/'
+      preLoaderRoute: typeof AuthenticatedAppCardsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppCardsRoute
+    }
     '/_authenticated/app/properties/$id': {
       id: '/_authenticated/app/properties/$id'
       path: '/properties/$id'
@@ -420,10 +438,12 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAppCardsRouteChildren {
   AuthenticatedAppCardsIdRoute: typeof AuthenticatedAppCardsIdRoute
+  AuthenticatedAppCardsIndexRoute: typeof AuthenticatedAppCardsIndexRoute
 }
 
 const AuthenticatedAppCardsRouteChildren: AuthenticatedAppCardsRouteChildren = {
   AuthenticatedAppCardsIdRoute: AuthenticatedAppCardsIdRoute,
+  AuthenticatedAppCardsIndexRoute: AuthenticatedAppCardsIndexRoute,
 }
 
 const AuthenticatedAppCardsRouteWithChildren =
