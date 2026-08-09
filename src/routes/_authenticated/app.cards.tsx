@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useActiveProfile } from "@/hooks/use-active-profile";
 import { getCardsStats } from "@/lib/cards.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,13 @@ function CardsPage() {
   const qc = useQueryClient();
   const { activeProfileId } = useActiveProfile();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ name: "", brand: "visa", last4: "", closing_day: "", due_day: "", holder: "", profile_id: "", bank_id: "", credit_limit: "", additional_holders: "" });
+  const [form, setForm] = useState<any>({ name: "", brand: "visa", last4: "", closing_day: "", due_day: "", holder: "", profile_id: activeProfileId || "", bank_id: "", credit_limit: "", additional_holders: "" });
+
+  useEffect(() => {
+    if (activeProfileId) {
+      setForm(prev => ({ ...prev, profile_id: activeProfileId }));
+    }
+  }, [activeProfileId]);
 
   const getCardsStatsFn = useServerFn(getCardsStats);
 

@@ -377,6 +377,30 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setIsBulkDialogOpen(false)}>Cancelar</Button>
                 <Button variant="premium" disabled={bulkUpdateMutation.isPending} onClick={() => {
+                  bulkUpdateMutation.mutate({
+                    default_type: bulkType || undefined,
+                    parent_id: bulkParentId,
+                  });
+                }}>
+                  {bulkUpdateMutation.isPending ? "Processando..." : "Aplicar em Massa"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value, color = "text-foreground" }: { label: string, value?: number, color?: string }) {
+  return (
+    <Card className="p-3 flex flex-col items-center justify-center text-center gap-1">
+      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+      <span className={`text-xl font-bold ${color}`}>{value ?? 0}</span>
+    </Card>
+  );
+}
                   const patch: any = {};
                   if (bulkType) patch.default_type = bulkType;
                   if (bulkParentId !== undefined) patch.parent_id = bulkParentId;

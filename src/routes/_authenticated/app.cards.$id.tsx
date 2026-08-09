@@ -149,14 +149,15 @@ function CardDetailPage() {
             <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "titular"}</p>
           </div>
           <div className="space-y-2 p-4 text-sm">
-            <Line label="Banco" value={c.banks?.name ?? "—"} />
+            <Line label="Banco" value={c.banks?.name || "Safra"} />
             <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
             <Line
-              label="Limite"
-              value={c.credit_limit ? currencyBRL(Number(c.credit_limit)) : "—"}
+              label="Total Acumulado"
+              value={transactions.data ? currencyBRL(transactions.data.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0)) : "—"}
             />
             <Line label="Fechamento" value={c.closing_day ?? "—"} />
             <Line label="Vencimento" value={c.due_day ?? "—"} />
+            {c.credit_limit && <Line label="Limite" value={currencyBRL(Number(c.credit_limit))} />}
           </div>
         </Card>
 
