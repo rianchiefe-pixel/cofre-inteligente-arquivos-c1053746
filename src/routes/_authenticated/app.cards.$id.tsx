@@ -50,6 +50,7 @@ function CardDetailPage() {
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [activeHolderId, setActiveHolderId] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<string>("history");
 
   const card = useQuery({
     queryKey: ["card", id],
@@ -200,7 +201,7 @@ function CardDetailPage() {
               <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "Titular não identificado"}</p>
             </div>
             <div className="space-y-2 p-4 text-sm">
-              <Line label="Instituição" value={c.banks?.name || "Banco não identificado"} />
+              <Line label="Instituição" value={c.banks?.name || "Cartão"} />
               <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
               <Line
                 label="Total (Filtrado)"
@@ -259,7 +260,7 @@ function CardDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="history" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" /> Histórico de Lançamentos

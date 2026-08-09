@@ -211,7 +211,7 @@ function CardsPage() {
             <div className="p-4 space-y-3 flex-1 flex flex-col">
               <div>
                 <p className="font-medium text-foreground">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{c.banks?.name || "Banco"} • {profiles.data?.find(p => p.id === (c.profile_id || activeProfileId))?.name}</p>
+                <p className="text-xs text-muted-foreground">{c.banks?.name || "Cartão"} • {profiles.data?.find(p => p.id === (c.profile_id || activeProfileId))?.name}</p>
               </div>
               
               {c.holders?.length > 0 && (
