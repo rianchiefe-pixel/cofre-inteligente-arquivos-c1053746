@@ -42,7 +42,7 @@ function CardsPage() {
 
   useEffect(() => {
     if (activeProfileId) {
-      setForm(prev => ({ ...prev, profile_id: activeProfileId }));
+      setForm((prev: any) => ({ ...prev, profile_id: activeProfileId }));
     }
   }, [activeProfileId]);
 
