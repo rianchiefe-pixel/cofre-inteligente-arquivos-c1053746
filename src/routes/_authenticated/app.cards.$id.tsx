@@ -41,6 +41,8 @@ function CardDetailPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const [reviewId, setReviewId] = useState<string | null>(null);
+  const [activeHolderId, setActiveHolderId] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
 
   const card = useQuery({
     queryKey: ["card", id],
@@ -142,24 +144,58 @@ function CardDetailPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <Card className="overflow-hidden">
-          <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground">
-            <CreditCard className="h-6 w-6" />
-            <p className="mt-8 font-mono tracking-wider">•••• •••• •••• {c.last4 ?? "0000"}</p>
-            <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "titular"}</p>
-          </div>
-          <div className="space-y-2 p-4 text-sm">
-            <Line label="Banco" value={c.banks?.name || "Safra"} />
-            <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
-            <Line
-              label="Total Acumulado"
-              value={transactions.data ? currencyBRL(transactions.data.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0)) : "—"}
-            />
-            <Line label="Fechamento" value={c.closing_day ?? "—"} />
-            <Line label="Vencimento" value={c.due_day ?? "—"} />
-            {c.credit_limit && <Line label="Limite" value={currencyBRL(Number(c.credit_limit))} />}
-          </div>
-        </Card>
+        <div className="space-y-4">
+          <Card className="overflow-hidden">
+            <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground">
+              <CreditCard className="h-6 w-6" />
+              <p className="mt-8 font-mono tracking-wider">•••• •••• •••• {c.last4 ?? "••••"}</p>
+              <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "Titular não identificado"}</p>
+            </div>
+            <div className="space-y-2 p-4 text-sm">
+              <Line label="Instituição" value={c.banks?.name || "Banco não identificado"} />
+              <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
+              <Line
+                label="Total Acumulado"
+                value={transactions.data ? currencyBRL(transactions.data.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0)) : "—"}
+              />
+              <Line label="Lançamentos" value={transactions.data?.length || 0} />
+              <Line label="Fechamento" value={c.closing_day ? `Dia ${c.closing_day}` : "—"} />
+              <Line label="Vencimento" value={c.due_day ? `Dia ${c.due_day}` : "—"} />
+              {c.credit_limit && <Line label="Limite" value={currencyBRL(Number(c.credit_limit))} />}
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="text-sm font-semibold mb-3">Portadores</h2>
+            {holders.isError ? (
+              <ErrorState
+                error={holders.error}
+                onRetry={() => holders.refetch()}
+                retrying={holders.isFetching}
+                title="Erro ao carregar titulares"
+              />
+            ) : holders.isLoading ? (
+              <LoadingState label="Carregando portadores…" />
+            ) : holders.data && holders.data.length > 0 ? (
+              <ul className="flex flex-wrap gap-2">
+                {holders.data.map((h: any) => (
+                  <li
+                    key={h.id}
+                    className="rounded-full border bg-muted/40 px-3 py-1 text-[11px] font-medium"
+                  >
+                    {h.holder_name}
+                    {h.last4 ? ` • final ${h.last4}` : ""}
+                    {h.is_primary ? " (Principal)" : ""}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Nenhum portador identificado.
+              </p>
+            )}
+          </Card>
+        </div>
 
         <div className="space-y-4">
           <CardStatementImport
@@ -169,39 +205,6 @@ function CardDetailPage() {
               setReviewId(sid);
             }}
           />
-
-          <Card className="p-5">
-            <h2 className="text-sm font-semibold">Titulares identificados</h2>
-            {holders.isError ? (
-              <div className="mt-3">
-                <ErrorState
-                  error={holders.error}
-                  onRetry={() => holders.refetch()}
-                  retrying={holders.isFetching}
-                  title="Não foi possível carregar os titulares"
-                />
-              </div>
-            ) : holders.isLoading ? (
-              <LoadingState label="Carregando titulares…" />
-            ) : holders.data && holders.data.length > 0 ? (
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {holders.data.map((h: any) => (
-                  <li
-                    key={h.id}
-                    className="rounded-full border bg-muted/40 px-3 py-1 text-xs"
-                  >
-                    {h.holder_name}
-                    {h.last4 ? ` • final ${h.last4}` : ""}
-                    {h.is_primary ? " (titular)" : ""}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Titulares e finais adicionais serão identificados automaticamente na primeira fatura importada.
-              </p>
-            )}
-          </Card>
         </div>
       </div>
 

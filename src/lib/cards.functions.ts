@@ -18,7 +18,8 @@ export const getCardsStats = createServerFn({ method: "GET" })
     const { data: cards, error: cardsError } = await supabase
       .from("cards")
       .select("*, banks(name)")
-      .eq("profile_id", targetProfileId);
+      .eq("profile_id", targetProfileId)
+      .eq("user_id", userId);
 
     if (cardsError) throw cardsError;
 
