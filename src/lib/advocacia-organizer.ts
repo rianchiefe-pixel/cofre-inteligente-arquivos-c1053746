@@ -65,6 +65,7 @@ export const ADVOCACIA_TAXONOMY: { parent: string; children: string[] }[] = [
       "Manutenção",
       "Móveis e equipamentos",
       "Informática",
+      "Restaurante Escolar",
     ],
   },
   {
@@ -115,6 +116,13 @@ export const ADVOCACIA_TAXONOMY: { parent: string; children: string[] }[] = [
       "Móveis",
       "Documentação",
       "Registro e escritura",
+    ],
+  },
+  {
+    parent: "Outros",
+    children: [
+      "Doação",
+      "Diversos",
     ],
   },
 ];
