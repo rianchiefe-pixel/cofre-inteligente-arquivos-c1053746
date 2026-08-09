@@ -118,6 +118,25 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
 
   if (isLoading) return <LoadingState label="Carregando central de categorias..." />;
 
+  if (!categories || categories.length === 0) {
+    return (
+      <Card className="p-12 text-center space-y-4">
+        <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+          <Tag className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="font-medium text-lg">Nenhuma categoria encontrada no banco</h3>
+          <p className="text-muted-foreground max-w-xs mx-auto">
+            Verificamos seu usuário e não encontramos categorias registradas. Tente sincronizar ou contate o suporte.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["categories-mgmt"] })}>
+            Tentar recarregar
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {onlyDuplicates && (
