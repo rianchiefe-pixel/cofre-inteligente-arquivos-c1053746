@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useActiveProfile } from "@/hooks/use-active-profile";
@@ -35,6 +35,9 @@ export const Route = createFileRoute("/_authenticated/app/cards")({
 const BRANDS = ["visa", "mastercard", "elo", "amex", "hipercard", "outro"];
 
 function CardsPage() {
+  const { id } = useParams({ strict: false });
+  if (id) return <Outlet />;
+
   const qc = useQueryClient();
   const { activeProfileId } = useActiveProfile();
   const [open, setOpen] = useState(false);
@@ -189,7 +192,7 @@ function CardsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c: any) => (
-          <Card key={c.id} className="overflow-hidden flex flex-col">
+          <Card key={c.id} className="overflow-hidden flex flex-col group/card relative">
             <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground relative">
               <div className="flex justify-between items-start">
                 <CreditCard className="h-6 w-6" />
@@ -232,11 +235,17 @@ function CardsPage() {
                 <div>Vencimento: <span className="font-medium text-foreground">{c.due_day || '—'}</span></div>
               </div>
 
-              <Button asChild size="sm" variant="outline" className="mt-auto w-full">
+              <Button asChild size="sm" variant="outline" className="mt-auto w-full relative z-10">
                 <Link to="/app/cards/$id" params={{ id: c.id }}>
                   Abrir cartão <ArrowRight className="h-3 w-3 ml-2" />
                 </Link>
               </Button>
+              <Link 
+                to="/app/cards/$id" 
+                params={{ id: c.id }} 
+                className="absolute inset-0 z-0"
+                aria-hidden="true"
+              />
             </div>
           </Card>
         ))}
