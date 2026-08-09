@@ -157,6 +157,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       auth_code: normalizeString(raw.auth_code ?? raw.codigo_autenticacao ?? raw.id_transacao ?? raw.e2e),
       suggested_category: normalizeString(raw.suggested_category ?? raw.categoria_sugerida ?? raw.categoria),
       transaction_type: normalizeTransactionType(raw.transaction_type ?? raw.tipo_transacao ?? raw.tipo),
+      document_type: normalizeString(raw.document_type ?? raw.tipo_documento),
     });
     const parseGeneratedJson = (raw: string | undefined): z.infer<typeof ExtractSchema> | null => {
       if (!raw) return null;
