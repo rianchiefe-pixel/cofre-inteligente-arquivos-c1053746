@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { centsToNumber, parseBrlAmountToCents } from "@/lib/format";
 import { getPayeeHistory } from "./receipt-intelligence";
+import { normalizeCategoryName } from "./category-integrity.functions";
 
 async function logAudit(supabase: any, userId: string, params: {
   action: string; entity: string; entity_id?: string | null;
@@ -287,13 +288,19 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
     // Recipient recognition (sync with intelligence)
     let recipient_id: string | null = null;
     if (extracted.recipient_name) {
-      const { data: existing } = await supabase
+      const normalizedNewName = normalizeCategoryName(extracted.recipient_name);
+      const { data: allRecipients } = await supabase
         .from("recipients")
-        .select("id, default_category_id, usage_count")
-        .ilike("name", extracted.recipient_name)
-        .limit(2);
-      if (existing && existing.length > 0) {
-        const r = existing[0];
+        .select("id, name, default_category_id, usage_count")
+        .eq("user_id", context.userId);
+      
+      const existing = allRecipients?.filter((r: any) => 
+        normalizeCategoryName(r.name) === normalizedNewName
+      ) || [];
+
+      if (existing.length > 0) {
+        // Encontrou por normalização (previne duplicidade textual/case)
+        const r = existing.sort((a: any, b: any) => (b.usage_count || 0) - (a.usage_count || 0))[0];
         recipient_id = r.id;
         if (!ai_suggested_category_id && r.default_category_id) ai_suggested_category_id = r.default_category_id;
         await supabase.from("recipients").update({ usage_count: (r.usage_count ?? 0) + 1 }).eq("id", r.id);

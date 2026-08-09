@@ -46,7 +46,7 @@ export const getCategoryStats = createServerFn({ method: "GET" })
 
     const { data: dbCategories, error: catError } = await supabase
       .from("categories")
-      .select("id, name, default_type, expense_behavior, archived, parent_id")
+      .select("id, name, default_type, expense_behavior, archived, parent_id, created_at")
       .eq("user_id", userId);
     
     if (catError) throw catError;
@@ -75,21 +75,29 @@ export const getCategoryStats = createServerFn({ method: "GET" })
       total_amount: usageMap.get(c.id)?.total || 0
     }));
 
+    // Local normalization for duplicate counting
+    const normalize = (name: string) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+    const nameGroups = new Map<string, string[]>();
+    categories.forEach((c: any) => {
+      if (c.archived) return;
+      const n = normalize(c.name);
+      if (!nameGroups.has(n)) nameGroups.set(n, []);
+      nameGroups.get(n)!.push(c.id);
+    });
+
+    let duplicatesCount = 0;
+    nameGroups.forEach(ids => {
+      if (ids.length > 1) duplicatesCount += (ids.length - 1);
+    });
+
     const stats = {
       total: categories.length,
       main: categories.filter((c: any) => !c.parent_id).length,
       sub: categories.filter((c: any) => c.parent_id).length,
       archived: categories.filter((c: any) => c.archived).length,
       unclassified: categories.filter((c: any) => !c.default_type).length,
-      duplicates: 0
+      duplicates: duplicatesCount
     };
-
-    const names = new Map<string, string>();
-    categories.forEach((c: any) => {
-      const n = normalizeName(c.name);
-      if (names.has(n)) stats.duplicates++;
-      names.set(n, c.id);
-    });
 
     return { categories, stats };
   });
