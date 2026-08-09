@@ -83,14 +83,18 @@ function UploadPage() {
 
         setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: "enviado", receiptId: inserted.id } : it)));
         
-        // Simulação de passos de processamento para feedback visual
-        setTimeout(() => setItems((prev) => prev.map((it, j) => (j === idx && it.status === "enviado" ? { ...it, status: "lendo" } : it))), 1000);
-        setTimeout(() => setItems((prev) => prev.map((it, j) => (j === idx && it.status === "lendo" ? { ...it, status: "identificando" } : it))), 3000);
-        setTimeout(() => setItems((prev) => prev.map((it, j) => (j === idx && it.status === "identificando" ? { ...it, status: "cruzando" } : it))), 5000);
-
+        // Asynchronous processing: first call analysis
         const res = await analyze({ data: { receiptId: inserted.id } });
-        if (!res.ok) throw new Error(res.error ?? "Não foi possível analisar o comprovante");
-        setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: res.duplicate_of ? "duplicate" : "pronto" } : it)));
+        
+        // Refresh local items state based on the actual result
+        setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: res.ok ? (res.duplicate_of ? "duplicate" : "pronto") : "error", message: res.error } : it)));
+        
+        if (!res.ok) {
+          // If error is technical (like Credits), show a generic user-friendly message but log the original
+          console.error(`Falha na análise do comprovante ${inserted.id}:`, res.error);
+          toast.error("Não foi possível concluir a análise automática. O comprovante foi preservado para revisão manual.");
+        }
+
       } catch (e: any) {
         setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: "error", message: e.message } : it)));
       }

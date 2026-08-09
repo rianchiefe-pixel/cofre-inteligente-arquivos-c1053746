@@ -206,14 +206,32 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       const raw: string | undefined = json?.choices?.[0]?.message?.content;
       extracted = parseGeneratedJson(raw);
       if (!extracted) {
-        await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente." }).eq("id", rec.id);
-        return { ok: false, duplicate_of: null, error: "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente." };
+        const errorMsg = "A IA não conseguiu estruturar os dados do comprovante. Revise manualmente.";
+        await supabase.from("receipts").update({ 
+          ocr_status: "failed", 
+          ocr_error: errorMsg,
+          ai_confidence: "NAO_IDENTIFICADO",
+          ai_reason: errorMsg
+        }).eq("id", rec.id);
+        return { ok: false, duplicate_of: null, error: errorMsg };
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      await supabase.from("receipts").update({ ocr_status: "failed", ocr_error: msg }).eq("id", rec.id);
+      let userFriendlyMsg = "Falha técnica na análise (Gateway/Créditos). O comprovante foi preservado.";
+      
+      if (msg.includes("credits") || msg.includes("402")) {
+        userFriendlyMsg = "Limite de processamento de IA atingido para este período. O comprovante foi salvo e pode ser conferido manualmente.";
+      }
+
+      await supabase.from("receipts").update({ 
+        ocr_status: "failed", 
+        ocr_error: msg,
+        ai_confidence: "NAO_IDENTIFICADO",
+        ai_reason: userFriendlyMsg
+      }).eq("id", rec.id);
       return { ok: false, duplicate_of: null, error: msg };
     }
+
 
     // Intelligence Layer: Historical matching & Suggestions
     let ai_suggested_category_id: string | null = null;
@@ -363,10 +381,14 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       ai_history_summary: historySummary,
     };
     const { error: upErr } = await supabase.from("receipts").update(update).eq("id", rec.id);
-    if (upErr) throw new Error(upErr.message);
+    if (upErr) {
+      console.error(`ERRO RLS/DB ao atualizar receipt ${rec.id}:`, upErr);
+      throw new Error(`Erro ao salvar análise: ${upErr.message} (Verifique as permissões de RLS para o perfil ${update.profile_id})`);
+    }
 
     return { ok: true, duplicate_of };
   });
+
 
 export const approveReceipt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

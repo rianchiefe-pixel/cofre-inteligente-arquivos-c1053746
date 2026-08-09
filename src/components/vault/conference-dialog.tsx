@@ -393,7 +393,29 @@ export function ConferenceDialog(props: {
             className={`min-h-0 min-w-0 flex-col overflow-y-auto bg-background px-4 py-4 pb-10 ${mobileTab === "form" ? "flex" : "hidden"} lg:flex`}
           >
             <div className="space-y-4">
-              {original.ai_confidence && (
+              {original.ocr_status === "failed" && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                  <div className="flex items-center gap-2 mb-2 text-destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider">Falha na análise automática</h3>
+                  </div>
+                  <p className="text-sm font-medium leading-relaxed mb-3">
+                    {original.ocr_error || "Ocorreu um erro ao processar este comprovante."}
+                  </p>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                    onClick={onAnalyze}
+                    disabled={busy}
+                  >
+                    {busy ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RotateCcw className="mr-2 h-3 w-3" />}
+                    Tentar análise novamente
+                  </Button>
+                </div>
+              )}
+
+              {original.ai_confidence && original.ocr_status === "done" && (
                 <div className={`rounded-xl border p-4 ${
                   original.ai_confidence === "ALTA" ? "border-success/30 bg-success/5" :
                   original.ai_confidence === "MEDIA" ? "border-yellow-500/30 bg-yellow-500/5" :
@@ -419,6 +441,7 @@ export function ConferenceDialog(props: {
                   )}
                 </div>
               )}
+
 
               {isDirty && (
                 <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs text-primary">
