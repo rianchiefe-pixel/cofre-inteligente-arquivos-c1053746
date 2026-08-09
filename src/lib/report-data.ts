@@ -13,8 +13,7 @@ export const UNCATEGORIZED = "Sem categoria definida";
  */
 export type ReportFinancialType = 
   | "despesa" 
-  | "gasto_fixo" 
-  | "gasto_variavel" 
+  | "despesa" 
   | "investimento" 
   | "unclassified";
 
@@ -23,8 +22,10 @@ export interface LedgerEntry {
   date: string;
   cents: number;
   amount: number;
-  /** The final resolved type for report grouping. */
+  /** The final resolved type for report grouping (despesa/investimento). */
   reportType: ReportFinancialType;
+  /** expense_behavior (fixed/variable) */
+  expenseBehavior: string | null;
   /** Specific categorization info */
   categoryId: string | null;
   categoryName: string;
@@ -103,8 +104,6 @@ export interface ReportDataset {
 }
 
 const INVESTMENT_TYPES = new Set(["investimento", "patrimonial"]);
-const FIXED_TYPES = new Set(["gasto_fixo"]);
-const VARIABLE_TYPES = new Set(["gasto_variavel"]);
 const EXPENSE_TYPES = new Set(["despesa"]);
 
 export const centsToNumber = (cents: number) => Math.round(cents) / 100;
@@ -155,16 +154,14 @@ export function resolveReportType(
   for (const t of types) {
     if (!t) continue;
     if (INVESTMENT_TYPES.has(t)) return "investimento";
-    if (FIXED_TYPES.has(t)) return "gasto_fixo";
-    if (VARIABLE_TYPES.has(t)) return "gasto_variavel";
-    if (EXPENSE_TYPES.has(t)) return "despesa";
+    if (EXPENSE_TYPES.has(t) || t === 'gasto_fixo' || t === 'gasto_variavel') return "despesa";
   }
   
   return "unclassified";
 }
 
 export async function loadReportDataset(f: { from: string; to: string; profileId?: string | null; propertyId?: string | null }): Promise<ReportDataset> {
-  const { data: cats, error: catError } = await supabase.from("categories").select("id, name, parent_id, default_type");
+  const { data: cats, error: catError } = await supabase.from("categories").select("id, name, parent_id, default_type, expense_behavior");
   if (catError) throw new Error(`Falha ao carregar categorias: ${catError.message}`);
   const catById = new Map((cats ?? []).map((c) => [c.id, c]));
 
@@ -173,7 +170,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
   for (let offset = 0; offset < 100000; offset += PAGE) {
     let q = supabase
       .from("receipts")
-      .select("id, payment_date, amount, transaction_type, category_id, recipient_name, bank_name, description, notes, payment_method, profile_id, property_id, file_hash, import_row_id")
+      .select("id, payment_date, amount, transaction_type, expense_behavior, category_id, recipient_name, bank_name, description, notes, payment_method, profile_id, property_id, file_hash, import_row_id")
       .eq("status", "approved")
       .order("payment_date", { ascending: true })
       .order("id", { ascending: true })
@@ -212,6 +209,8 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       parent?.default_type || null
     );
 
+    const expenseBehavior = r.expense_behavior || cat?.expense_behavior || parent?.expense_behavior || null;
+
     const cents = toCents(r.amount);
 
     return {
@@ -220,6 +219,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       cents,
       amount: centsToNumber(cents),
       reportType,
+      expenseBehavior,
       categoryId: cat?.id || null,
       categoryName: cat?.name || UNCATEGORIZED,
       parentCategoryId: parent?.id || null,
@@ -237,8 +237,8 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const [y, m] = key.split("-");
     
     const dList = list.filter(e => e.reportType === "despesa");
-    const fList = list.filter(e => e.reportType === "gasto_fixo");
-    const vList = list.filter(e => e.reportType === "gasto_variavel");
+    const fList = list.filter(e => e.reportType === "despesa" && e.expenseBehavior === "fixed");
+    const vList = list.filter(e => e.reportType === "despesa" && e.expenseBehavior === "variable");
     const iList = list.filter(e => e.reportType === "investimento");
     const uList = list.filter(e => e.reportType === "unclassified");
 
