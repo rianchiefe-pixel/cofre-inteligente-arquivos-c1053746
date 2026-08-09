@@ -794,9 +794,28 @@ function VaultPage() {
       .neq("id", currentId)
       .order("created_at", { ascending: false })
       .limit(1);
-    if (profileId !== "all") qb = qb.eq("profile_id", profileId);
+    
+    if (profileId === "__none__") {
+      qb = qb.is("profile_id", null);
+    } else if (profileId !== "all") {
+      qb = qb.eq("profile_id", profileId);
+    }
+    
     if (bankId !== "all") qb = qb.eq("bank_id", bankId);
-    if (categoryId !== "all") qb = qb.eq("category_id", categoryId);
+    
+    if (selectedCategoryIds.length > 0) {
+      const hasNone = selectedCategoryIds.includes("__none__");
+      const ids = selectedCategoryIds.filter(id => id !== "__none__");
+      
+      if (hasNone && ids.length > 0) {
+        qb = qb.or(`category_id.in.(${ids.join(",")}),category_id.is.null`);
+      } else if (hasNone) {
+        qb = qb.is("category_id", null);
+      } else {
+        qb = qb.in("category_id", ids);
+      }
+    }
+
     const { data, error } = await qb.maybeSingle();
     if (error || !data) {
       closeEditing();
