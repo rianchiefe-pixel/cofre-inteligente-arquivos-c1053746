@@ -70,6 +70,8 @@ function evidenceReceipt(row: any): OrganizerReceipt & { status: string } {
     cost_center_id: row.cost_center_id,
     ocr_text: ocr,
     status: row.status,
+    natureza: row.natureza,
+    tipo_gasto: row.tipo_gasto,
   };
 }
 
