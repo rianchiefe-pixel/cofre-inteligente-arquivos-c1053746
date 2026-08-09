@@ -519,6 +519,7 @@ export type Database = {
           color: string | null
           created_at: string
           default_type: Database["public"]["Enums"]["transaction_type"] | null
+          expense_behavior: string | null
           id: string
           name: string
           parent_id: string | null
@@ -529,6 +530,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           default_type?: Database["public"]["Enums"]["transaction_type"] | null
+          expense_behavior?: string | null
           id?: string
           name: string
           parent_id?: string | null
@@ -539,6 +541,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           default_type?: Database["public"]["Enums"]["transaction_type"] | null
+          expense_behavior?: string | null
           id?: string
           name?: string
           parent_id?: string | null
@@ -1597,6 +1600,7 @@ export type Database = {
           description: string | null
           duplicate_of: string | null
           duplicate_score: number
+          expense_behavior: string | null
           file_hash: string | null
           file_mime: string | null
           file_name: string | null
@@ -1647,6 +1651,7 @@ export type Database = {
           description?: string | null
           duplicate_of?: string | null
           duplicate_score?: number
+          expense_behavior?: string | null
           file_hash?: string | null
           file_mime?: string | null
           file_name?: string | null
@@ -1697,6 +1702,7 @@ export type Database = {
           description?: string | null
           duplicate_of?: string | null
           duplicate_score?: number
+          expense_behavior?: string | null
           file_hash?: string | null
           file_mime?: string | null
           file_name?: string | null
