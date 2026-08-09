@@ -310,10 +310,15 @@ export function ConferenceDialog(props: {
               <DialogTitle className="truncate text-base font-semibold sm:text-lg">
                 Conferência do comprovante
               </DialogTitle>
-              <DialogDescription className="mt-0.5 flex min-w-0 items-center gap-2 text-xs">
+              <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs">
                 <FileText className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{original.file_name ?? "Arquivo sem nome"}</span>
-              </DialogDescription>
+                <span className="truncate text-muted-foreground">{original.file_name ?? "Arquivo sem nome"}</span>
+                {original.ocr_data?.document_type && (
+                  <Badge variant="outline" className="h-5 py-0 px-1.5 text-[10px] border-muted-foreground/30 capitalize">
+                    {original.ocr_data.document_type.replace("_", " ")}
+                  </Badge>
+                )}
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">
                   {currencyBRL(Number(draft.amount ?? 0))}
