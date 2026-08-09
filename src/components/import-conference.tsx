@@ -1829,3 +1829,159 @@ function SwapReceiptDialog({
     </Dialog>
   );
 }
+
+function MultiFilterPopover({
+  title,
+  options,
+  selected,
+  onSelect,
+  noneLabel,
+}: {
+  title: string;
+  options: Array<{ id: string; name: string }>;
+  selected: string[];
+  onSelect: (ids: string[]) => void;
+  noneLabel: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-8 rounded-full border-dashed px-3 text-xs",
+            selected.length > 0 && "border-solid bg-accent text-accent-foreground",
+          )}
+        >
+          <Filter className="mr-2 h-3 w-3" />
+          {title}
+          {selected.length > 0 && (
+            <>
+              <Separator orientation="vertical" className="mx-2 h-4" />
+              <Badge
+                variant="secondary"
+                className="rounded-sm px-1 font-normal lg:hidden"
+              >
+                {selected.length}
+              </Badge>
+              <div className="hidden space-x-1 lg:flex">
+                {selected.length > 2 ? (
+                  <Badge
+                    variant="secondary"
+                    className="rounded-sm px-1 font-normal"
+                  >
+                    {selected.length} selecionados
+                  </Badge>
+                ) : (
+                  options
+                    .filter((opt) => selected.includes(opt.id))
+                    .concat(selected.includes("__none__") ? [{ id: "__none__", name: noneLabel }] : [])
+                    .map((opt) => (
+                      <Badge
+                        variant="secondary"
+                        key={opt.id}
+                        className="rounded-sm px-1 font-normal"
+                      >
+                        {opt.name}
+                      </Badge>
+                    ))
+                )}
+              </div>
+            </>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[240px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={title} />
+          <CommandList>
+            <CommandEmpty>Nenhum resultado.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                onSelect={() => {
+                  const isSelected = selected.includes("__none__");
+                  if (isSelected) {
+                    onSelect(selected.filter((id) => id !== "__none__"));
+                  } else {
+                    onSelect([...selected, "__none__"]);
+                  }
+                }}
+              >
+                <div
+                  className={cn(
+                    "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                    selected.includes("__none__")
+                      ? "bg-primary text-primary-foreground"
+                      : "opacity-50 [&_svg]:invisible",
+                  )}
+                >
+                  <Check className="h-3 w-3" />
+                </div>
+                <span>{noneLabel}</span>
+              </CommandItem>
+              {options.map((option) => {
+                const isSelected = selected.includes(option.id);
+                return (
+                  <CommandItem
+                    key={option.id}
+                    onSelect={() => {
+                      if (isSelected) {
+                        onSelect(selected.filter((id) => id !== option.id));
+                      } else {
+                        onSelect([...selected, option.id]);
+                      }
+                    }}
+                  >
+                    <div
+                      className={cn(
+                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                        isSelected
+                          ? "bg-primary text-primary-foreground"
+                          : "opacity-50 [&_svg]:invisible",
+                      )}
+                    >
+                      <Check className="h-3 w-3" />
+                    </div>
+                    <span>{option.name}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            {selected.length > 0 && (
+              <>
+                <Separator />
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => onSelect([])}
+                    className="justify-center text-center"
+                  >
+                    Limpar filtros
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function hydrateValues(row: any): Record<string, any> {
+  const vals: Record<string, any> = {};
+  for (const f of FIELDS) {
+    if (f.type === "number" && typeof row[f.key] === "number") {
+      vals[f.key] = formatBrlNumber(Math.abs(row[f.key]));
+    } else {
+      vals[f.key] = row[f.key] ?? "";
+    }
+  }
+  // Property logic
+  vals.property_id = row.property_id
+    ? row.property_id
+    : row.general_account
+      ? "__general__"
+      : "__none__";
+  return vals;
+}
