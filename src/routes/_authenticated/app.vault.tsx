@@ -84,6 +84,7 @@ import { z } from "zod";
 import { ConferenceDialog } from "@/components/vault/conference-dialog";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/vault")({
   head: () => ({ meta: [{ title: "Cofre de comprovantes — Meu Cofre" }] }),
