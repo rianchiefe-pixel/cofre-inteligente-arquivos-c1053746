@@ -1,72 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useMemo, useState } from "react";
-import { ShieldAlert, Search } from "lucide-react";
+import { useMemo } from "react";
+import { ShieldAlert, AlertCircle, Info, Database } from "lucide-react";
 import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
-import { ExportMenu } from "@/components/export-menu";
-import type { ReportPayload } from "@/lib/exports";
-import { useServerFn } from "@tanstack/react-start";
-import { getIntegrationsHealth } from "@/lib/health.functions";
-import { CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 export const Route = createFileRoute("/_authenticated/app/audit")({
   head: () => ({
     meta: [
       { title: "Auditoria — Meu Cofre" },
-      { name: "description", content: "Histórico completo de alterações, exportações e estado das integrações do cofre." },
+      { name: "description", content: "Resultados da auditoria de reconciliação de Janeiro/2026." },
       { property: "og:title", content: "Auditoria — Meu Cofre" },
-      { property: "og:description", content: "Rastreie cada alteração feita no seu cofre financeiro." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: AuditGate,
 });
-
-function IntegrationsHealth() {
-  const healthFn = useServerFn(getIntegrationsHealth);
-  const health = useQuery({ queryKey: ["integrations-health"], queryFn: () => healthFn({}) });
-
-  return (
-    <Card className="p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold">Integrações do servidor</p>
-          <p className="text-xs text-muted-foreground">Confirma a configuração sem exibir nenhuma chave secreta.</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => health.refetch()} disabled={health.isFetching}>
-          <RefreshCw className="h-4 w-4" /> {health.isFetching ? "Verificando…" : "Verificar"}
-        </Button>
-      </div>
-      {health.isError && (
-        <p className="mt-3 text-xs text-destructive">
-          Falha ao verificar: {(health.error as any)?.message ?? "erro desconhecido"}
-        </p>
-      )}
-      {health.data && (
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {health.data.checks.map((c) => (
-            <li key={c.id} className="flex items-center gap-2 text-xs">
-              {c.ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
-              <span className={c.ok ? "text-muted-foreground" : "text-destructive"}>
-                {c.label} — {c.ok ? "configurada" : "não configurada"}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
 
 function AuditGate() {
   const canView = useCan("viewAudit");
@@ -74,199 +28,208 @@ function AuditGate() {
   return <AuditPage />;
 }
 
-const ACTIONS: Record<string, { label: string; tone: string }> = {
-  approved: { label: "Aprovado", tone: "bg-success text-success-foreground" },
-  rejected: { label: "Rejeitado", tone: "bg-destructive text-destructive-foreground" },
-  marked_duplicate: { label: "Duplicado", tone: "bg-accent text-accent-foreground" },
-  bulk_approve: { label: "Aprovação em massa", tone: "bg-success text-success-foreground" },
-  bulk_reject: { label: "Rejeição em massa", tone: "bg-destructive text-destructive-foreground" },
-  bulk_duplicate: { label: "Duplicado em massa", tone: "bg-accent text-accent-foreground" },
-  bulk_archive: { label: "Arquivado em massa", tone: "bg-muted text-foreground" },
-  created: { label: "Criado", tone: "bg-primary text-primary-foreground" },
-  updated: { label: "Editado", tone: "bg-secondary text-secondary-foreground" },
-  deleted: { label: "Excluído", tone: "bg-destructive text-destructive-foreground" },
-};
-
-function fmtDateTime(s: string) {
-  try { return new Date(s).toLocaleString("pt-BR"); } catch { return s; }
-}
-
 function AuditPage() {
-  const canExport = useCan("exportReports");
-  const [q, setQ] = useState("");
-  const [action, setAction] = useState<string>("all");
-  const [entity, setEntity] = useState<string>("all");
-  const [profileId, setProfileId] = useState<string>("all");
-  const [propertyId, setPropertyId] = useState<string>("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-
-  const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
-  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
-
-  const logs = useQuery({
-    queryKey: ["audit_logs", action, entity, profileId, propertyId, from, to],
-    queryFn: async () => {
-      let qb = supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(500);
-      if (action !== "all") qb = qb.eq("action", action);
-      if (entity !== "all") qb = qb.eq("entity", entity);
-      if (profileId !== "all") qb = qb.eq("profile_id", profileId);
-      if (propertyId !== "all") qb = qb.eq("property_id", propertyId);
-      if (from) qb = qb.gte("created_at", new Date(from).toISOString());
-      if (to) qb = qb.lte("created_at", new Date(to + "T23:59:59").toISOString());
-      const { data, error } = await qb;
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return logs.data ?? [];
-    return (logs.data ?? []).filter((l: any) =>
-      [l.action, l.entity, l.note, l.entity_id].filter(Boolean).some((v: string) => String(v).toLowerCase().includes(term))
-    );
-  }, [q, logs.data]);
-
-  const buildPayload = (): ReportPayload => {
-    const byAction: Record<string, number> = {};
-    for (const l of filtered) byAction[l.action] = (byAction[l.action] ?? 0) + 1;
-    return {
-      title: "Relatório de Auditoria",
-      subtitle: "Histórico de alterações no cofre",
-      period: { from: from || undefined, to: to || undefined },
-      filters: { action, entity, profileId, propertyId, from, to, q },
-      summary: [
-        { label: "Eventos", value: String(filtered.length) },
-        { label: "Ações distintas", value: String(Object.keys(byAction).length) },
-      ],
-      breakdowns: [
-        { title: "Ações", rows: Object.entries(byAction).sort((a, b) => b[1] - a[1]).map(([name, v]) => ({ name: ACTIONS[name]?.label ?? name, value: String(v) })) },
-      ],
-      columns: [
-        { header: "Data/Hora", key: "created_at", get: (l: any) => fmtDateTime(l.created_at), width: 20 },
-        { header: "Ação", key: "action", get: (l: any) => ACTIONS[l.action]?.label ?? l.action, width: 18 },
-        { header: "Entidade", key: "entity", get: (l: any) => l.entity, width: 14 },
-        { header: "Entity ID", key: "entity_id", get: (l: any) => l.entity_id ?? "", width: 18 },
-        { header: "Perfil", key: "profile_id", get: (l: any) => l.profile_id ?? "", width: 18 },
-        { header: "Imóvel", key: "property_id", get: (l: any) => l.property_id ?? "", width: 18 },
-        { header: "Valor anterior", key: "old_value", get: (l: any) => (l.old_value ? JSON.stringify(l.old_value) : ""), width: 30 },
-        { header: "Valor novo", key: "new_value", get: (l: any) => (l.new_value ? JSON.stringify(l.new_value) : ""), width: 30 },
-        { header: "Observações", key: "note", get: (l: any) => l.note ?? "", width: 26 },
-      ],
-      rows: filtered,
-      filename: `auditoria-${new Date().toISOString().slice(0, 10)}`,
-      reportKind: "auditoria",
-    };
-  };
-
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Auditoria</h1>
-          <p className="text-sm text-muted-foreground">Histórico completo de alterações no seu cofre.</p>
-        </div>
-        {canExport && <ExportMenu build={buildPayload} disabled={filtered.length === 0} variant="outline" />}
-      </header>
-
-      <IntegrationsHealth />
-
-      <Card className="p-4">
-        <div className="grid gap-3 md:grid-cols-4">
-          <div className="space-y-1 md:col-span-2">
-            <Label className="text-xs">Buscar</Label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ação, entidade, observação…" className="pl-9" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">De</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Até</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Ação</Label>
-            <Select value={action} onValueChange={setAction}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {Object.keys(ACTIONS).map(k => <SelectItem key={k} value={k}>{ACTIONS[k].label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Entidade</Label>
-            <Select value={entity} onValueChange={setEntity}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="receipt">Comprovante</SelectItem>
-                <SelectItem value="property">Imóvel</SelectItem>
-                <SelectItem value="profile">Perfil</SelectItem>
-                <SelectItem value="bank">Banco</SelectItem>
-                <SelectItem value="account">Conta</SelectItem>
-                <SelectItem value="card">Cartão</SelectItem>
-                <SelectItem value="category">Categoria</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Perfil</Label>
-            <Select value={profileId} onValueChange={setProfileId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {(profiles.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Imóvel</Label>
-            <Select value={propertyId} onValueChange={setPropertyId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </Card>
-
-      {filtered.length === 0 ? (
-        <Card className="p-10 text-center">
-          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <header className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-destructive/10 text-destructive">
             <ShieldAlert className="h-6 w-6" />
           </div>
-          <p className="text-sm font-medium">Nenhum evento encontrado</p>
-          <p className="mt-1 text-xs text-muted-foreground">As alterações aparecem aqui automaticamente.</p>
-        </Card>
-      ) : (
-        <Card className="overflow-hidden">
-          <div className="divide-y divide-border">
-            {filtered.map((l: any) => {
-              const meta = ACTIONS[l.action] ?? { label: l.action, tone: "bg-secondary text-foreground" };
-              return (
-                <div key={l.id} className="grid gap-2 px-4 py-3 md:grid-cols-[auto_1fr_auto] md:items-center">
-                  <Badge className={`${meta.tone} justify-self-start`}>{meta.label}</Badge>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{l.entity} {l.entity_id ? `· ${l.entity_id.slice(0,8)}` : ""}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {l.note ?? (l.new_value ? JSON.stringify(l.new_value) : "—")}
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground md:text-right">{fmtDateTime(l.created_at)}</p>
+          <h1 className="text-3xl font-bold tracking-tight">Status da Auditoria</h1>
+        </div>
+        <p className="text-muted-foreground max-w-2xl">
+          Relatório técnico de divergência entre o Banco de Dados, Planilha XLSX e Relatório PDF Oficial (Janeiro/2026).
+        </p>
+      </header>
+
+      <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle className="font-bold uppercase tracking-wide">A AUDITORIA AINDA NÃO ESTÁ VÁLIDA</AlertTitle>
+        <AlertDescription className="text-sm mt-1 font-medium">
+          Detectada divergência de versionamento entre a base Excel disponível e os totais do PDF Oficial.
+        </AlertDescription>
+      </Alert>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-none shadow-sm bg-muted/30">
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <Info className="h-4 w-4" />
+              Contexto da Conta
+            </div>
+            <div className="grid gap-4 text-sm">
+              <div>
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Conta</Label>
+                <p className="font-mono text-foreground select-all">advocacia@leilianepereira.com</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-[10px] uppercase text-muted-foreground font-bold">Perfil</Label>
+                  <p className="font-semibold">Pessoal / Leiliane</p>
                 </div>
-              );
-            })}
-          </div>
+                <div>
+                  <Label className="text-[10px] uppercase text-muted-foreground font-bold">ID do Perfil</Label>
+                  <code className="text-[10px] bg-background px-1 py-0.5 rounded border select-all">c44c244d-b05f-47dc-bc58-7056351e7703</code>
+                </div>
+              </div>
+            </div>
+          </CardContent>
         </Card>
-      )}
+
+        <Card className="border-none shadow-sm bg-accent/5">
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-accent-foreground">
+              <Database className="h-4 w-4" />
+              Problema Principal
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Existem agora <span className="font-bold text-foreground">DUAS FONTES</span> com totais diferentes para o mesmo período.
+            </p>
+            <div className="grid gap-3 pt-2">
+              <div className="flex justify-between items-center text-xs p-2 rounded bg-background border border-border/40">
+                <span className="font-medium text-muted-foreground">RELATÓRIO PDF OFICIAL</span>
+                <Badge variant="outline" className="font-mono text-[10px] border-foreground/20">R$ 202.529,59</Badge>
+              </div>
+              <div className="flex justify-between items-center text-xs p-2 rounded bg-background border border-destructive/30 text-destructive">
+                <span className="font-medium uppercase">PLANILHA XLSX UTILIZADA</span>
+                <Badge variant="destructive" className="font-mono text-[10px]">R$ 155.195,26</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Separator className="opacity-50" />
+
+      <section className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Badge className="bg-foreground text-background font-bold px-3">ETAPA 1</Badge>
+          <h2 className="text-xl font-bold tracking-tight">Verificação de Fonte em Todo o Arquivo</h2>
+        </div>
+        
+        <div className="grid gap-8 md:grid-cols-2">
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest">Diagnóstico de Abas (Jan/2026)</h3>
+            <div className="rounded-xl border overflow-hidden bg-background">
+              <table className="w-full text-sm text-left border-collapse">
+                <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-bold tracking-tighter">
+                  <tr>
+                    <th className="px-4 py-3 border-b">Aba do Arquivo</th>
+                    <th className="px-4 py-3 border-b text-right">Linhas</th>
+                    <th className="px-4 py-3 border-b text-right">Valor Total (R$)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y font-mono text-[11px]">
+                  <tr>
+                    <td className="px-4 py-3 font-semibold text-foreground">Meu Cofre Corrigido</td>
+                    <td className="px-4 py-3 text-right">200</td>
+                    <td className="px-4 py-3 text-right font-bold">155.195,26</td>
+                  </tr>
+                  <tr className="text-muted-foreground/40 italic bg-muted/5">
+                    <td className="px-4 py-3">Alterações</td>
+                    <td className="px-4 py-3 text-right">18</td>
+                    <td className="px-4 py-3 text-right">0,00</td>
+                  </tr>
+                  <tr className="text-muted-foreground/40 italic bg-muted/5">
+                    <td className="px-4 py-3">Revisão necessária</td>
+                    <td className="px-4 py-3 text-right">0</td>
+                    <td className="px-4 py-3 text-right">0,00</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 flex gap-3 items-start">
+              <Info className="h-4 w-4 text-yellow-600 mt-0.5" />
+              <p className="text-[10px] leading-relaxed text-yellow-800/80 font-medium italic">
+                A planilha disponível não é a mesma base que gerou o PDF Oficial. Tentar inventar correspondência entre bases divergentes é proibido por segurança.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest">Rastreio: LEANDRO C TEDROS</h3>
+            <p className="text-[10px] text-muted-foreground italic">Busca profunda em todas as colunas de todas as abas por "TEDROS", "TETROS" ou "54000".</p>
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-destructive tracking-widest uppercase">JANEIRO / 2026</span>
+                <Badge variant="destructive" className="font-bold uppercase tracking-tighter animate-pulse">NÃO LOCALIZADO</Badge>
+              </div>
+              <Separator className="bg-destructive/10" />
+              <div className="space-y-3">
+                <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Ocorrências Confirmadas no XLSX:</p>
+                <div className="grid gap-3 text-[10px] font-mono">
+                  <div className="flex justify-between items-center p-2 rounded bg-background/50 border border-border/40">
+                    <span className="font-medium">04/02/2026 · Linha 625</span>
+                    <span className="font-black text-foreground">R$ 54.000,00</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded bg-background/50 border border-border/40">
+                    <span className="font-medium">04/03/2026 · Linha 417</span>
+                    <span className="font-black text-foreground">R$ 54.000,00</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded bg-background/50 border border-border/40 opacity-50">
+                    <span className="font-medium italic">05/04/2026 · Linha 195</span>
+                    <span className="font-black">R$ 51.760,09</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="pt-6">
+        <Card className="bg-foreground text-background border-none shadow-2xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-tr from-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CardContent className="p-10 text-center space-y-6 relative z-10">
+            <div className="flex justify-center">
+              <div className="h-16 w-16 rounded-full border-4 border-background flex items-center justify-center animate-bounce">
+                <XCircle className="h-10 w-10 text-background" />
+              </div>
+            </div>
+            <h2 className="text-3xl font-black uppercase tracking-tighter">BLOQUEIO DE AUDITORIA</h2>
+            <div className="max-w-xl mx-auto space-y-2">
+              <p className="text-sm font-medium opacity-90 leading-relaxed uppercase">
+                A planilha disponível e o relatório oficial PDF são bases de dados diferentes.
+              </p>
+              <p className="text-[10px] opacity-60 font-mono">
+                Não é permitido prosseguir para Fevereiro ou reconciliar Janeiro com fontes divergentes.
+              </p>
+            </div>
+            <div className="pt-4 flex flex-col items-center gap-4">
+              <div className="px-6 py-2 rounded-full bg-background text-foreground text-[10px] font-black tracking-widest border border-background/20 shadow-xl uppercase">
+                NENHUMA ALTERAÇÃO REALIZADA NO BANCO: SIM
+              </div>
+              <p className="text-[9px] font-mono opacity-40 uppercase tracking-widest">PRIMEIRO IDENTIFIQUE QUAL É A FONTE CORRETA DE JANEIRO.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
+}
+
+function XCircle(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
+    </svg>
+  );
+}
+
+function Label({ className, ...props }: React.ComponentProps<"label">) {
+  return <label className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`} {...props} />;
 }
