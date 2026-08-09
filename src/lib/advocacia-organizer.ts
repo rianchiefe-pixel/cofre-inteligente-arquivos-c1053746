@@ -286,6 +286,8 @@ export function classifyAdvocaciaReceipt(receipt: OrganizerReceipt): AdvocaciaSu
     matchedTerms: hits.map((h) => h.term),
     reason: parts.join(" · "),
     propertyHint: extractPropertyHint(evidence),
+    natureza: receipt.natureza,
+    tipo_gasto: receipt.tipo_gasto,
   };
 }
 
