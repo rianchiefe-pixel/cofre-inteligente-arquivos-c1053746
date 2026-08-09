@@ -377,7 +377,11 @@ export const approveReceipt = createServerFn({ method: "POST" })
     const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id, notes").eq("id", data.receiptId).single();
     const { data: updated, error } = await context.supabase
       .from("receipts")
-      .update({ status: "approved", approved_at: new Date().toISOString() })
+      .update({ 
+        status: "approved", 
+        approved_at: new Date().toISOString(),
+        user_confirmed_at: new Date().toISOString()
+      })
       .eq("id", data.receiptId)
       .select("id");
     if (error) throw new Error(error.message);
