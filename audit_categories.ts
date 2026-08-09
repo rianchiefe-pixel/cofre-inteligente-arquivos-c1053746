@@ -36,11 +36,16 @@ async function auditCategories() {
     return acc;
   }, {});
 
-  console.log(JSON.stringify(categories.map((c: any) => ({
-    ...c,
-    receipt_count: stats[c.id]?.count || 0,
-    total_amount: stats[c.id]?.total || 0
-  })), null, 2));
+  console.log("Categories found:", categories?.length || 0);
+  console.log("Receipts found:", receipts?.length || 0);
+  
+  if (categories && categories.length > 0) {
+    console.log(JSON.stringify(categories.map((c: any) => ({
+      ...c,
+      receipt_count: stats[c.id]?.count || 0,
+      total_amount: stats[c.id]?.total || 0
+    })), null, 2));
+  }
 }
 
 auditCategories();
