@@ -189,7 +189,7 @@ function CardsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c: any) => (
-          <Card key={c.id} className="overflow-hidden">
+          <Card key={c.id} className="overflow-hidden flex flex-col">
             <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground relative">
               <div className="flex justify-between items-start">
                 <CreditCard className="h-6 w-6" />
@@ -199,7 +199,7 @@ function CardsPage() {
                   </Badge>
                 )}
               </div>
-              <p className="mt-6 font-mono tracking-wider">•••• •••• •••• {c.last4 ?? "0000"}</p>
+              <p className="mt-6 font-mono tracking-wider">•••• •••• •••• {c.last4 && c.last4 !== '0000' ? c.last4 : "????"}</p>
               <div className="mt-3 flex justify-between items-end">
                 <p className="text-xs uppercase opacity-80">{c.brand}</p>
                 <div className="text-right">
@@ -208,10 +208,10 @@ function CardsPage() {
                 </div>
               </div>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-3 flex-1 flex flex-col">
               <div>
                 <p className="font-medium text-foreground">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{c.banks?.name ?? "Safra"} • {profiles.data?.find(p => p.id === activeProfileId)?.name}</p>
+                <p className="text-xs text-muted-foreground">{c.banks?.name || "Banco"} • {profiles.data?.find(p => p.id === (c.profile_id || activeProfileId))?.name}</p>
               </div>
               
               {c.holders?.length > 0 && (
@@ -232,7 +232,7 @@ function CardsPage() {
                 <div>Vencimento: <span className="font-medium text-foreground">{c.due_day || '—'}</span></div>
               </div>
 
-              <Button asChild size="sm" variant="outline" className="mt-3 w-full">
+              <Button asChild size="sm" variant="outline" className="mt-auto w-full">
                 <Link to="/app/cards/$id" params={{ id: c.id }}>
                   Abrir cartão <ArrowRight className="h-3 w-3 ml-2" />
                 </Link>

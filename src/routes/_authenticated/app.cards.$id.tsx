@@ -196,7 +196,7 @@ function CardDetailPage() {
           <Card className="overflow-hidden">
             <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground">
               <CreditCard className="h-6 w-6" />
-              <p className="mt-8 font-mono tracking-wider">•••• •••• •••• {c.last4 ?? "••••"}</p>
+              <p className="mt-8 font-mono tracking-wider">•••• •••• •••• {c.last4 && c.last4 !== '0000' ? c.last4 : "????"}</p>
               <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "Titular não identificado"}</p>
             </div>
             <div className="space-y-2 p-4 text-sm">
@@ -279,13 +279,17 @@ function CardDetailPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os meses</SelectItem>
-                    {/* Unique months from transactions could be added here dynamically */}
-                    <SelectItem value="2026-06">Junho 2026</SelectItem>
-                    <SelectItem value="2026-05">Maio 2026</SelectItem>
-                    <SelectItem value="2026-04">Abril 2026</SelectItem>
-                    <SelectItem value="2026-03">Março 2026</SelectItem>
-                    <SelectItem value="2026-02">Fevereiro 2026</SelectItem>
-                    <SelectItem value="2026-01">Janeiro 2026</SelectItem>
+                    {/* Unique months from transactions are calculated below */}
+                    {Array.from(new Set(transactions.data?.map(t => {
+                      if (!t.payment_date) return null;
+                      const d = new Date(t.payment_date);
+                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    }).filter(Boolean) || [])).sort().reverse().map(m => {
+                      const [y, mon] = (m as string).split('-');
+                      const date = new Date(parseInt(y), parseInt(mon) - 1);
+                      const label = date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+                      return <SelectItem key={m as string} value={m as string}>{label.charAt(0).toUpperCase() + label.slice(1)}</SelectItem>;
+                    })}
                   </SelectContent>
                 </Select>
 
