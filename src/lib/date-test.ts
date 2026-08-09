@@ -1,7 +1,7 @@
 
 import { parseBRDate } from './smart-import';
 
-function testDate(input, expected) {
+function testDate(input: any, expected: string | null) {
   const result = parseBRDate(input);
   if (result === expected) {
     console.log(`✅ Input: ${input} -> Output: ${result}`);
