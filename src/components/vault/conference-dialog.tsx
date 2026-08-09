@@ -398,7 +398,7 @@ export function ConferenceDialog(props: {
                     <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                       <GitCompareArrows className="h-3.5 w-3.5" /> Inteligência do Cofre
                     </h3>
-                    <Badge variant={original.ai_confidence === "ALTA" ? "success" : original.ai_confidence === "MEDIA" ? "warning" : "secondary"} className="text-[10px] h-5 px-1.5">
+                    <Badge variant={original.ai_confidence === "ALTA" ? "default" : original.ai_confidence === "MEDIA" ? "secondary" : "outline"} className={`text-[10px] h-5 px-1.5 ${original.ai_confidence === "ALTA" ? "bg-success text-success-foreground" : original.ai_confidence === "MEDIA" ? "bg-yellow-500 text-white" : ""}`}>
                       Confiança {original.ai_confidence}
                     </Badge>
                   </div>
