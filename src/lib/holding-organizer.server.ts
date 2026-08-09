@@ -70,6 +70,8 @@ function evidenceReceipt(row: any): OrganizerReceipt & { status: string } {
     cost_center_id: row.cost_center_id,
     ocr_text: ocr,
     status: row.status,
+    natureza: row.natureza,
+    tipo_gasto: row.tipo_gasto,
   };
 }
 
@@ -92,7 +94,8 @@ export async function loadOrganizerContext(
     supabase
       .from("receipts")
       .select(
-        "id, recipient_name, recipient_tax_id, description, notes, file_name, bank_name, amount, payment_date, category_id, property_id, cost_center_id, status, ocr_data",
+        "id, recipient_name, recipient_tax_id, description, notes, file_name, bank_name, amount, payment_date, category_id, property_id, cost_center_id, status, ocr_data, natureza, tipo_gasto",
+
       )
       .eq("user_id", userId)
       .eq("profile_id", profileId)
@@ -343,6 +346,8 @@ export async function resolveOrganizerItems(
       confidence: suggestion.confidence,
       reason: suggestion.reason,
       rule: ADVOCACIA_RULE_NAME,
+      natureza: suggestion.natureza ?? null,
+      tipo_gasto: suggestion.tipo_gasto ?? null,
       override,
     });
   }

@@ -65,6 +65,7 @@ export const ADVOCACIA_TAXONOMY: { parent: string; children: string[] }[] = [
       "Manutenção",
       "Móveis e equipamentos",
       "Informática",
+      "Restaurante Escolar",
     ],
   },
   {
@@ -117,6 +118,13 @@ export const ADVOCACIA_TAXONOMY: { parent: string; children: string[] }[] = [
       "Registro e escritura",
     ],
   },
+  {
+    parent: "Outros",
+    children: [
+      "Doação",
+      "Diversos",
+    ],
+  },
 ];
 
 export type OrganizerReceipt = {
@@ -134,6 +142,8 @@ export type OrganizerReceipt = {
   property_id?: string | null;
   cost_center_id?: string | null;
   ocr_text?: string | null;
+  natureza?: string | null;
+  tipo_gasto?: "fixo" | "variavel" | null;
 };
 
 export function normalizeText(value: unknown): string {
@@ -210,6 +220,8 @@ export type AdvocaciaSuggestion = {
   matchedTerms: string[];
   reason: string;
   propertyHint: string | null;
+  natureza?: string | null;
+  tipo_gasto?: "fixo" | "variavel" | null;
 };
 
 /** Extrai um endereço utilizável como nome de imóvel; null quando não há confiança. */
@@ -274,6 +286,8 @@ export function classifyAdvocaciaReceipt(receipt: OrganizerReceipt): AdvocaciaSu
     matchedTerms: hits.map((h) => h.term),
     reason: parts.join(" · "),
     propertyHint: extractPropertyHint(evidence),
+    natureza: receipt.natureza,
+    tipo_gasto: receipt.tipo_gasto,
   };
 }
 
