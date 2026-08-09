@@ -41,7 +41,7 @@ async function audit() {
       description,
       transaction_type,
       expense_behavior,
-      categories ( name )
+      category_id
     `)
     .eq('profile_id', PERSONAL_PROFILE_ID)
     .gte('payment_date', '2026-01-01')
