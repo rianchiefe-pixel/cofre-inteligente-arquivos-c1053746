@@ -81,15 +81,30 @@ function CardDetailPage() {
   });
 
   const transactions = useQuery({
-    queryKey: ["card-receipts", id],
+    queryKey: ["card-receipts", id, activeHolderId, selectedMonth],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("receipts")
-        .select("*")
-        .eq("card_id", id)
-        .order("date", { ascending: false });
+        .select("*, card_holders(holder_name, last4)")
+        .eq("card_id", id);
+      
+      if (activeHolderId !== "all") {
+        query = query.eq("card_holder_id", activeHolderId);
+      }
+      
+      const { data, error } = await query.order("date", { ascending: false });
       if (error) throw new Error(error.message);
-      return data ?? [];
+      
+      let filtered = data ?? [];
+      if (selectedMonth !== "all") {
+        const [year, month] = selectedMonth.split("-");
+        filtered = filtered.filter(t => {
+          const d = new Date(t.date);
+          return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+        });
+      }
+      
+      return filtered;
     },
   });
 
