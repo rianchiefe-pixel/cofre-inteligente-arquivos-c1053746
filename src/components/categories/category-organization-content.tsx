@@ -234,7 +234,7 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                 </th>
                 <th className="pb-3 font-medium">Nome</th>
                 <th className="pb-3 font-medium">Natureza</th>
-                <th className="pb-3 font-medium">Tipo de Gasto</th>
+                
                 <th className="pb-3 font-medium">Estrutura</th>
                 <th className="pb-3 font-medium text-right">Lançamentos</th>
                 <th className="pb-3 font-medium text-right">Valor Acumulado</th>
