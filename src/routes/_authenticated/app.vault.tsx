@@ -884,58 +884,147 @@ function VaultPage() {
           <TabsTrigger value="archived">Arquivados</TabsTrigger>
           <TabsTrigger value="all">Todos</TabsTrigger>
         </TabsList>
+        
+        {quick === "approved" && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button 
+              variant={!incompleteOnly && selectedCategoryIds.length === 0 && profileId === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setIncompleteOnly(false);
+                setSelectedCategoryIds([]);
+                setProfileId("all");
+              }}
+            >
+              Todos os aprovados
+            </Button>
+            <Button 
+              variant={!incompleteOnly && selectedCategoryIds.length === 1 && selectedCategoryIds.includes("__none__") ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setIncompleteOnly(false);
+                setSelectedCategoryIds(["__none__"]);
+                setProfileId("all");
+              }}
+            >
+              Aprovados sem categoria
+            </Button>
+            <Button 
+              variant={!incompleteOnly && profileId === "__none__" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setIncompleteOnly(false);
+                setSelectedCategoryIds([]);
+                setProfileId("__none__");
+              }}
+            >
+              Aprovados sem perfil
+            </Button>
+            <Button 
+              variant={incompleteOnly ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setIncompleteOnly(true);
+                setSelectedCategoryIds([]);
+                setProfileId("all");
+              }}
+            >
+              Aprovados incompletos
+            </Button>
+          </div>
+        )}
       </Tabs>
 
       <Card className="p-4">
-        <div className="grid gap-3 md:grid-cols-4">
-          <div className="relative md:col-span-2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por destinatário, valor, descrição, banco…"
-              className="pl-9"
-            />
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="relative md:col-span-2">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar por destinatário, valor, descrição, banco…"
+                className="pl-9"
+              />
+            </div>
+            <Select value={profileId} onValueChange={setProfileId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Perfil" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os perfis</SelectItem>
+                <SelectItem value="__none__">Sem perfil definido</SelectItem>
+                {(profiles.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={bankId} onValueChange={setBankId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Banco" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os bancos</SelectItem>
+                {(banks.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={profileId} onValueChange={setProfileId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Perfil" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os perfis</SelectItem>
-              {(profiles.data ?? []).map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={bankId} onValueChange={setBankId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Banco" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os bancos</SelectItem>
-              {(banks.data ?? []).map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as categorias</SelectItem>
-              {(categories.data ?? []).map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <div className="w-full md:w-80">
+              <MultiSelect
+                options={[
+                  { label: "Sem categoria definida", value: "__none__" },
+                  ...(categories.data ?? []).map((c) => ({ label: c.name, value: c.id })),
+                ]}
+                selected={selectedCategoryIds}
+                onChange={setSelectedCategoryIds}
+                placeholder="Todas as categorias"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant={incompleteOnly ? "secondary" : "ghost"}
+                size="sm"
+                className={cn("gap-2", incompleteOnly && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400")}
+                onClick={() => setIncompleteOnly(!incompleteOnly)}
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Informações incompletas
+              </Button>
+              
+              {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-muted-foreground"
+                  onClick={() => {
+                    setQ("");
+                    setProfileId("all");
+                    setBankId("all");
+                    setSelectedCategoryIds([]);
+                    setIncompleteOnly(false);
+                  }}
+                >
+                  <FilterX className="h-4 w-4" />
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+
+            {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly) && (
+              <Badge variant="outline" className="ml-auto">
+                {total} registros encontrados
+              </Badge>
+            )}
+          </div>
         </div>
       </Card>
 
