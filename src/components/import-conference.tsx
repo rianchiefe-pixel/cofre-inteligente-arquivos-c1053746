@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -34,6 +35,20 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Separator } from "@/components/ui/separator";
 import {
   CheckCircle2,
   XCircle,
@@ -54,8 +69,11 @@ import {
   Search,
   Building2,
   Lightbulb,
+  Filter,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 import {
   approveImportRow,
@@ -155,7 +173,8 @@ export function ImportConference({
   const [typeFilter, setTypeFilter] = useState<"all" | "DESPESA" | "INVESTIMENTO">("all");
   const [textFilter, setTextFilter] = useState("");
   const [bankFilter, setBankFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
   const [cardFilter, setCardFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -208,6 +227,16 @@ export function ImportConference({
         .limit(20000);
       return data ?? [];
     },
+  });
+
+  const categoriesQ = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [],
+  });
+
+  const profilesQ = useQuery({
+    queryKey: ["profiles"],
+    queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [],
   });
 
   // Escopo da importação + imóveis elegíveis para vínculo
@@ -314,7 +343,25 @@ export function ImportConference({
         if (!bag.includes(q)) return false;
       }
       if (bankFilter && !(r.bank ?? "").toLowerCase().includes(bankFilter.toLowerCase())) return false;
-      if (categoryFilter && !(r.category ?? "").toLowerCase().includes(categoryFilter.toLowerCase())) return false;
+      
+      // Filtro de categorias: múltiplo + "Sem categoria"
+      if (selectedCategories.length > 0) {
+        const hasNone = selectedCategories.includes("__none__");
+        const categoryId = r.category_id;
+        
+        const matches = (categoryId && selectedCategories.includes(categoryId)) || (hasNone && !categoryId);
+        if (!matches) return false;
+      }
+
+      // Filtro de perfis: múltiplo + "Sem perfil"
+      if (selectedProfiles.length > 0) {
+        const hasNone = selectedProfiles.includes("__none__");
+        const profileId = r.profile_id;
+        
+        const matches = (profileId && selectedProfiles.includes(profileId)) || (hasNone && !profileId);
+        if (!matches) return false;
+      }
+
       if (cardFilter && !(r.card ?? "").toLowerCase().includes(cardFilter.toLowerCase())) return false;
       if (dateFrom && r.transaction_date && r.transaction_date < dateFrom) return false;
       if (dateTo && r.transaction_date && r.transaction_date > dateTo) return false;
@@ -331,7 +378,8 @@ export function ImportConference({
     typeFilter,
     textFilter,
     bankFilter,
-    categoryFilter,
+    selectedCategories,
+    selectedProfiles,
     cardFilter,
     dateFrom,
     dateTo,
@@ -343,7 +391,7 @@ export function ImportConference({
     if (activeIdx >= filteredRows.length) setActiveIdx(0);
   }, [filteredRows.length, activeIdx]);
 
-  const activeRow = filteredRows[activeIdx];
+  const activeRow = filteredRows[activeIdx] || null;
 
   // Re-hydrate editor state whenever the active row changes.
   useEffect(() => {
@@ -647,7 +695,7 @@ export function ImportConference({
               </Button>
             </div>
             <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-              <SelectTrigger className="h-8 w-[200px] rounded-full text-xs">
+              <SelectTrigger className="h-8 w-[180px] rounded-full text-xs">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -665,8 +713,25 @@ export function ImportConference({
                 </SelectItem>
               </SelectContent>
             </Select>
+
+            <MultiFilterPopover
+              title="Categorias"
+              options={categoriesQ.data ?? []}
+              selected={selectedCategories}
+              onSelect={setSelectedCategories}
+              noneLabel="Sem categoria"
+            />
+
+            <MultiFilterPopover
+              title="Perfis"
+              options={profilesQ.data ?? []}
+              selected={selectedProfiles}
+              onSelect={setSelectedProfiles}
+              noneLabel="Sem perfil"
+            />
+
             <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
-              <SelectTrigger className="h-8 w-[150px] rounded-full text-xs">
+              <SelectTrigger className="h-8 w-[130px] rounded-full text-xs">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
