@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,14 +55,18 @@ function CardDetailPage() {
   const card = useQuery({
     queryKey: ["card", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cards")
-        .select("*, banks(name), financial_profiles(name, color)")
-        .eq("id", id)
-        .maybeSingle();
-      // maybeSingle: ausência de linha é "não encontrado", não é erro de rede.
-      if (error) throw new Error(error.message);
-      return data ?? null;
+      try {
+        const { data, error } = await supabase
+          .from("cards")
+          .select("*, banks(name), financial_profiles(name, color)")
+          .eq("id", id)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      } catch (e: any) {
+        console.error("[CardDetailPage] Error fetching card:", e);
+        throw e;
+      }
     },
   });
 
@@ -70,42 +74,52 @@ function CardDetailPage() {
   const statements = useQuery({
     queryKey: ["card-statements", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("card_statements")
-        .select("*")
-        .eq("card_id", id)
-        .order("created_at", { ascending: false });
-      if (error) throw new Error(error.message);
-      return data ?? [];
+      try {
+        const { data, error } = await supabase
+          .from("card_statements")
+          .select("*")
+          .eq("card_id", id)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return data ?? [];
+      } catch (e: any) {
+        console.error("[CardDetailPage] Error fetching statements:", e);
+        throw e;
+      }
     },
   });
 
   const transactions = useQuery({
     queryKey: ["card-receipts", id, activeHolderId, selectedMonth],
     queryFn: async () => {
-      let query = supabase
-        .from("receipts")
-        .select("*, card_holders(holder_name, last4)")
-        .eq("card_id", id);
-      
-      if (activeHolderId !== "all") {
-        query = query.eq("card_holder_id", activeHolderId);
+      try {
+        let query = supabase
+          .from("receipts")
+          .select("*, card_holders(holder_name, last4)")
+          .eq("card_id", id);
+        
+        if (activeHolderId !== "all") {
+          query = query.eq("card_holder_id", activeHolderId);
+        }
+        
+        const { data, error } = await query.order("payment_date", { ascending: false });
+        if (error) throw error;
+        
+        let filtered = (data || []) as any[];
+        if (selectedMonth !== "all") {
+          const [year, month] = selectedMonth.split("-");
+          filtered = filtered.filter(t => {
+            if (!t.payment_date) return false;
+            const d = new Date(t.payment_date);
+            return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+          });
+        }
+        
+        return filtered;
+      } catch (e: any) {
+        console.error("[CardDetailPage] Error fetching transactions:", e);
+        throw e;
       }
-      
-      const { data, error } = await query.order("payment_date", { ascending: false });
-      if (error) throw new Error(error.message);
-      
-      let filtered = data ?? [];
-      if (selectedMonth !== "all") {
-        const [year, month] = selectedMonth.split("-");
-        filtered = filtered.filter(t => {
-          if (!t.payment_date) return false;
-          const d = new Date(t.payment_date);
-          return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
-        });
-      }
-      
-      return filtered as any[];
     },
   });
 
@@ -122,19 +136,29 @@ function CardDetailPage() {
     },
   });
 
-  const stats = transactions.data ? {
-    total: transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0),
-    count: transactions.data.length,
-    biggest: transactions.data.reduce((max, t) => Math.max(max, Number(t.amount || 0)), 0),
-    avg: transactions.data.length > 0 ? transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0) / transactions.data.length : 0,
-    holdersCount: new Set(transactions.data.map(t => t.card_holder_id).filter(Boolean)).size,
-    topCategory: transactions.data.length > 0 ? 
-      Object.entries(transactions.data.reduce((acc: any, t) => {
+  const stats = useMemo(() => {
+    if (!transactions.data) return null;
+    const data = transactions.data as any[];
+    
+    const total = data.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const count = data.length;
+    const biggest = data.reduce((max, t) => Math.max(max, Number(t.amount || 0)), 0);
+    const avg = count > 0 ? total / count : 0;
+    const holdersCount = new Set(data.map(t => t.card_holder_id).filter(Boolean)).size;
+    
+    let topCategory = "—";
+    if (count > 0) {
+      const catMap = data.reduce((acc: any, t) => {
         const cat = t.category_name || 'Sem categoria';
         acc[cat] = (acc[cat] || 0) + Number(t.amount || 0);
         return acc;
-      }, {})).sort((a: any, b: any) => b[1] - a[1])[0][0] : '—'
-  } : null;
+      }, {});
+      const sorted = Object.entries(catMap).sort((a: any, b: any) => b[1] - a[1]);
+      if (sorted.length > 0) topCategory = sorted[0][0];
+    }
+
+    return { total, count, biggest, avg, holdersCount, topCategory };
+  }, [transactions.data]);
 
   const Line = ({ label, value }: { label: string; value: string | number }) => (
     <div className="flex justify-between border-b border-white/10 pb-1 last:border-0">
@@ -202,8 +226,8 @@ function CardDetailPage() {
               <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "Titular não identificado"}</p>
             </div>
             <div className="space-y-2 p-4 text-sm">
-              <Line label="Instituição" value={c.banks?.name || "Cartão"} />
-              <Line label="Perfil" value={c.financial_profiles?.name ?? "Pessoal"} />
+              <Line label="Instituição" value={(Array.isArray(c.banks) ? c.banks[0]?.name : c.banks?.name) || "Cartão"} />
+              <Line label="Perfil" value={(Array.isArray(c.financial_profiles) ? c.financial_profiles[0]?.name : c.financial_profiles?.name) ?? "Pessoal"} />
               <Line
                 label="Total (Filtrado)"
                 value={stats ? currencyBRL(stats.total) : "—"}
@@ -283,15 +307,17 @@ function CardDetailPage() {
                   <SelectContent>
                     <SelectItem value="all">Todos os meses</SelectItem>
                     {/* Unique months from transactions are calculated below */}
-                    {Array.from(new Set(transactions.data?.map(t => {
+                    {Array.from(new Set((transactions.data || []).map(t => {
                       if (!t.payment_date) return null;
                       const d = new Date(t.payment_date);
+                      if (isNaN(d.getTime())) return null;
                       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    }).filter(Boolean) || [])).sort().reverse().map(m => {
-                      const [y, mon] = (m as string).split('-');
+                    }).filter(Boolean) as string[])).sort().reverse().map(m => {
+                      const [y, mon] = m.split('-');
                       const date = new Date(parseInt(y), parseInt(mon) - 1);
                       const label = date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-                      return <SelectItem key={m as string} value={m as string}>{label.charAt(0).toUpperCase() + label.slice(1)}</SelectItem>;
+                      const capitalizedLabel = label ? label.charAt(0).toUpperCase() + label.slice(1) : m;
+                      return <SelectItem key={m} value={m}>{capitalizedLabel}</SelectItem>;
                     })}
                   </SelectContent>
                 </Select>
