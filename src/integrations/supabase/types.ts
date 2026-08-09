@@ -1578,6 +1578,12 @@ export type Database = {
       receipts: {
         Row: {
           account_id: string | null
+          ai_confidence: string | null
+          ai_extracted_data: Json | null
+          ai_history_summary: Json | null
+          ai_reason: string | null
+          ai_suggested_category_id: string | null
+          ai_suggested_profile_id: string | null
           amount: number | null
           approved_at: string | null
           auth_code: string | null
@@ -1600,6 +1606,7 @@ export type Database = {
           import_batch_id: string | null
           import_row_id: string | null
           is_fixed: boolean | null
+          is_manual_correction: boolean | null
           notes: string | null
           ocr_data: Json | null
           ocr_error: string | null
@@ -1616,10 +1623,17 @@ export type Database = {
             | Database["public"]["Enums"]["transaction_type"]
             | null
           updated_at: string
+          user_confirmed_at: string | null
           user_id: string
         }
         Insert: {
           account_id?: string | null
+          ai_confidence?: string | null
+          ai_extracted_data?: Json | null
+          ai_history_summary?: Json | null
+          ai_reason?: string | null
+          ai_suggested_category_id?: string | null
+          ai_suggested_profile_id?: string | null
           amount?: number | null
           approved_at?: string | null
           auth_code?: string | null
@@ -1642,6 +1656,7 @@ export type Database = {
           import_batch_id?: string | null
           import_row_id?: string | null
           is_fixed?: boolean | null
+          is_manual_correction?: boolean | null
           notes?: string | null
           ocr_data?: Json | null
           ocr_error?: string | null
@@ -1658,10 +1673,17 @@ export type Database = {
             | Database["public"]["Enums"]["transaction_type"]
             | null
           updated_at?: string
+          user_confirmed_at?: string | null
           user_id: string
         }
         Update: {
           account_id?: string | null
+          ai_confidence?: string | null
+          ai_extracted_data?: Json | null
+          ai_history_summary?: Json | null
+          ai_reason?: string | null
+          ai_suggested_category_id?: string | null
+          ai_suggested_profile_id?: string | null
           amount?: number | null
           approved_at?: string | null
           auth_code?: string | null
@@ -1684,6 +1706,7 @@ export type Database = {
           import_batch_id?: string | null
           import_row_id?: string | null
           is_fixed?: boolean | null
+          is_manual_correction?: boolean | null
           notes?: string | null
           ocr_data?: Json | null
           ocr_error?: string | null
@@ -1700,6 +1723,7 @@ export type Database = {
             | Database["public"]["Enums"]["transaction_type"]
             | null
           updated_at?: string
+          user_confirmed_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1708,6 +1732,20 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_ai_suggested_category_id_fkey"
+            columns: ["ai_suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_ai_suggested_profile_id_fkey"
+            columns: ["ai_suggested_profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
             referencedColumns: ["id"]
           },
           {
