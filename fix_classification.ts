@@ -13,99 +13,67 @@ const OFFICIAL_REPORT = {
 };
 
 async function run() {
-  const { data: receipts, error: fetchError } = await supabase
+  const { data: allRows } = await supabase
     .from('receipts')
-    .select('id, payment_date, amount, payee:recipient_name, description, transaction_type, category:categories!receipts_category_id_fkey(id, name, default_type)')
+    .select('id, amount, transaction_type, payment_date, recipient_name, description, category:categories!receipts_category_id_fkey(name)')
     .eq('profile_id', PROFILE_ID)
     .gte('payment_date', START_DATE)
     .lte('payment_date', END_DATE);
 
-  if (fetchError || !receipts) {
-    console.error('Erro ao buscar lançamentos:', fetchError);
-    return;
-  }
+  if (!allRows) return;
 
-  let maintainedCount = 0;
-  let revertedCount = 0;
-  let revisedCount = 0;
+  let maintained = 0, reverted = 0, revised = 0;
 
-  for (const row of receipts) {
-    const categoryName = (row.category as any)?.name || '';
-    const payee = (row.payee || '').toLowerCase();
-    const description = (row.description || '').toLowerCase();
-    const currentType = row.transaction_type;
+  for (const row of allRows) {
+    const catName = (row.category as any)?.name || '';
+    const payee = (row.recipient_name || '').toLowerCase();
+    const current = row.transaction_type;
+    let target = current;
 
-    let targetType = currentType;
-    let shouldUpdate = false;
-
-    // Se é saúde e está como variável, mas NÃO é farmácia/pediatra e NÃO está no relatório como tal
-    if (categoryName.startsWith('Saúde') && currentType === 'variable') {
-      const isFarmacia = payee.includes('farmacia') || payee.includes('drogaria') || description.includes('farmacia') || categoryName.includes('Farmácia');
-      const isPediatra = payee.includes('pediatra') || description.includes('pediatra') || categoryName.includes('Pediatra');
-
-      if (!isFarmacia && !isPediatra) {
-        targetType = null;
-        shouldUpdate = true;
-        revertedCount++;
+    // Lógica Corrigida
+    if (catName.includes('Saúde') && current === 'variable') {
+      const isVar = catName.includes('Farmácia') || catName.includes('Pediatra') || payee.includes('farmacia') || payee.includes('pediatra');
+      if (!isVar) {
+        target = null; // Reverter
+        reverted++;
       } else {
-        maintainedCount++;
+        maintained++;
       }
-    } else if ((categoryName.includes('Plano de Saúde') || categoryName.includes('Convênio')) && currentType !== 'fixed') {
-        targetType = 'fixed';
-        shouldUpdate = true;
-        revisedCount++;
-    } else {
-        maintainedCount++;
+    } else if ((catName.includes('Convênio') || catName.includes('Plano de Saúde')) && current !== 'fixed') {
+      target = 'fixed';
+      revised++;
     }
 
-    if (shouldUpdate) {
-      await supabase
-        .from('receipts')
-        .update({ transaction_type: targetType })
-        .eq('id', row.id);
+    if (target !== current) {
+      await supabase.from('receipts').update({ transaction_type: target }).eq('id', row.id);
     }
   }
 
-  // Pegar todos sem limite
-  let allRows: any[] = [];
-  let page = 0;
-  const pageSize = 1000;
-  while (true) {
-    const { data } = await supabase
-      .from('receipts')
-      .select('amount, transaction_type, payment_date')
-      .eq('profile_id', PROFILE_ID)
-      .gte('payment_date', START_DATE)
-      .lte('payment_date', END_DATE)
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-    
-    if (!data || data.length === 0) break;
-    allRows = allRows.concat(data);
-    page++;
-  }
+  // Recalcular com a coluna transaction_type correta
+  const { data: final } = await supabase
+    .from('receipts')
+    .select('amount, transaction_type')
+    .eq('profile_id', PROFILE_ID)
+    .gte('payment_date', START_DATE)
+    .lte('payment_date', END_DATE);
 
-  const totals = { fixed: 0, variable: 0 };
-  allRows.forEach(r => {
-    const amtCents = Math.round(Number(r.amount) * 100);
-    if (r.transaction_type === 'fixed') totals.fixed += amtCents;
-    else if (r.transaction_type === 'variable') totals.variable += amtCents;
+  let fixo = 0, variavel = 0;
+  final?.forEach(r => {
+    const v = Math.round(Number(r.amount) * 100);
+    if (r.transaction_type === 'fixed') fixo += v;
+    if (r.transaction_type === 'variable') variavel += v;
   });
 
   console.log('1. receipts revisados: ' + allRows.length);
-  console.log('2. alterações mantidas: ' + maintainedCount);
-  console.log('3. alterações revertidas: ' + revertedCount);
+  console.log('2. alterações mantidas: ' + maintained);
+  console.log('3. alterações revertidas: ' + reverted);
   console.log('4. lançamentos enviados para revisão: 0');
-  console.log('5. total fixo Jan-Abr: R$ ' + (totals.fixed / 100).toLocaleString('pt-BR'));
-  console.log('6. total variável Jan-Abr: R$ ' + (totals.variable / 100).toLocaleString('pt-BR'));
-  console.log('7. diferença exata contra o relatório: Fixo R$ ' + ((totals.fixed - OFFICIAL_REPORT.total.fixed)/100).toFixed(2) + ', Variável R$ ' + ((totals.variable - OFFICIAL_REPORT.total.variable)/100).toFixed(2));
+  console.log('5. total fixo Jan-Abr: R$ ' + (fixo / 100).toLocaleString('pt-BR'));
+  console.log('6. total variável Jan-Abr: R$ ' + (variavel / 100).toLocaleString('pt-BR'));
+  console.log('7. diferença exata contra o relatório: Fixo R$ ' + ((fixo - OFFICIAL_REPORT.total.fixed)/100).toFixed(2) + ', Variável R$ ' + ((variavel - OFFICIAL_REPORT.total.variable)/100).toFixed(2));
   
-  // Listar os maiores desvios ou lançamentos que podem explicar a diferença
   console.log('8. principais lançamentos responsáveis por qualquer diferença restante:');
-  const deviations = allRows
-    .filter(r => r.transaction_type === 'fixed' || r.transaction_type === 'variable')
-    .sort((a, b) => Number(b.amount) - Number(a.amount))
-    .slice(0, 5);
-  deviations.forEach(t => console.log('- ' + t.payment_date + ' | R$ ' + Number(t.amount).toFixed(2) + ' | ' + t.transaction_type));
+  const deviations = allRows.filter(r => r.transaction_type === 'fixed' || r.transaction_type === 'variable').sort((a,b) => b.amount - a.amount).slice(0, 3);
+  deviations.forEach(d => console.log(`- ${d.payment_date} | ${d.recipient_name} | R$ ${Number(d.amount).toFixed(2)} | ${d.transaction_type}`));
 }
-
 run();
