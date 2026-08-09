@@ -47,9 +47,10 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
   const performMergeFn = useServerFn(mergeCategories);
   const performBulkFn = useServerFn(bulkUpdateCategories);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["categories-mgmt", profileId, token],
     queryFn: () => fetchStatsFn({ data: { profileId, token } }),
+    retry: false,
   });
 
   const categories = data?.categories || [];
