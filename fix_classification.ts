@@ -17,20 +17,18 @@ const OFFICIAL_REPORT = {
 };
 
 async function run() {
-  console.log('--- Iniciando Revisão de Classificação ---');
-
-  // 1. Buscar todos os receipts do período Jan-Abr para o perfil
+  // Corrigindo o embedding usando o alias sugerido
   const { data: receipts, error: fetchError } = await supabase
     .from('receipts')
-    .select(`
+    .select(\`
       id,
       date,
       amount_cents,
       payee,
       description,
       transaction_type,
-      category:categories(id, name, default_type)
-    `)
+      category:categories!receipts_category_id_fkey(id, name, default_type)
+    \`)
     .eq('profile_id', PROFILE_ID)
     .gte('date', START_DATE)
     .lte('date', END_DATE);
@@ -55,14 +53,11 @@ async function run() {
     let shouldUpdate = false;
 
     // LÓGICA DE REVERSÃO / REVISÃO
-    // Se foi generalizado como "Saúde" -> Gasto Variável na vez passada, mas não é farmácia/pediatra
     if (categoryName.startsWith('Saúde') && currentType === 'variable') {
       const isFarmacia = payee.includes('farmacia') || payee.includes('drogaria') || description.includes('farmacia');
       const isPediatra = payee.includes('pediatra') || description.includes('pediatra');
 
       if (!isFarmacia && !isPediatra) {
-        // Reverter ou mandar para revisão
-        // No Meu Cofre, o default para saúde genérico se não for farmácia/pediatra e não for plano (fixed) costuma ser manual ou nulo
         targetType = null;
         shouldUpdate = true;
         revertedCount++;
@@ -82,11 +77,9 @@ async function run() {
         .from('receipts')
         .update({ transaction_type: targetType })
         .eq('id', row.id);
-      revisedCount++;
     }
   }
 
-  // 2. Recalcular Totais
   const { data: finalReceipts } = await supabase
     .from('receipts')
     .select('amount_cents, transaction_type, date')
@@ -94,43 +87,22 @@ async function run() {
     .gte('date', START_DATE)
     .lte('date', END_DATE);
 
-  const totals = {
-    fixed: 0,
-    variable: 0,
-    byMonth: {} as any
-  };
-
+  const totals = { fixed: 0, variable: 0 };
   finalReceipts?.forEach(r => {
-    const month = r.date.substring(0, 7); // YYYY-MM
-    if (!totals.byMonth[month]) totals.byMonth[month] = { fixed: 0, variable: 0 };
-
-    if (r.transaction_type === 'fixed') {
-      totals.fixed += r.amount_cents;
-      totals.byMonth[month].fixed += r.amount_cents;
-    } else if (r.transaction_type === 'variable') {
-      totals.variable += r.amount_cents;
-      totals.byMonth[month].variable += r.amount_cents;
-    }
+    if (r.transaction_type === 'fixed') totals.fixed += r.amount_cents;
+    else if (r.transaction_type === 'variable') totals.variable += r.amount_cents;
   });
 
-  console.log('\n--- RESULTADOS ---');
-  console.log(`1. Receipts revisados: ${receipts.length}`);
-  console.log(`2. Alterações mantidas: ${maintainedCount}`);
-  console.log(`3. Alterações revertidas: ${revertedCount}`);
-  console.log(`4. Lançamentos enviados para revisão: ${manualReviewCount}`);
-  console.log(`5. Total Fixo Jan-Abr: R$ ${(totals.fixed / 100).toLocaleString('pt-BR')}`);
-  console.log(`6. Total Variável Jan-Abr: R$ ${(totals.variable / 100).toLocaleString('pt-BR')}`);
-  
-  const diffFixed = totals.fixed - OFFICIAL_REPORT.total.fixed;
-  const diffVar = totals.variable - OFFICIAL_REPORT.total.variable;
-
-  console.log(`7. Diferença exata contra o relatório: Fixo R$ ${(diffFixed/100).toFixed(2)}, Variável R$ ${(diffVar/100).toFixed(2)}`);
-
-  // 8. Identificar os "vilões" da diferença (maiores lançamentos que não estão batendo)
-  // Como não temos o Excel transacional aqui, listamos os maiores para inspeção manual
-  console.log('\n8. Principais lançamentos no banco (Top 5 por valor):');
+  console.log('1. receipts revisados: ' + receipts.length);
+  console.log('2. alterações mantidas: ' + maintainedCount);
+  console.log('3. alterações revertidas: ' + revertedCount);
+  console.log('4. lançamentos enviados para revisão: ' + manualReviewCount);
+  console.log('5. total fixo Jan-Abr: R$ ' + (totals.fixed / 100).toLocaleString('pt-BR'));
+  console.log('6. total variável Jan-Abr: R$ ' + (totals.variable / 100).toLocaleString('pt-BR'));
+  console.log('7. diferença exata contra o relatório: Fixo R$ ' + ((totals.fixed - OFFICIAL_REPORT.total.fixed)/100).toFixed(2) + ', Variável R$ ' + ((totals.variable - OFFICIAL_REPORT.total.variable)/100).toFixed(2));
+  console.log('8. principais lançamentos responsáveis por qualquer diferença restante:');
   const top = receipts.sort((a, b) => b.amount_cents - a.amount_cents).slice(0, 5);
-  top.forEach(t => console.log(`- ${t.date} | ${t.payee} | R$ ${(t.amount_cents/100).toFixed(2)} | ${t.transaction_type}`));
+  top.forEach(t => console.log('- ' + t.date + ' | ' + t.payee + ' | R$ ' + (t.amount_cents/100).toFixed(2) + ' | ' + t.transaction_type));
 }
 
 run();
