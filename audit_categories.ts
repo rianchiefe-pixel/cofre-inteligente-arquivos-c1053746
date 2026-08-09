@@ -8,7 +8,7 @@ const supabase = createClient(
 async function auditCategories() {
   const { data: categories, error } = await supabase
     .from('categories')
-    .select('id, name, profile_id, parent_id, default_type, status, created_at')
+    .select('id, name, parent_id, default_type, archived, created_at')
     .order('name');
 
   if (error) {
