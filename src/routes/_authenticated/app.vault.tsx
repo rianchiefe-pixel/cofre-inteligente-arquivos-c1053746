@@ -410,7 +410,7 @@ function VaultPage() {
       
       // The vault shows everything that is not approved/archived as "pending" or "needs attention"
       // or specifically based on the filter.
-      if (quick === "pending") qb = qb.in("status", ["pending", "duplicate", "rejected"]);
+      if (quick === "pending") qb = qb.in("status", ["pending", "duplicate"]).or(`ocr_status.eq.failed,status.eq.pending`);
       else if (quick === "approved") qb = qb.eq("status", "approved");
       else if (quick === "rejected") qb = qb.eq("status", "rejected");
       else if (quick === "archived") qb = qb.eq("status", "archived");
@@ -1036,8 +1036,8 @@ function VaultPage() {
                         {dupScoreBadge(r.duplicate_score)}
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {dateBR(r.payment_date)} • {r.banks?.name ?? r.bank_name ?? "—"} •{" "}
-                        {r.category?.name ?? "sem categoria"}
+                        {dateBR(r.payment_date)} • {banks.data?.find((b: any) => b.id === r.bank_id)?.name ?? r.bank_name ?? "—"} •{" "}
+                        {categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "sem categoria"}
                       </p>
                       <p className="mt-1 text-sm font-semibold">
                         {currencyBRL(Number(r.amount ?? 0))}
