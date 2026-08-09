@@ -15,65 +15,37 @@ const OFFICIAL_REPORT = {
 async function run() {
   const { data: allRows } = await supabase
     .from('receipts')
-    .select('id, amount, transaction_type, payment_date, recipient_name, description, category:categories!receipts_category_id_fkey(name)')
+    .select('id, amount, transaction_type, payment_date, recipient_name, category:categories!receipts_category_id_fkey(name)')
     .eq('profile_id', PROFILE_ID)
     .gte('payment_date', START_DATE)
     .lte('payment_date', END_DATE);
 
   if (!allRows) return;
 
-  let maintained = 0, reverted = 0, revised = 0;
-
-  for (const row of allRows) {
-    const catName = (row.category as any)?.name || '';
-    const payee = (row.recipient_name || '').toLowerCase();
-    const current = row.transaction_type;
-    let target = current;
-
-    // Lógica Corrigida
-    if (catName.includes('Saúde') && current === 'variable') {
-      const isVar = catName.includes('Farmácia') || catName.includes('Pediatra') || payee.includes('farmacia') || payee.includes('pediatra');
-      if (!isVar) {
-        target = null; // Reverter
-        reverted++;
-      } else {
-        maintained++;
-      }
-    } else if ((catName.includes('Convênio') || catName.includes('Plano de Saúde')) && current !== 'fixed') {
-      target = 'fixed';
-      revised++;
-    }
-
-    if (target !== current) {
-      await supabase.from('receipts').update({ transaction_type: target }).eq('id', row.id);
-    }
-  }
-
-  // Recalcular com a coluna transaction_type correta
-  const { data: final } = await supabase
-    .from('receipts')
-    .select('amount, transaction_type')
-    .eq('profile_id', PROFILE_ID)
-    .gte('payment_date', START_DATE)
-    .lte('payment_date', END_DATE);
+  console.log('Total de registros encontrados:', allRows.length);
+  const types = allRows.reduce((acc: any, curr) => {
+    acc[curr.transaction_type] = (acc[curr.transaction_type] || 0) + 1;
+    return acc;
+  }, {});
+  console.log('Tipos presentes:', types);
 
   let fixo = 0, variavel = 0;
-  final?.forEach(r => {
+  allRows.forEach(r => {
     const v = Math.round(Number(r.amount) * 100);
-    if (r.transaction_type === 'fixed') fixo += v;
-    if (r.transaction_type === 'variable') variavel += v;
+    // Se no banco estiver como 'expense_fixed' ou 'expense_variable'
+    if (r.transaction_type === 'fixed' || r.transaction_type === 'expense_fixed') fixo += v;
+    if (r.transaction_type === 'variable' || r.transaction_type === 'expense_variable') variavel += v;
   });
 
-  console.log('1. receipts revisados: ' + allRows.length);
-  console.log('2. alterações mantidas: ' + maintained);
-  console.log('3. alterações revertidas: ' + reverted);
-  console.log('4. lançamentos enviados para revisão: 0');
-  console.log('5. total fixo Jan-Abr: R$ ' + (fixo / 100).toLocaleString('pt-BR'));
-  console.log('6. total variável Jan-Abr: R$ ' + (variavel / 100).toLocaleString('pt-BR'));
-  console.log('7. diferença exata contra o relatório: Fixo R$ ' + ((fixo - OFFICIAL_REPORT.total.fixed)/100).toFixed(2) + ', Variável R$ ' + ((variavel - OFFICIAL_REPORT.total.variable)/100).toFixed(2));
-  
-  console.log('8. principais lançamentos responsáveis por qualquer diferença restante:');
-  const deviations = allRows.filter(r => r.transaction_type === 'fixed' || r.transaction_type === 'variable').sort((a,b) => b.amount - a.amount).slice(0, 3);
-  deviations.forEach(d => console.log(`- ${d.payment_date} | ${d.recipient_name} | R$ ${Number(d.amount).toFixed(2)} | ${d.transaction_type}`));
+  console.log('Soma Fixo:', fixo);
+  console.log('Soma Variável:', variavel);
+
+  // Se o transaction_type não for o campo que o sistema usa para o relatório, vamos ver 'is_fixed'
+  let fixoByFlag = 0;
+  allRows.forEach(r => {
+    const v = Math.round(Number(r.amount) * 100);
+    if ((r as any).is_fixed === true) fixoByFlag += v;
+  });
+  console.log('Soma Fixo (via flag is_fixed):', fixoByFlag);
 }
 run();
