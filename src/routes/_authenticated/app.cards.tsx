@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useActiveProfile } from "@/hooks/use-active-profile";
@@ -35,6 +35,9 @@ export const Route = createFileRoute("/_authenticated/app/cards")({
 const BRANDS = ["visa", "mastercard", "elo", "amex", "hipercard", "outro"];
 
 function CardsPage() {
+  const { id } = useParams({ strict: false });
+  if (id) return <Outlet />;
+
   const qc = useQueryClient();
   const { activeProfileId } = useActiveProfile();
   const [open, setOpen] = useState(false);
