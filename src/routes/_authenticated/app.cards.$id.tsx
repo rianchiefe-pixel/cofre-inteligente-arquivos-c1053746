@@ -116,6 +116,39 @@ function CardDetailPage() {
     },
   });
 
+  const holders = useQuery({
+    queryKey: ["card-holders", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("card_holders")
+        .select("*")
+        .eq("card_id", id)
+        .order("is_primary", { ascending: false });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+
+  const stats = transactions.data ? {
+    total: transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0),
+    count: transactions.data.length,
+    biggest: transactions.data.reduce((max, t) => Math.max(max, Number(t.amount || 0)), 0),
+    holdersCount: new Set(transactions.data.map(t => t.card_holder_id).filter(Boolean)).size,
+    topCategory: transactions.data.length > 0 ? 
+      Object.entries(transactions.data.reduce((acc: any, t) => {
+        const cat = t.category_name || 'Sem categoria';
+        acc[cat] = (acc[cat] || 0) + Number(t.amount || 0);
+        return acc;
+      }, {})).sort((a: any, b: any) => b[1] - a[1])[0][0] : '—'
+  } : null;
+
+  const Line = ({ label, value }: { label: string; value: string | number }) => (
+    <div className="flex justify-between border-b border-white/10 pb-1 last:border-0">
+      <span className="text-white/60 text-[10px] uppercase">{label}</span>
+      <span className="font-medium text-xs">{value}</span>
+    </div>
+  );
+
   const updateCardMutation = useMutation({
     mutationFn: async (patch: any) => {
       const { error } = await supabase.from("cards").update(patch).eq("id", id);
