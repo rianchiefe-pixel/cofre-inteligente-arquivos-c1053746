@@ -160,9 +160,12 @@ function UploadPage() {
                   <p className="truncate text-sm font-medium text-foreground">{it.file.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {it.status === "waiting" && "Aguardando…"}
-                    {it.status === "uploading" && "Enviando…"}
-                    {it.status === "analyzing" && "Analisando com IA…"}
-                    {it.status === "done" && "Pronto — pendente de conferência"}
+                    {it.status === "uploading" && "Enviando arquivo…"}
+                    {it.status === "enviado" && "Arquivo enviado!"}
+                    {it.status === "lendo" && "Lendo comprovante…"}
+                    {it.status === "identificando" && "Identificando dados…"}
+                    {it.status === "cruzando" && "Cruzando com histórico…"}
+                    {it.status === "pronto" && "Sugestão pronta — aguardando confirmação"}
                     {it.status === "duplicate" && "⚠️ Possível comprovante repetido"}
                     {it.status === "error" && `Erro: ${it.message ?? ""}`}
                   </p>
