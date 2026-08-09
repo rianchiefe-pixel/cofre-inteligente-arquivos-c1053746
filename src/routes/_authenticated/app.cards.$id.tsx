@@ -226,8 +226,8 @@ function CardDetailPage() {
               <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "Titular não identificado"}</p>
             </div>
             <div className="space-y-2 p-4 text-sm">
-              <Line label="Instituição" value={c.banks?.name || "Cartão"} />
-              <Line label="Perfil" value={c.financial_profiles?.name ?? "Pessoal"} />
+              <Line label="Instituição" value={(Array.isArray(c.banks) ? c.banks[0]?.name : c.banks?.name) || "Cartão"} />
+              <Line label="Perfil" value={(Array.isArray(c.financial_profiles) ? c.financial_profiles[0]?.name : c.financial_profiles?.name) ?? "Pessoal"} />
               <Line
                 label="Total (Filtrado)"
                 value={stats ? currencyBRL(stats.total) : "—"}
