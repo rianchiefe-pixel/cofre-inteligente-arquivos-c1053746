@@ -47,9 +47,10 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
   const performMergeFn = useServerFn(mergeCategories);
   const performBulkFn = useServerFn(bulkUpdateCategories);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["categories-mgmt", profileId, token],
     queryFn: () => fetchStatsFn({ data: { profileId, token } }),
+    retry: false,
   });
 
   const categories = data?.categories || [];
@@ -118,6 +119,25 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
 
   if (isLoading) return <LoadingState label="Carregando central de categorias..." />;
 
+  if (isError) {
+    return (
+      <Card className="p-12 text-center space-y-4 border-destructive/20 bg-destructive/5">
+        <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertCircle className="h-6 w-6 text-destructive" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="font-medium text-lg text-destructive">Erro ao carregar categorias</h3>
+          <p className="text-muted-foreground max-w-md mx-auto text-sm">
+            {(error as any)?.message || "Ocorreu um erro técnico ao consultar o banco de dados."}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["categories-mgmt"] })}>
+            Tentar novamente
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
   if (!categories || categories.length === 0) {
     return (
       <Card className="p-12 text-center space-y-4">
@@ -125,12 +145,12 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
           <Tag className="h-6 w-6 text-muted-foreground" />
         </div>
         <div className="space-y-2">
-          <h3 className="font-medium text-lg">Nenhuma categoria encontrada no banco</h3>
-          <p className="text-muted-foreground max-w-xs mx-auto">
-            Verificamos seu usuário e não encontramos categorias registradas. Tente sincronizar ou contate o suporte.
+          <h3 className="font-medium text-lg">Nenhuma categoria encontrada</h3>
+          <p className="text-muted-foreground max-w-xs mx-auto text-sm">
+            Não encontramos categorias registradas para seu usuário.
           </p>
           <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["categories-mgmt"] })}>
-            Tentar recarregar
+            Recarregar
           </Button>
         </div>
       </Card>
@@ -214,7 +234,7 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                 </th>
                 <th className="pb-3 font-medium">Nome</th>
                 <th className="pb-3 font-medium">Natureza</th>
-                <th className="pb-3 font-medium">Tipo de Gasto</th>
+                
                 <th className="pb-3 font-medium">Estrutura</th>
                 <th className="pb-3 font-medium text-right">Lançamentos</th>
                 <th className="pb-3 font-medium text-right">Valor Acumulado</th>
@@ -248,15 +268,7 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                       <span className="text-muted-foreground italic">Não definido</span>
                     )}
                   </td>
-                  <td className="py-4">
-                    {cat.expense_behavior ? (
-                      <Badge variant="outline" className="font-normal">
-                        {cat.expense_behavior === 'fixed' ? 'Gasto fixo' : 'Gasto variável'}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground italic">—</span>
-                    )}
-                  </td>
+                  
                   <td className="py-4">
                     {cat.parent_id ? (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
