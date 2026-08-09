@@ -171,11 +171,11 @@ function UploadPage() {
                   </p>
                 </div>
                 <div>
-                  {(it.status === "uploading" || it.status === "analyzing") && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  {it.status === "done" && <CheckCircle2 className="h-4 w-4 text-success" />}
+                  {(it.status === "uploading" || it.status === "enviado" || it.status === "lendo" || it.status === "identificando" || it.status === "cruzando") && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  {it.status === "pronto" && <CheckCircle2 className="h-4 w-4 text-success" />}
                   {it.status === "duplicate" && <AlertTriangle className="h-4 w-4 text-accent" />}
                   {it.status === "error" && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                  {it.receiptId && (it.status === "done" || it.status === "duplicate") && (
+                  {it.receiptId && (it.status === "pronto" || it.status === "duplicate") && (
                     <Button asChild variant="ghost" size="sm">
                       <Link to="/app/vault" search={{ receipt: it.receiptId }}>Conferir</Link>
                     </Button>
@@ -189,7 +189,7 @@ function UploadPage() {
               <Link
                 to="/app/vault"
                 search={(() => {
-                  const last = [...items].reverse().find((x) => x.receiptId && (x.status === "done" || x.status === "duplicate"));
+                  const last = [...items].reverse().find((x) => x.receiptId && (x.status === "pronto" || x.status === "duplicate"));
                   return last?.receiptId ? { receipt: last.receiptId } : {};
                 })()}
               >
