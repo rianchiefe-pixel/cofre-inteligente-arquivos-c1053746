@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -122,19 +122,29 @@ function CardDetailPage() {
     },
   });
 
-  const stats = transactions.data ? {
-    total: transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0),
-    count: transactions.data.length,
-    biggest: transactions.data.reduce((max, t) => Math.max(max, Number(t.amount || 0)), 0),
-    avg: transactions.data.length > 0 ? transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0) / transactions.data.length : 0,
-    holdersCount: new Set(transactions.data.map(t => t.card_holder_id).filter(Boolean)).size,
-    topCategory: transactions.data.length > 0 ? 
-      Object.entries(transactions.data.reduce((acc: any, t) => {
+  const stats = useMemo(() => {
+    if (!transactions.data) return null;
+    const data = transactions.data as any[];
+    
+    const total = data.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const count = data.length;
+    const biggest = data.reduce((max, t) => Math.max(max, Number(t.amount || 0)), 0);
+    const avg = count > 0 ? total / count : 0;
+    const holdersCount = new Set(data.map(t => t.card_holder_id).filter(Boolean)).size;
+    
+    let topCategory = "—";
+    if (count > 0) {
+      const catMap = data.reduce((acc: any, t) => {
         const cat = t.category_name || 'Sem categoria';
         acc[cat] = (acc[cat] || 0) + Number(t.amount || 0);
         return acc;
-      }, {})).sort((a: any, b: any) => b[1] - a[1])[0][0] : '—'
-  } : null;
+      }, {});
+      const sorted = Object.entries(catMap).sort((a: any, b: any) => b[1] - a[1]);
+      if (sorted.length > 0) topCategory = sorted[0][0];
+    }
+
+    return { total, count, biggest, avg, holdersCount, topCategory };
+  }, [transactions.data]);
 
   const Line = ({ label, value }: { label: string; value: string | number }) => (
     <div className="flex justify-between border-b border-white/10 pb-1 last:border-0">
