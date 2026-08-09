@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { resolveReportType } from "./report-data";
+import { resolveReportType, type LedgerEntry, toCents, centsToNumber, loadReportDataset } from "./report-data";
 
 describe("Modelo Financeiro do Relatório", () => {
   it("despesa deve ser um tipo próprio, não unclassified", () => {
@@ -31,6 +31,25 @@ describe("Modelo Financeiro do Relatório", () => {
     assert.strictEqual(resolveReportType("despesa", "gasto_fixo", "investimento"), "despesa");
     assert.strictEqual(resolveReportType(null, "gasto_fixo", "investimento"), "gasto_fixo");
     assert.strictEqual(resolveReportType(null, null, "investimento"), "investimento");
+  });
+
+  it("resolução de hierarquia: categoria real deve prevalecer para nome", () => {
+    const entry: Partial<LedgerEntry> = {
+      categoryName: "Água e esgoto",
+      parentCategoryName: "Despesas fixas"
+    };
+    assert.strictEqual(entry.categoryName, "Água e esgoto");
+  });
+});
+
+describe("Cálculos e Integridade", () => {
+  it("toCents deve lidar com strings e números corretamente", () => {
+    assert.strictEqual(toCents(10.5), 1050);
+    assert.strictEqual(toCents("10.5"), 1050);
+  });
+
+  it("centsToNumber deve retornar decimal correto", () => {
+    assert.strictEqual(centsToNumber(1050), 10.5);
   });
 });
 
