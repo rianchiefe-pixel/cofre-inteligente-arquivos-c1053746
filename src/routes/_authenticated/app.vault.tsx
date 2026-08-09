@@ -410,15 +410,13 @@ function VaultPage() {
   }, [q]);
 
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, categoryId, debouncedQ, page],
+    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
       
-      // The vault shows everything that is not approved/archived as "pending" or "needs attention"
-      // or specifically based on the filter.
       if (quick === "pending") qb = qb.in("status", ["pending", "duplicate"]).or(`ocr_status.eq.failed,status.eq.pending`);
       else if (quick === "approved") qb = qb.eq("status", "approved");
       else if (quick === "rejected") qb = qb.eq("status", "rejected");
@@ -426,9 +424,32 @@ function VaultPage() {
       else if (quick === "suspected") qb = qb.gte("duplicate_score", 50);
       else if (quick === "high_dup") qb = qb.gte("duplicate_score", 80);
 
-      if (profileId !== "all") qb = qb.eq("profile_id", profileId);
+      // Filtro de informações incompletas (Aprovados sem categoria ou sem perfil)
+      if (incompleteOnly) {
+        qb = qb.or("category_id.is.null,profile_id.is.null");
+      }
+
+      if (profileId === "__none__") {
+        qb = qb.is("profile_id", null);
+      } else if (profileId !== "all") {
+        qb = qb.eq("profile_id", profileId);
+      }
+
       if (bankId !== "all") qb = qb.eq("bank_id", bankId);
-      if (categoryId !== "all") qb = qb.eq("category_id", categoryId);
+      
+      if (selectedCategoryIds.length > 0) {
+        const hasNone = selectedCategoryIds.includes("__none__");
+        const ids = selectedCategoryIds.filter(id => id !== "__none__");
+        
+        if (hasNone && ids.length > 0) {
+          qb = qb.or(`category_id.in.(${ids.join(",")}),category_id.is.null`);
+        } else if (hasNone) {
+          qb = qb.is("category_id", null);
+        } else {
+          qb = qb.in("category_id", ids);
+        }
+      }
+
       if (debouncedQ) {
         const safe = debouncedQ.replace(/[%,()]/g, " ").trim();
         if (safe) {
@@ -457,7 +478,7 @@ function VaultPage() {
   useEffect(() => {
     setSelectedIds(new Set());
     setPage(0);
-  }, [quick, profileId, bankId, categoryId, debouncedQ]);
+  }, [quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly]);
 
   const filtered = receipts.data?.rows ?? [];
   const total = receipts.data?.total ?? 0;
