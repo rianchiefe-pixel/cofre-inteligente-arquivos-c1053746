@@ -39,17 +39,17 @@ async function run() {
         return isJan && isPessoal;
     });
 
-    const officialDespesas = 72794.70;
-    const officialInvest = 129734.89;
-    const officialTotal = 202529.59;
-
     const excessDespesas = [];
     const excessInvest = [];
+    const matches = [];
 
     // Match logic
     const matchedSpreadsheetIndices = new Set();
     
-    for (const r of dbReceipts) {
+    // Sort DB receipts by amount descending to find big matches first
+    const sortedDB = [...dbReceipts].sort((a, b) => b.amount - a.amount);
+
+    for (const r of sortedDB) {
         let found = false;
         for (let i = 0; i < spreadsheetJan.length; i++) {
             if (matchedSpreadsheetIndices.has(i)) continue;
@@ -61,7 +61,7 @@ async function run() {
             if (dateMatch && amountMatch) {
                 matchedSpreadsheetIndices.add(i);
                 found = true;
-                r._matched_line = row._line;
+                matches.push({ id: r.id, line: row._line, valor: r.amount });
                 break;
             }
         }
@@ -73,10 +73,8 @@ async function run() {
                 favorecido: r.recipient,
                 valor: r.amount,
                 categoria: r.category_id,
-                profile_id: r.profile_id,
                 natureza: r.transaction_type === 'investment' ? 'Investimento' : 'Despesa',
                 linha_planilha: 'NÃO LOCALIZADO',
-                comparacao: 'Não consta na planilha base',
                 motivo: 'Lançamento exclusivo do banco'
             };
             if (item.natureza === 'Despesa') excessDespesas.push(item);
@@ -84,25 +82,23 @@ async function run() {
         }
     }
 
-    const leandroInPlanilha = spreadsheetJan.find(row => String(row['Favorecido'] || '').includes('TEDROS'));
+    // Identify Leandro in spreadsheet
+    const leandroInPlanilha = spreadsheetJan.filter(row => String(row['Favorecido'] || '').includes('TEDROS'));
     const leandroInDB = dbReceipts.filter(r => String(r.recipient || '').includes('TEDROS'));
 
-    const despesasExcess = excessDespesas.map(i => ({...i, valor: parseFloat(i.valor.toFixed(2))}));
-    const investExcess = excessInvest.map(i => ({...i, valor: parseFloat(i.valor.toFixed(2))}));
-
     console.log(JSON.stringify({
-        excessDespesas: despesasExcess,
-        excessInvest: investExcess,
-        somaDespesas: parseFloat(despesasExcess.reduce((s, i) => s + i.valor, 0).toFixed(2)),
-        somaInvest: parseFloat(investExcess.reduce((s, i) => s + i.valor, 0).toFixed(2)),
-        leandroInPlanilha: leandroInPlanilha ? {
-            line: leandroInPlanilha._line,
-            date: leandroInPlanilha._parsedDate,
-            favorecido: leandroInPlanilha['Favorecido'],
-            valor: leandroInPlanilha['Valor'],
-            perfil: leandroInPlanilha['Perfil'],
-            natureza: leandroInPlanilha['Natureza']
-        } : null,
+        somaDespesas: parseFloat(excessDespesas.reduce((s, i) => s + i.valor, 0).toFixed(2)),
+        somaInvest: parseFloat(excessInvest.reduce((s, i) => s + i.valor, 0).toFixed(2)),
+        excessDespesas: excessDespesas.slice(0, 50), // Sample for audit
+        excessInvest: excessInvest.slice(0, 50),
+        leandroInPlanilha: leandroInPlanilha.map(row => ({
+            line: row._line,
+            date: row._parsedDate,
+            favorecido: row['Favorecido'],
+            valor: row['Valor'],
+            perfil: row['Perfil'],
+            natureza: row['Natureza']
+        })),
         leandroInDB: leandroInDB.map(r => ({ id: r.id, date: r.date, valor: r.amount, natureza: r.transaction_type }))
     }, null, 2));
 }
