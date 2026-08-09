@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './src/integrations/supabase/client.server';
 
 async function findProfile() {
-  const targetEmail = 'advocacia@leilianepereira.com';
+  const targetEmail = 'advocacia@leilianepereira.com.br';
   console.log('--- BUSCANDO CONTA ---');
   
   const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
