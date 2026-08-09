@@ -234,7 +234,7 @@ function CardsPage() {
 
               <Button asChild size="sm" variant="outline" className="mt-3 w-full">
                 <Link to="/app/cards/$id" params={{ id: c.id }}>
-                  Visualizar Histórico <ArrowRight className="h-3 w-3 ml-2" />
+                  Abrir cartão <ArrowRight className="h-3 w-3 ml-2" />
                 </Link>
               </Button>
             </div>
