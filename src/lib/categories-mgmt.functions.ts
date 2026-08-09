@@ -78,7 +78,7 @@ export const getCategoryStats = createServerFn({ method: "GET" })
     // Local normalization for duplicate counting
     const normalize = (name: string) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
     const nameGroups = new Map<string, string[]>();
-    categories.forEach(c => {
+    categories.forEach((c: any) => {
       if (c.archived) return;
       const n = normalize(c.name);
       if (!nameGroups.has(n)) nameGroups.set(n, []);
