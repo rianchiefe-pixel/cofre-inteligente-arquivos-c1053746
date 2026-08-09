@@ -291,7 +291,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
         .from("recipients")
         .select("id, default_category_id, usage_count")
         .ilike("name", extracted.recipient_name)
-        .limit(1);
+        .limit(2);
       if (existing && existing.length > 0) {
         const r = existing[0];
         recipient_id = r.id;
@@ -323,7 +323,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
         .select("id")
         .eq("file_hash", rec.file_hash)
         .neq("id", rec.id)
-        .limit(1);
+        .limit(2);
       if (sameHash?.length) { duplicate_of = sameHash[0].id; score = 100; }
     }
 
@@ -333,7 +333,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
         .select("id")
         .eq("auth_code", extracted.auth_code)
         .neq("id", rec.id)
-        .limit(1);
+        .limit(2);
       if (sameAuth?.length) { duplicate_of = sameAuth[0].id; score = 95; }
     }
 
