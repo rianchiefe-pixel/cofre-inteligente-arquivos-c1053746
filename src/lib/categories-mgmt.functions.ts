@@ -66,7 +66,7 @@ export const getCategoryStats = createServerFn({ method: "GET" })
     console.log(`[getCategoryStats] Fetching categories for userId: ${userId}`);
     const { data: dbCategories, error: catError } = await supabase
       .from("categories")
-      .select("id, name, default_type, expense_behavior, archived, parent_id, created_at")
+      .select("id, name, default_type, archived, parent_id, created_at")
       .eq("user_id", userId);
     
     if (catError) {
