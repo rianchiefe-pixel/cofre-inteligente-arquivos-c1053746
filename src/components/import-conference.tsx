@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -34,6 +35,20 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Separator } from "@/components/ui/separator";
 import {
   CheckCircle2,
   XCircle,
@@ -54,8 +69,11 @@ import {
   Search,
   Building2,
   Lightbulb,
+  Filter,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 import {
   approveImportRow,
@@ -155,7 +173,8 @@ export function ImportConference({
   const [typeFilter, setTypeFilter] = useState<"all" | "DESPESA" | "INVESTIMENTO">("all");
   const [textFilter, setTextFilter] = useState("");
   const [bankFilter, setBankFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
   const [cardFilter, setCardFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -208,6 +227,16 @@ export function ImportConference({
         .limit(20000);
       return data ?? [];
     },
+  });
+
+  const categoriesQ = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [],
+  });
+
+  const profilesQ = useQuery({
+    queryKey: ["profiles"],
+    queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [],
   });
 
   // Escopo da importação + imóveis elegíveis para vínculo
@@ -314,7 +343,25 @@ export function ImportConference({
         if (!bag.includes(q)) return false;
       }
       if (bankFilter && !(r.bank ?? "").toLowerCase().includes(bankFilter.toLowerCase())) return false;
-      if (categoryFilter && !(r.category ?? "").toLowerCase().includes(categoryFilter.toLowerCase())) return false;
+      
+      // Filtro de categorias: múltiplo + "Sem categoria"
+      if (selectedCategories.length > 0) {
+        const hasNone = selectedCategories.includes("__none__");
+        const categoryId = r.category_id;
+        
+        const matches = (categoryId && selectedCategories.includes(categoryId)) || (hasNone && !categoryId);
+        if (!matches) return false;
+      }
+
+      // Filtro de perfis: múltiplo + "Sem perfil"
+      if (selectedProfiles.length > 0) {
+        const hasNone = selectedProfiles.includes("__none__");
+        const profileId = r.profile_id;
+        
+        const matches = (profileId && selectedProfiles.includes(profileId)) || (hasNone && !profileId);
+        if (!matches) return false;
+      }
+
       if (cardFilter && !(r.card ?? "").toLowerCase().includes(cardFilter.toLowerCase())) return false;
       if (dateFrom && r.transaction_date && r.transaction_date < dateFrom) return false;
       if (dateTo && r.transaction_date && r.transaction_date > dateTo) return false;
@@ -331,7 +378,8 @@ export function ImportConference({
     typeFilter,
     textFilter,
     bankFilter,
-    categoryFilter,
+    selectedCategories,
+    selectedProfiles,
     cardFilter,
     dateFrom,
     dateTo,
@@ -343,7 +391,7 @@ export function ImportConference({
     if (activeIdx >= filteredRows.length) setActiveIdx(0);
   }, [filteredRows.length, activeIdx]);
 
-  const activeRow = filteredRows[activeIdx];
+  const activeRow = filteredRows[activeIdx] || null;
 
   // Re-hydrate editor state whenever the active row changes.
   useEffect(() => {
@@ -647,7 +695,7 @@ export function ImportConference({
               </Button>
             </div>
             <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-              <SelectTrigger className="h-8 w-[200px] rounded-full text-xs">
+              <SelectTrigger className="h-8 w-[180px] rounded-full text-xs">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -665,8 +713,25 @@ export function ImportConference({
                 </SelectItem>
               </SelectContent>
             </Select>
+
+            <MultiFilterPopover
+              title="Categorias"
+              options={categoriesQ.data ?? []}
+              selected={selectedCategories}
+              onSelect={setSelectedCategories}
+              noneLabel="Sem categoria"
+            />
+
+            <MultiFilterPopover
+              title="Perfis"
+              options={profilesQ.data ?? []}
+              selected={selectedProfiles}
+              onSelect={setSelectedProfiles}
+              noneLabel="Sem perfil"
+            />
+
             <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
-              <SelectTrigger className="h-8 w-[150px] rounded-full text-xs">
+              <SelectTrigger className="h-8 w-[130px] rounded-full text-xs">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -761,7 +826,7 @@ export function ImportConference({
                 />
               </div>
               <Input className="h-8 w-28 text-xs" placeholder="Banco" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)} />
-              <Input className="h-8 w-32 text-xs" placeholder="Categoria" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} />
+              
               <Input className="h-8 w-28 text-xs" placeholder="Cartão" value={cardFilter} onChange={(e) => setCardFilter(e.target.value)} />
               <Input className="h-8 w-36 text-xs" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
               <Input className="h-8 w-36 text-xs" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
@@ -1762,5 +1827,143 @@ function SwapReceiptDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MultiFilterPopover({
+  title,
+  options,
+  selected,
+  onSelect,
+  noneLabel,
+}: {
+  title: string;
+  options: Array<{ id: string; name: string }>;
+  selected: string[];
+  onSelect: (ids: string[]) => void;
+  noneLabel: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-8 rounded-full border-dashed px-3 text-xs",
+            selected.length > 0 && "border-solid bg-accent text-accent-foreground",
+          )}
+        >
+          <Filter className="mr-2 h-3 w-3" />
+          {title}
+          {selected.length > 0 && (
+            <>
+              <Separator orientation="vertical" className="mx-2 h-4" />
+              <Badge
+                variant="secondary"
+                className="rounded-sm px-1 font-normal lg:hidden"
+              >
+                {selected.length}
+              </Badge>
+              <div className="hidden space-x-1 lg:flex">
+                {selected.length > 2 ? (
+                  <Badge
+                    variant="secondary"
+                    className="rounded-sm px-1 font-normal"
+                  >
+                    {selected.length} selecionados
+                  </Badge>
+                ) : (
+                  options
+                    .filter((opt) => selected.includes(opt.id))
+                    .concat(selected.includes("__none__") ? [{ id: "__none__", name: noneLabel }] : [])
+                    .map((opt) => (
+                      <Badge
+                        variant="secondary"
+                        key={opt.id}
+                        className="rounded-sm px-1 font-normal"
+                      >
+                        {opt.name}
+                      </Badge>
+                    ))
+                )}
+              </div>
+            </>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[240px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={title} />
+          <CommandList>
+            <CommandEmpty>Nenhum resultado.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                onSelect={() => {
+                  const isSelected = selected.includes("__none__");
+                  if (isSelected) {
+                    onSelect(selected.filter((id) => id !== "__none__"));
+                  } else {
+                    onSelect([...selected, "__none__"]);
+                  }
+                }}
+              >
+                <div
+                  className={cn(
+                    "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                    selected.includes("__none__")
+                      ? "bg-primary text-primary-foreground"
+                      : "opacity-50 [&_svg]:invisible",
+                  )}
+                >
+                  <Check className="h-3 w-3" />
+                </div>
+                <span>{noneLabel}</span>
+              </CommandItem>
+              {options.map((option) => {
+                const isSelected = selected.includes(option.id);
+                return (
+                  <CommandItem
+                    key={option.id}
+                    onSelect={() => {
+                      if (isSelected) {
+                        onSelect(selected.filter((id) => id !== option.id));
+                      } else {
+                        onSelect([...selected, option.id]);
+                      }
+                    }}
+                  >
+                    <div
+                      className={cn(
+                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                        isSelected
+                          ? "bg-primary text-primary-foreground"
+                          : "opacity-50 [&_svg]:invisible",
+                      )}
+                    >
+                      <Check className="h-3 w-3" />
+                    </div>
+                    <span>{option.name}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            {selected.length > 0 && (
+              <>
+                <Separator />
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => onSelect([])}
+                    className="justify-center text-center"
+                  >
+                    Limpar filtros
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
