@@ -134,6 +134,8 @@ export type OrganizerReceipt = {
   property_id?: string | null;
   cost_center_id?: string | null;
   ocr_text?: string | null;
+  natureza?: string | null;
+  tipo_gasto?: "fixo" | "variavel" | null;
 };
 
 export function normalizeText(value: unknown): string {
