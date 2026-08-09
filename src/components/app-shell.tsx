@@ -26,6 +26,7 @@ import { useRoles, hasPermission, highestRole, ROLE_LABEL, type Permission } fro
 import { Badge } from "@/components/ui/badge";
 import { seedDemoData, resetDemoData } from "@/lib/demo.functions";
 import { isDemoEmail } from "@/lib/demo";
+import { ProfileSelector } from "@/components/profile-selector";
 
 const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Permission }[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
@@ -161,6 +162,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
           )}
+          <div className="px-3 py-4 border-b border-sidebar-border/40 mb-2">
+            <ProfileSelector />
+          </div>
           <nav className="space-y-0.5 p-3">
             {visibleNav.map(({ to, label, icon: Icon }) => {
               const active = pathname === to || (to !== "/app" && pathname.startsWith(to));

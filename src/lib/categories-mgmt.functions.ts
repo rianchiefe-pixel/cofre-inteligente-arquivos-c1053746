@@ -16,48 +16,85 @@ async function getSupabaseClient(input: { token?: string }, context: any) {
     throw new Response('Link expirado ou inválido', { status: 403 });
   }
 
-  const { supabase } = context;
-  if (!supabase) throw new Response('Unauthorized', { status: 401 });
-  return { supabase, profileId: null, isTemp: false };
+  const { supabase, userId } = context;
+  if (!supabase || !userId) throw new Response('Unauthorized', { status: 401 });
+  return { supabase, profileId: null, isTemp: false, userId };
+}
+
+function normalizeName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 export const getCategoryStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .validator((data: unknown) => z.object({ 
     profileId: z.string().optional(),
     token: z.string().optional() 
   }).parse(data))
   .handler(async ({ data: input, context }) => {
-    const { supabase } = await getSupabaseClient(input, context);
+    const { supabase, profileId: tokenProfileId, userId } = await getSupabaseClient(input, context);
+    const targetProfileId = tokenProfileId || input.profileId;
 
-    // Nota: A tabela categories no schema atual não possui profile_id, 
-    // indicando que as categorias são globais ou filtradas pelo user_id do contexto.
-    // Em uma holding consolidada, usamos o contexto da conexão para garantir o escopo.
-    const { data: categories, count, error } = await supabase
+    if (!targetProfileId) {
+      return { categories: [], stats: { total: 0, main: 0, sub: 0, archived: 0, unclassified: 0, duplicates: 0 } };
+    }
+
+    const { data: dbCategories, error: catError } = await supabase
       .from("categories")
-      .select("id, name, default_type, archived, parent_id", { count: "exact" });
+      .select("id, name, default_type, archived, parent_id")
+      .eq("user_id", userId);
     
-    if (error) throw error;
+    if (catError) throw catError;
+
+    const { data: receiptsData, error: recError } = await supabase
+      .from("receipts")
+      .select("category_id, amount")
+      .eq("profile_id", targetProfileId)
+      .is("duplicate_of", null);
+    
+    if (recError) throw recError;
+
+    const usageMap = new Map<string, { count: number, total: number }>();
+    receiptsData?.forEach((r: any) => {
+      if (r.category_id) {
+        const stats = usageMap.get(r.category_id) || { count: 0, total: 0 };
+        stats.count++;
+        stats.total += Number(r.amount || 0);
+        usageMap.set(r.category_id, stats);
+      }
+    });
+
+    const categories = (dbCategories || []).map((c: any) => ({
+      ...c,
+      count: usageMap.get(c.id)?.count || 0,
+      total_amount: usageMap.get(c.id)?.total || 0
+    }));
 
     const stats = {
-      total: count || 0,
-      main: categories?.filter((c: any) => !c.parent_id).length || 0,
-      sub: categories?.filter((c: any) => c.parent_id).length || 0,
-      archived: categories?.filter((c: any) => c.archived).length || 0,
-      unclassified: categories?.filter((c: any) => !c.default_type).length || 0,
+      total: categories.length,
+      main: categories.filter((c: any) => !c.parent_id).length,
+      sub: categories.filter((c: any) => c.parent_id).length,
+      archived: categories.filter((c: any) => c.archived).length,
+      unclassified: categories.filter((c: any) => !c.default_type).length,
       duplicates: 0
     };
 
-    const names = new Set();
-    categories?.forEach((c: any) => {
-      const n = c.name.toLowerCase().trim();
+    const names = new Map<string, string>();
+    categories.forEach((c: any) => {
+      const n = normalizeName(c.name);
       if (names.has(n)) stats.duplicates++;
-      names.add(n);
+      names.set(n, c.id);
     });
 
-    return { categories: categories || [], stats };
+    return { categories, stats };
   });
 
 export const mergeCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((data: unknown) => z.object({
     keepId: z.string(),
     discardId: z.string(),
@@ -68,7 +105,6 @@ export const mergeCategories = createServerFn({ method: "POST" })
     const { supabase, profileId: tokenProfileId } = await getSupabaseClient(input, context);
     const { keepId, discardId, profileId } = input;
 
-    // Se for acesso via token, garante que o profileId bate
     const targetProfileId = tokenProfileId || profileId;
 
     const { error: errorReceipts } = await supabase
@@ -90,6 +126,7 @@ export const mergeCategories = createServerFn({ method: "POST" })
   });
 
 export const bulkUpdateCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((data: unknown) => z.object({
     ids: z.array(z.string()),
     patch: z.object({
@@ -116,4 +153,23 @@ export const bulkUpdateCategories = createServerFn({ method: "POST" })
 
     if (error) throw error;
     return { success: true };
+  });
+
+export const syncMissingCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({
+    profileId: z.string()
+  }).parse(data))
+  .handler(async ({ data: input, context }) => {
+    const { supabase, userId } = await getSupabaseClient({ }, context);
+    const { profileId } = input;
+
+    const { data: existing } = await supabase
+      .from("categories")
+      .select("id, name")
+      .eq("user_id", userId);
+    
+    const existingNames = new Set(existing?.map((c: any) => normalizeName(c.name)));
+
+    return { ok: true, profileId, existingNamesCount: existingNames.size };
   });
