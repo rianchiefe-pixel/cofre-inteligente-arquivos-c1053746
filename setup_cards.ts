@@ -32,62 +32,75 @@ async function setupCards() {
   console.log('--- Initializing Credit Cards ---');
 
   for (const config of cardConfigs) {
-    // 1. Upsert Card
-    const { data: card, error: cardError } = await supabaseAdmin
+    // 1. Check if Card exists
+    let { data: card, error: fetchError } = await supabaseAdmin
       .from('cards')
-      .upsert({
-        user_id: userId,
-        profile_id: config.profile_id,
-        name: config.name,
-        bank_id: null, // Could link to a bank record if exists, but name is enough for now
-        brand: config.brand,
-        last4: null // The account doesn't have a single last4, portadores do
-      }, { onConflict: 'user_id,profile_id,name' })
-      .select()
-      .single();
+      .select('*')
+      .eq('user_id', userId)
+      .eq('profile_id', config.profile_id)
+      .eq('name', config.name)
+      .maybeSingle();
 
-    if (cardError) {
-      console.error(`Error upserting card ${config.name}:`, cardError);
-      continue;
+    if (!card) {
+      const { data: newCard, error: insertError } = await supabaseAdmin
+        .from('cards')
+        .insert({
+          user_id: userId,
+          profile_id: config.profile_id,
+          name: config.name,
+          brand: config.brand as any,
+          holder: 'Titular Principal'
+        })
+        .select()
+        .single();
+      
+      if (insertError) {
+        console.error(`Error inserting card ${config.name}:`, insertError);
+        continue;
+      }
+      card = newCard;
     }
 
     console.log(`Card ensured: ${card.name} (${card.id})`);
 
-    // 2. Upsert Holders
+    // 2. Holders
     for (const h of config.holders) {
-      const { data: holder, error: hError } = await supabaseAdmin
+      let { data: holder } = await supabaseAdmin
         .from('card_holders')
-        .upsert({
-          user_id: userId,
-          card_id: card.id,
-          name: h.name,
-          last4: h.last4,
-          is_primary: h.is_primary
-        }, { onConflict: 'card_id,name,last4' })
-        .select()
-        .single();
+        .select('*')
+        .eq('card_id', card.id)
+        .eq('holder_name', h.name)
+        .maybeSingle();
 
-      if (hError) {
-        console.error(`Error upserting holder ${h.name}:`, hError);
-        continue;
+      if (!holder) {
+        const { data: newHolder, error: hError } = await supabaseAdmin
+          .from('card_holders')
+          .insert({
+            user_id: userId,
+            card_id: card.id,
+            holder_name: h.name,
+            last4: h.last4,
+            is_primary: h.is_primary
+          })
+          .select()
+          .single();
+
+        if (hError) {
+          console.error(`  Error inserting holder ${h.name}:`, hError);
+          continue;
+        }
+        holder = newHolder;
       }
-      console.log(`  Holder ensured: ${holder.name} | Last4: ${holder.last4}`);
+      console.log(`  Holder ensured: ${holder.holder_name} | Last4: ${holder.last4}`);
     }
 
-    // 3. Link existing receipts
+    // 3. Link receipts
     console.log(`  Linking receipts for ${config.institution}...`);
-    
-    // Fetch card and holders for linking
-    const { data: holders } = await supabaseAdmin
-        .from('card_holders')
-        .select('*')
-        .eq('card_id', card.id);
-
     const { data: receipts } = await supabaseAdmin
         .from('receipts')
-        .select('*')
+        .select('id, bank_name, description, notes, ocr_data')
         .eq('profile_id', config.profile_id)
-        .is('card_id', null); // Only link if not linked
+        .is('card_id', null);
 
     if (!receipts) continue;
 
@@ -95,45 +108,18 @@ async function setupCards() {
     for (const r of receipts) {
         const text = `${r.bank_name} ${r.description} ${r.notes} ${JSON.stringify(r.ocr_data)}`.toLowerCase();
         if (text.includes(config.institution.toLowerCase())) {
-            let matchedHolderId = null;
-            
-            // Try matching holder by last4 or name in OCR
-            for (const h of holders!) {
-                if (h.last4 && text.includes(h.last4)) {
-                    matchedHolderId = h.id;
-                    break;
-                }
-                if (text.includes(h.name.toLowerCase().split(' ')[0])) {
-                    matchedHolderId = h.id;
-                }
-            }
-
             const { error: updateErr } = await supabaseAdmin
                 .from('receipts')
-                .update({ 
-                    card_id: card.id,
-                    // We don't have a card_holder_id column in receipts yet, 
-                    // we'll need to check the schema or use notes/metadata if needed.
-                    // Wait, looking at receipts schema again...
-                    // receipts: card_id is present. card_holder_id is NOT in receipts table.
-                    // But card_transactions HAS card_holder_id.
-                    // The user wants to see portadores in the history.
-                })
+                .update({ card_id: card.id })
                 .eq('id', r.id);
             
             if (!updateErr) linkedCount++;
         }
     }
-    console.log(`  Linked ${linkedCount} receipts to card.`);
+    console.log(`  Linked ${linkedCount} receipts.`);
   }
 
-  // Record in Audit Logs
-  await supabaseAdmin.from('audit_logs').insert({
-    user_id: userId,
-    action: 'CREATE_CARDS_STRUCTURE',
-    entity: 'cards',
-    note: 'Identificação e estruturação automática de cartões e portadores a partir do histórico.'
-  });
+  console.log('\n--- Done ---');
 }
 
 setupCards().catch(console.error);
