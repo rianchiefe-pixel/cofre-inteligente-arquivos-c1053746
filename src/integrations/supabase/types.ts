@@ -1583,6 +1583,7 @@ export type Database = {
           auth_code: string | null
           bank_id: string | null
           bank_name: string | null
+          card_holder_id: string | null
           card_id: string | null
           category_id: string | null
           cost_center_id: string | null
@@ -1624,6 +1625,7 @@ export type Database = {
           auth_code?: string | null
           bank_id?: string | null
           bank_name?: string | null
+          card_holder_id?: string | null
           card_id?: string | null
           category_id?: string | null
           cost_center_id?: string | null
@@ -1665,6 +1667,7 @@ export type Database = {
           auth_code?: string | null
           bank_id?: string | null
           bank_name?: string | null
+          card_holder_id?: string | null
           card_id?: string | null
           category_id?: string | null
           cost_center_id?: string | null
@@ -1712,6 +1715,13 @@ export type Database = {
             columns: ["bank_id"]
             isOneToOne: false
             referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_card_holder_id_fkey"
+            columns: ["card_holder_id"]
+            isOneToOne: false
+            referencedRelation: "card_holders"
             referencedColumns: ["id"]
           },
           {
