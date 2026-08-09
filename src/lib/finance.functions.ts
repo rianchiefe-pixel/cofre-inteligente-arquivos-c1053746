@@ -126,7 +126,7 @@ export const getUnifiedLedger = createServerFn({ method: "GET" })
         description: r.description,
         counterparty: r.recipient_name,
         bank_name: r.bank_name,
-        category: (r as any).categories?.name ?? null,
+        category: (r as any).category?.name ?? null,
         kind: r.transaction_type,
         profile_id: r.profile_id,
         property_id: r.property_id,

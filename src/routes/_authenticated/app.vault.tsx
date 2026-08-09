@@ -972,7 +972,7 @@ function VaultPage() {
                         <TableCell className="text-xs">
                           {r.financial_profiles?.name ?? "—"}
                         </TableCell>
-                        <TableCell className="text-xs">{r.categories?.name ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{r.category?.name ?? "—"}</TableCell>
                         <TableCell className="text-xs">
                           {r.transaction_type
                             ? transactionTypeLabel[
@@ -1037,7 +1037,7 @@ function VaultPage() {
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
                         {dateBR(r.payment_date)} • {r.banks?.name ?? r.bank_name ?? "—"} •{" "}
-                        {r.categories?.name ?? "sem categoria"}
+                        {r.category?.name ?? "sem categoria"}
                       </p>
                       <p className="mt-1 text-sm font-semibold">
                         {currencyBRL(Number(r.amount ?? 0))}
@@ -1639,7 +1639,7 @@ function ReceiptPanel({
         <dt className="text-muted-foreground">Cód. autenticação</dt>
         <dd className="truncate">{rec.auth_code ?? "—"}</dd>
         <dt className="text-muted-foreground">Categoria</dt>
-        <dd>{rec.categories?.name ?? "—"}</dd>
+        <dd>{rec.category?.name ?? "—"}</dd>
         <dt className="text-muted-foreground">Perfil</dt>
         <dd>{rec.financial_profiles?.name ?? "—"}</dd>
         <dt className="text-muted-foreground">Tipo</dt>
