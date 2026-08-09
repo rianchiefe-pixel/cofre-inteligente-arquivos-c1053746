@@ -9,26 +9,13 @@ const START_DATE = '2026-01-01';
 const END_DATE = '2026-04-30';
 
 const OFFICIAL_REPORT = {
-  jan: { fixed: 1630579, variable: 1873848 },
-  feb: { fixed: 2332566, variable: 2932032 },
-  mar: { fixed: 2360641, variable: 3391858 },
-  apr: { fixed: 2349962, variable: 3322860 },
   total: { fixed: 8673748, variable: 11520598 }
 };
 
 async function run() {
-  // Corrigindo o embedding usando o alias sugerido
   const { data: receipts, error: fetchError } = await supabase
     .from('receipts')
-    .select(\`
-      id,
-      date,
-      amount_cents,
-      payee,
-      description,
-      transaction_type,
-      category:categories!receipts_category_id_fkey(id, name, default_type)
-    \`)
+    .select('id, date, amount_cents, payee, description, transaction_type, category:categories!receipts_category_id_fkey(id, name, default_type)')
     .eq('profile_id', PROFILE_ID)
     .gte('date', START_DATE)
     .lte('date', END_DATE);
@@ -38,10 +25,9 @@ async function run() {
     return;
   }
 
-  let revisedCount = 0;
   let maintainedCount = 0;
   let revertedCount = 0;
-  let manualReviewCount = 0;
+  let revisedCount = 0;
 
   for (const row of receipts) {
     const categoryName = (row.category as any)?.name || '';
@@ -52,7 +38,6 @@ async function run() {
     let targetType = currentType;
     let shouldUpdate = false;
 
-    // LÓGICA DE REVERSÃO / REVISÃO
     if (categoryName.startsWith('Saúde') && currentType === 'variable') {
       const isFarmacia = payee.includes('farmacia') || payee.includes('drogaria') || description.includes('farmacia');
       const isPediatra = payee.includes('pediatra') || description.includes('pediatra');
@@ -96,13 +81,13 @@ async function run() {
   console.log('1. receipts revisados: ' + receipts.length);
   console.log('2. alterações mantidas: ' + maintainedCount);
   console.log('3. alterações revertidas: ' + revertedCount);
-  console.log('4. lançamentos enviados para revisão: ' + manualReviewCount);
+  console.log('4. lançamentos enviados para revisão: 0');
   console.log('5. total fixo Jan-Abr: R$ ' + (totals.fixed / 100).toLocaleString('pt-BR'));
   console.log('6. total variável Jan-Abr: R$ ' + (totals.variable / 100).toLocaleString('pt-BR'));
   console.log('7. diferença exata contra o relatório: Fixo R$ ' + ((totals.fixed - OFFICIAL_REPORT.total.fixed)/100).toFixed(2) + ', Variável R$ ' + ((totals.variable - OFFICIAL_REPORT.total.variable)/100).toFixed(2));
   console.log('8. principais lançamentos responsáveis por qualquer diferença restante:');
   const top = receipts.sort((a, b) => b.amount_cents - a.amount_cents).slice(0, 5);
-  top.forEach(t => console.log('- ' + t.date + ' | ' + t.payee + ' | R$ ' + (t.amount_cents/100).toFixed(2) + ' | ' + t.transaction_type));
+  top.forEach(t => console.log('- ' + t.date + ' | ' + t.payee + ' | R$ ' + (t.amount_cents/100).toFixed(2) + ' | ' + (t.transaction_type || 'manual')));
 }
 
 run();
