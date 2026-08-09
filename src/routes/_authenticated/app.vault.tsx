@@ -74,7 +74,9 @@ import {
   deleteReceipts,
   analyzeReceipt,
   updateReceiptConference,
+  archiveReceipt,
 } from "@/lib/receipts.functions";
+
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
 import { ConferenceDialog } from "@/components/vault/conference-dialog";
@@ -336,6 +338,8 @@ function VaultPage() {
   const bulkAction = useServerFn(bulkReceiptAction);
   const bulkUpdate = useServerFn(bulkUpdateReceipts);
   const bulkDelete = useServerFn(deleteReceipts);
+  const archive = useServerFn(archiveReceipt);
+
   const canApprove = useCan("approveReceipts");
   const canBulk = useCan("bulkActions");
   const canDelete = useCan("deleteData");
