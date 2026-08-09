@@ -481,6 +481,7 @@ function VaultPage() {
     setPage(0);
   }, [quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly]);
 
+  const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   const filtered = receipts.data?.rows ?? [];
   const total = receipts.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));

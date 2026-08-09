@@ -101,7 +101,7 @@ function ReportsPage() {
       for (let offset = 0; offset < 100000; offset += PAGE) {
         let q = supabase
           .from("receipts")
-          .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), properties(name)")
+          .select("*, category:categories!receipts_category_id_fkey(name), properties(name)")
           .eq("status", "approved")
           .order("payment_date", { ascending: false })
           .order("id", { ascending: true })
@@ -122,6 +122,7 @@ function ReportsPage() {
   });
 
   const rows = data.data ?? [];
+  const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   const total = useMemo(() => rows.reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
 
   // Razão unificado (comprovantes + lançamentos de cartão, sem dupla contagem).
@@ -175,7 +176,7 @@ function ReportsPage() {
       breakdowns: [
         { title: "Por categoria", rows: groupSum((r) => r.category?.name) },
         { title: "Por banco", rows: groupSum((r) => r.bank_name) },
-        { title: "Por perfil", rows: groupSum((r) => r.financial_profiles?.name) },
+        { title: "Por perfil", rows: groupSum((r) => profileIdToName.get(r.profile_id) || "—") },
         { title: "Por imóvel", rows: groupSum((r) => r.properties?.name) },
       ],
       columns: [
@@ -183,7 +184,7 @@ function ReportsPage() {
         { header: "Valor", key: "amount", get: (r) => currencyBRL(Number(r.amount ?? 0)), width: 14 },
         { header: "Destinatário", key: "recipient", get: (r) => r.recipient_name ?? "", width: 26 },
         { header: "Banco", key: "bank", get: (r) => r.bank_name ?? "", width: 16 },
-        { header: "Perfil", key: "profile", get: (r) => r.financial_profiles?.name ?? "", width: 16 },
+        { header: "Perfil", key: "profile", get: (r) => profileIdToName.get(r.profile_id) ?? "", width: 16 },
         { header: "Imóvel", key: "property", get: (r) => r.properties?.name ?? "", width: 18 },
         { header: "Categoria", key: "category", get: (r) => r.category?.name ?? "", width: 16 },
         { header: "Tipo", key: "type", get: (r) => transactionTypeLabel[r.transaction_type as string] ?? "", width: 14 },
@@ -344,7 +345,7 @@ function ReportsPage() {
                   <td className="whitespace-nowrap px-4 py-3">{dateBR(r.payment_date)}</td>
                   <td className="px-4 py-3">{r.recipient_name ?? "—"}</td>
                   <td className="px-4 py-3">{r.category?.name ?? "—"}</td>
-                  <td className="px-4 py-3">{r.financial_profiles?.name ?? "—"}</td>
+                  <td className="px-4 py-3">{profileIdToName.get(r.profile_id) ?? "—"}</td>
                   <td className="px-4 py-3">{r.bank_name ?? "—"}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium">{currencyBRL(Number(r.amount ?? 0))}</td>
                 </tr>

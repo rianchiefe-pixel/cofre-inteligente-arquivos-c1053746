@@ -54,7 +54,7 @@ function PropertyDetail() {
   const property = useQuery({
     queryKey: ["property", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("properties").select("*, financial_profiles(*)").eq("id", id).single();
+      const { data, error } = await supabase.from("properties").select("*, profile:financial_profiles!properties_profile_id_fkey(*)").eq("id", id).single();
       if (error) throw error;
       return data;
     },
@@ -121,7 +121,7 @@ function PropertyDetail() {
   );
 
   const buildPayload = (): ReportPayload => {
-    const bp: any = (property.data as any)?.financial_profiles;
+    const bp: any = (property.data as any)?.profile;
     const brand = bp ? {
       displayName: bp.display_name ?? bp.name,
       legalName: bp.legal_name, taxId: bp.tax_id, address: bp.address,

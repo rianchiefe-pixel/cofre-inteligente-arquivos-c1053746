@@ -82,7 +82,7 @@ export const validateTempToken = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: tokenData, error } = await supabaseAdmin
       .from('temporary_access_tokens')
-      .select('*, financial_profiles(name)')
+      .select('*, profile:financial_profiles!temporary_access_tokens_profile_id_fkey(name)')
       .eq('token', data.token)
       .eq('purpose', TOKEN_PURPOSE)
       .is('revoked_at', null)
@@ -106,7 +106,7 @@ export const validateTempToken = createServerFn({ method: "GET" })
     return {
       valid: true,
       profileId: tokenData.profile_id,
-      profileName: (tokenData as any).financial_profiles?.name || 'Perfil',
+      profileName: (tokenData as any).profile?.name || 'Perfil',
       expiresAt: tokenData.expires_at
     };
   });
