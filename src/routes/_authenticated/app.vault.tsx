@@ -63,6 +63,8 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  FilterX,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -80,6 +82,8 @@ import {
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
 import { ConferenceDialog } from "@/components/vault/conference-dialog";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Separator } from "@/components/ui/separator";
 
 export const Route = createFileRoute("/_authenticated/app/vault")({
   head: () => ({ meta: [{ title: "Cofre de comprovantes — Meu Cofre" }] }),
