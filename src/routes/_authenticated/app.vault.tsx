@@ -1374,6 +1374,7 @@ function VaultPage() {
               setOriginal(null);
               setDraft(null);
               setSuggested(null);
+              goToNextPending(original.id);
             } catch (e: any) {
               toast.error(e.message || "Não foi possível arquivar o comprovante. Tente novamente.");
             } finally {
