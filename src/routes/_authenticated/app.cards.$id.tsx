@@ -178,10 +178,13 @@ function CardDetailPage() {
               <Line label="Instituição" value={c.banks?.name || "Banco não identificado"} />
               <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
               <Line
-                label="Total Acumulado"
-                value={transactions.data ? currencyBRL(transactions.data.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0)) : "—"}
+                label="Total (Filtrado)"
+                value={stats ? currencyBRL(stats.total) : "—"}
               />
-              <Line label="Lançamentos" value={transactions.data?.length || 0} />
+              <Line label="Lançamentos" value={stats?.count || 0} />
+              <Line label="Portadores" value={stats?.holdersCount || 0} />
+              <Line label="Maior Compra" value={stats ? currencyBRL(stats.biggest) : "—"} />
+              <Line label="Top Categoria" value={stats?.topCategory || "—"} />
               <Line label="Fechamento" value={c.closing_day ? `Dia ${c.closing_day}` : "—"} />
               <Line label="Vencimento" value={c.due_day ? `Dia ${c.due_day}` : "—"} />
               {c.credit_limit && <Line label="Limite" value={currencyBRL(Number(c.credit_limit))} />}
@@ -320,11 +323,15 @@ function CardDetailPage() {
                     </TableCell>
                     <TableCell>
                       {t.file_path ? (
-                        <Badge variant="secondary" className="bg-success/20 text-success-foreground border-success/30 text-[9px] py-0 cursor-pointer">
+                        <Button 
+                          variant="link" 
+                          className="h-auto p-0 text-[10px] text-success hover:text-success/80"
+                          onClick={() => window.open(supabase.storage.from('receipts').getPublicUrl(t.file_path).data.publicUrl, '_blank')}
+                        >
                           Ver PDF
-                        </Badge>
+                        </Button>
                       ) : (
-                        <span className="text-[9px] text-muted-foreground">Sem comprovante</span>
+                        <span className="text-[10px] text-muted-foreground italic">Sem comprovante</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
