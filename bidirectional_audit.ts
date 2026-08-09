@@ -52,7 +52,10 @@ async function audit() {
     .gte('payment_date', '2026-01-01')
     .lte('payment_date', '2026-01-31');
 
-  if (!dbReceipts) throw new Error("Could not fetch receipts");
+  if (dbReceipts === null) {
+    const { error } = await supabaseAdmin.from('receipts').select('count');
+    throw new Error(`Could not fetch receipts. Error detail maybe: ${JSON.stringify(error)}`);
+  }
 
   console.log(`Planilha Oficial (Jan/Pessoal): ${officialJanuary.length} itens`);
   console.log(`Banco (Jan/Pessoal): ${dbReceipts.length} itens`);
