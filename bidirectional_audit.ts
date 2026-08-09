@@ -36,7 +36,7 @@ async function audit() {
   });
 
   // 2. Carregar Banco (Somente Janeiro/Pessoal)
-  const { data: dbReceipts } = await supabaseAdmin
+  const query = supabaseAdmin
     .from('receipts')
     .select(`
       id,
@@ -52,9 +52,14 @@ async function audit() {
     .gte('payment_date', '2026-01-01')
     .lte('payment_date', '2026-01-31');
 
-  if (dbReceipts === null) {
-    const { error } = await supabaseAdmin.from('receipts').select('count');
-    throw new Error(`Could not fetch receipts. Error detail maybe: ${JSON.stringify(error)}`);
+  const { data: dbReceipts, error } = await query;
+
+  if (error) {
+    throw new Error(`Database error: ${JSON.stringify(error)}`);
+  }
+
+  if (!dbReceipts) {
+    throw new Error("No receipts returned from DB");
   }
 
   console.log(`Planilha Oficial (Jan/Pessoal): ${officialJanuary.length} itens`);
