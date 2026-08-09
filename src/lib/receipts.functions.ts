@@ -569,7 +569,10 @@ export const updateReceiptConference = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para editar este comprovante");
     }
 
-    const diff: Record<string, any> = {};
+    const diff: Record<string, any> = {
+      user_confirmed_at: new Date().toISOString(),
+      is_manual_correction: true
+    };
     const oldValues: Record<string, any> = {};
     for (const [k, v] of Object.entries(data.patch)) {
       if (v === undefined) continue;
