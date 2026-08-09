@@ -292,175 +292,164 @@ function consolidateCategories(data: ReportDataset, key: "despesaBlock" | "inves
  * ========================================================================= */
 export async function generateFixedVariableReport(data: ReportDataset) {
   const validation = assertReportDataset(data);
-
-  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  const margin = 48;
+  const margin = 40;
   const contentW = pw - margin * 2;
-  const bottom = ph - margin;
 
-  const ensure = (y: number, needed: number) => {
-    if (y + needed > bottom) {
-      doc.addPage();
-      return margin;
-    }
-    return y;
+  // Header & Title
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.rect(0, 0, pw, 90, "F");
+  doc.setFillColor(TAN[0], TAN[1], TAN[2]);
+  doc.rect(0, 90, pw, 4, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("MEU COFRE", margin, 34);
+  doc.setFontSize(18);
+  doc.text("Relatório de Gastos Fixos e Variáveis", margin, 60);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(data.periodLabel.toUpperCase(), margin, 78);
+  
+  doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}`, pw - margin, 34, { align: "right" });
+  doc.text(`Período: ${data.from} a ${data.to}`, pw - margin, 50, { align: "right" });
+  doc.setTextColor(0, 0, 0);
+
+  let y = 130;
+
+  // Executive Cards
+  const cardW = (contentW - 20) / 3;
+  const cardH = 50;
+  const cards = [
+    { label: "GASTOS FIXOS", value: data.totals.fixed, color: TAN },
+    { label: "GASTOS VARIÁVEIS", value: data.totals.variable, color: TAN_LIGHT },
+    { label: "INVESTIMENTOS", value: data.totals.investimentos, color: BLUE },
+  ];
+
+  cards.forEach((c, i) => {
+    const x = margin + i * (cardW + 10);
+    doc.setFillColor(248, 249, 252);
+    doc.roundedRect(x, y, cardW, cardH, 4, 4, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
+    doc.text(c.label, x + 10, y + 16);
+    doc.setFontSize(14);
+    doc.text(money(c.value), x + 10, y + 38);
+  });
+
+  y += cardH + 30;
+
+  // Distribution Chart
+  const chartH = 160;
+  drawHBarChart(doc, {
+    x: margin,
+    y,
+    w: contentW,
+    h: chartH,
+    title: "Distribuição do Período",
+    items: [
+      { label: "Variáveis", value: data.totals.variable, valueLabel: money(data.totals.variable), color: TAN_LIGHT },
+      { label: "Fixos", value: data.totals.fixed, valueLabel: money(data.totals.fixed), color: TAN },
+      { label: "Investimentos", value: data.totals.investimentos, valueLabel: money(data.totals.investimentos), color: BLUE },
+    ],
+    labelWidth: 100,
+    fontSize: 8,
+    valueFontStyle: "bold",
+    axisFormatter: axisMoney,
+    frame: false,
+  });
+
+  y += chartH + 40;
+
+  // Analysis Section
+  sectionTitle(doc, "1. Análise de Composição", margin, y);
+  y += 20;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(60, 60, 60);
+
+  const getTopCategoriesText = (cats: CategoryRow[]) => {
+    return cats.slice(0, 3).map(c => `${c.name} (${money(c.value)})`).join(", ");
   };
 
-  // Cabeçalho
-  let y = margin + 10;
-  doc.setDrawColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.setLineWidth(1.2);
-  doc.line(margin, y, margin + contentW, y);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
-  doc.text("RELATÓRIO DE GASTOS FIXOS E VARIÁVEIS", pw / 2, y + 24, { align: "center" });
-  doc.setLineWidth(0.8);
-  doc.line(margin, y + 36, margin + contentW, y + 36);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10.5);
-  doc.setTextColor(30, 30, 30);
-  doc.text(`Período: ${data.periodLabel}`, pw / 2, y + 56, { align: "center" });
-  y += 78;
+  const fixedCats = data.months.flatMap(m => m.fixedCategories).reduce((acc, c) => {
+    const existing = acc.find(x => x.name === c.name);
+    if (existing) { existing.value += c.value; existing.cents += c.cents; }
+    else acc.push({ ...c });
+    return acc;
+  }, [] as CategoryRow[]).sort((a, b) => b.cents - a.cents);
 
-  // 1. Resumo geral — Mês | Fixos | Variáveis | Total do mês
-  y = sectionTitle(doc, "1. Resumo geral", margin, y);
-  const resumoBody = data.months.map((m) => [
-    `${m.label} de ${m.year}`,
-    money(m.fixed),
-    money(m.variable),
-    money(centsToNumber(m.fixedCents + m.variableCents)),
-  ]);
-  resumoBody.push([
-    "TOTAL DO PERÍODO",
-    money(data.totals.fixed),
-    money(data.totals.variable),
-    money(centsToNumber(data.totals.fixedCents + data.totals.variableCents)),
-  ]);
-  autoTable(doc, {
-    startY: y + 10,
-    head: [["Mês", "Gastos fixos", "Gastos variáveis", "Total do mês"]],
-    body: resumoBody,
-    theme: "grid",
-    rowPageBreak: "avoid",
-    styles: { fontSize: 9.5, cellPadding: 5, lineColor: [180, 190, 205], lineWidth: 0.4, textColor: [20, 20, 20] },
-    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
-    columnStyles: { 0: { halign: "left" }, 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
-    didParseCell: (d) => {
-      if (d.section === "body" && d.row.index === resumoBody.length - 1) {
-        d.cell.styles.fillColor = NAVY_ROW;
-        d.cell.styles.fontStyle = "bold";
-      }
-    },
-    margin: { left: margin, right: margin },
-  });
-  y = lastY(doc) + 26;
+  const varCats = data.months.flatMap(m => m.variableCategories).reduce((acc, c) => {
+    const existing = acc.find(x => x.name === c.name);
+    if (existing) { existing.value += c.value; existing.cents += c.cents; }
+    else acc.push({ ...c });
+    return acc;
+  }, [] as CategoryRow[]).sort((a, b) => b.cents - a.cents);
 
-  // 2. Detalhamento mensal
-  y = ensure(y, 60);
-  y = sectionTitle(doc, "2. Detalhamento mensal", margin, y);
-  y += 6;
+  const analysis = [
+    `• Gastos Fixos: Representam ${((data.totals.fixed / (data.totals.total || 1)) * 100).toFixed(1)}% do total. Principais categorias: ${getTopCategoriesText(fixedCats) || "Nenhuma"}.`,
+    `• Gastos Variáveis: Representam ${((data.totals.variable / (data.totals.total || 1)) * 100).toFixed(1)}% do total. Destaque para: ${getTopCategoriesText(varCats) || "Nenhuma"}.`,
+    data.totals.investimentos > 0 ? `• Investimentos: O aporte total foi de ${money(data.totals.investimentos)}, fortalecendo o patrimônio no período.` : "",
+  ].filter(Boolean);
 
-  data.months.forEach((m, idx) => {
-    doc.addPage();
-    y = drawMonthSection(doc, m, idx + 1, margin, contentW, ph, margin);
+  analysis.forEach(text => {
+    const lines = doc.splitTextToSize(text, contentW);
+    doc.text(lines, margin, y);
+    y += lines.length * 14 + 4;
   });
 
-  // Lançamentos pendentes de classificação
-  if (data.diagnostics.unclassified.length) {
-    doc.addPage();
-    y = sectionTitle(doc, "Lançamentos pendentes de classificação", margin, margin + 6);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(90, 90, 90);
-    doc.text(
-      "Despesas sem classificação de gasto fixo ou variável no lançamento e na categoria. Os valores continuam somados no total de despesas.",
-      margin,
-      y + 12,
-      { maxWidth: contentW },
-    );
-    doc.setTextColor(0, 0, 0);
-    autoTable(doc, {
-      startY: y + 28,
-      head: [["Data", "Descrição", "Categoria", "Subcategoria", "Valor", "ID do lançamento"]],
-      body: data.diagnostics.unclassified.map((e) => [
-        dateBR(e.date),
-        e.notes || e.payee,
-        e.category,
-        e.subcategory,
-        money(e.amount),
-        e.id,
-      ]),
-      theme: "grid",
-      rowPageBreak: "avoid",
-      styles: { fontSize: 7.5, cellPadding: 3.5, overflow: "linebreak", lineColor: [180, 190, 205], lineWidth: 0.4 },
-      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
-      columnStyles: {
-        0: { cellWidth: contentW * 0.09, halign: "center" },
-        1: { cellWidth: contentW * 0.26 },
-        2: { cellWidth: contentW * 0.16 },
-        3: { cellWidth: contentW * 0.16 },
-        4: { cellWidth: contentW * 0.12, halign: "right" },
-        5: { cellWidth: contentW * 0.21, fontSize: 6 },
-      },
-      margin: { left: margin, right: margin },
-    });
-  }
-
-  // 3. Consolidado geral
-  doc.addPage();
-  y = highlightHeading(doc, "3. Consolidado geral", margin, margin + 14);
+  // Consolidated Summary Table
+  y += 20;
   const consolidatedBody = [
-    ["Gastos fixos", money(data.totals.fixed)],
-    ["Gastos variáveis", money(data.totals.variable)],
-    ["Gastos não classificados", money(data.totals.unclassified)],
-    ["Despesas", money(data.totals.despesas)],
+    ["Gastos Fixos", money(data.totals.fixed)],
+    ["Gastos Variáveis", money(data.totals.variable)],
     ["Investimentos", money(data.totals.investimentos)],
-    ["Total financeiro do período", money(data.totals.total)],
+    ["Despesas não classificadas", money(data.totals.unclassified)],
+    ["TOTAL GERAL", money(data.totals.total)],
   ];
+
   autoTable(doc, {
-    startY: y + 12,
-    head: [["Indicador", "Valor do período"]],
+    startY: y,
+    head: [["Grupo de Gasto", "Valor Total"]],
     body: consolidatedBody,
     theme: "grid",
-    rowPageBreak: "avoid",
-    styles: { fontSize: 9.5, cellPadding: 5, lineColor: [180, 190, 205], lineWidth: 0.4 },
-    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
-    columnStyles: { 1: { halign: "right" } },
+    styles: { fontSize: 9, cellPadding: 6, lineColor: [230, 230, 230] },
+    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: "bold" },
+    columnStyles: { 1: { halign: "right", fontStyle: "bold" } },
     didParseCell: (d) => {
       if (d.section === "body" && d.row.index === consolidatedBody.length - 1) {
-        d.cell.styles.fillColor = NAVY_ROW;
-        d.cell.styles.fontStyle = "bold";
+        d.cell.styles.fillColor = [245, 245, 245];
       }
     },
     margin: { left: margin, right: margin },
   });
-  y = lastY(doc) + 24;
 
-  if (data.months.length) {
-    const chartH = Math.min(320, ph - margin - y);
-    if (chartH < 220) { doc.addPage(); y = margin; }
+  // Monthly Evolution Chart (Full Width)
+  if (data.months.length > 1) {
+    doc.addPage();
+    y = margin + 20;
+    sectionTitle(doc, "2. Evolução Mensal", margin, y);
+    y += 30;
     drawLineChart(doc, {
       x: margin,
       y,
       w: contentW,
-      h: Math.min(320, ph - margin - y),
-      title: "Evolução mensal — despesas, investimentos e gastos fixos/variáveis",
-      categories: data.months.map((m) => `${m.label.slice(0, 3)}/${String(m.year).slice(2)}`),
+      h: 240,
+      title: "Tendência de Gastos e Investimentos",
+      categories: data.months.map(m => `${m.label.slice(0, 3)}/${String(m.year).slice(2)}`),
       series: [
-        { name: "Total do mês", color: NAVY, values: data.months.map((m) => m.total) },
-        { name: "Despesas", color: RED, values: data.months.map((m) => m.despesas) },
-        { name: "Investimentos", color: BLUE, values: data.months.map((m) => m.investimentos) },
-        { name: "Gastos fixos", color: TAN, values: data.months.map((m) => m.fixed) },
-        { name: "Gastos variáveis", color: TAN_LIGHT, values: data.months.map((m) => m.variable) },
+        { name: "Gastos Fixos", color: TAN, values: data.months.map(m => m.fixed) },
+        { name: "Gastos Variáveis", color: TAN_LIGHT, values: data.months.map(m => m.variable) },
+        { name: "Investimentos", color: BLUE, values: data.months.map(m => m.investimentos) },
       ],
       axisTitle: "Valor (R$)",
     });
   }
 
-  doc.save(`relatorio-gastos-fixos-variaveis-${data.from}-a-${data.to}.pdf`);
+  doc.save(`relatorio-executivo-${data.from}-a-${data.to}.pdf`);
   const logged = await logExport({
     reportKind: "relatorio_gastos_fixos_variaveis",
     format: "pdf",
