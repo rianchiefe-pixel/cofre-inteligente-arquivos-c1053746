@@ -481,6 +481,7 @@ function VaultPage() {
     setPage(0);
   }, [quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly]);
 
+  const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   const filtered = receipts.data?.rows ?? [];
   const total = receipts.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -1109,7 +1110,7 @@ function VaultPage() {
                           {banks.data?.find((b: any) => b.id === r.bank_id)?.name ?? r.bank_name ?? "—"}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {profiles.data?.find((p: any) => p.id === r.profile_id)?.name ?? "—"}
+                          {profileIdToName.get(r.profile_id) ?? "—"}
                         </TableCell>
                         <TableCell className="text-xs">{categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "—"}</TableCell>
                         <TableCell className="text-xs">
@@ -1176,6 +1177,7 @@ function VaultPage() {
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
                         {dateBR(r.payment_date)} • {banks.data?.find((b: any) => b.id === r.bank_id)?.name ?? r.bank_name ?? "—"} •{" "}
+                        {profileIdToName.get(r.profile_id) ?? "sem perfil"} •{" "}
                         {categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "sem categoria"}
                       </p>
                       <p className="mt-1 text-sm font-semibold">
@@ -1372,6 +1374,7 @@ function VaultPage() {
               setOriginal(null);
               setDraft(null);
               setSuggested(null);
+              goToNextPending(original.id);
             } catch (e: any) {
               toast.error(e.message || "Não foi possível arquivar o comprovante. Tente novamente.");
             } finally {

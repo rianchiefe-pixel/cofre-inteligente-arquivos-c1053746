@@ -74,7 +74,7 @@ function Dashboard() {
         let rq = supabase
           .from("receipts")
           .select(
-            "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, category:categories!receipts_category_id_fkey(name), profile_id, financial_profiles(name), property_id, properties(name)",
+            "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, category:categories!receipts_category_id_fkey(name), profile_id, property_id, properties(name)",
           )
           .order("payment_date", { ascending: false })
           .order("id", { ascending: true })
@@ -107,6 +107,7 @@ function Dashboard() {
 
   // Property metrics (respect current profile filter, ignore property filter for aggregates)
   const activeProperties = (properties.data ?? []).filter((p: any) => p.status !== "arquivado" && p.status !== "vendido").length;
+  const profileIdToName = new Map<string, string>((profilesList.data ?? []).map((p: any) => [p.id, p.name]));
   const propertyIdToName = new Map<string, string>((properties.data ?? []).map((p: any) => [p.id, p.name]));
   const monthByProperty = new Map<string, number>();
   let totalInvestedProperties = 0;
@@ -269,7 +270,7 @@ function Dashboard() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{(r as any).recipient_name || (r as any).description || "Comprovante"}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {(r as any).category?.name ?? "Sem categoria"} • {r.bank_name ?? "Sem banco"} • {(r as any).financial_profiles?.name ?? "—"}
+                    {(r as any).category?.name ?? "Sem categoria"} • {r.bank_name ?? "Sem banco"} • {profileIdToName.get(r.profile_id) ?? "—"}
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-foreground">{currencyBRL(Number(r.amount ?? 0))}</p>

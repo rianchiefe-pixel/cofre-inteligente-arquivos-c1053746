@@ -58,7 +58,7 @@ function CardDetailPage() {
       try {
         const { data, error } = await supabase
           .from("cards")
-          .select("*, banks(name), financial_profiles(name, color)")
+          .select("*, banks(name), profile:financial_profiles!cards_profile_id_fkey(name, color)")
           .eq("id", id)
           .maybeSingle();
         if (error) throw error;
@@ -227,7 +227,7 @@ function CardDetailPage() {
             </div>
             <div className="space-y-2 p-4 text-sm">
               <Line label="Instituição" value={(Array.isArray(c.banks) ? c.banks[0]?.name : c.banks?.name) || "Cartão"} />
-              <Line label="Perfil" value={(Array.isArray(c.financial_profiles) ? c.financial_profiles[0]?.name : c.financial_profiles?.name) ?? "Pessoal"} />
+              <Line label="Perfil" value={(Array.isArray(c.profile) ? c.profile[0]?.name : c.profile?.name) ?? "Pessoal"} />
               <Line
                 label="Total (Filtrado)"
                 value={stats ? currencyBRL(stats.total) : "—"}

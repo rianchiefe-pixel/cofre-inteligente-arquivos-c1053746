@@ -95,7 +95,7 @@ function PropertiesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("properties")
-        .select("*, financial_profiles(name, color)")
+        .select("*, profile:financial_profiles!properties_profile_id_fkey(name, color)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
