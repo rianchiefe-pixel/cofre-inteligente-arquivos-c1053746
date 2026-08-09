@@ -268,15 +268,7 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                       <span className="text-muted-foreground italic">Não definido</span>
                     )}
                   </td>
-                  <td className="py-4">
-                    {cat.expense_behavior ? (
-                      <Badge variant="outline" className="font-normal">
-                        {cat.expense_behavior === 'fixed' ? 'Gasto fixo' : 'Gasto variável'}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground italic">—</span>
-                    )}
-                  </td>
+                  <td className="py-4 text-muted-foreground italic">—</td>
                   <td className="py-4">
                     {cat.parent_id ? (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
