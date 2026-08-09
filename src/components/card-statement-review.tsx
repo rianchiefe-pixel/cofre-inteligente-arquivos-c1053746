@@ -89,7 +89,7 @@ export function CardStatementReview({
       (
         await supabase
           .from("card_statements")
-          .select("*, cards(name, brand, last4)")
+          .select("*, card:cards(name, brand, last4)")
           .eq("id", statementId!)
           .single()
       ).data,
