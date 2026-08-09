@@ -366,8 +366,6 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
     if (upErr) throw new Error(upErr.message);
 
     return { ok: true, duplicate_of };
-
-    return { ok: true, duplicate_of };
   });
 
 export const approveReceipt = createServerFn({ method: "POST" })
