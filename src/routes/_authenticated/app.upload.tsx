@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/app/upload")({
 
 type Item = {
   file: File;
-  status: "waiting" | "uploading" | "analyzing" | "done" | "duplicate" | "error";
+  status: "waiting" | "uploading" | "enviado" | "lendo" | "identificando" | "cruzando" | "pronto" | "duplicate" | "error";
   message?: string;
   receiptId?: string;
 };
@@ -81,10 +81,16 @@ function UploadPage() {
         }).select("id").single();
         if (insErr || !inserted) throw new Error(insErr?.message ?? "insert falhou");
 
-        setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: "analyzing", receiptId: inserted.id } : it)));
+        setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: "enviado", receiptId: inserted.id } : it)));
+        
+        // Simulação de passos de processamento para feedback visual
+        setTimeout(() => setItems((prev) => prev.map((it, j) => (j === idx && it.status === "enviado" ? { ...it, status: "lendo" } : it))), 1000);
+        setTimeout(() => setItems((prev) => prev.map((it, j) => (j === idx && it.status === "lendo" ? { ...it, status: "identificando" } : it))), 3000);
+        setTimeout(() => setItems((prev) => prev.map((it, j) => (j === idx && it.status === "identificando" ? { ...it, status: "cruzando" } : it))), 5000);
+
         const res = await analyze({ data: { receiptId: inserted.id } });
         if (!res.ok) throw new Error(res.error ?? "Não foi possível analisar o comprovante");
-        setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: res.duplicate_of ? "duplicate" : "done" } : it)));
+        setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: res.duplicate_of ? "duplicate" : "pronto" } : it)));
       } catch (e: any) {
         setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, status: "error", message: e.message } : it)));
       }
@@ -154,19 +160,22 @@ function UploadPage() {
                   <p className="truncate text-sm font-medium text-foreground">{it.file.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {it.status === "waiting" && "Aguardando…"}
-                    {it.status === "uploading" && "Enviando…"}
-                    {it.status === "analyzing" && "Analisando com IA…"}
-                    {it.status === "done" && "Pronto — pendente de conferência"}
+                    {it.status === "uploading" && "Enviando arquivo…"}
+                    {it.status === "enviado" && "Arquivo enviado!"}
+                    {it.status === "lendo" && "Lendo comprovante…"}
+                    {it.status === "identificando" && "Identificando dados…"}
+                    {it.status === "cruzando" && "Cruzando com histórico…"}
+                    {it.status === "pronto" && "Sugestão pronta — aguardando confirmação"}
                     {it.status === "duplicate" && "⚠️ Possível comprovante repetido"}
                     {it.status === "error" && `Erro: ${it.message ?? ""}`}
                   </p>
                 </div>
                 <div>
-                  {(it.status === "uploading" || it.status === "analyzing") && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  {it.status === "done" && <CheckCircle2 className="h-4 w-4 text-success" />}
+                  {(it.status === "uploading" || it.status === "enviado" || it.status === "lendo" || it.status === "identificando" || it.status === "cruzando") && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  {it.status === "pronto" && <CheckCircle2 className="h-4 w-4 text-success" />}
                   {it.status === "duplicate" && <AlertTriangle className="h-4 w-4 text-accent" />}
                   {it.status === "error" && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                  {it.receiptId && (it.status === "done" || it.status === "duplicate") && (
+                  {it.receiptId && (it.status === "pronto" || it.status === "duplicate") && (
                     <Button asChild variant="ghost" size="sm">
                       <Link to="/app/vault" search={{ receipt: it.receiptId }}>Conferir</Link>
                     </Button>
@@ -180,7 +189,7 @@ function UploadPage() {
               <Link
                 to="/app/vault"
                 search={(() => {
-                  const last = [...items].reverse().find((x) => x.receiptId && (x.status === "done" || x.status === "duplicate"));
+                  const last = [...items].reverse().find((x) => x.receiptId && (x.status === "pronto" || x.status === "duplicate"));
                   return last?.receiptId ? { receipt: last.receiptId } : {};
                 })()}
               >

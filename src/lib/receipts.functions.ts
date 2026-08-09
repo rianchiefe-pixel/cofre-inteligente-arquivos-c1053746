@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { centsToNumber, parseBrlAmountToCents } from "@/lib/format";
+import { getPayeeHistory } from "./receipt-intelligence";
 
 async function logAudit(supabase: any, userId: string, params: {
   action: string; entity: string; entity_id?: string | null;
@@ -34,6 +35,7 @@ const ExtractSchema = z.object({
   auth_code: z.string().nullable().describe("Código de autenticação / ID transação / E2E"),
   suggested_category: z.string().nullable().describe("Nome da categoria mais provável (ex: Condomínio, Energia, Mercado, Investimentos)"),
   transaction_type: z.enum(["despesa","investimento","gasto_fixo","gasto_variavel","pessoal","empresarial","patrimonial"]).nullable(),
+  document_type: z.string().nullable().describe("Tipo do documento: comprovante_pix, transferencia, boleto_pago, compra, fatura, outro"),
 });
 
 export const analyzeReceipt = createServerFn({ method: "POST" })
@@ -82,7 +84,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       "- Se o banco de origem não estiver claramente visível, retorne null em bank_name — é melhor null do que errado.",
       "",
       "Devolva APENAS um objeto JSON (sem texto fora do JSON, sem markdown) com as chaves:",
-      "payment_date (YYYY-MM-DD ou null), amount (número em reais, use ponto como separador decimal e sem separador de milhar, ou null), recipient_name, recipient_tax_id (só dígitos), bank_name (banco do PAGADOR, conforme regra acima), payment_method (um de: debito, credito_vista, credito_parcelado, pix, ted, boleto, dinheiro, transferencia, outro, ou null), description, auth_code (ID da transação / autenticação / E2E), suggested_category, transaction_type (um de: despesa, investimento, gasto_fixo, gasto_variavel, pessoal, empresarial, patrimonial, ou null).",
+      "payment_date (YYYY-MM-DD ou null), amount (número em reais, use ponto como separador decimal e sem separador de milhar, ou null), recipient_name, recipient_tax_id (só dígitos), bank_name (banco do PAGADOR, conforme regra acima), payment_method (um de: debito, credito_vista, credito_parcelado, pix, ted, boleto, dinheiro, transferencia, outro, ou null), description, auth_code (ID da transação / autenticação / E2E), suggested_category, transaction_type (um de: despesa, investimento, gasto_fixo, gasto_variavel, pessoal, empresarial, patrimonial, ou null), document_type (tipo do documento: comprovante_pix, transferencia, boleto_pago, compra, fatura, ou outro).",
       "Se um campo não estiver visível, use null.",
     ].join("\n");
     const userContent: any[] = [{ type: "text", text: promptText }];
@@ -155,6 +157,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       auth_code: normalizeString(raw.auth_code ?? raw.codigo_autenticacao ?? raw.id_transacao ?? raw.e2e),
       suggested_category: normalizeString(raw.suggested_category ?? raw.categoria_sugerida ?? raw.categoria),
       transaction_type: normalizeTransactionType(raw.transaction_type ?? raw.tipo_transacao ?? raw.tipo),
+      document_type: normalizeString(raw.document_type ?? raw.tipo_documento),
     });
     const parseGeneratedJson = (raw: string | undefined): z.infer<typeof ExtractSchema> | null => {
       if (!raw) return null;
@@ -212,38 +215,78 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       return { ok: false, duplicate_of: null, error: msg };
     }
 
-    // Look for existing category by name (case-insensitive)
-    let category_id: string | null = null;
-    if (extracted.suggested_category) {
-      const { data: cats } = await supabase
-        .from("categories")
-        .select("id, name")
-        .ilike("name", extracted.suggested_category);
-      if (cats && cats.length > 0) category_id = cats[0].id;
+    // Intelligence Layer: Historical matching & Suggestions
+    let ai_suggested_category_id: string | null = null;
+    let ai_suggested_profile_id: string | null = rec.profile_id; // Default to current profile
+    let ai_confidence: "ALTA" | "MEDIA" | "BAIXA" | "NAO_IDENTIFICADO" = "NAO_IDENTIFICADO";
+    let ai_reason = "";
+    let historySummary: any = null;
+
+    if (extracted.recipient_name) {
+      historySummary = await getPayeeHistory({
+        userId: context.userId,
+        payeeName: extracted.recipient_name,
+        taxId: extracted.recipient_tax_id,
+        supabase
+      });
+
+      if (historySummary && historySummary.count > 0) {
+        // Find most frequent category
+        const sortedCats = Object.entries(historySummary.categories as Record<string, number>)
+          .sort((a, b) => b[1] - a[1]);
+        const mostFreqCat = sortedCats[0];
+
+        // Find most frequent profile
+        const sortedProfs = Object.entries(historySummary.profiles as Record<string, number>)
+          .sort((a, b) => b[1] - a[1]);
+        const mostFreqProf = sortedProfs[0];
+
+        if (mostFreqCat) ai_suggested_category_id = mostFreqCat[0];
+        if (mostFreqProf) ai_suggested_profile_id = mostFreqProf[0];
+
+        // Scoring Confidence
+        const catConsistency = mostFreqCat ? mostFreqCat[1] / historySummary.count : 0;
+        const profConsistency = mostFreqProf ? mostFreqProf[1] / historySummary.count : 0;
+
+        if (historySummary.count >= 5 && catConsistency >= 0.8 && profConsistency >= 0.8) {
+          ai_confidence = "ALTA";
+          ai_reason = `${historySummary.count} transações anteriores deste favorecido foram classificadas como tal nos perfis indicados.`;
+        } else if (historySummary.count >= 2) {
+          ai_confidence = "MEDIA";
+          ai_reason = "Existe histórico semelhante, mas com alguma variação nas classificações anteriores.";
+        } else {
+          ai_confidence = "BAIXA";
+          ai_reason = "Favorecido encontrado poucas vezes no histórico.";
+        }
+      } else {
+        ai_confidence = "BAIXA";
+        ai_reason = "Favorecido sem histórico anterior no Meu Cofre.";
+      }
+    } else {
+      ai_reason = "Não foi possível identificar o favorecido com segurança no comprovante.";
     }
 
-    // Recipient recognition & auto-suggestions
+    // Recipient recognition (sync with intelligence)
     let recipient_id: string | null = null;
     if (extracted.recipient_name) {
       const { data: existing } = await supabase
         .from("recipients")
-        .select("id, default_category_id, default_type, default_profile_id, usage_count")
+        .select("id, default_category_id, usage_count")
         .ilike("name", extracted.recipient_name)
         .limit(1);
       if (existing && existing.length > 0) {
         const r = existing[0];
         recipient_id = r.id;
-        if (!category_id && r.default_category_id) category_id = r.default_category_id;
+        if (!ai_suggested_category_id && r.default_category_id) ai_suggested_category_id = r.default_category_id;
         await supabase.from("recipients").update({ usage_count: (r.usage_count ?? 0) + 1 }).eq("id", r.id);
       } else {
-        const { data: u } = await supabase.auth.getUser();
         const { data: inserted } = await supabase
           .from("recipients")
           .insert({
-            user_id: u.user!.id,
+            user_id: context.userId,
             name: extracted.recipient_name,
             tax_id: extracted.recipient_tax_id,
-            default_category_id: category_id,
+            default_category_id: ai_suggested_category_id,
             default_type: extracted.transaction_type ?? "gasto_variavel",
           })
           .select("id")
@@ -252,69 +295,45 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // -------------------------------------------------------------------------
-    // Duplicidade: apenas provas fortes marcam duplicado. Mesmo valor e mesma
-    // data são apenas suspeita — duas despesas legítimas podem coincidir.
-    // -------------------------------------------------------------------------
+    // Duplicate detection
     let duplicate_of: string | null = null;
     let score = 0;
 
-    // Prova forte 1: arquivo idêntico (mesmo hash de conteúdo).
     if (rec.file_hash) {
-      const { data: sameHash, error: hashErr } = await supabase
+      const { data: sameHash } = await supabase
         .from("receipts")
         .select("id")
         .eq("file_hash", rec.file_hash)
         .neq("id", rec.id)
         .limit(1);
-      if (hashErr) throw new Error(hashErr.message);
-      if (sameHash?.length) {
-        duplicate_of = sameHash[0].id;
-        score = 100;
-      }
+      if (sameHash?.length) { duplicate_of = sameHash[0].id; score = 100; }
     }
 
-    // Prova forte 2: mesmo código de autenticação da transação.
-    if (extracted.auth_code) {
-      const { data: sameAuth, error: authErr } = await supabase
+    if (!duplicate_of && extracted.auth_code) {
+      const { data: sameAuth } = await supabase
         .from("receipts")
         .select("id")
         .eq("auth_code", extracted.auth_code)
         .neq("id", rec.id)
         .limit(1);
-      if (authErr) throw new Error(authErr.message);
-      if (sameAuth?.length) {
-        duplicate_of = duplicate_of ?? sameAuth[0].id;
-        score = Math.max(score, 95);
-      }
+      if (sameAuth?.length) { duplicate_of = sameAuth[0].id; score = 95; }
     }
 
-    // Sinal fraco: valor + data iguais. Gera suspeita para revisão humana,
-    // nunca marca como duplicado automaticamente.
-    if (extracted.amount && extracted.payment_date) {
-      const { data: sameVD, error: vdErr } = await supabase
+    if (!duplicate_of && extracted.amount && extracted.payment_date) {
+      const { data: sameVD } = await supabase
         .from("receipts")
-        .select("id, recipient_name, bank_name, profile_id, auth_code")
+        .select("id, recipient_name, bank_name, profile_id")
         .eq("amount", extracted.amount)
         .eq("payment_date", extracted.payment_date)
         .neq("id", rec.id)
         .limit(5);
-      if (vdErr) throw new Error(vdErr.message);
       if (sameVD?.length) {
-        let s = 40; // suspeita base
+        let s = 40;
         for (const d of sameVD) {
-          if (
-            extracted.recipient_name && d.recipient_name &&
-            d.recipient_name.toLowerCase() === extracted.recipient_name.toLowerCase()
-          ) s += 15;
-          if (
-            extracted.bank_name && d.bank_name &&
-            d.bank_name.toLowerCase() === extracted.bank_name.toLowerCase()
-          ) s += 10;
-          if (rec.profile_id && d.profile_id && d.profile_id === rec.profile_id) s += 5;
+          if (extracted.recipient_name && d.recipient_name && d.recipient_name.toLowerCase() === extracted.recipient_name.toLowerCase()) s += 15;
+          if (extracted.bank_name && d.bank_name && d.bank_name.toLowerCase() === extracted.bank_name.toLowerCase()) s += 10;
         }
-        // Teto abaixo de 80: sem prova forte nunca chega a "duplicado".
-        score = Math.max(score, Math.min(s, 75));
+        score = Math.min(s, 75);
       }
     }
 
@@ -330,11 +349,18 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       description: extracted.description,
       auth_code: extracted.auth_code,
       transaction_type: extracted.transaction_type,
-      category_id,
+      category_id: ai_suggested_category_id, // Initial suggestion
       recipient_id,
       duplicate_of,
       duplicate_score: score,
       status: duplicate_of ? "duplicate" : "pending",
+      // New fields
+      ai_confidence,
+      ai_reason,
+      ai_suggested_category_id,
+      ai_suggested_profile_id,
+      ai_extracted_data: extracted,
+      ai_history_summary: historySummary,
     };
     const { error: upErr } = await supabase.from("receipts").update(update).eq("id", rec.id);
     if (upErr) throw new Error(upErr.message);
@@ -349,7 +375,11 @@ export const approveReceipt = createServerFn({ method: "POST" })
     const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id, notes").eq("id", data.receiptId).single();
     const { data: updated, error } = await context.supabase
       .from("receipts")
-      .update({ status: "approved", approved_at: new Date().toISOString() })
+      .update({ 
+        status: "approved", 
+        approved_at: new Date().toISOString(),
+        user_confirmed_at: new Date().toISOString()
+      })
       .eq("id", data.receiptId)
       .select("id");
     if (error) throw new Error(error.message);
@@ -537,7 +567,10 @@ export const updateReceiptConference = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para editar este comprovante");
     }
 
-    const diff: Record<string, any> = {};
+    const diff: Record<string, any> = {
+      user_confirmed_at: new Date().toISOString(),
+      is_manual_correction: true
+    };
     const oldValues: Record<string, any> = {};
     for (const [k, v] of Object.entries(data.patch)) {
       if (v === undefined) continue;
