@@ -74,7 +74,7 @@ function Dashboard() {
         let rq = supabase
           .from("receipts")
           .select(
-            "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, categories(name), profile_id, financial_profiles(name), property_id, properties(name)",
+            "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, category:categories!receipts_category_id_fkey(name), profile_id, financial_profiles(name), property_id, properties(name)",
           )
           .order("payment_date", { ascending: false })
           .order("id", { ascending: true })
@@ -123,7 +123,7 @@ function Dashboard() {
 
   const byCategory = Object.entries(
     monthReceipts.reduce<Record<string, number>>((acc, r) => {
-      const name = (r as any).categories?.name ?? "Sem categoria";
+      const name = (r as any).category?.name ?? "Sem categoria";
       acc[name] = (acc[name] ?? 0) + Number(r.amount ?? 0);
       return acc;
     }, {}),
@@ -269,7 +269,7 @@ function Dashboard() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{(r as any).recipient_name || (r as any).description || "Comprovante"}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {(r as any).categories?.name ?? "Sem categoria"} • {r.bank_name ?? "Sem banco"} • {(r as any).financial_profiles?.name ?? "—"}
+                    {(r as any).category?.name ?? "Sem categoria"} • {r.bank_name ?? "Sem banco"} • {(r as any).financial_profiles?.name ?? "—"}
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-foreground">{currencyBRL(Number(r.amount ?? 0))}</p>

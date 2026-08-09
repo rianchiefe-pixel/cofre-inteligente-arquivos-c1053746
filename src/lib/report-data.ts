@@ -244,7 +244,7 @@ export async function loadReportDataset(f: Filters): Promise<ReportDataset> {
   for (let offset = 0; offset < 100000; offset += PAGE) {
     let q = supabase
       .from("receipts")
-      .select("id, payment_date, amount, transaction_type, category_id, recipient_name, bank_name, description, notes, payment_method, profile_id, property_id, file_hash, import_row_id")
+      .select("id, payment_date, amount, transaction_type, category_id, recipient_name, bank_name, description, notes, payment_method, profile_id, property_id, file_hash, import_row_id, category:categories!receipts_category_id_fkey(name)")
       .eq("status", "approved")
       .order("payment_date", { ascending: true })
       .order("id", { ascending: true })

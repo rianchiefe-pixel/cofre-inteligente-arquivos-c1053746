@@ -101,7 +101,7 @@ function ReportsPage() {
       for (let offset = 0; offset < 100000; offset += PAGE) {
         let q = supabase
           .from("receipts")
-          .select("*, categories(name), financial_profiles(name), properties(name)")
+          .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), properties(name)")
           .eq("status", "approved")
           .order("payment_date", { ascending: false })
           .order("id", { ascending: true })
@@ -173,7 +173,7 @@ function ReportsPage() {
         { label: "Ticket médio", value: currencyBRL(rows.length ? total / rows.length : 0) },
       ],
       breakdowns: [
-        { title: "Por categoria", rows: groupSum((r) => r.categories?.name) },
+        { title: "Por categoria", rows: groupSum((r) => r.category?.name) },
         { title: "Por banco", rows: groupSum((r) => r.bank_name) },
         { title: "Por perfil", rows: groupSum((r) => r.financial_profiles?.name) },
         { title: "Por imóvel", rows: groupSum((r) => r.properties?.name) },
@@ -185,7 +185,7 @@ function ReportsPage() {
         { header: "Banco", key: "bank", get: (r) => r.bank_name ?? "", width: 16 },
         { header: "Perfil", key: "profile", get: (r) => r.financial_profiles?.name ?? "", width: 16 },
         { header: "Imóvel", key: "property", get: (r) => r.properties?.name ?? "", width: 18 },
-        { header: "Categoria", key: "category", get: (r) => r.categories?.name ?? "", width: 16 },
+        { header: "Categoria", key: "category", get: (r) => r.category?.name ?? "", width: 16 },
         { header: "Tipo", key: "type", get: (r) => transactionTypeLabel[r.transaction_type as string] ?? "", width: 14 },
         { header: "Método", key: "method", get: (r) => paymentMethodLabel[r.payment_method as string] ?? r.payment_method ?? "", width: 14 },
         { header: "Autenticação", key: "auth", get: (r) => r.auth_code ?? "", width: 18 },
@@ -343,7 +343,7 @@ function ReportsPage() {
                 <tr key={r.id} className="hover:bg-muted/40">
                   <td className="whitespace-nowrap px-4 py-3">{dateBR(r.payment_date)}</td>
                   <td className="px-4 py-3">{r.recipient_name ?? "—"}</td>
-                  <td className="px-4 py-3">{r.categories?.name ?? "—"}</td>
+                  <td className="px-4 py-3">{r.category?.name ?? "—"}</td>
                   <td className="px-4 py-3">{r.financial_profiles?.name ?? "—"}</td>
                   <td className="px-4 py-3">{r.bank_name ?? "—"}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium">{currencyBRL(Number(r.amount ?? 0))}</td>
