@@ -299,8 +299,10 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   const contentW = pw - margin * 2;
 
   // Header & Title
-  band(doc, 0, 90, NAVY);
-  band(doc, 90, 4, TAN);
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.rect(0, 0, pw, 90, "F");
+  doc.setFillColor(TAN[0], TAN[1], TAN[2]);
+  doc.rect(0, 90, pw, 4, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
