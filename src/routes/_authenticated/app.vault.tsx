@@ -405,12 +405,12 @@ function VaultPage() {
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
-        .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), banks(name)", { count: "exact" })
+        .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
       
       // The vault shows everything that is not approved/archived as "pending" or "needs attention"
       // or specifically based on the filter.
-      if (quick === "pending") qb = qb.in("status", ["pending", "duplicate", "rejected"]);
+      if (quick === "pending") qb = qb.in("status", ["pending", "duplicate"]).or(`ocr_status.eq.failed,status.eq.pending`);
       else if (quick === "approved") qb = qb.eq("status", "approved");
       else if (quick === "rejected") qb = qb.eq("status", "rejected");
       else if (quick === "archived") qb = qb.eq("status", "archived");
@@ -595,7 +595,7 @@ function VaultPage() {
     (async () => {
       const { data, error } = await supabase
         .from("receipts")
-        .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), banks(name)")
+        .select("*")
         .eq("id", id)
         .maybeSingle();
       if (cancelled) return;
@@ -742,7 +742,7 @@ function VaultPage() {
       if (!res.ok) throw new Error(res.error ?? "Não foi possível analisar o comprovante");
       const { data } = await supabase
         .from("receipts")
-        .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), banks(name)")
+        .select("*")
         .eq("id", original.id)
         .single();
       if (data) await openEdit(data);
@@ -759,7 +759,7 @@ function VaultPage() {
   const goToNextPending = async (currentId: string) => {
     let qb = supabase
       .from("receipts")
-      .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), banks(name)")
+      .select("*")
       .eq("status", "pending")
       .neq("id", currentId)
       .order("created_at", { ascending: false })
@@ -967,12 +967,12 @@ function VaultPage() {
                           {r.recipient_name || "—"}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {r.banks?.name ?? r.bank_name ?? "—"}
+                          {banks.data?.find((b: any) => b.id === r.bank_id)?.name ?? r.bank_name ?? "—"}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {r.financial_profiles?.name ?? "—"}
+                          {profiles.data?.find((p: any) => p.id === r.profile_id)?.name ?? "—"}
                         </TableCell>
-                        <TableCell className="text-xs">{r.category?.name ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "—"}</TableCell>
                         <TableCell className="text-xs">
                           {r.transaction_type
                             ? transactionTypeLabel[
@@ -1036,8 +1036,8 @@ function VaultPage() {
                         {dupScoreBadge(r.duplicate_score)}
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {dateBR(r.payment_date)} • {r.banks?.name ?? r.bank_name ?? "—"} •{" "}
-                        {r.category?.name ?? "sem categoria"}
+                        {dateBR(r.payment_date)} • {banks.data?.find((b: any) => b.id === r.bank_id)?.name ?? r.bank_name ?? "—"} •{" "}
+                        {categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "sem categoria"}
                       </p>
                       <p className="mt-1 text-sm font-semibold">
                         {currencyBRL(Number(r.amount ?? 0))}
@@ -1395,14 +1395,14 @@ function CompareDialog({
     queryFn: async () => {
       const { data: newRec } = await supabase
         .from("receipts")
-        .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), banks(name)")
+        .select("*")
         .eq("id", receiptId!)
         .single();
       if (!newRec) return null;
       const { data: oldRec } = newRec.duplicate_of
         ? await supabase
             .from("receipts")
-            .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), banks(name)")
+            .select("*")
             .eq("id", newRec.duplicate_of)
             .maybeSingle()
         : { data: null };

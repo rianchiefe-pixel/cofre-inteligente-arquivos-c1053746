@@ -60,12 +60,17 @@ function PropertyDetail() {
     },
   });
 
+  const categories = useQuery({
+    queryKey: ["categories-all"],
+    queryFn: async () => (await supabase.from("categories").select("id, name")).data ?? [],
+  });
+
   const receipts = useQuery({
     queryKey: ["property-receipts", id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("receipts")
-        .select("id, amount, status, transaction_type, payment_date, bank_name, category_id, categories(name)")
+        .select("id, amount, status, transaction_type, payment_date, bank_name, category_id")
         .eq("property_id", id)
         .eq("status", "approved")
         .order("payment_date", { ascending: false })
@@ -83,11 +88,12 @@ function PropertyDetail() {
 
   const byCategory = useMemo(() => Object.entries(
     rows.reduce<Record<string, number>>((acc: Record<string, number>, r: any) => {
-      const name = r.categories?.name ?? "Sem categoria";
+      const cat = categories.data?.find((c: any) => c.id === r.category_id);
+      const name = cat?.name ?? "Sem categoria";
       acc[name] = (acc[name] ?? 0) + Number(r.amount ?? 0);
       return acc;
     }, {}),
-  ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6), [rows]);
+  ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6), [rows, categories.data]);
 
   const byMonth = useMemo(() => {
     const map: Record<string, number> = {};
@@ -143,7 +149,7 @@ function PropertyDetail() {
     columns: [
       { header: "Data", key: "payment_date", get: (r: any) => dateBR(r.payment_date), width: 12 },
       { header: "Valor", key: "amount", get: (r: any) => currencyBRL(Number(r.amount ?? 0)), width: 14 },
-      { header: "Categoria", key: "category", get: (r: any) => r.categories?.name ?? "", width: 18 },
+      { header: "Categoria", key: "category", get: (r: any) => categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "", width: 18 },
       { header: "Tipo", key: "type", get: (r: any) => transactionTypeLabel[r.transaction_type as string] ?? "", width: 14 },
       { header: "Banco", key: "bank", get: (r: any) => r.bank_name ?? "", width: 16 },
     ],
@@ -227,7 +233,7 @@ function PropertyDetail() {
               <div className="divide-y divide-border">
                 {topExpenses.map((r: any) => (
                   <div key={r.id} className="flex items-center justify-between py-2 text-sm">
-                    <span className="truncate text-muted-foreground">{r.categories?.name ?? "Sem categoria"} · {dateBR(r.payment_date)}</span>
+                    <span className="truncate text-muted-foreground">{categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "Sem categoria"} · {dateBR(r.payment_date)}</span>
                     <span className="font-semibold">{currencyBRL(Number(r.amount ?? 0))}</span>
                   </div>
                 ))}
@@ -293,7 +299,7 @@ function PropertyDetail() {
             {(rows as any[]).slice(0, 30).map((r) => (
               <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{r.categories?.name ?? "Sem categoria"}</p>
+                  <p className="truncate text-sm font-medium text-foreground">{categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "Sem categoria"}</p>
                   <p className="truncate text-xs text-muted-foreground">{dateBR(r.payment_date)} • {r.bank_name ?? "—"} • {transactionTypeLabel[r.transaction_type as string] ?? "—"}</p>
                 </div>
                 <p className="text-sm font-semibold text-foreground">{currencyBRL(Number(r.amount ?? 0))}</p>
