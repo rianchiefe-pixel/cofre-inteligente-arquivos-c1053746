@@ -388,6 +388,33 @@ export function ConferenceDialog(props: {
             className={`min-h-0 min-w-0 flex-col overflow-y-auto bg-background px-4 py-4 pb-10 ${mobileTab === "form" ? "flex" : "hidden"} lg:flex`}
           >
             <div className="space-y-4">
+              {original.ai_confidence && (
+                <div className={`rounded-xl border p-4 ${
+                  original.ai_confidence === "ALTA" ? "border-success/30 bg-success/5" :
+                  original.ai_confidence === "MEDIA" ? "border-yellow-500/30 bg-yellow-500/5" :
+                  "border-muted bg-muted/20"
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <GitCompareArrows className="h-3.5 w-3.5" /> Inteligência do Cofre
+                    </h3>
+                    <Badge variant={original.ai_confidence === "ALTA" ? "success" : original.ai_confidence === "MEDIA" ? "warning" : "secondary"} className="text-[10px] h-5 px-1.5">
+                      Confiança {original.ai_confidence}
+                    </Badge>
+                  </div>
+                  <p className="text-sm font-medium leading-relaxed">{original.ai_reason}</p>
+                  
+                  {original.ai_history_summary && (
+                    <div className="mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                      <span>• {original.ai_history_summary.count} ocorrências no histórico</span>
+                      {original.ai_history_summary.avgAmount && (
+                        <span>• Média de {currencyBRL(original.ai_history_summary.avgAmount)}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {isDirty && (
                 <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs text-primary">
                   Você tem alterações não salvas. Clique em <strong>Salvar alterações</strong> para
