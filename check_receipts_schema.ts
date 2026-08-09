@@ -6,14 +6,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
   const { data, error } = await supabase
-    .from('financial_profiles')
-    .select('id, name, user_id')
-    .limit(10);
+    .from('receipts')
+    .select('*')
+    .limit(1);
 
   if (error) {
-    console.error('Error fetching profiles:', error);
+    console.error(error);
   } else {
-    console.log('Profiles found:', data);
+    console.log('Receipt columns:', Object.keys(data[0]));
   }
 }
 
