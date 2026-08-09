@@ -41,6 +41,7 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
   const [mergeKeepId, setMergeKeepId] = useState("");
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [bulkType, setBulkType] = useState("");
+  const [bulkBehavior, setBulkBehavior] = useState<string | null>(null);
   const [bulkParentId, setBulkParentId] = useState<string | null>(null);
 
   const fetchStatsFn = useServerFn(getCategoryStats);
@@ -75,7 +76,15 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
   }, [categories, search, filter]);
 
   const bulkUpdateMutation = useMutation({
-    mutationFn: (patch: any) => performBulkFn({ data: { ids: selectedIds, patch, token, profileId } }),
+    mutationFn: (patch: any) => performBulkFn({ data: { 
+      ids: selectedIds, 
+      patch: {
+        ...patch,
+        expense_behavior: bulkBehavior
+      }, 
+      token, 
+      profileId 
+    } }),
     onSuccess: () => {
       toast.success("Atualização em massa concluída");
       setSelectedIds([]);
@@ -234,6 +243,7 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                 </th>
                 <th className="pb-3 font-medium">Nome</th>
                 <th className="pb-3 font-medium">Natureza</th>
+                <th className="pb-3 font-medium">Tipo de Gasto</th>
                 
                 <th className="pb-3 font-medium">Estrutura</th>
                 <th className="pb-3 font-medium text-right">Lançamentos</th>
@@ -268,7 +278,15 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                       <span className="text-muted-foreground italic">Não definido</span>
                     )}
                   </td>
-                  
+                  <td className="py-4">
+                    {cat.expense_behavior ? (
+                      <Badge variant="outline" className={`font-normal ${cat.expense_behavior === 'fixed' ? 'text-accent border-accent/20' : 'text-orange-500 border-orange-500/20'}`}>
+                        {cat.expense_behavior === 'fixed' ? 'Fixo' : 'Variável'}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground italic">Não definido</span>
+                    )}
+                  </td>
                   <td className="py-4">
                     {cat.parent_id ? (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -377,6 +395,20 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                       {Object.entries(transactionTypeLabel).map(([v, l]) => (
                         <SelectItem key={v} value={v}>{l}</SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Alterar Comportamento</label>
+                  <Select value={bulkBehavior || "null"} onValueChange={(v) => setBulkBehavior(v === "null" ? null : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Manter atual" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="null">Não definido</SelectItem>
+                      <SelectItem value="fixed">Gasto Fixo</SelectItem>
+                      <SelectItem value="variable">Gasto Variável</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
