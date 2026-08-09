@@ -307,15 +307,17 @@ function CardDetailPage() {
                   <SelectContent>
                     <SelectItem value="all">Todos os meses</SelectItem>
                     {/* Unique months from transactions are calculated below */}
-                    {Array.from(new Set(transactions.data?.map(t => {
+                    {Array.from(new Set((transactions.data || []).map(t => {
                       if (!t.payment_date) return null;
                       const d = new Date(t.payment_date);
+                      if (isNaN(d.getTime())) return null;
                       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    }).filter(Boolean) || [])).sort().reverse().map(m => {
-                      const [y, mon] = (m as string).split('-');
+                    }).filter(Boolean) as string[])).sort().reverse().map(m => {
+                      const [y, mon] = m.split('-');
                       const date = new Date(parseInt(y), parseInt(mon) - 1);
                       const label = date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-                      return <SelectItem key={m as string} value={m as string}>{label.charAt(0).toUpperCase() + label.slice(1)}</SelectItem>;
+                      const capitalizedLabel = label ? label.charAt(0).toUpperCase() + label.slice(1) : m;
+                      return <SelectItem key={m} value={m}>{capitalizedLabel}</SelectItem>;
                     })}
                   </SelectContent>
                 </Select>
