@@ -6,6 +6,7 @@ import { validateTokenAndGetProfileId } from "./temp-access.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type TransactionType = Database["public"]["Enums"]["transaction_type"];
+type ExpenseBehavior = 'fixed' | 'variable';
 
 async function getSupabaseClient(input: { token?: string }, context: any) {
   if (input.token) {
@@ -45,7 +46,7 @@ export const getCategoryStats = createServerFn({ method: "GET" })
 
     const { data: dbCategories, error: catError } = await supabase
       .from("categories")
-      .select("id, name, default_type, archived, parent_id")
+      .select("id, name, default_type, expense_behavior, archived, parent_id")
       .eq("user_id", userId);
     
     if (catError) throw catError;
@@ -131,6 +132,7 @@ export const bulkUpdateCategories = createServerFn({ method: "POST" })
     ids: z.array(z.string()),
     patch: z.object({
       default_type: z.string().optional(),
+      expense_behavior: z.enum(['fixed', 'variable']).nullable().optional(),
       parent_id: z.string().nullable().optional(),
       archived: z.boolean().optional()
     }),

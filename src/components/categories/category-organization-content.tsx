@@ -382,7 +382,7 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                   if (bulkParentId !== undefined) patch.parent_id = bulkParentId;
                   bulkUpdateMutation.mutate(patch);
                 }}>
-                  Aplicar Alterações
+                  {bulkUpdateMutation.isPending ? "Processando..." : "Aplicar Alterações"}
                 </Button>
               </DialogFooter>
             </DialogContent>

@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useActiveProfile } from "@/hooks/use-active-profile";
+import { getCardsStats } from "@/lib/cards.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, CreditCard, ArrowRight } from "lucide-react";
+import { Plus, CreditCard, ArrowRight, AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { currencyBRL, parseBrlAmount } from "@/lib/format";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
@@ -32,8 +36,17 @@ const BRANDS = ["visa", "mastercard", "elo", "amex", "hipercard", "outro"];
 
 function CardsPage() {
   const qc = useQueryClient();
+  const { activeProfileId } = useActiveProfile();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ name: "", brand: "visa", last4: "", closing_day: "", due_day: "", holder: "", profile_id: "", bank_id: "", credit_limit: "", additional_holders: "" });
+  const [form, setForm] = useState<any>({ name: "", brand: "visa", last4: "", closing_day: "", due_day: "", holder: "", profile_id: activeProfileId || "", bank_id: "", credit_limit: "", additional_holders: "" });
+
+  useEffect(() => {
+    if (activeProfileId) {
+      setForm((prev: any) => ({ ...prev, profile_id: activeProfileId }));
+    }
+  }, [activeProfileId]);
+
+  const getCardsStatsFn = useServerFn(getCardsStats);
 
   const profiles = useQuery({
     queryKey: ["profiles"],
@@ -43,6 +56,7 @@ function CardsPage() {
       return data ?? [];
     },
   });
+
   const banks = useQuery({
     queryKey: ["banks"],
     queryFn: async () => {
@@ -51,17 +65,15 @@ function CardsPage() {
       return data ?? [];
     },
   });
-  const cards = useQuery({
-    queryKey: ["cards"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cards")
-        .select("*, banks(name), financial_profiles(name)")
-        .order("created_at");
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
+
+  const cardsQuery = useQuery({
+    queryKey: ["cards-stats", activeProfileId],
+    queryFn: () => getCardsStatsFn({ data: { profileId: activeProfileId! } }),
+    enabled: !!activeProfileId,
   });
+
+  const cards = cardsQuery.data?.cards || [];
+
 
   const create = useMutation({
     mutationFn: async () => {
@@ -160,11 +172,11 @@ function CardsPage() {
         </Dialog>
       </div>
 
-      {cards.isLoading && <LoadingState label="Carregando cartões…" />}
-      {cards.isError && (
-        <ErrorState error={cards.error} onRetry={() => cards.refetch()} retrying={cards.isFetching} title="Não foi possível carregar os cartões" />
+      {cardsQuery.isLoading && <LoadingState label="Carregando cartões…" />}
+      {cardsQuery.isError && (
+        <ErrorState error={cardsQuery.error} onRetry={() => cardsQuery.refetch()} retrying={cardsQuery.isFetching} title="Não foi possível carregar os cartões" />
       )}
-      {!cards.isLoading && !cards.isError && (cards.data ?? []).length === 0 && (
+      {!cardsQuery.isLoading && !cardsQuery.isError && cards.length === 0 && (
         <EmptyState
           title="Nenhum cartão cadastrado"
           description={
@@ -176,20 +188,54 @@ function CardsPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {(cards.data ?? []).map((c: any) => (
+        {cards.map((c: any) => (
           <Card key={c.id} className="overflow-hidden">
-            <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground">
-              <CreditCard className="h-6 w-6" />
+            <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground relative">
+              <div className="flex justify-between items-start">
+                <CreditCard className="h-6 w-6" />
+                {c.stats?.pendingCount > 0 && (
+                  <Badge className="bg-warning text-warning-foreground border-none">
+                    {c.stats.pendingCount} pendentes
+                  </Badge>
+                )}
+              </div>
               <p className="mt-6 font-mono tracking-wider">•••• •••• •••• {c.last4 ?? "0000"}</p>
-              <p className="mt-3 text-xs uppercase opacity-80">{c.brand}</p>
+              <div className="mt-3 flex justify-between items-end">
+                <p className="text-xs uppercase opacity-80">{c.brand}</p>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase opacity-70">Total Acumulado</p>
+                  <p className="font-bold">{currencyBRL(c.stats?.total || 0)}</p>
+                </div>
+              </div>
             </div>
-            <div className="p-4">
-              <p className="font-medium text-foreground">{c.name}</p>
-              <p className="text-xs text-muted-foreground">{c.banks?.name ?? "—"} • {c.financial_profiles?.name ?? "—"}</p>
-              {(c.closing_day || c.due_day) && <p className="mt-1 text-xs text-muted-foreground">Fech. {c.closing_day ?? "—"} / Venc. {c.due_day ?? "—"}</p>}
-              {c.credit_limit && <p className="mt-1 text-xs text-muted-foreground">Limite {currencyBRL(Number(c.credit_limit))}</p>}
+            <div className="p-4 space-y-3">
+              <div>
+                <p className="font-medium text-foreground">{c.name}</p>
+                <p className="text-xs text-muted-foreground">{c.banks?.name ?? "Safra"} • {profiles.data?.find(p => p.id === activeProfileId)?.name}</p>
+              </div>
+              
+              {c.holders?.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">Portadores</p>
+                  <div className="flex flex-wrap gap-1">
+                    {c.holders.map((h: any) => (
+                      <Badge key={h.id} variant="secondary" className="text-[9px] py-0 px-1.5 font-normal">
+                        {h.holder_name.split(' ')[0]} {h.last4 ? `(${h.last4})` : ''}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground pt-1 border-t border-border/50">
+                <div>Fechamento: <span className="font-medium text-foreground">{c.closing_day || '—'}</span></div>
+                <div>Vencimento: <span className="font-medium text-foreground">{c.due_day || '—'}</span></div>
+              </div>
+
               <Button asChild size="sm" variant="outline" className="mt-3 w-full">
-                <Link to="/app/cards/$id" params={{ id: c.id }}>Abrir cartão <ArrowRight className="h-3 w-3" /></Link>
+                <Link to="/app/cards/$id" params={{ id: c.id }}>
+                  Visualizar Histórico <ArrowRight className="h-3 w-3 ml-2" />
+                </Link>
               </Button>
             </div>
           </Card>

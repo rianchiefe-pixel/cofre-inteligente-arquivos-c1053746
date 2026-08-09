@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -13,7 +13,10 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { ArrowLeft, CreditCard, Eye } from "lucide-react";
+import { ArrowLeft, CreditCard, Eye, History, FileText, Search, Filter } from "lucide-react";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CardStatementImport } from "@/components/card-statement-import";
 import { CardStatementReview } from "@/components/card-statement-review";
 import { currencyBRL } from "@/lib/format";
@@ -36,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/app/cards/$id")({
 
 function CardDetailPage() {
   const { id } = Route.useParams();
+  const qc = useQueryClient();
   const [reviewId, setReviewId] = useState<string | null>(null);
 
   const card = useQuery({
@@ -72,6 +76,31 @@ function CardDetailPage() {
       if (error) throw new Error(error.message);
       return data ?? [];
     },
+  });
+
+  const transactions = useQuery({
+    queryKey: ["card-receipts", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("receipts")
+        .select("*")
+        .eq("card_id", id)
+        .order("date", { ascending: false });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+
+  const updateCardMutation = useMutation({
+    mutationFn: async (patch: any) => {
+      const { error } = await supabase.from("cards").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Cartão atualizado");
+      qc.invalidateQueries({ queryKey: ["card", id] });
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   if (card.isLoading) return <LoadingState label="Carregando cartão…" />;
@@ -120,14 +149,15 @@ function CardDetailPage() {
             <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "titular"}</p>
           </div>
           <div className="space-y-2 p-4 text-sm">
-            <Line label="Banco" value={c.banks?.name ?? "—"} />
+            <Line label="Banco" value={c.banks?.name || "Safra"} />
             <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
             <Line
-              label="Limite"
-              value={c.credit_limit ? currencyBRL(Number(c.credit_limit)) : "—"}
+              label="Total Acumulado"
+              value={transactions.data ? currencyBRL(transactions.data.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0)) : "—"}
             />
             <Line label="Fechamento" value={c.closing_day ?? "—"} />
             <Line label="Vencimento" value={c.due_day ?? "—"} />
+            {c.credit_limit && <Line label="Limite" value={currencyBRL(Number(c.credit_limit))} />}
           </div>
         </Card>
 
@@ -175,68 +205,124 @@ function CardDetailPage() {
         </div>
       </div>
 
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold">Faturas importadas</h2>
-        {statements.isLoading && <LoadingState label="Carregando faturas…" />}
-        {statements.isError && (
-          <div className="mt-3">
-            <ErrorState
-              error={statements.error}
-              onRetry={() => statements.refetch()}
-              retrying={statements.isFetching}
-              title="Não foi possível carregar as faturas"
-            />
-          </div>
-        )}
-        {!statements.isLoading && !statements.isError && (statements.data ?? []).length === 0 && (
-          <div className="mt-3">
-            <EmptyState
-              title="Nenhuma fatura importada"
-              description="Importe o PDF ou CSV da fatura para conciliar as compras deste cartão."
-            />
-          </div>
-        )}
-        <div className={`mt-3 overflow-auto ${(statements.data ?? []).length === 0 || statements.isError ? "hidden" : ""}`}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Arquivo</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(statements.data ?? []).map((s: any) => (
-                <TableRow key={s.id}>
-                  <TableCell className="max-w-[280px] truncate text-xs">
-                    {s.source_file_name}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {s.period_start ? `${s.period_start} a ${s.period_end ?? "?"}` : "—"}
-                  </TableCell>
-                  <TableCell className="text-xs">{s.due_date ?? "—"}</TableCell>
-                  <TableCell className="text-right font-mono text-xs">
-                    {s.total_amount ? currencyBRL(Number(s.total_amount)) : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="uppercase">
-                      {s.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => setReviewId(s.id)}>
-                      <Eye className="h-3 w-3" /> Conferir
-                    </Button>
-                  </TableCell>
+      <Tabs defaultValue="history" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="h-4 w-4" /> Histórico de Lançamentos
+          </TabsTrigger>
+          <TabsTrigger value="statements" className="gap-2">
+            <FileText className="h-4 w-4" /> Faturas Importadas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="history" className="space-y-4">
+          <Card className="p-0 overflow-hidden">
+            <div className="p-4 border-b bg-muted/30 flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Buscar no histórico..." className="pl-9 h-9" />
+              </div>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" /> Filtros
+              </Button>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {transactions.isLoading ? (
+                  <TableRow><TableCell colSpan={6}><LoadingState label="Buscando histórico..." /></TableCell></TableRow>
+                ) : (transactions.data ?? []).length === 0 ? (
+                  <TableRow><TableCell colSpan={6}><div className="py-12 text-center text-muted-foreground">Nenhum lançamento vinculado a este cartão.</div></TableCell></TableRow>
+                ) : (transactions.data ?? []).map((t: any) => (
+                  <TableRow key={t.id} className="group">
+                    <TableCell className="text-xs">
+                      {new Date(t.date).toLocaleDateString('pt-BR')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-sm">{t.description}</div>
+                      {t.notes && <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">{t.notes}</div>}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[10px] font-normal">
+                        {t.category_name || "Sem categoria"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {currencyBRL(Number(t.amount))}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={t.status === 'pending' ? 'secondary' : 'outline'} className={t.status === 'pending' ? 'bg-warning/20 text-warning-foreground border-warning/30' : 'text-success border-success/30'}>
+                        {t.status === 'pending' ? 'Pendente' : 'Conciliado'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="statements" className="space-y-4">
+          <Card className="p-0 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Arquivo</TableHead>
+                  <TableHead>Período</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {statements.isLoading ? (
+                  <TableRow><TableCell colSpan={6}><LoadingState label="Carregando faturas..." /></TableCell></TableRow>
+                ) : (statements.data ?? []).length === 0 ? (
+                  <TableRow><TableCell colSpan={6}><EmptyState title="Nenhuma fatura" description="Importe o PDF ou CSV da fatura para conciliar." /></TableCell></TableRow>
+                ) : (statements.data ?? []).map((s: any) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="max-w-[280px] truncate text-xs font-medium">
+                      {s.source_file_name}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {s.period_start ? `${s.period_start} a ${s.period_end ?? "?"}` : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">{s.due_date ?? "—"}</TableCell>
+                    <TableCell className="text-right font-mono text-xs font-bold">
+                      {s.total_amount ? currencyBRL(Number(s.total_amount)) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="uppercase text-[10px]">
+                        {s.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost" onClick={() => setReviewId(s.id)} className="gap-2">
+                        <Eye className="h-3.5 w-3.5" /> Conferir
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <CardStatementReview
         statementId={reviewId}
