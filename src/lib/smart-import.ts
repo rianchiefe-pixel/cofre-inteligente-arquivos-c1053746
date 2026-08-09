@@ -328,13 +328,11 @@ export function parseBRDate(raw: unknown): string | null {
   if (typeof raw === "number" && Number.isFinite(raw)) {
     // Excel serial date (1900 system)
     // 25569 is the Unix epoch (1970-01-01) in Excel terms
-    // We add a tiny buffer to handle floating point precision
-    const utcMs = Math.round((raw - 25569) * 86400 * 1000);
+    // We add 2 days because Excel erroneously treats 1900 as a leap year
+    // and its epoch is slightly different from Unix epoch in implementation.
+    const utcMs = Math.round((raw - 25569 + 2) * 86400 * 1000);
     const date = new Date(utcMs);
     if (!Number.isNaN(date.getTime())) {
-      // Excel dates are UTC-aligned relative to 1900-01-01
-      // However, 1900 was NOT a leap year but Excel treats it as one for compatibility
-      // For dates after 1900-02-28, the offset is correct.
       const y = date.getUTCFullYear();
       const m = String(date.getUTCMonth() + 1).padStart(2, "0");
       const d = String(date.getUTCDate()).padStart(2, "0");
