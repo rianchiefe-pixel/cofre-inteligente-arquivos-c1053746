@@ -21,7 +21,7 @@ async function audit() {
       description,
       source_file_id,
       bank_account,
-      categories (name)
+      categories!receipts_category_id_fkey (name)
     `)
     .eq('profile_id', profileId)
     .gte('payment_date', startDate)
