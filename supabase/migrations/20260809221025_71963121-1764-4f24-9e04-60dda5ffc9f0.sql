@@ -1,0 +1,1 @@
+UPDATE public.receipts SET profile_id = 'c44c244d-b05f-47dc-bc58-7056351e7703' WHERE id IN ('d13828ff-312f-43e0-bc97-a8d5f2fe1069', 'a01e4293-8e19-4dbc-abca-4c0d906fa77a', '4cfc1801-cbac-492a-93e1-9485b8ce240c', 'b7643e47-3f54-480f-87bb-d9b4875cd37a', '778b1dc9-777c-41a6-9d5e-ac3ec8d961ea');

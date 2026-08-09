@@ -315,30 +315,46 @@ export function parseBRLNumber(raw: unknown): number | null {
 
 export function parseBRDate(raw: unknown): string | null {
   if (raw === null || raw === undefined || raw === "") return null;
+  
+  // If it's already a Date object, extract local parts to avoid UTC shift
   if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
-    return raw.toISOString().slice(0, 10);
+    const y = raw.getFullYear();
+    const m = String(raw.getMonth() + 1).padStart(2, "0");
+    const d = String(raw.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
+
+  // Handle Excel numeric dates
   if (typeof raw === "number" && Number.isFinite(raw)) {
     // Excel serial date (1900 system)
+    // 25569 is the Unix epoch (1970-01-01) in Excel terms
     const utcMs = Math.round((raw - 25569) * 86400 * 1000);
-    const d = new Date(utcMs);
-    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    const date = new Date(utcMs);
+    if (!Number.isNaN(date.getTime())) {
+      // Use UTC parts for Excel numbers as they are base-aligned to UTC midnight
+      const y = date.getUTCFullYear();
+      const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(date.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
   }
+
   const s = String(raw).trim();
   if (!s) return null;
+
   // dd/mm/yyyy or dd-mm-yyyy or dd.mm.yyyy
-  const br = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
-  if (br) {
-    let [_, dd, mm, yy] = br;
+  const brMatch = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
+  if (brMatch) {
+    let [_, dd, mm, yy] = brMatch;
     let year = Number(yy);
     if (year < 100) year += year < 50 ? 2000 : 1900;
-    const iso = `${String(year).padStart(4, "0")}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
-    const d = new Date(iso);
-    if (!Number.isNaN(d.getTime())) return iso;
+    return `${String(year).padStart(4, "0")}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
   }
-  // ISO
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  // ISO yyyy-mm-dd
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+
   return null;
 }
 
