@@ -18,6 +18,17 @@ import { currencyBRL, parseBrlAmount } from "@/lib/format";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 export const Route = createFileRoute("/_authenticated/app/cards/")({
+  head: () => ({
+    meta: [
+      { title: "Cartões — Meu Cofre" },
+      { name: "description", content: "Gerencie cartões de crédito, titulares e faturas dos seus perfis financeiros." },
+      { property: "og:title", content: "Cartões — Meu Cofre" },
+      { property: "og:description", content: "Cartões, titulares adicionais e faturas em um só lugar." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: CardsIndexPage,
 });
 
