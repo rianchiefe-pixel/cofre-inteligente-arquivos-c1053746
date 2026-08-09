@@ -1019,6 +1019,24 @@ function VaultPage() {
                   Limpar filtros
                 </Button>
               )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 ml-auto bg-navy text-white hover:bg-navy/90"
+                onClick={async () => {
+                  const data = await loadReportDataset({
+                    from: "2026-01-01",
+                    to: "2026-07-31",
+                    profileId: profileId !== "all" && profileId !== "__none__" ? profileId : null,
+                  });
+                  await generateFixedVariableReport(data);
+                  toast.success("Relatório gerado com sucesso!");
+                }}
+              >
+                <FileText className="h-4 w-4" />
+                Gerar Relatório (Jan-Jul)
+              </Button>
             </div>
 
             {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly) && (
