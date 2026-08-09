@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/app/upload")({
 
 type Item = {
   file: File;
-  status: "waiting" | "uploading" | "analyzing" | "done" | "duplicate" | "error";
+  status: "waiting" | "uploading" | "enviado" | "lendo" | "identificando" | "cruzando" | "pronto" | "duplicate" | "error";
   message?: string;
   receiptId?: string;
 };
