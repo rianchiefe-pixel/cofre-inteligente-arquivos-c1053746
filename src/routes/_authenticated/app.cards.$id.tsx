@@ -65,14 +65,6 @@ function CardDetailPage() {
     },
   });
 
-  const holders = useQuery({
-    queryKey: ["card-holders", id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("card_holders").select("*").eq("card_id", id);
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
-  });
 
   const statements = useQuery({
     queryKey: ["card-statements", id],
