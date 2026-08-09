@@ -84,7 +84,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       "- Se o banco de origem não estiver claramente visível, retorne null em bank_name — é melhor null do que errado.",
       "",
       "Devolva APENAS um objeto JSON (sem texto fora do JSON, sem markdown) com as chaves:",
-      "payment_date (YYYY-MM-DD ou null), amount (número em reais, use ponto como separador decimal e sem separador de milhar, ou null), recipient_name, recipient_tax_id (só dígitos), bank_name (banco do PAGADOR, conforme regra acima), payment_method (um de: debito, credito_vista, credito_parcelado, pix, ted, boleto, dinheiro, transferencia, outro, ou null), description, auth_code (ID da transação / autenticação / E2E), suggested_category, transaction_type (um de: despesa, investimento, gasto_fixo, gasto_variavel, pessoal, empresarial, patrimonial, ou null).",
+      "payment_date (YYYY-MM-DD ou null), amount (número em reais, use ponto como separador decimal e sem separador de milhar, ou null), recipient_name, recipient_tax_id (só dígitos), bank_name (banco do PAGADOR, conforme regra acima), payment_method (um de: debito, credito_vista, credito_parcelado, pix, ted, boleto, dinheiro, transferencia, outro, ou null), description, auth_code (ID da transação / autenticação / E2E), suggested_category, transaction_type (um de: despesa, investimento, gasto_fixo, gasto_variavel, pessoal, empresarial, patrimonial, ou null), document_type (tipo do documento: comprovante_pix, transferencia, boleto_pago, compra, fatura, ou outro).",
       "Se um campo não estiver visível, use null.",
     ].join("\n");
     const userContent: any[] = [{ type: "text", text: promptText }];
