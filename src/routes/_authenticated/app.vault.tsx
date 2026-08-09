@@ -407,12 +407,16 @@ function VaultPage() {
         .from("receipts")
         .select("*, categories(name), financial_profiles(name), banks(name)", { count: "exact" })
         .order("created_at", { ascending: false });
-      if (quick === "pending") qb = qb.eq("status", "pending");
+      
+      // The vault shows everything that is not approved/archived as "pending" or "needs attention"
+      // or specifically based on the filter.
+      if (quick === "pending") qb = qb.in("status", ["pending", "duplicate", "rejected"]);
       else if (quick === "approved") qb = qb.eq("status", "approved");
       else if (quick === "rejected") qb = qb.eq("status", "rejected");
       else if (quick === "archived") qb = qb.eq("status", "archived");
       else if (quick === "suspected") qb = qb.gte("duplicate_score", 50);
       else if (quick === "high_dup") qb = qb.gte("duplicate_score", 80);
+
       if (profileId !== "all") qb = qb.eq("profile_id", profileId);
       if (bankId !== "all") qb = qb.eq("bank_id", bankId);
       if (categoryId !== "all") qb = qb.eq("category_id", categoryId);

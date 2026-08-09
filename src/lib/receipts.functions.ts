@@ -381,10 +381,14 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       ai_history_summary: historySummary,
     };
     const { error: upErr } = await supabase.from("receipts").update(update).eq("id", rec.id);
-    if (upErr) throw new Error(upErr.message);
+    if (upErr) {
+      console.error(`ERRO RLS/DB ao atualizar receipt ${rec.id}:`, upErr);
+      throw new Error(`Erro ao salvar análise: ${upErr.message} (Verifique as permissões de RLS para o perfil ${update.profile_id})`);
+    }
 
     return { ok: true, duplicate_of };
   });
+
 
 export const approveReceipt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
