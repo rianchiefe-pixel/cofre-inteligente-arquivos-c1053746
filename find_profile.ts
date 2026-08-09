@@ -1,71 +1,54 @@
-import { supabaseAdmin } from './src/integrations/supabase/client.server';
+import { createClient } from '@supabase/supabase-js';
 
-async function findProfile() {
-  const targetEmail = 'advocacia@leilianepereira.com.br';
-  console.log('--- BUSCANDO CONTA ---');
-  
-  const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-  if (authError) {
-    console.error('Erro Auth:', authError);
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function run() {
+  // 1. Find user by email
+  const { data: users, error: userError } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .ilike('email', 'advocacia@leilianepereira.com.br');
+
+  if (userError || !users || users.length === 0) {
+    console.error('User not found:', userError);
     return;
   }
   
-  const user = users.find(u => u.email === targetEmail);
-  if (!user) {
-    console.log('Usuário não encontrado:', targetEmail);
-    return;
-  }
-  
-  console.log('auth_user_id:', user.id);
+  const authUserId = users[0].id;
+  console.log('Auth User ID:', authUserId);
 
-  const { data: profiles, error: profileError } = await supabaseAdmin
+  // 2. Find Pessoal profile for this user
+  const { data: profiles, error: profileError } = await supabase
     .from('financial_profiles')
-    .select('*')
-    .eq('user_id', user.id);
-    
-  if (profileError) {
-    console.error('Erro Profiles:', profileError);
+    .select('id, name, user_id')
+    .eq('user_id', authUserId)
+    .ilike('name', '%Pessoal%');
+
+  if (profileError || !profiles || profiles.length === 0) {
+    console.error('Profile Pessoal not found:', profileError);
     return;
   }
 
-  console.log('\n--- PERFIS ENCONTRADOS ---');
-  for (const p of (profiles || [])) {
-    const { count: catCount } = await supabaseAdmin
-      .from('categories')
-      .select('*', { count: 'exact', head: true })
-      .eq('profile_id', p.id);
-      
-    const { count: recCount } = await supabaseAdmin
-      .from('receipts')
-      .select('*', { count: 'exact', head: true })
-      .eq('profile_id', p.id);
+  const profileId = profiles[0].id;
+  const profileName = profiles[0].name;
+  console.log('Profile ID:', profileId);
+  console.log('Profile Name:', profileName);
 
-    const { data: checkCats } = await supabaseAdmin
-      .from('categories')
-      .select('name')
-      .eq('profile_id', p.id);
+  // 3. Stats
+  const { count: receiptCount } = await supabase
+    .from('receipts')
+    .select('*', { count: 'exact', head: true })
+    .eq('profile_id', profileId);
 
-    const foundNames = checkCats?.map(c => c.name) || [];
-    const validationNames = ['Carro', 'Sala Comercial Leila', 'Casa 26', 'Diarista', 'Educação', 'Farmácia', 'Pensão Alimentícia - Erick'];
-    const matched = validationNames.filter(n => foundNames.includes(n));
+  const { count: categoryCount } = await supabase
+    .from('categories')
+    .select('*', { count: 'exact', head: true })
+    .eq('profile_id', profileId);
 
-    console.log(`ID: ${p.id} | Nome: ${p.name} | Cats: ${catCount} | Receipts: ${recCount}`);
-    console.log(`Validação: ${matched.join(', ')}`);
-    
-    if (matched.length > 0) {
-       const carroCat = (checkCats || []).find(c => c.name === 'Carro');
-       if (carroCat) {
-          // Precisamos do ID da categoria Carro para esse perfil
-          const { data: realCarroCat } = await supabaseAdmin.from('categories').select('id').eq('profile_id', p.id).eq('name', 'Carro').single();
-          if (realCarroCat) {
-             const { data: carroReceipts } = await supabaseAdmin.from('receipts').select('amount_centavos').eq('category_id', realCarroCat.id);
-             const total = carroReceipts?.reduce((acc, r) => acc + (r.amount_centavos || 0), 0) || 0;
-             console.log(`Total Carro: R$ ${(total/100).toLocaleString('pt-BR')} | Lançamentos: ${carroReceipts?.length}`);
-          }
-       }
-    }
-    console.log('---');
-  }
+  console.log('Receipt Count:', receiptCount);
+  console.log('Category Count:', categoryCount);
 }
 
-findProfile();
+run();
