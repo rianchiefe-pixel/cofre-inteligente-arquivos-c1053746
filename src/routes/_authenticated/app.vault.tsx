@@ -1177,6 +1177,7 @@ function VaultPage() {
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
                         {dateBR(r.payment_date)} • {banks.data?.find((b: any) => b.id === r.bank_id)?.name ?? r.bank_name ?? "—"} •{" "}
+                        {profileIdToName.get(r.profile_id) ?? "sem perfil"} •{" "}
                         {categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "sem categoria"}
                       </p>
                       <p className="mt-1 text-sm font-semibold">
