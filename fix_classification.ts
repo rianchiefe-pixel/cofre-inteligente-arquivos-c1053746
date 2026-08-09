@@ -15,10 +15,10 @@ const OFFICIAL_REPORT = {
 async function run() {
   const { data: receipts, error: fetchError } = await supabase
     .from('receipts')
-    .select('id, date, amount_cents, payee, description, transaction_type, category:categories!receipts_category_id_fkey(id, name, default_type)')
+    .select('id, transaction_date, amount_cents, payee, description, transaction_type, category:categories!receipts_category_id_fkey(id, name, default_type)')
     .eq('profile_id', PROFILE_ID)
-    .gte('date', START_DATE)
-    .lte('date', END_DATE);
+    .gte('transaction_date', START_DATE)
+    .lte('transaction_date', END_DATE);
 
   if (fetchError || !receipts) {
     console.error('Erro ao buscar lançamentos:', fetchError);
@@ -67,10 +67,10 @@ async function run() {
 
   const { data: finalReceipts } = await supabase
     .from('receipts')
-    .select('amount_cents, transaction_type, date')
+    .select('amount_cents, transaction_type, transaction_date')
     .eq('profile_id', PROFILE_ID)
-    .gte('date', START_DATE)
-    .lte('date', END_DATE);
+    .gte('transaction_date', START_DATE)
+    .lte('transaction_date', END_DATE);
 
   const totals = { fixed: 0, variable: 0 };
   finalReceipts?.forEach(r => {
@@ -87,7 +87,7 @@ async function run() {
   console.log('7. diferença exata contra o relatório: Fixo R$ ' + ((totals.fixed - OFFICIAL_REPORT.total.fixed)/100).toFixed(2) + ', Variável R$ ' + ((totals.variable - OFFICIAL_REPORT.total.variable)/100).toFixed(2));
   console.log('8. principais lançamentos responsáveis por qualquer diferença restante:');
   const top = receipts.sort((a, b) => b.amount_cents - a.amount_cents).slice(0, 5);
-  top.forEach(t => console.log('- ' + t.date + ' | ' + t.payee + ' | R$ ' + (t.amount_cents/100).toFixed(2) + ' | ' + (t.transaction_type || 'manual')));
+  top.forEach(t => console.log('- ' + t.transaction_date + ' | ' + t.payee + ' | R$ ' + (t.amount_cents/100).toFixed(2) + ' | ' + (t.transaction_type || 'manual')));
 }
 
 run();
