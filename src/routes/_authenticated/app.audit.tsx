@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useMemo } from "react";
-import { ShieldAlert, AlertCircle, Info, Database } from "lucide-react";
+import { ShieldAlert, AlertCircle, Info, Database, ShieldCheck } from "lucide-react";
 import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
