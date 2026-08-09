@@ -92,19 +92,20 @@ function CardDetailPage() {
         query = query.eq("card_holder_id", activeHolderId);
       }
       
-      const { data, error } = await query.order("date", { ascending: false });
+      const { data, error } = await query.order("payment_date", { ascending: false });
       if (error) throw new Error(error.message);
       
       let filtered = data ?? [];
       if (selectedMonth !== "all") {
         const [year, month] = selectedMonth.split("-");
         filtered = filtered.filter(t => {
-          const d = new Date(t.date);
+          if (!t.payment_date) return false;
+          const d = new Date(t.payment_date);
           return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
         });
       }
       
-      return filtered;
+      return filtered as any[];
     },
   });
 
