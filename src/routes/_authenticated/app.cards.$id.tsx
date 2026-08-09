@@ -50,6 +50,7 @@ function CardDetailPage() {
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [activeHolderId, setActiveHolderId] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<string>("history");
 
   const card = useQuery({
     queryKey: ["card", id],
@@ -125,6 +126,7 @@ function CardDetailPage() {
     total: transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0),
     count: transactions.data.length,
     biggest: transactions.data.reduce((max, t) => Math.max(max, Number(t.amount || 0)), 0),
+    avg: transactions.data.length > 0 ? transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0) / transactions.data.length : 0,
     holdersCount: new Set(transactions.data.map(t => t.card_holder_id).filter(Boolean)).size,
     topCategory: transactions.data.length > 0 ? 
       Object.entries(transactions.data.reduce((acc: any, t) => {
@@ -196,19 +198,20 @@ function CardDetailPage() {
           <Card className="overflow-hidden">
             <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground">
               <CreditCard className="h-6 w-6" />
-              <p className="mt-8 font-mono tracking-wider">•••• •••• •••• {c.last4 ?? "••••"}</p>
+              <p className="mt-8 font-mono tracking-wider">•••• •••• •••• {c.last4 && c.last4 !== '0000' ? c.last4 : "????"}</p>
               <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "Titular não identificado"}</p>
             </div>
             <div className="space-y-2 p-4 text-sm">
-              <Line label="Instituição" value={c.banks?.name || "Banco não identificado"} />
-              <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
+              <Line label="Instituição" value={c.banks?.name || "Cartão"} />
+              <Line label="Perfil" value={c.financial_profiles?.name ?? "Pessoal"} />
               <Line
                 label="Total (Filtrado)"
                 value={stats ? currencyBRL(stats.total) : "—"}
               />
               <Line label="Lançamentos" value={stats?.count || 0} />
               <Line label="Portadores" value={stats?.holdersCount || 0} />
-              <Line label="Maior Compra" value={stats ? currencyBRL(stats.biggest) : "—"} />
+               <Line label="Maior Compra" value={stats ? currencyBRL(stats.biggest) : "—"} />
+               <Line label="Gasto Médio" value={stats ? currencyBRL(stats.avg) : "—"} />
               <Line label="Top Categoria" value={stats?.topCategory || "—"} />
               <Line label="Fechamento" value={c.closing_day ? `Dia ${c.closing_day}` : "—"} />
               <Line label="Vencimento" value={c.due_day ? `Dia ${c.due_day}` : "—"} />
@@ -259,7 +262,7 @@ function CardDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="history" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="history" className="gap-2">
             <History className="h-4 w-4" /> Histórico de Lançamentos
@@ -279,13 +282,17 @@ function CardDetailPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os meses</SelectItem>
-                    {/* Unique months from transactions could be added here dynamically */}
-                    <SelectItem value="2026-06">Junho 2026</SelectItem>
-                    <SelectItem value="2026-05">Maio 2026</SelectItem>
-                    <SelectItem value="2026-04">Abril 2026</SelectItem>
-                    <SelectItem value="2026-03">Março 2026</SelectItem>
-                    <SelectItem value="2026-02">Fevereiro 2026</SelectItem>
-                    <SelectItem value="2026-01">Janeiro 2026</SelectItem>
+                    {/* Unique months from transactions are calculated below */}
+                    {Array.from(new Set(transactions.data?.map(t => {
+                      if (!t.payment_date) return null;
+                      const d = new Date(t.payment_date);
+                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    }).filter(Boolean) || [])).sort().reverse().map(m => {
+                      const [y, mon] = (m as string).split('-');
+                      const date = new Date(parseInt(y), parseInt(mon) - 1);
+                      const label = date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+                      return <SelectItem key={m as string} value={m as string}>{label.charAt(0).toUpperCase() + label.slice(1)}</SelectItem>;
+                    })}
                   </SelectContent>
                 </Select>
 
