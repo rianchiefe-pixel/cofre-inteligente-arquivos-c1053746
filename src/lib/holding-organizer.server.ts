@@ -343,6 +343,8 @@ export async function resolveOrganizerItems(
       confidence: suggestion.confidence,
       reason: suggestion.reason,
       rule: ADVOCACIA_RULE_NAME,
+      natureza: suggestion.natureza ?? null,
+      tipo_gasto: suggestion.tipo_gasto ?? null,
       override,
     });
   }
