@@ -8,7 +8,7 @@ async function analyze() {
   console.log('Available users:');
   userData.users.forEach(u => console.log(`- ${u.email} (${u.id})`));
 
-  const targetEmail = 'advocacia@leilianepereira.com';
+  const targetEmail = 'advocacia@leilianepereira.com.br';
   // Try to find by email (exact or partial)
   const user = userData.users.find(u => u.email?.toLowerCase().includes('advocacia@leilianepereira.com'));
   
