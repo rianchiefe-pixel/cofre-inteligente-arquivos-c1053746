@@ -60,6 +60,11 @@ function PropertyDetail() {
     },
   });
 
+  const categories = useQuery({
+    queryKey: ["categories-all"],
+    queryFn: async () => (await supabase.from("categories").select("id, name")).data ?? [],
+  });
+
   const receipts = useQuery({
     queryKey: ["property-receipts", id],
     queryFn: async () => {
@@ -83,12 +88,12 @@ function PropertyDetail() {
 
   const byCategory = useMemo(() => Object.entries(
     rows.reduce<Record<string, number>>((acc: Record<string, number>, r: any) => {
-      // Manual enrichment using local categories data would be better here, 
-      // but for this screen we can fetch categories separately or use the existing query state.
-      // Given the prompt, let's fetch categories in this route too.
+      const cat = categories.data?.find((c: any) => c.id === r.category_id);
+      const name = cat?.name ?? "Sem categoria";
+      acc[name] = (acc[name] ?? 0) + Number(r.amount ?? 0);
       return acc;
     }, {}),
-  ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6), [rows]);
+  ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6), [rows, categories.data]);
 
   const byMonth = useMemo(() => {
     const map: Record<string, number> = {};
