@@ -354,7 +354,8 @@ function VaultPage() {
   const [quick, setQuick] = useState<QuickFilter>("pending");
   const [profileId, setProfileId] = useState<string>("all");
   const [bankId, setBankId] = useState<string>("all");
-  const [categoryId, setCategoryId] = useState<string>("all");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [incompleteOnly, setIncompleteOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [original, setOriginal] = useState<any | null>(null);
   const [draft, setDraft] = useState<any | null>(null);
