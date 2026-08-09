@@ -87,19 +87,23 @@ async function run() {
     const leandroInPlanilha = spreadsheetJan.find(row => String(row['Favorecido'] || '').includes('TEDROS'));
     const leandroInDB = dbReceipts.filter(r => String(r.recipient || '').includes('TEDROS'));
 
+    const despesasExcess = excessDespesas.map(i => ({...i, valor: parseFloat(i.valor.toFixed(2))}));
+    const investExcess = excessInvest.map(i => ({...i, valor: parseFloat(i.valor.toFixed(2))}));
+
     console.log(JSON.stringify({
-        excessDespesas,
-        excessInvest,
-        somaDespesas: excessDespesas.reduce((s, i) => s + i.valor, 0),
-        somaInvest: excessInvest.reduce((s, i) => s + i.valor, 0),
+        excessDespesas: despesasExcess,
+        excessInvest: investExcess,
+        somaDespesas: parseFloat(despesasExcess.reduce((s, i) => s + i.valor, 0).toFixed(2)),
+        somaInvest: parseFloat(investExcess.reduce((s, i) => s + i.valor, 0).toFixed(2)),
         leandroInPlanilha: leandroInPlanilha ? {
             line: leandroInPlanilha._line,
             date: leandroInPlanilha._parsedDate,
             favorecido: leandroInPlanilha['Favorecido'],
             valor: leandroInPlanilha['Valor'],
-            perfil: leandroInPlanilha['Perfil']
+            perfil: leandroInPlanilha['Perfil'],
+            natureza: leandroInPlanilha['Natureza']
         } : null,
-        leandroInDB: leandroInDB.map(r => ({ id: r.id, date: r.date, valor: r.amount }))
+        leandroInDB: leandroInDB.map(r => ({ id: r.id, date: r.date, valor: r.amount, natureza: r.transaction_type }))
     }, null, 2));
 }
 
