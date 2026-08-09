@@ -29,8 +29,8 @@ export async function analyzeCategoriesWithAI(profileId: string, token?: string)
   // Note: Standard project structure uses standard filters.
   const { data: categories } = await supabaseAdmin
     .from("categories")
-    .select("id, name, default_type, archived, parent_id");
-    // .eq("profile_id", targetProfileId) -- If table had profile_id, categories are global in this schema
+    .select("id, name, default_type, archived, parent_id")
+    .is("archived", false);
   
   // Nota: Como a tabela 'categories' parece não ter 'profile_id' diretamente, 
   // mas 'receipts' tem, buscamos a contagem de lançamentos por categoria 
