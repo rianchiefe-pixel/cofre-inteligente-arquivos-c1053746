@@ -119,6 +119,25 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
 
   if (isLoading) return <LoadingState label="Carregando central de categorias..." />;
 
+  if (isError) {
+    return (
+      <Card className="p-12 text-center space-y-4 border-destructive/20 bg-destructive/5">
+        <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertCircle className="h-6 w-6 text-destructive" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="font-medium text-lg text-destructive">Erro ao carregar categorias</h3>
+          <p className="text-muted-foreground max-w-md mx-auto text-sm">
+            {(error as any)?.message || "Ocorreu um erro técnico ao consultar o banco de dados."}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["categories-mgmt"] })}>
+            Tentar novamente
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
   if (!categories || categories.length === 0) {
     return (
       <Card className="p-12 text-center space-y-4">
@@ -126,12 +145,12 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
           <Tag className="h-6 w-6 text-muted-foreground" />
         </div>
         <div className="space-y-2">
-          <h3 className="font-medium text-lg">Nenhuma categoria encontrada no banco</h3>
-          <p className="text-muted-foreground max-w-xs mx-auto">
-            Verificamos seu usuário e não encontramos categorias registradas. Tente sincronizar ou contate o suporte.
+          <h3 className="font-medium text-lg">Nenhuma categoria encontrada</h3>
+          <p className="text-muted-foreground max-w-xs mx-auto text-sm">
+            Não encontramos categorias registradas para seu usuário.
           </p>
           <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["categories-mgmt"] })}>
-            Tentar recarregar
+            Recarregar
           </Button>
         </div>
       </Card>
