@@ -32,8 +32,11 @@ const BRANDS = ["visa", "mastercard", "elo", "amex", "hipercard", "outro"];
 
 function CardsPage() {
   const qc = useQueryClient();
+  const { activeProfileId } = useActiveProfile();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({ name: "", brand: "visa", last4: "", closing_day: "", due_day: "", holder: "", profile_id: "", bank_id: "", credit_limit: "", additional_holders: "" });
+
+  const getCardsStatsFn = useServerFn(getCardsStats);
 
   const profiles = useQuery({
     queryKey: ["profiles"],
@@ -43,6 +46,7 @@ function CardsPage() {
       return data ?? [];
     },
   });
+
   const banks = useQuery({
     queryKey: ["banks"],
     queryFn: async () => {
@@ -51,17 +55,15 @@ function CardsPage() {
       return data ?? [];
     },
   });
-  const cards = useQuery({
-    queryKey: ["cards"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cards")
-        .select("*, banks(name), financial_profiles(name)")
-        .order("created_at");
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
+
+  const cardsQuery = useQuery({
+    queryKey: ["cards-stats", activeProfileId],
+    queryFn: () => getCardsStatsFn({ data: { profileId: activeProfileId! } }),
+    enabled: !!activeProfileId,
   });
+
+  const cards = cardsQuery.data?.cards || [];
+
 
   const create = useMutation({
     mutationFn: async () => {
