@@ -55,14 +55,18 @@ function CardDetailPage() {
   const card = useQuery({
     queryKey: ["card", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cards")
-        .select("*, banks(name), financial_profiles(name, color)")
-        .eq("id", id)
-        .maybeSingle();
-      // maybeSingle: ausência de linha é "não encontrado", não é erro de rede.
-      if (error) throw new Error(error.message);
-      return data ?? null;
+      try {
+        const { data, error } = await supabase
+          .from("cards")
+          .select("*, banks(name), financial_profiles(name, color)")
+          .eq("id", id)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      } catch (e: any) {
+        console.error("[CardDetailPage] Error fetching card:", e);
+        throw e;
+      }
     },
   });
 
