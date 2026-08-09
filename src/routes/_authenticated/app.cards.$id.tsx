@@ -14,6 +14,13 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { ArrowLeft, CreditCard, Eye, History, FileText, Search, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -41,6 +48,8 @@ function CardDetailPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const [reviewId, setReviewId] = useState<string | null>(null);
+  const [activeHolderId, setActiveHolderId] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
 
   const card = useQuery({
     queryKey: ["card", id],
@@ -56,14 +65,6 @@ function CardDetailPage() {
     },
   });
 
-  const holders = useQuery({
-    queryKey: ["card-holders", id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("card_holders").select("*").eq("card_id", id);
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
-  });
 
   const statements = useQuery({
     queryKey: ["card-statements", id],
@@ -79,17 +80,66 @@ function CardDetailPage() {
   });
 
   const transactions = useQuery({
-    queryKey: ["card-receipts", id],
+    queryKey: ["card-receipts", id, activeHolderId, selectedMonth],
+    queryFn: async () => {
+      let query = supabase
+        .from("receipts")
+        .select("*, card_holders(holder_name, last4)")
+        .eq("card_id", id);
+      
+      if (activeHolderId !== "all") {
+        query = query.eq("card_holder_id", activeHolderId);
+      }
+      
+      const { data, error } = await query.order("payment_date", { ascending: false });
+      if (error) throw new Error(error.message);
+      
+      let filtered = data ?? [];
+      if (selectedMonth !== "all") {
+        const [year, month] = selectedMonth.split("-");
+        filtered = filtered.filter(t => {
+          if (!t.payment_date) return false;
+          const d = new Date(t.payment_date);
+          return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+        });
+      }
+      
+      return filtered as any[];
+    },
+  });
+
+  const holders = useQuery({
+    queryKey: ["card-holders", id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("receipts")
+        .from("card_holders")
         .select("*")
         .eq("card_id", id)
-        .order("date", { ascending: false });
+        .order("is_primary", { ascending: false });
       if (error) throw new Error(error.message);
       return data ?? [];
     },
   });
+
+  const stats = transactions.data ? {
+    total: transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0),
+    count: transactions.data.length,
+    biggest: transactions.data.reduce((max, t) => Math.max(max, Number(t.amount || 0)), 0),
+    holdersCount: new Set(transactions.data.map(t => t.card_holder_id).filter(Boolean)).size,
+    topCategory: transactions.data.length > 0 ? 
+      Object.entries(transactions.data.reduce((acc: any, t) => {
+        const cat = t.category_name || 'Sem categoria';
+        acc[cat] = (acc[cat] || 0) + Number(t.amount || 0);
+        return acc;
+      }, {})).sort((a: any, b: any) => b[1] - a[1])[0][0] : '—'
+  } : null;
+
+  const Line = ({ label, value }: { label: string; value: string | number }) => (
+    <div className="flex justify-between border-b border-white/10 pb-1 last:border-0">
+      <span className="text-white/60 text-[10px] uppercase">{label}</span>
+      <span className="font-medium text-xs">{value}</span>
+    </div>
+  );
 
   const updateCardMutation = useMutation({
     mutationFn: async (patch: any) => {
@@ -142,24 +192,61 @@ function CardDetailPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <Card className="overflow-hidden">
-          <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground">
-            <CreditCard className="h-6 w-6" />
-            <p className="mt-8 font-mono tracking-wider">•••• •••• •••• {c.last4 ?? "0000"}</p>
-            <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "titular"}</p>
-          </div>
-          <div className="space-y-2 p-4 text-sm">
-            <Line label="Banco" value={c.banks?.name || "Safra"} />
-            <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
-            <Line
-              label="Total Acumulado"
-              value={transactions.data ? currencyBRL(transactions.data.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0)) : "—"}
-            />
-            <Line label="Fechamento" value={c.closing_day ?? "—"} />
-            <Line label="Vencimento" value={c.due_day ?? "—"} />
-            {c.credit_limit && <Line label="Limite" value={currencyBRL(Number(c.credit_limit))} />}
-          </div>
-        </Card>
+        <div className="space-y-4">
+          <Card className="overflow-hidden">
+            <div className="bg-[image:var(--gradient-primary)] p-5 text-primary-foreground">
+              <CreditCard className="h-6 w-6" />
+              <p className="mt-8 font-mono tracking-wider">•••• •••• •••• {c.last4 ?? "••••"}</p>
+              <p className="mt-3 text-xs uppercase opacity-80">{c.holder ?? "Titular não identificado"}</p>
+            </div>
+            <div className="space-y-2 p-4 text-sm">
+              <Line label="Instituição" value={c.banks?.name || "Banco não identificado"} />
+              <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
+              <Line
+                label="Total (Filtrado)"
+                value={stats ? currencyBRL(stats.total) : "—"}
+              />
+              <Line label="Lançamentos" value={stats?.count || 0} />
+              <Line label="Portadores" value={stats?.holdersCount || 0} />
+              <Line label="Maior Compra" value={stats ? currencyBRL(stats.biggest) : "—"} />
+              <Line label="Top Categoria" value={stats?.topCategory || "—"} />
+              <Line label="Fechamento" value={c.closing_day ? `Dia ${c.closing_day}` : "—"} />
+              <Line label="Vencimento" value={c.due_day ? `Dia ${c.due_day}` : "—"} />
+              {c.credit_limit && <Line label="Limite" value={currencyBRL(Number(c.credit_limit))} />}
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="text-sm font-semibold mb-3">Portadores</h2>
+            {holders.isError ? (
+              <ErrorState
+                error={holders.error}
+                onRetry={() => holders.refetch()}
+                retrying={holders.isFetching}
+                title="Erro ao carregar titulares"
+              />
+            ) : holders.isLoading ? (
+              <LoadingState label="Carregando portadores…" />
+            ) : holders.data && holders.data.length > 0 ? (
+              <ul className="flex flex-wrap gap-2">
+                {holders.data.map((h: any) => (
+                  <li
+                    key={h.id}
+                    className="rounded-full border bg-muted/40 px-3 py-1 text-[11px] font-medium"
+                  >
+                    {h.holder_name}
+                    {h.last4 ? ` • final ${h.last4}` : ""}
+                    {h.is_primary ? " (Principal)" : ""}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Nenhum portador identificado.
+              </p>
+            )}
+          </Card>
+        </div>
 
         <div className="space-y-4">
           <CardStatementImport
@@ -169,39 +256,6 @@ function CardDetailPage() {
               setReviewId(sid);
             }}
           />
-
-          <Card className="p-5">
-            <h2 className="text-sm font-semibold">Titulares identificados</h2>
-            {holders.isError ? (
-              <div className="mt-3">
-                <ErrorState
-                  error={holders.error}
-                  onRetry={() => holders.refetch()}
-                  retrying={holders.isFetching}
-                  title="Não foi possível carregar os titulares"
-                />
-              </div>
-            ) : holders.isLoading ? (
-              <LoadingState label="Carregando titulares…" />
-            ) : holders.data && holders.data.length > 0 ? (
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {holders.data.map((h: any) => (
-                  <li
-                    key={h.id}
-                    className="rounded-full border bg-muted/40 px-3 py-1 text-xs"
-                  >
-                    {h.holder_name}
-                    {h.last4 ? ` • final ${h.last4}` : ""}
-                    {h.is_primary ? " (titular)" : ""}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Titulares e finais adicionais serão identificados automaticamente na primeira fatura importada.
-              </p>
-            )}
-          </Card>
         </div>
       </div>
 
@@ -218,55 +272,96 @@ function CardDetailPage() {
         <TabsContent value="history" className="space-y-4">
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b bg-muted/30 flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-sm">
+              <div className="flex items-center gap-3 overflow-x-auto pb-2 sm:pb-0">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="h-9 w-[180px]">
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os meses</SelectItem>
+                    {/* Unique months from transactions could be added here dynamically */}
+                    <SelectItem value="2026-06">Junho 2026</SelectItem>
+                    <SelectItem value="2026-05">Maio 2026</SelectItem>
+                    <SelectItem value="2026-04">Abril 2026</SelectItem>
+                    <SelectItem value="2026-03">Março 2026</SelectItem>
+                    <SelectItem value="2026-02">Fevereiro 2026</SelectItem>
+                    <SelectItem value="2026-01">Janeiro 2026</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={activeHolderId} onValueChange={setActiveHolderId}>
+                  <SelectTrigger className="h-9 w-[180px]">
+                    <SelectValue placeholder="Portador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os portadores</SelectItem>
+                    {holders.data?.map((h: any) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.holder_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="relative flex-1 max-w-xs hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Buscar no histórico..." className="pl-9 h-9" />
               </div>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="h-4 w-4" /> Filtros
-              </Button>
             </div>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
+                  <TableHead>Portador</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Comprovante</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.isLoading ? (
-                  <TableRow><TableCell colSpan={6}><LoadingState label="Buscando histórico..." /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7}><LoadingState label="Buscando histórico..." /></TableCell></TableRow>
                 ) : (transactions.data ?? []).length === 0 ? (
-                  <TableRow><TableCell colSpan={6}><div className="py-12 text-center text-muted-foreground">Nenhum lançamento vinculado a este cartão.</div></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7}><div className="py-12 text-center text-muted-foreground">Nenhum lançamento encontrado com estes filtros.</div></TableCell></TableRow>
                 ) : (transactions.data ?? []).map((t: any) => (
                   <TableRow key={t.id} className="group">
-                    <TableCell className="text-xs">
-                      {new Date(t.date).toLocaleDateString('pt-BR')}
+                    <TableCell className="text-[11px] font-mono">
+                      {t.payment_date ? new Date(t.payment_date).toLocaleDateString('pt-BR') : '—'}
+                    </TableCell>
+                    <TableCell className="text-[11px]">
+                      {t.card_holders?.holder_name || "—"}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-sm">{t.description}</div>
-                      {t.notes && <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">{t.notes}</div>}
+                      <div className="font-medium text-xs">{t.description}</div>
+                      {t.notes && <div className="text-[9px] text-muted-foreground truncate max-w-[200px]">{t.notes}</div>}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-[10px] font-normal">
+                      <Badge variant="outline" className="text-[9px] font-normal py-0">
                         {t.category_name || "Sem categoria"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
+                    <TableCell className="text-right font-mono text-xs">
                       {currencyBRL(Number(t.amount))}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={t.status === 'pending' ? 'secondary' : 'outline'} className={t.status === 'pending' ? 'bg-warning/20 text-warning-foreground border-warning/30' : 'text-success border-success/30'}>
-                        {t.status === 'pending' ? 'Pendente' : 'Conciliado'}
-                      </Badge>
+                      {t.file_path ? (
+                        <Button 
+                          variant="link" 
+                          className="h-auto p-0 text-[10px] text-success hover:text-success/80"
+                          onClick={() => window.open(supabase.storage.from('receipts').getPublicUrl(t.file_path).data.publicUrl, '_blank')}
+                        >
+                          Ver PDF
+                        </Button>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground italic">Sem comprovante</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                        <Eye className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100">
+                        <Eye className="h-3.5 w-3.5" />
                       </Button>
                     </TableCell>
                   </TableRow>
