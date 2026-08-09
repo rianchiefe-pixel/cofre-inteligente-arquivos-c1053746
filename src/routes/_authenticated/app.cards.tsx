@@ -226,12 +226,10 @@ function CardsPage() {
                 <div>Vencimento: <span className="font-medium text-foreground">{c.due_day || '—'}</span></div>
               </div>
 
-              <p className="font-medium text-foreground">{c.name}</p>
-              <p className="text-xs text-muted-foreground">{c.banks?.name ?? "—"} • {c.financial_profiles?.name ?? "—"}</p>
-              {(c.closing_day || c.due_day) && <p className="mt-1 text-xs text-muted-foreground">Fech. {c.closing_day ?? "—"} / Venc. {c.due_day ?? "—"}</p>}
-              {c.credit_limit && <p className="mt-1 text-xs text-muted-foreground">Limite {currencyBRL(Number(c.credit_limit))}</p>}
               <Button asChild size="sm" variant="outline" className="mt-3 w-full">
-                <Link to="/app/cards/$id" params={{ id: c.id }}>Abrir cartão <ArrowRight className="h-3 w-3" /></Link>
+                <Link to="/app/cards/$id" params={{ id: c.id }}>
+                  Visualizar Histórico <ArrowRight className="h-3 w-3 ml-2" />
+                </Link>
               </Button>
             </div>
           </Card>
