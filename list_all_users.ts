@@ -1,16 +1,13 @@
 import { supabaseAdmin } from './src/integrations/supabase/client.server';
 
-async function run() {
-  const { data: users, error: userError } = await supabaseAdmin.auth.admin.listUsers();
-  if (userError) {
-    console.error('Erro ao listar usuários:', userError);
+async function listUsers() {
+  const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+  if (error) {
+    console.error(error);
     return;
   }
-  
-  console.log('Total de usuários:', users.users.length);
-  users.users.forEach(u => {
-    console.log(`- ${u.email} (${u.id})`);
-  });
+  console.log('--- USUÁRIOS NO BANCO ---');
+  users.forEach(u => console.log(`Email: ${u.email} | ID: ${u.id}`));
 }
 
-run();
+listUsers();
