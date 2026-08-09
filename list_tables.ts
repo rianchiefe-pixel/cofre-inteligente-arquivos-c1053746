@@ -1,16 +1,20 @@
-import { supabaseAdmin } from './src/integrations/supabase/client.server';
+import { createClient } from '@supabase/supabase-js';
 
-async function list() {
-  const { data, error } = await supabaseAdmin.rpc('get_tables');
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function run() {
+  const { data, error } = await supabase
+    .from('financial_profiles')
+    .select('id, name, user_id')
+    .limit(10);
+
   if (error) {
-     // fallback
-     const tables = ['receipts', 'categories', 'financial_profiles', 'financial_transactions', 'import_rows'];
-     for (const t of tables) {
-        const { data: sample } = await supabaseAdmin.from(t).select('*').limit(1);
-        console.log(`Tabela: ${t} | Amostra keys:`, sample ? Object.keys(sample[0]) : 'Vazia');
-     }
+    console.error('Error fetching profiles:', error);
   } else {
-     console.log('Tabelas:', data);
+    console.log('Profiles found:', data);
   }
 }
-list();
+
+run();
