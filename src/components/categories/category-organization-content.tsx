@@ -16,7 +16,8 @@ import {
   AlertCircle, 
   MoreHorizontal,
   Settings2,
-  ArrowRight
+  ArrowRight,
+  Layers
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getCategoryStats, mergeCategories, bulkUpdateCategories } from "@/lib/categories-mgmt.functions";
