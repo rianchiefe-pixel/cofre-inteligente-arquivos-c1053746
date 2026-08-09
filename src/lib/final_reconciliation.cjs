@@ -21,7 +21,7 @@ function parseBRDate(raw) {
 }
 
 async function run() {
-    const workbook = xlsx.readFile('meu-cofre-categorias-corrigidas-ate-30-04-2026.xlsx');
+    const workbook = xlsx.readFile('/tmp/user-uploads/meu-cofre-categorias-corrigidas-ate-30-04-2026.xlsx');
     const sheetName = 'Meu Cofre Corrigido';
     const sheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(sheet, { raw: true });
