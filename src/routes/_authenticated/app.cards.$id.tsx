@@ -126,6 +126,7 @@ function CardDetailPage() {
     total: transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0),
     count: transactions.data.length,
     biggest: transactions.data.reduce((max, t) => Math.max(max, Number(t.amount || 0)), 0),
+    avg: transactions.data.length > 0 ? transactions.data.reduce((acc, t) => acc + Number(t.amount || 0), 0) / transactions.data.length : 0,
     holdersCount: new Set(transactions.data.map(t => t.card_holder_id).filter(Boolean)).size,
     topCategory: transactions.data.length > 0 ? 
       Object.entries(transactions.data.reduce((acc: any, t) => {
@@ -202,14 +203,15 @@ function CardDetailPage() {
             </div>
             <div className="space-y-2 p-4 text-sm">
               <Line label="Instituição" value={c.banks?.name || "Cartão"} />
-              <Line label="Perfil" value={c.financial_profiles?.name ?? "—"} />
+              <Line label="Perfil" value={c.financial_profiles?.name ?? "Pessoal"} />
               <Line
                 label="Total (Filtrado)"
                 value={stats ? currencyBRL(stats.total) : "—"}
               />
               <Line label="Lançamentos" value={stats?.count || 0} />
               <Line label="Portadores" value={stats?.holdersCount || 0} />
-              <Line label="Maior Compra" value={stats ? currencyBRL(stats.biggest) : "—"} />
+               <Line label="Maior Compra" value={stats ? currencyBRL(stats.biggest) : "—"} />
+               <Line label="Gasto Médio" value={stats ? currencyBRL(stats.avg) : "—"} />
               <Line label="Top Categoria" value={stats?.topCategory || "—"} />
               <Line label="Fechamento" value={c.closing_day ? `Dia ${c.closing_day}` : "—"} />
               <Line label="Vencimento" value={c.due_day ? `Dia ${c.due_day}` : "—"} />
