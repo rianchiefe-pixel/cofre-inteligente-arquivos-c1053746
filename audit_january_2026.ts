@@ -5,22 +5,21 @@ async function audit() {
   const startDate = '2026-01-01';
   const endDate = '2026-01-31';
 
-  // 1. Buscar todos os receipts de Janeiro para o perfil
+  // Buscar todos os receipts de Janeiro para o perfil
   const { data: receipts, error } = await supabaseAdmin
     .from('receipts')
     .select(`
       id,
       payment_date,
-      purchase_date,
       amount,
       transaction_type,
       expense_behavior,
-      beneficiary,
+      recipient_name,
       status,
       duplicate_of,
       description,
-      source_file_id,
-      bank_account,
+      import_row_id,
+      bank_name,
       categories!receipts_category_id_fkey (name)
     `)
     .eq('profile_id', profileId)
@@ -31,8 +30,6 @@ async function audit() {
     console.error('Erro ao buscar receipts:', error);
     return;
   }
-
-  console.log(`Total de receipts encontrados para Janeiro/2026: ${receipts.length}`);
 
   let totalFinanceiro = 0;
   let totalDespesas = 0;
@@ -46,37 +43,37 @@ async function audit() {
   for (const r of receipts) {
     const amount = Number(r.amount) || 0;
     
-    // Contabilização básica para comparação com o "Banco Atual" do usuário
+    // Contabilização para comparação com "Banco Atual"
     if (r.status !== 'rejected' && r.status !== 'archived') {
       if (r.transaction_type === 'despesa') totalDespesas += amount;
       if (r.transaction_type === 'investimento') totalInvestimentos += amount;
       totalFinanceiro += amount;
     }
 
-    // Identificação de possíveis problemas
     const isDuplicate = !!r.duplicate_of;
-    const isInternal = r.beneficiary?.toLowerCase().includes('transferência') || 
-                       r.beneficiary?.toLowerCase().includes('fatura') ||
-                       r.description?.toLowerCase().includes('pagamento fatura');
+    const desc = (r.description || '').toLowerCase();
+    const recip = (r.recipient_name || '').toLowerCase();
+    const isInternal = recip.includes('transferência') || 
+                       recip.includes('fatura') ||
+                       desc.includes('pagamento fatura') ||
+                       desc.includes('transferencia entre contas') ||
+                       desc.includes('liquidacao fatura');
     const isNotActive = r.status === 'rejected' || r.status === 'archived';
 
     if (isDuplicate) totalDuplicidades += amount;
     if (isInternal) totalTransferenciasFaturas += amount;
     if (isNotActive) totalArquivadosRejeitados += amount;
 
-    // Critério de "Excedente": 
-    // - Lançamentos grandes que podem não estar no relatório
-    // - Transferências que deveriam ser ignoradas
-    // - Duplicatas
+    // Critério para auditoria detalhada
     if (isDuplicate || isInternal || isNotActive || amount > 5000) {
       excedentes.push({
-        id: r.id,
+        id: r.id.substring(0, 8),
         data: r.payment_date,
-        favorecido: r.beneficiary,
+        favorecido: r.recipient_name,
         valor: amount,
-        categoria: r.categories?.name,
+        categoria: r.categories?.name || 'Sem categoria',
         natureza: r.transaction_type,
-        banco: r.bank_account,
+        banco: r.bank_name,
         status: r.status,
         motivo: isDuplicate ? 'Duplicata' : (isInternal ? 'Transf/Fatura' : (isNotActive ? 'Arquivado/Rejeitado' : 'Valor Elevado'))
       });
@@ -84,20 +81,21 @@ async function audit() {
   }
 
   console.log('\n--- Auditoria Janeiro 2026 ---');
-  console.log(`1. Total de receipts: ${receipts.length}`);
-  console.log(`2. Total financeiro ativo encontrado: R$ ${totalFinanceiro.toFixed(2)}`);
-  console.log(`   - Despesas: R$ ${totalDespesas.toFixed(2)}`);
-  console.log(`   - Investimentos: R$ ${totalInvestimentos.toFixed(2)}`);
-  console.log(`3. Valor de duplicidades: R$ ${totalDuplicidades.toFixed(2)}`);
-  console.log(`4. Valor de pagamentos de fatura/transferências internas: R$ ${totalTransferenciasFaturas.toFixed(2)}`);
-  console.log(`5. Valor de registros arquivados/rejeitados: R$ ${totalArquivadosRejeitados.toFixed(2)}`);
+  console.log(`1. Total de receipts de Janeiro: ${receipts.length}`);
+  console.log(`2. Total financeiro encontrado: R$ ${totalFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+  console.log(`   - Despesas: R$ ${totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+  console.log(`   - Investimentos: R$ ${totalInvestimentos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+  console.log(`3. Valor de duplicidades: R$ ${totalDuplicidades.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+  console.log(`4. Valor de pagamentos de fatura/transferências internas: R$ ${totalTransferenciasFaturas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+  console.log(`5. Valor de outro perfil/status incorreto (Arquivados/Rejeitados): R$ ${totalArquivadosRejeitados.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
   
   const diffInvest = totalInvestimentos - 129734.89;
   const diffDesp = totalDespesas - 72794.70;
-  console.log(`\n6. Diferença Investimentos vs Relatório: R$ ${diffInvest.toFixed(2)}`);
-  console.log(`   Diferença Despesas vs Relatório: R$ ${diffDesp.toFixed(2)}`);
+  console.log(`6. Demais diferenças:`);
+  console.log(`   - Diferença Investimentos: R$ ${diffInvest.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+  console.log(`   - Diferença Despesas: R$ ${diffDesp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
 
-  console.log('\n7. Top 20 maiores lançamentos responsáveis pela divergência (ou excedentes):');
+  console.log('\n7. Lista dos 20 maiores lançamentos responsáveis pela divergência:');
   excedentes.sort((a, b) => b.valor - a.valor);
   console.table(excedentes.slice(0, 20));
 }
