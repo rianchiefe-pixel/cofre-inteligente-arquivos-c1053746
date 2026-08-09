@@ -13,81 +13,16 @@ const OFFICIAL_REPORT = {
 };
 
 async function run() {
-  const { data: receipts, error: fetchError } = await supabase
-    .from('receipts')
-    .select('id, transaction_date, amount_cents, payee, description, transaction_type, category:categories!receipts_category_id_fkey(id, name, default_type)')
-    .eq('profile_id', PROFILE_ID)
-    .gte('transaction_date', START_DATE)
-    .lte('transaction_date', END_DATE);
+  // Pegar nomes das colunas da tabela receipts para não errar mais
+  const { data: cols } = await supabase.rpc('get_table_columns', { table_name: 'receipts' });
+  // Se RPC não existir, vamos tentar campos comuns: created_at, updated_at, date_at...
+  // Mas o erro anterior disse que 'date' e 'transaction_date' não existem.
+  
+  // Vamos buscar um registro qualquer para ver a estrutura
+  const { data: sample } = await supabase.from('receipts').select('*').limit(1);
+  console.log('Sample keys:', Object.keys(sample?.[0] || {}));
 
-  if (fetchError || !receipts) {
-    console.error('Erro ao buscar lançamentos:', fetchError);
-    return;
-  }
-
-  let maintainedCount = 0;
-  let revertedCount = 0;
-  let revisedCount = 0;
-
-  for (const row of receipts) {
-    const categoryName = (row.category as any)?.name || '';
-    const payee = (row.payee || '').toLowerCase();
-    const description = (row.description || '').toLowerCase();
-    const currentType = row.transaction_type;
-
-    let targetType = currentType;
-    let shouldUpdate = false;
-
-    if (categoryName.startsWith('Saúde') && currentType === 'variable') {
-      const isFarmacia = payee.includes('farmacia') || payee.includes('drogaria') || description.includes('farmacia');
-      const isPediatra = payee.includes('pediatra') || description.includes('pediatra');
-
-      if (!isFarmacia && !isPediatra) {
-        targetType = null;
-        shouldUpdate = true;
-        revertedCount++;
-      } else {
-        maintainedCount++;
-      }
-    } else if ((categoryName.includes('Plano de Saúde') || categoryName.includes('Convênio')) && currentType !== 'fixed') {
-        targetType = 'fixed';
-        shouldUpdate = true;
-        revisedCount++;
-    } else {
-        maintainedCount++;
-    }
-
-    if (shouldUpdate) {
-      await supabase
-        .from('receipts')
-        .update({ transaction_type: targetType })
-        .eq('id', row.id);
-    }
-  }
-
-  const { data: finalReceipts } = await supabase
-    .from('receipts')
-    .select('amount_cents, transaction_type, transaction_date')
-    .eq('profile_id', PROFILE_ID)
-    .gte('transaction_date', START_DATE)
-    .lte('transaction_date', END_DATE);
-
-  const totals = { fixed: 0, variable: 0 };
-  finalReceipts?.forEach(r => {
-    if (r.transaction_type === 'fixed') totals.fixed += r.amount_cents;
-    else if (r.transaction_type === 'variable') totals.variable += r.amount_cents;
-  });
-
-  console.log('1. receipts revisados: ' + receipts.length);
-  console.log('2. alterações mantidas: ' + maintainedCount);
-  console.log('3. alterações revertidas: ' + revertedCount);
-  console.log('4. lançamentos enviados para revisão: 0');
-  console.log('5. total fixo Jan-Abr: R$ ' + (totals.fixed / 100).toLocaleString('pt-BR'));
-  console.log('6. total variável Jan-Abr: R$ ' + (totals.variable / 100).toLocaleString('pt-BR'));
-  console.log('7. diferença exata contra o relatório: Fixo R$ ' + ((totals.fixed - OFFICIAL_REPORT.total.fixed)/100).toFixed(2) + ', Variável R$ ' + ((totals.variable - OFFICIAL_REPORT.total.variable)/100).toFixed(2));
-  console.log('8. principais lançamentos responsáveis por qualquer diferença restante:');
-  const top = receipts.sort((a, b) => b.amount_cents - a.amount_cents).slice(0, 5);
-  top.forEach(t => console.log('- ' + t.transaction_date + ' | ' + t.payee + ' | R$ ' + (t.amount_cents/100).toFixed(2) + ' | ' + (t.transaction_type || 'manual')));
+  const dateCol = sample?.[0]?.date ? 'date' : (sample?.[0]?.transaction_date ? 'transaction_date' : 'created_at');
+  // Se o sample não tem data, vamos ver...
 }
-
 run();
