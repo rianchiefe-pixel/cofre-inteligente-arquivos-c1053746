@@ -220,6 +220,8 @@ export type AdvocaciaSuggestion = {
   matchedTerms: string[];
   reason: string;
   propertyHint: string | null;
+  natureza?: string | null;
+  tipo_gasto?: "fixo" | "variavel" | null;
 };
 
 /** Extrai um endereço utilizável como nome de imóvel; null quando não há confiança. */
