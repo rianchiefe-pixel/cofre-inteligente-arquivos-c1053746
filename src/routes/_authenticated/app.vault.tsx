@@ -78,6 +78,8 @@ import {
   updateReceiptConference,
   archiveReceipt,
 } from "@/lib/receipts.functions";
+import { generateFixedVariableReport } from "@/lib/report-templates";
+import { loadReportDataset } from "@/lib/report-data";
 
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
