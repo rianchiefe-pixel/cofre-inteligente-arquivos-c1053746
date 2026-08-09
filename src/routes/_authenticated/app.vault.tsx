@@ -1110,7 +1110,7 @@ function VaultPage() {
                           {banks.data?.find((b: any) => b.id === r.bank_id)?.name ?? r.bank_name ?? "—"}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {profiles.data?.find((p: any) => p.id === r.profile_id)?.name ?? "—"}
+                          {profileIdToName.get(r.profile_id) ?? "—"}
                         </TableCell>
                         <TableCell className="text-xs">{categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "—"}</TableCell>
                         <TableCell className="text-xs">
