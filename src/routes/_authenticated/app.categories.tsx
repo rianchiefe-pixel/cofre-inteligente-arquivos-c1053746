@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useActiveProfile } from "@/hooks/use-active-profile";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -32,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/app/categories")({
 
 function CategoriesMgmtPage() {
   const qc = useQueryClient();
-  const HOLDING_PROFILE_ID = "2906fc21-93bc-42ad-8ca3-701b94fdb5f6";
+  const { activeProfileId } = useActiveProfile();
   const [activeTab, setActiveTab] = useState("all");
   const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
 
@@ -40,13 +42,21 @@ function CategoriesMgmtPage() {
   const getActiveTokenFn = useServerFn(getActiveTempAccessToken);
   const revokeTokenFn = useServerFn(revokeTempAccessToken);
 
-  const { data: activeToken, isLoading: isLoadingToken } = useQuery({
-    queryKey: ["active-temp-token", HOLDING_PROFILE_ID],
-    queryFn: () => getActiveTokenFn({ data: { profileId: HOLDING_PROFILE_ID } }),
+  const { data: activeToken } = useQuery({
+    queryKey: ["active-temp-token", activeProfileId],
+    queryFn: () => activeProfileId ? getActiveTokenFn({ data: { profileId: activeProfileId } }) : null,
+    enabled: !!activeProfileId,
   });
 
+  const { data: profiles } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: async () => (await supabase.from("financial_profiles").select("id, name")).data ?? [],
+  });
+
+  const activeProfileName = profiles?.find(p => p.id === activeProfileId)?.name || "Perfil Selecionado";
+
   const generateMutation = useMutation({
-    mutationFn: () => generateTokenFn({ data: { profileId: HOLDING_PROFILE_ID } }),
+    mutationFn: () => activeProfileId ? generateTokenFn({ data: { profileId: activeProfileId } }) : Promise.reject("Nenhum perfil selecionado"),
     onSuccess: () => {
       toast.success("Link de acesso gerado com sucesso!");
       qc.invalidateQueries({ queryKey: ["active-temp-token"] });
@@ -78,7 +88,7 @@ function CategoriesMgmtPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Organização de Categorias</h1>
-          <p className="text-sm text-muted-foreground">Gestão centralizada para Advocacia Leliane Pereira (Holding)</p>
+          <p className="text-sm text-muted-foreground">Gestão centralizada para {activeProfileName}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {activeToken ? (
@@ -91,7 +101,7 @@ function CategoriesMgmtPage() {
               size="sm" 
               className="gap-2" 
               onClick={() => generateMutation.mutate()}
-              disabled={generateMutation.isPending}
+              disabled={generateMutation.isPending || !activeProfileId}
             >
               <LinkIcon className="h-4 w-4" /> Gerar Link 24h
             </Button>
@@ -117,7 +127,7 @@ function CategoriesMgmtPage() {
         </TabsList>
         
         <TabsContent value="all">
-          <CategoryOrganizationContent profileId={HOLDING_PROFILE_ID} />
+          <CategoryOrganizationContent profileId={activeProfileId || undefined} />
         </TabsContent>
 
         <TabsContent value="duplicates">
@@ -125,7 +135,7 @@ function CategoriesMgmtPage() {
             <p className="text-sm text-muted-foreground">
               A IA analisou suas categorias e identificou possíveis duplicidades baseadas em nomes, acentos e padrões de uso.
             </p>
-            <CategoryOrganizationContent profileId={HOLDING_PROFILE_ID} onlyDuplicates />
+            <CategoryOrganizationContent profileId={activeProfileId || undefined} onlyDuplicates />
           </div>
         </TabsContent>
       </Tabs>

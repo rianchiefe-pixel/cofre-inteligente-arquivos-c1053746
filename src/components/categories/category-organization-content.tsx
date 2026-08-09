@@ -177,8 +177,11 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                   )}
                 </th>
                 <th className="pb-3 font-medium">Nome</th>
-                <th className="pb-3 font-medium">Tipo</th>
+                <th className="pb-3 font-medium">Natureza</th>
+                <th className="pb-3 font-medium">Tipo de Gasto</th>
                 <th className="pb-3 font-medium">Estrutura</th>
+                <th className="pb-3 font-medium text-right">Lançamentos</th>
+                <th className="pb-3 font-medium text-right">Valor Acumulado</th>
                 <th className="pb-3 font-medium">Status</th>
                 <th className="pb-3 font-medium text-right">Ações</th>
               </tr>
@@ -210,6 +213,15 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                     )}
                   </td>
                   <td className="py-4">
+                    {cat.expense_behavior ? (
+                      <Badge variant="outline" className="font-normal">
+                        {cat.expense_behavior === 'fixed' ? 'Gasto fixo' : 'Gasto variável'}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground italic">—</span>
+                    )}
+                  </td>
+                  <td className="py-4">
                     {cat.parent_id ? (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <span>Subcategoria de</span>
@@ -220,6 +232,12 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
                     ) : (
                       <span className="text-xs font-medium text-accent uppercase tracking-wider">Principal</span>
                     )}
+                  </td>
+                  <td className="py-4 text-right font-medium">
+                    {cat.count || 0}
+                  </td>
+                  <td className="py-4 text-right font-mono text-xs">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cat.total_amount || 0)}
                   </td>
                   <td className="py-4">
                     {cat.archived ? (

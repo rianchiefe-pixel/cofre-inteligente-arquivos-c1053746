@@ -43,8 +43,6 @@ export const getCategoryStats = createServerFn({ method: "GET" })
       return { categories: [], stats: { total: 0, main: 0, sub: 0, archived: 0, unclassified: 0, duplicates: 0 } };
     }
 
-    // 1. Obter categorias explicitamente cadastradas para este perfil (no futuro, se houver profile_id na tabela)
-    // Atualmente, filtramos por user_id já que são globais por usuário.
     const { data: dbCategories, error: catError } = await supabase
       .from("categories")
       .select("id, name, default_type, archived, parent_id")
@@ -52,7 +50,6 @@ export const getCategoryStats = createServerFn({ method: "GET" })
     
     if (catError) throw catError;
 
-    // 2. Obter categorias utilizadas em lançamentos DESTE PERFIL
     const { data: receiptsData, error: recError } = await supabase
       .from("receipts")
       .select("category_id, amount")
@@ -61,9 +58,8 @@ export const getCategoryStats = createServerFn({ method: "GET" })
     
     if (recError) throw recError;
 
-    // Mapa de contagem e valor acumulado por categoria
     const usageMap = new Map<string, { count: number, total: number }>();
-    receiptsData?.forEach(r => {
+    receiptsData?.forEach((r: any) => {
       if (r.category_id) {
         const stats = usageMap.get(r.category_id) || { count: 0, total: 0 };
         stats.count++;
@@ -72,8 +68,7 @@ export const getCategoryStats = createServerFn({ method: "GET" })
       }
     });
 
-    // 3. Sincronização e Normalização
-    const categories = (dbCategories || []).map(c => ({
+    const categories = (dbCategories || []).map((c: any) => ({
       ...c,
       count: usageMap.get(c.id)?.count || 0,
       total_amount: usageMap.get(c.id)?.total || 0
@@ -169,18 +164,12 @@ export const syncMissingCategories = createServerFn({ method: "POST" })
     const { supabase, userId } = await getSupabaseClient({ }, context);
     const { profileId } = input;
 
-    // 1. Pegar todas as categorias conhecidas do usuário
     const { data: existing } = await supabase
       .from("categories")
       .select("id, name")
       .eq("user_id", userId);
     
-    const existingNames = new Set(existing?.map(c => normalizeName(c.name)));
+    const existingNames = new Set(existing?.map((c: any) => normalizeName(c.name)));
 
-    // 2. Pegar lançamentos sem categoria_id mas com nome de categoria (se o campo existisse no receipt)
-    // Como no schema atual 'receipts' tem category_id (FK), a "categoria" deve estar vindo do AI ou Import.
-    // O pedido diz: "Se existem 37 lançamentos com Educação, então Educação deve aparecer".
-    // Isso sugere que os lançamentos podem ter um nome de categoria em algum lugar (ex: metadata, ocr_data).
-    
-    return { ok: true };
+    return { ok: true, profileId, existingNamesCount: existingNames.size };
   });
