@@ -101,7 +101,7 @@ function ReportsPage() {
       for (let offset = 0; offset < 100000; offset += PAGE) {
         let q = supabase
           .from("receipts")
-          .select("*, categories(name), financial_profiles(name), properties(name)")
+          .select("*, category:categories!receipts_category_id_fkey(name), financial_profiles(name), properties(name)")
           .eq("status", "approved")
           .order("payment_date", { ascending: false })
           .order("id", { ascending: true })

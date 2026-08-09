@@ -74,7 +74,7 @@ function Dashboard() {
         let rq = supabase
           .from("receipts")
           .select(
-            "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, categories(name), profile_id, financial_profiles(name), property_id, properties(name)",
+            "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, category:categories!receipts_category_id_fkey(name), profile_id, financial_profiles(name), property_id, properties(name)",
           )
           .order("payment_date", { ascending: false })
           .order("id", { ascending: true })

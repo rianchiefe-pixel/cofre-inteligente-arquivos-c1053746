@@ -79,7 +79,7 @@ export const getUnifiedLedger = createServerFn({ method: "GET" })
       let rq = supabase
         .from("receipts")
         .select(
-          "id, payment_date, amount, description, recipient_name, bank_name, transaction_type, profile_id, property_id, card_id, categories(name)",
+          "id, payment_date, amount, description, recipient_name, bank_name, transaction_type, profile_id, property_id, card_id, category:categories!receipts_category_id_fkey(name)",
         )
         .eq("status", "approved")
         .order("payment_date", { ascending: false })
