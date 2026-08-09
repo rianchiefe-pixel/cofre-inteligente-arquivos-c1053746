@@ -3,7 +3,7 @@ import autoTable from "jspdf-autotable";
 import { axisMoney, drawHBarChart, drawLineChart, type RGB } from "@/lib/report-charts";
 import { logExport } from "@/lib/exports";
 import { currencyBRL, dateBR } from "@/lib/format";
-import { centsToNumber, type CategoryRow, type LedgerEntry, type MonthBlock, type ReportDataset } from "@/lib/report-data";
+import { centsToNumber, type CategoryRow, type LedgerEntry, type MonthBlock, type ReportDataset, UNCATEGORIZED } from "@/lib/report-data";
 import { assertReportDataset } from "@/lib/report-validation";
 
 const BLACK: RGB = [0, 0, 0];
