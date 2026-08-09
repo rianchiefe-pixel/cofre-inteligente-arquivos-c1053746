@@ -9,15 +9,28 @@ type TransactionType = Database["public"]["Enums"]["transaction_type"];
 type ExpenseBehavior = 'fixed' | 'variable';
 
 async function getSupabaseClient(input: { token?: string }, context: any) {
+  const { supabase, userId } = context;
+
   if (input.token) {
     const profileIdFromToken = await validateTokenAndGetProfileId(input.token);
     if (profileIdFromToken) {
-      return { supabase: supabaseAdmin, profileId: profileIdFromToken, isTemp: true };
+      // For temporary access, we need to know WHICH user owns this profile to find categories
+      const { data: profile } = await supabaseAdmin
+        .from('financial_profiles')
+        .select('user_id')
+        .eq('id', profileIdFromToken)
+        .single();
+
+      return { 
+        supabase: supabaseAdmin, 
+        profileId: profileIdFromToken, 
+        isTemp: true, 
+        userId: profile?.user_id 
+      };
     }
     throw new Response('Link expirado ou inválido', { status: 403 });
   }
 
-  const { supabase, userId } = context;
   if (!supabase || !userId) throw new Response('Unauthorized', { status: 401 });
   return { supabase, profileId: null, isTemp: false, userId };
 }
