@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { centsToNumber, parseBrlAmountToCents } from "@/lib/format";
+import { getPayeeHistory } from "./receipt-intelligence";
 
 async function logAudit(supabase: any, userId: string, params: {
   action: string; entity: string; entity_id?: string | null;
@@ -34,6 +35,7 @@ const ExtractSchema = z.object({
   auth_code: z.string().nullable().describe("Código de autenticação / ID transação / E2E"),
   suggested_category: z.string().nullable().describe("Nome da categoria mais provável (ex: Condomínio, Energia, Mercado, Investimentos)"),
   transaction_type: z.enum(["despesa","investimento","gasto_fixo","gasto_variavel","pessoal","empresarial","patrimonial"]).nullable(),
+  document_type: z.string().nullable().describe("Tipo do documento: comprovante_pix, transferencia, boleto_pago, compra, fatura, outro"),
 });
 
 export const analyzeReceipt = createServerFn({ method: "POST" })
