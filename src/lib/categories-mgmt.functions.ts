@@ -164,7 +164,6 @@ export const bulkUpdateCategories = createServerFn({ method: "POST" })
     ids: z.array(z.string()),
     patch: z.object({
       default_type: z.string().optional(),
-      expense_behavior: z.enum(['fixed', 'variable']).nullable().optional(),
       parent_id: z.string().nullable().optional(),
       archived: z.boolean().optional()
     }),
