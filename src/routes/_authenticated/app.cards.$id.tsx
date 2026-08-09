@@ -74,42 +74,52 @@ function CardDetailPage() {
   const statements = useQuery({
     queryKey: ["card-statements", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("card_statements")
-        .select("*")
-        .eq("card_id", id)
-        .order("created_at", { ascending: false });
-      if (error) throw new Error(error.message);
-      return data ?? [];
+      try {
+        const { data, error } = await supabase
+          .from("card_statements")
+          .select("*")
+          .eq("card_id", id)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return data ?? [];
+      } catch (e: any) {
+        console.error("[CardDetailPage] Error fetching statements:", e);
+        throw e;
+      }
     },
   });
 
   const transactions = useQuery({
     queryKey: ["card-receipts", id, activeHolderId, selectedMonth],
     queryFn: async () => {
-      let query = supabase
-        .from("receipts")
-        .select("*, card_holders(holder_name, last4)")
-        .eq("card_id", id);
-      
-      if (activeHolderId !== "all") {
-        query = query.eq("card_holder_id", activeHolderId);
+      try {
+        let query = supabase
+          .from("receipts")
+          .select("*, card_holders(holder_name, last4)")
+          .eq("card_id", id);
+        
+        if (activeHolderId !== "all") {
+          query = query.eq("card_holder_id", activeHolderId);
+        }
+        
+        const { data, error } = await query.order("payment_date", { ascending: false });
+        if (error) throw error;
+        
+        let filtered = (data || []) as any[];
+        if (selectedMonth !== "all") {
+          const [year, month] = selectedMonth.split("-");
+          filtered = filtered.filter(t => {
+            if (!t.payment_date) return false;
+            const d = new Date(t.payment_date);
+            return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+          });
+        }
+        
+        return filtered;
+      } catch (e: any) {
+        console.error("[CardDetailPage] Error fetching transactions:", e);
+        throw e;
       }
-      
-      const { data, error } = await query.order("payment_date", { ascending: false });
-      if (error) throw new Error(error.message);
-      
-      let filtered = data ?? [];
-      if (selectedMonth !== "all") {
-        const [year, month] = selectedMonth.split("-");
-        filtered = filtered.filter(t => {
-          if (!t.payment_date) return false;
-          const d = new Date(t.payment_date);
-          return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
-        });
-      }
-      
-      return filtered as any[];
     },
   });
 
