@@ -237,55 +237,92 @@ function CardDetailPage() {
         <TabsContent value="history" className="space-y-4">
           <Card className="p-0 overflow-hidden">
             <div className="p-4 border-b bg-muted/30 flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-sm">
+              <div className="flex items-center gap-3 overflow-x-auto pb-2 sm:pb-0">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="h-9 w-[180px]">
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os meses</SelectItem>
+                    {/* Unique months from transactions could be added here dynamically */}
+                    <SelectItem value="2026-06">Junho 2026</SelectItem>
+                    <SelectItem value="2026-05">Maio 2026</SelectItem>
+                    <SelectItem value="2026-04">Abril 2026</SelectItem>
+                    <SelectItem value="2026-03">Março 2026</SelectItem>
+                    <SelectItem value="2026-02">Fevereiro 2026</SelectItem>
+                    <SelectItem value="2026-01">Janeiro 2026</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={activeHolderId} onValueChange={setActiveHolderId}>
+                  <SelectTrigger className="h-9 w-[180px]">
+                    <SelectValue placeholder="Portador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os portadores</SelectItem>
+                    {holders.data?.map((h: any) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.holder_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="relative flex-1 max-w-xs hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Buscar no histórico..." className="pl-9 h-9" />
               </div>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="h-4 w-4" /> Filtros
-              </Button>
             </div>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
+                  <TableHead>Portador</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Comprovante</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.isLoading ? (
-                  <TableRow><TableCell colSpan={6}><LoadingState label="Buscando histórico..." /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7}><LoadingState label="Buscando histórico..." /></TableCell></TableRow>
                 ) : (transactions.data ?? []).length === 0 ? (
-                  <TableRow><TableCell colSpan={6}><div className="py-12 text-center text-muted-foreground">Nenhum lançamento vinculado a este cartão.</div></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7}><div className="py-12 text-center text-muted-foreground">Nenhum lançamento encontrado com estes filtros.</div></TableCell></TableRow>
                 ) : (transactions.data ?? []).map((t: any) => (
                   <TableRow key={t.id} className="group">
-                    <TableCell className="text-xs">
-                      {new Date(t.date).toLocaleDateString('pt-BR')}
+                    <TableCell className="text-[11px] font-mono">
+                      {t.payment_date ? new Date(t.payment_date).toLocaleDateString('pt-BR') : '—'}
+                    </TableCell>
+                    <TableCell className="text-[11px]">
+                      {t.card_holders?.holder_name || "—"}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-sm">{t.description}</div>
-                      {t.notes && <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">{t.notes}</div>}
+                      <div className="font-medium text-xs">{t.description}</div>
+                      {t.notes && <div className="text-[9px] text-muted-foreground truncate max-w-[200px]">{t.notes}</div>}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-[10px] font-normal">
+                      <Badge variant="outline" className="text-[9px] font-normal py-0">
                         {t.category_name || "Sem categoria"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
+                    <TableCell className="text-right font-mono text-xs">
                       {currencyBRL(Number(t.amount))}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={t.status === 'pending' ? 'secondary' : 'outline'} className={t.status === 'pending' ? 'bg-warning/20 text-warning-foreground border-warning/30' : 'text-success border-success/30'}>
-                        {t.status === 'pending' ? 'Pendente' : 'Conciliado'}
-                      </Badge>
+                      {t.file_path ? (
+                        <Badge variant="secondary" className="bg-success/20 text-success-foreground border-success/30 text-[9px] py-0 cursor-pointer">
+                          Ver PDF
+                        </Badge>
+                      ) : (
+                        <span className="text-[9px] text-muted-foreground">Sem comprovante</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                        <Eye className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100">
+                        <Eye className="h-3.5 w-3.5" />
                       </Button>
                     </TableCell>
                   </TableRow>
