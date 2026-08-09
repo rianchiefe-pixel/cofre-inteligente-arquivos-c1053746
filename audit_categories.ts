@@ -18,18 +18,20 @@ async function auditCategories() {
 
   const { data: receipts, error: receiptsError } = await supabase
     .from('receipts')
-    .select('category_id, amount_cents');
+    .select('category_id, amount');
 
   if (receiptsError) {
     console.error("Error fetching receipts:", receiptsError);
     process.exit(1);
   }
 
+  const toCents = (v: any) => Math.round(Math.abs(Number(v ?? 0)) * 100);
+
   const stats = (receipts || []).reduce((acc: any, r: any) => {
     if (r.category_id) {
       if (!acc[r.category_id]) acc[r.category_id] = { count: 0, total: 0 };
       acc[r.category_id].count++;
-      acc[r.category_id].total += r.amount_cents || 0;
+      acc[r.category_id].total += toCents(r.amount);
     }
     return acc;
   }, {});
