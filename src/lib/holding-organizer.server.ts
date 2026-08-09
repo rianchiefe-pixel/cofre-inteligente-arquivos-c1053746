@@ -92,7 +92,8 @@ export async function loadOrganizerContext(
     supabase
       .from("receipts")
       .select(
-        "id, recipient_name, recipient_tax_id, description, notes, file_name, bank_name, amount, payment_date, category_id, property_id, cost_center_id, status, ocr_data",
+        "id, recipient_name, recipient_tax_id, description, notes, file_name, bank_name, amount, payment_date, category_id, property_id, cost_center_id, status, ocr_data, natureza, tipo_gasto",
+
       )
       .eq("user_id", userId)
       .eq("profile_id", profileId)
