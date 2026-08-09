@@ -473,15 +473,15 @@ export const approveImportRow = createServerFn({ method: "POST" })
     let categoryId: string | null = null;
     const catName = (data.overrides.category ?? row.category) as string | null;
     if (catName && catName.trim()) {
-      const { data: cat, error: catErr } = await supabase
+      const { data: cats, error: catErr } = await supabase
         .from("categories")
         .select("id")
         .eq("user_id", userId)
-        .ilike("name", catName.trim())
-        .maybeSingle();
+        .ilike("name", catName.trim());
       if (catErr) throw new Error(catErr.message);
-      if (cat) {
-        categoryId = cat.id;
+      
+      if (cats && cats.length > 0) {
+        categoryId = cats[0].id;
       } else {
         const { data: newCat, error: newCatErr } = await supabase
           .from("categories")
@@ -699,13 +699,12 @@ export const bulkDecideCreditCardRows = createServerFn({ method: "POST" })
             const key = normalizeKey(catName);
             let categoryId = categoryCache.get(key) ?? null;
             if (!categoryId) {
-              const { data: cat } = await supabase
+            const { data: cats } = await supabase
                 .from("categories")
                 .select("id")
                 .eq("user_id", userId)
-                .ilike("name", catName)
-                .maybeSingle();
-              if (cat) categoryId = cat.id;
+                .ilike("name", catName);
+              if (cats && cats.length > 0) categoryId = cats[0].id;
               else {
                 const { data: newCat, error: newCatErr } = await supabase
                   .from("categories")
