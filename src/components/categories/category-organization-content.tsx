@@ -99,6 +99,22 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
     onError: (e: any) => toast.error("Erro na mesclagem: " + e.message),
   });
 
+  if (!profileId) {
+    return (
+      <Card className="p-12 text-center space-y-4">
+        <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+          <Layers className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="font-medium text-lg">Nenhum perfil selecionado</h3>
+          <p className="text-muted-foreground max-w-xs mx-auto">
+            Selecione um perfil na barra lateral para gerenciar suas categorias.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   if (isLoading) return <LoadingState label="Carregando central de categorias..." />;
 
   return (
