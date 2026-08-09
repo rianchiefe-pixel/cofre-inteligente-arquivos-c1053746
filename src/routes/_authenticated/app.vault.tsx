@@ -63,6 +63,8 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  FilterX,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -80,6 +82,9 @@ import {
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
 import { ConferenceDialog } from "@/components/vault/conference-dialog";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/vault")({
   head: () => ({ meta: [{ title: "Cofre de comprovantes — Meu Cofre" }] }),
@@ -350,7 +355,8 @@ function VaultPage() {
   const [quick, setQuick] = useState<QuickFilter>("pending");
   const [profileId, setProfileId] = useState<string>("all");
   const [bankId, setBankId] = useState<string>("all");
-  const [categoryId, setCategoryId] = useState<string>("all");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [incompleteOnly, setIncompleteOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [original, setOriginal] = useState<any | null>(null);
   const [draft, setDraft] = useState<any | null>(null);
@@ -405,15 +411,13 @@ function VaultPage() {
   }, [q]);
 
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, categoryId, debouncedQ, page],
+    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
       
-      // The vault shows everything that is not approved/archived as "pending" or "needs attention"
-      // or specifically based on the filter.
       if (quick === "pending") qb = qb.in("status", ["pending", "duplicate"]).or(`ocr_status.eq.failed,status.eq.pending`);
       else if (quick === "approved") qb = qb.eq("status", "approved");
       else if (quick === "rejected") qb = qb.eq("status", "rejected");
@@ -421,9 +425,32 @@ function VaultPage() {
       else if (quick === "suspected") qb = qb.gte("duplicate_score", 50);
       else if (quick === "high_dup") qb = qb.gte("duplicate_score", 80);
 
-      if (profileId !== "all") qb = qb.eq("profile_id", profileId);
+      // Filtro de informações incompletas (Aprovados sem categoria ou sem perfil)
+      if (incompleteOnly) {
+        qb = qb.or("category_id.is.null,profile_id.is.null");
+      }
+
+      if (profileId === "__none__") {
+        qb = qb.is("profile_id", null);
+      } else if (profileId !== "all") {
+        qb = qb.eq("profile_id", profileId);
+      }
+
       if (bankId !== "all") qb = qb.eq("bank_id", bankId);
-      if (categoryId !== "all") qb = qb.eq("category_id", categoryId);
+      
+      if (selectedCategoryIds.length > 0) {
+        const hasNone = selectedCategoryIds.includes("__none__");
+        const ids = selectedCategoryIds.filter(id => id !== "__none__");
+        
+        if (hasNone && ids.length > 0) {
+          qb = qb.or(`category_id.in.(${ids.join(",")}),category_id.is.null`);
+        } else if (hasNone) {
+          qb = qb.is("category_id", null);
+        } else {
+          qb = qb.in("category_id", ids);
+        }
+      }
+
       if (debouncedQ) {
         const safe = debouncedQ.replace(/[%,()]/g, " ").trim();
         if (safe) {
@@ -452,7 +479,7 @@ function VaultPage() {
   useEffect(() => {
     setSelectedIds(new Set());
     setPage(0);
-  }, [quick, profileId, bankId, categoryId, debouncedQ]);
+  }, [quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly]);
 
   const filtered = receipts.data?.rows ?? [];
   const total = receipts.data?.total ?? 0;
@@ -768,9 +795,28 @@ function VaultPage() {
       .neq("id", currentId)
       .order("created_at", { ascending: false })
       .limit(1);
-    if (profileId !== "all") qb = qb.eq("profile_id", profileId);
+    
+    if (profileId === "__none__") {
+      qb = qb.is("profile_id", null);
+    } else if (profileId !== "all") {
+      qb = qb.eq("profile_id", profileId);
+    }
+    
     if (bankId !== "all") qb = qb.eq("bank_id", bankId);
-    if (categoryId !== "all") qb = qb.eq("category_id", categoryId);
+    
+    if (selectedCategoryIds.length > 0) {
+      const hasNone = selectedCategoryIds.includes("__none__");
+      const ids = selectedCategoryIds.filter(id => id !== "__none__");
+      
+      if (hasNone && ids.length > 0) {
+        qb = qb.or(`category_id.in.(${ids.join(",")}),category_id.is.null`);
+      } else if (hasNone) {
+        qb = qb.is("category_id", null);
+      } else {
+        qb = qb.in("category_id", ids);
+      }
+    }
+
     const { data, error } = await qb.maybeSingle();
     if (error || !data) {
       closeEditing();
@@ -839,58 +885,147 @@ function VaultPage() {
           <TabsTrigger value="archived">Arquivados</TabsTrigger>
           <TabsTrigger value="all">Todos</TabsTrigger>
         </TabsList>
+        
+        {quick === "approved" && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button 
+              variant={!incompleteOnly && selectedCategoryIds.length === 0 && profileId === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setIncompleteOnly(false);
+                setSelectedCategoryIds([]);
+                setProfileId("all");
+              }}
+            >
+              Todos os aprovados
+            </Button>
+            <Button 
+              variant={!incompleteOnly && selectedCategoryIds.length === 1 && selectedCategoryIds.includes("__none__") ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setIncompleteOnly(false);
+                setSelectedCategoryIds(["__none__"]);
+                setProfileId("all");
+              }}
+            >
+              Aprovados sem categoria
+            </Button>
+            <Button 
+              variant={!incompleteOnly && profileId === "__none__" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setIncompleteOnly(false);
+                setSelectedCategoryIds([]);
+                setProfileId("__none__");
+              }}
+            >
+              Aprovados sem perfil
+            </Button>
+            <Button 
+              variant={incompleteOnly ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setIncompleteOnly(true);
+                setSelectedCategoryIds([]);
+                setProfileId("all");
+              }}
+            >
+              Aprovados incompletos
+            </Button>
+          </div>
+        )}
       </Tabs>
 
       <Card className="p-4">
-        <div className="grid gap-3 md:grid-cols-4">
-          <div className="relative md:col-span-2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por destinatário, valor, descrição, banco…"
-              className="pl-9"
-            />
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="relative md:col-span-2">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar por destinatário, valor, descrição, banco…"
+                className="pl-9"
+              />
+            </div>
+            <Select value={profileId} onValueChange={setProfileId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Perfil" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os perfis</SelectItem>
+                <SelectItem value="__none__">Sem perfil definido</SelectItem>
+                {(profiles.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={bankId} onValueChange={setBankId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Banco" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os bancos</SelectItem>
+                {(banks.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={profileId} onValueChange={setProfileId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Perfil" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os perfis</SelectItem>
-              {(profiles.data ?? []).map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={bankId} onValueChange={setBankId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Banco" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os bancos</SelectItem>
-              {(banks.data ?? []).map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as categorias</SelectItem>
-              {(categories.data ?? []).map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <div className="w-full md:w-80">
+              <MultiSelect
+                options={[
+                  { label: "Sem categoria definida", value: "__none__" },
+                  ...(categories.data ?? []).map((c) => ({ label: c.name, value: c.id })),
+                ]}
+                selected={selectedCategoryIds}
+                onChange={setSelectedCategoryIds}
+                placeholder="Todas as categorias"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant={incompleteOnly ? "secondary" : "ghost"}
+                size="sm"
+                className={cn("gap-2", incompleteOnly && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400")}
+                onClick={() => setIncompleteOnly(!incompleteOnly)}
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Informações incompletas
+              </Button>
+              
+              {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-muted-foreground"
+                  onClick={() => {
+                    setQ("");
+                    setProfileId("all");
+                    setBankId("all");
+                    setSelectedCategoryIds([]);
+                    setIncompleteOnly(false);
+                  }}
+                >
+                  <FilterX className="h-4 w-4" />
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+
+            {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly) && (
+              <Badge variant="outline" className="ml-auto">
+                {total} registros encontrados
+              </Badge>
+            )}
+          </div>
         </div>
       </Card>
 
