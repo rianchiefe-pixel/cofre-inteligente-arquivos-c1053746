@@ -1967,21 +1967,3 @@ function MultiFilterPopover({
     </Popover>
   );
 }
-
-function hydrateValues(row: any): Record<string, any> {
-  const vals: Record<string, any> = {};
-  for (const f of FIELDS) {
-    if (f.type === "number" && typeof row[f.key] === "number") {
-      vals[f.key] = formatBrlNumber(Math.abs(row[f.key]));
-    } else {
-      vals[f.key] = row[f.key] ?? "";
-    }
-  }
-  // Property logic
-  vals.property_id = row.property_id
-    ? row.property_id
-    : row.general_account
-      ? "__general__"
-      : "__none__";
-  return vals;
-}
