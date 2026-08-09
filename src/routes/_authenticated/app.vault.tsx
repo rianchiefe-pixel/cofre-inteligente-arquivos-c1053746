@@ -74,7 +74,9 @@ import {
   deleteReceipts,
   analyzeReceipt,
   updateReceiptConference,
+  archiveReceipt,
 } from "@/lib/receipts.functions";
+
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
 import { ConferenceDialog } from "@/components/vault/conference-dialog";
@@ -336,6 +338,8 @@ function VaultPage() {
   const bulkAction = useServerFn(bulkReceiptAction);
   const bulkUpdate = useServerFn(bulkUpdateReceipts);
   const bulkDelete = useServerFn(deleteReceipts);
+  const archive = useServerFn(archiveReceipt);
+
   const canApprove = useCan("approveReceipts");
   const canBulk = useCan("bulkActions");
   const canDelete = useCan("deleteData");
@@ -1223,9 +1227,26 @@ function VaultPage() {
             setRejectNote(note);
             void rejectCurrentReceipt(note);
           }}
+          onArchive={async () => {
+            if (!original) return;
+            setBusy(true);
+            try {
+              await archive({ data: { receiptId: original.id } });
+              toast.success("Comprovante arquivado com sucesso.");
+              invalidate();
+              setOriginal(null);
+              setDraft(null);
+              setSuggested(null);
+            } catch (e: any) {
+              toast.error(e.message || "Não foi possível arquivar o comprovante. Tente novamente.");
+            } finally {
+              setBusy(false);
+            }
+          }}
           onAnalyze={analyzeCurrentReceipt}
           onCompare={() => setCompareId(original.id)}
           onPreviewError={(message) => setPreview((prev) => ({ ...prev, error: message }))}
+
           onCreateCategory={createCategoryByName}
         />
       )}

@@ -191,6 +191,8 @@ export function ConferenceDialog(props: {
   onSave: () => void;
   onApprove: () => void;
   onReject: (note: string) => void;
+  onArchive: () => void;
+
   onAnalyze: () => void;
   onCompare: () => void;
   onPreviewError: (message: string) => void;
@@ -218,6 +220,8 @@ export function ConferenceDialog(props: {
     onSave,
     onApprove,
     onReject,
+    onArchive,
+
     onAnalyze,
     onCompare,
     onPreviewError,
@@ -771,9 +775,10 @@ export function ConferenceDialog(props: {
           {blockReason && <p className="mb-2 text-xs text-muted-foreground">{blockReason}</p>}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={onRequestClose} disabled={busy}>
+              <Button variant="outline" size="sm" onClick={onArchive} disabled={busy}>
                 <Inbox className="h-4 w-4" /> Conferir depois
               </Button>
+
               {canApprove && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

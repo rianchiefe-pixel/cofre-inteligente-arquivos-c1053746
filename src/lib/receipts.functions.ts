@@ -434,7 +434,28 @@ export const rejectReceipt = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const archiveReceipt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ receiptId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: prev } = await context.supabase.from("receipts").select("status, profile_id, property_id").eq("id", data.receiptId).single();
+    const { data: updated, error } = await context.supabase
+      .from("receipts")
+      .update({ status: "archived" })
+      .eq("id", data.receiptId)
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (!updated?.length) throw new Error("Comprovante não encontrado ou sem permissão para arquivar.");
+    await logAudit(context.supabase, context.userId, {
+      action: "receipt_archived", entity: "receipt", entity_id: data.receiptId,
+      profile_id: prev?.profile_id, property_id: prev?.property_id,
+      old_value: { status: prev?.status }, new_value: { status: "archived" },
+    });
+    return { ok: true };
+  });
+
 export const bulkReceiptAction = createServerFn({ method: "POST" })
+
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({
     receiptIds: z.array(z.string().uuid()).min(1).max(500),
