@@ -225,6 +225,9 @@ export async function generateFixedVariableReport(data: ReportDataset) {
         const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada.`;
         const alertLines = doc.splitTextToSize(alertText, contentW - 20);
         doc.text(alertLines, margin + 5, y, { lineHeightFactor: 1.4 });
+        
+        // Adicionando um link visual (como nota de rodapé ou atalho simulado via texto/link do PDF se possível, 
+        // mas aqui focamos no link na UI que o usuário pediu)
         y += (alertLines.length * 9 * 1.4) + 12;
       }
       
