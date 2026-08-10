@@ -319,7 +319,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   for (const g of consolidatedGroups) {
     const cats = consolidatePeriodCategories(data, g.group);
     
-    y = drawFinancialSection({
+    y = drawFinancialSectionFn({
       y,
       label: g.label.toUpperCase(),
       value: g.value,
