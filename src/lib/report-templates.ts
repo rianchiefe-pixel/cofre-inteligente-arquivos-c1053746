@@ -184,41 +184,61 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       { label: "INVESTIMENTOS", value: m.investimento, categories: m.investimentoCategories, color: BLUE },
     ];
 
-    for (const g of groups) {
-      if (y + 110 > ph - margin) { doc.addPage(); y = margin + 20; }
-      
-      // Group Header
-      doc.setFillColor(g.color[0], g.color[1], g.color[2]);
-      doc.rect(margin, y, contentW, 25, "F");
+    const drawFinancialSection = (params: {
+      y: number;
+      label: string;
+      value: number;
+      categories: CategoryRow[];
+      color: RGB;
+    }) => {
+      let curY = params.y;
+      const HEADER_HEIGHT = 25;
+      const HEADER_TO_BODY_GAP = 12;
+      const BODY_BOTTOM_GAP = 10;
+      const SECTION_BOTTOM_GAP = 24;
+
+      if (curY + 120 > ph - margin) {
+        doc.addPage();
+        curY = margin + 20;
+      }
+
+      // 1. ÁREA HEADER
+      doc.setFillColor(params.color[0], params.color[1], params.color[2]);
+      doc.rect(margin, curY, contentW, HEADER_HEIGHT, "F");
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
-      doc.setTextColor(g.color === TAN || g.color === BLUE || g.color === RED ? 255 : 60);
-      doc.text(g.label, margin + 10, y + 16);
-      doc.text(money(g.value), pw - margin - 10, y + 16, { align: "right" });
-      y += 14; // ESPAÇAMENTO MÍNIMO 14px após a faixa
+      const isDark = params.color === TAN || params.color === BLUE || params.color === RED;
+      doc.setTextColor(isDark ? 255 : 60);
+      doc.text(params.label, margin + 10, curY + 16);
+      doc.text(money(params.value), pw - margin - 10, curY + 16, { align: "right" });
 
-      // Brief composition description with values
+      // Avança Y para fora do Header
+      curY += HEADER_HEIGHT + HEADER_TO_BODY_GAP;
+
+      // 2. ÁREA BODY
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(80, 80, 80);
-      
-      const validCats = g.categories.filter(c => c.name !== UNCATEGORIZED && !c.name.includes("Não identificado"));
+
+      const validCats = params.categories.filter(c => c.name !== UNCATEGORIZED && !c.name.includes("Não identificado"));
       const topCats = validCats.slice(0, 5);
       
+      let bodyContentY = curY;
+
       if (topCats.length > 0) {
         const desc = "Principais categorias: " + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
-        const lines = doc.splitTextToSize(desc, contentW - 20); 
-        doc.text(lines, margin + 5, y, { lineHeightFactor: 1.5 });
-        y += (lines.length * 9 * 1.5) + 12; // 12px de espaço após o parágrafo
-      } else if (g.value > 0) {
-        doc.text("Lançamentos sem categoria específica.", margin + 5, y);
-        y += 18;
+        const lines = doc.splitTextToSize(desc, contentW - 20);
+        doc.text(lines, margin + 5, bodyContentY, { lineHeightFactor: 1.5 });
+        bodyContentY += (lines.length * 9 * 1.5) + BODY_BOTTOM_GAP;
+      } else if (params.value > 0) {
+        doc.text("Lançamentos sem categoria específica.", margin + 5, bodyContentY);
+        bodyContentY += 18;
       } else {
-        doc.text("Sem movimentação neste grupo.", margin + 5, y);
-        y += 18;
+        doc.text("Sem movimentação neste grupo.", margin + 5, bodyContentY);
+        bodyContentY += 18;
       }
 
-      const uncategorized = g.categories.find(c => c.name === UNCATEGORIZED || c.name.includes("Não identificado"));
+      const uncategorized = params.categories.find(c => c.name === UNCATEGORIZED || c.name.includes("Não identificado"));
       if (uncategorized && uncategorized.cents > 0) {
         doc.setFont("helvetica", "italic");
         doc.setTextColor(RED[0], RED[1], RED[2]);
@@ -228,28 +248,35 @@ export async function generateFixedVariableReport(data: ReportDataset) {
         const fullAlertText = alertText + linkText;
         const alertLines = doc.splitTextToSize(fullAlertText, contentW - 20);
         
-        doc.text(alertLines, margin + 5, y, { lineHeightFactor: 1.4 });
+        doc.text(alertLines, margin + 5, bodyContentY, { lineHeightFactor: 1.4 });
         
-        // Link to pending categorization
-        // Calculate the exact position of "Ver lançamentos" within the wrapped lines
+        // Link
         doc.setTextColor(BLUE[0], BLUE[1], BLUE[2]);
         doc.setFont("helvetica", "bold");
-        
-        // We find which line the linkText is on
         const lastLineIndex = alertLines.length - 1;
         const lastLine = alertLines[lastLineIndex];
         const linkWidth = doc.getTextWidth(linkText);
         const linkX = margin + 5 + doc.getTextWidth(lastLine) - linkWidth;
-        const linkY = y + (lastLineIndex * 9 * 1.4);
+        const linkY = bodyContentY + (lastLineIndex * 9 * 1.4);
         
         doc.link(linkX, linkY - 8, linkWidth, 10, { 
           url: `${window.location.origin}/app/categories/pending?from=${data.from}&to=${data.to}&profileId=${data.meta.filters.profileId || ''}` 
         });
 
-        y += (alertLines.length * 9 * 1.4) + 12;
+        bodyContentY += (alertLines.length * 9 * 1.4) + BODY_BOTTOM_GAP;
       }
-      
-      y += 20; // Espaçamento maior antes da próxima seção (20+10 = 30px total aprox)
+
+      return bodyContentY + SECTION_BOTTOM_GAP;
+    };
+
+    for (const g of groups) {
+      y = drawFinancialSection({
+        y,
+        label: g.label,
+        value: g.value,
+        categories: g.categories,
+        color: g.color
+      });
     }
 
     if (m.unclassifiedCents > 0) {
