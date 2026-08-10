@@ -363,7 +363,7 @@ function PendingCategorizationPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate({ to: `/app/vault`, search: { receipt: row.id } })}>
+                          <DropdownMenuItem onClick={() => navigate({ to: `/app/vault`, search: (s: any) => ({ ...s, receipt: row.id }) })}>
                             <Eye className="mr-2 h-4 w-4" /> Ver comprovante
                           </DropdownMenuItem>
                         </DropdownMenuContent>
