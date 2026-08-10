@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,8 @@ import { loadReportDataset } from "@/lib/report-data";
 import { generateFixedVariableReport, generateMonthlyExpenseReport } from "@/lib/report-templates";
 import { toast } from "sonner";
 import { FileText, Loader2, RefreshCw, ArrowRight } from "lucide-react";
+import { isUncategorizedReceipt } from "@/lib/categorization-utils";
+
 
 export const Route = createFileRoute("/_authenticated/app/reports")({
   head: () => ({
@@ -34,6 +36,8 @@ export const Route = createFileRoute("/_authenticated/app/reports")({
 });
 
 function ReportsPage() {
+  const navigate = useNavigate();
+
   const canExport = useCan("exportReports");
   const initialRange = monthRange();
   const [from, setFrom] = useState(initialRange.from);
@@ -270,14 +274,22 @@ function ReportsPage() {
         <Card className="p-5">
           <p className="text-xs uppercase text-muted-foreground">Total</p>
           <p className="mt-2 text-2xl font-bold">{currencyBRL(total)}</p>
-          {rows.some((r: any) => !r.category_id || r.category?.name === "Sem categoria definida") && (
-            <Link 
-              to="/app/categories/pending" 
-              className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline"
+          {rows.some(r => isUncategorizedReceipt({ category_id: r.category_id, categories: r.category })) && (
+            <button
+              onClick={() => navigate({
+                to: "/app/categories/pending",
+                search: {
+                  from,
+                  to,
+                  profileId: profileId === "all" ? undefined : profileId
+                }
+              })}
+              className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
             >
               Corrigir pendências <ArrowRight className="h-3 w-3" />
-            </Link>
+            </button>
           )}
+
         </Card>
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Comprovantes</p><p className="mt-2 text-2xl font-bold">{rows.length}</p></Card>
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Ticket médio</p><p className="mt-2 text-2xl font-bold">{currencyBRL(rows.length ? total / rows.length : 0)}</p></Card>
