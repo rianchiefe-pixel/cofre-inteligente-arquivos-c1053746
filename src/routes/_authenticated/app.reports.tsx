@@ -42,7 +42,7 @@ function ReportsPage() {
   const initialRange = monthRange();
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
-  const [profileId, setProfileId] = useState("all");
+  const [profileId, setProfileId] = useState<string>("");
   const [type, setType] = useState("all");
   const [propertyId, setPropertyId] = useState("all");
   const [modelLoading, setModelLoading] = useState<"monthly" | "fixed" | null>(null);
@@ -54,7 +54,7 @@ function ReportsPage() {
       const dataset = await loadReportDataset({
         from,
         to,
-        profileId: profileId === "all" ? null : profileId,
+        profileId: profileId,
         propertyId: propertyId === "all" ? null : propertyId,
       });
       if (!dataset.months.length) {
@@ -112,7 +112,10 @@ function ReportsPage() {
           .range(offset, offset + PAGE - 1);
         if (from) q = q.gte("payment_date", from);
         if (to) q = q.lte("payment_date", to);
-        if (profileId !== "all") q = q.eq("profile_id", profileId);
+        if (profileId === "all") {
+          throw new Error("O isolamento por perfil é obrigatório. Selecione um perfil para gerar o relatório.");
+        }
+        q = q.eq("profile_id", profileId);
         if (type !== "all") q = q.eq("transaction_type", type as any);
         if (propertyId !== "all") q = q.eq("property_id", propertyId);
         const { data, error } = await q;
@@ -132,6 +135,7 @@ function ReportsPage() {
   // Razão unificado (comprovantes + lançamentos de cartão, sem dupla contagem).
   const ledger = useQuery({
     queryKey: ["ledger", from, to, profileId, propertyId],
+    enabled: profileId !== "all",
     queryFn: () =>
       ledgerFn({
         data: {

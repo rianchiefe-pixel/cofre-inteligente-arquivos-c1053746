@@ -193,7 +193,10 @@ export const TECHNICAL_UNCATEGORIZED_NAMES = [
 ];
 
 
-export async function loadReportDataset(f: { from: string; to: string; profileId?: string | null; propertyId?: string | null }): Promise<ReportDataset> {
+export async function loadReportDataset(f: { from: string; to: string; profileId: string; propertyId?: string | null }): Promise<ReportDataset> {
+  if (!f.profileId || f.profileId === "all") {
+    throw new Error("ID do perfil é obrigatório para carregar o dataset do relatório.");
+  }
   const { data: cats, error: catError } = await supabase.from("categories").select("id, name, parent_id, default_type, expense_behavior");
   if (catError) throw new Error(`Falha ao carregar categorias: ${catError.message}`);
   const catById = new Map((cats ?? []).map((c) => [c.id, c]));
@@ -215,6 +218,9 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const { data, error } = await q;
     if (error) throw new Error(`Falha ao carregar lançamentos: ${error.message}`);
     const page = data ?? [];
+    if (page.some(r => r.profile_id !== f.profileId)) {
+      throw new Error("Violação de isolamento: detectados registros de outro perfil no dataset.");
+    }
     rows.push(...page);
     if (page.length < PAGE) break;
   }
