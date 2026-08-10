@@ -178,7 +178,17 @@ function ReportsPage() {
         { label: "Ticket médio", value: currencyBRL(rows.length ? total / rows.length : 0) },
       ],
       breakdowns: [
-        { title: "Por categoria", rows: groupSum((r) => r.category?.name) },
+        { title: "Por categoria", rows: groupSum((r) => r.category?.name).filter(row => {
+          const name = (row.name || '').toLowerCase();
+          return (
+            !name.includes("não identificado") && 
+            !name.includes("não classificado") && 
+            !name.includes("sem categoria") && 
+            !name.includes("não informado") &&
+            name !== "—" &&
+            name !== ""
+          );
+        }) },
         { title: "Por banco", rows: groupSum((r) => r.bank_name) },
         { title: "Por perfil", rows: groupSum((r) => profileIdToName.get(r.profile_id) || "—") },
         { title: "Por imóvel", rows: groupSum((r) => r.properties?.name) },

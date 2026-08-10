@@ -8,14 +8,14 @@ export function isUncategorizedReceipt(receipt: {
   category_id: string | null;
   categories?: { name: string } | null;
 }) {
-  const catName = receipt.categories?.name;
+  const catName = receipt.categories?.name || '';
+  const name = catName.toLowerCase();
+  
   const isTechUncategorized = 
-    catName === 'Não identificado' || 
-    catName === 'não identificado' || 
-    catName === 'Não informado' || 
-    catName === 'não informado' || 
-    catName === 'Sem categoria' || 
-    catName === 'Sem categoria' || catName === 'Sem categoria definida';
+    name.includes('não identificado') || 
+    name.includes('não informado') || 
+    name.includes('sem categoria') || 
+    name.includes('não classificado');
     
   return !receipt.category_id || isTechUncategorized;
 }

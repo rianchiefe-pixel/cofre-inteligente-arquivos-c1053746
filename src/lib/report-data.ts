@@ -122,6 +122,19 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
   
   for (const e of entries) {
     const id = e.categoryId ?? "uncategorized";
+    const name = e.categoryName.toLowerCase();
+    
+    // Filtro agressivo para remover categorias ausentes da agregação visual do relatório
+    if (
+      !e.categoryId ||
+      name.includes("não identificado") ||
+      name.includes("não classificado") ||
+      name.includes("sem categoria") ||
+      name.includes("não informado")
+    ) {
+      continue;
+    }
+
     const existing = map.get(id) || { name: e.categoryName, cents: 0 };
     existing.cents += e.cents;
     map.set(id, existing);
@@ -263,7 +276,8 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const variableCents = vList.reduce((s, e) => s + e.cents, 0);
     const investimentoCents = iList.reduce((s, e) => s + e.cents, 0);
     const unclassifiedCents = uList.reduce((s, e) => s + e.cents, 0);
-    const totalCents = despesaCents + fixedCents + variableCents + investimentoCents + unclassifiedCents;
+    // Unclassified cents are excluded from the total to ensure consistency with visual reports
+    const totalCents = despesaCents + investimentoCents;
 
     return {
       key,
@@ -290,7 +304,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     variableCents: acc.variableCents + m.variableCents,
     investimentoCents: acc.investimentoCents + m.investimentoCents,
     unclassifiedCents: acc.unclassifiedCents + m.unclassifiedCents,
-    totalCents: acc.totalCents + m.totalCents,
+    totalCents: acc.totalCents + m.totalCents, // This already excludes unclassified at month level
   }), { despesaCents: 0, fixedCents: 0, variableCents: 0, investimentoCents: 0, unclassifiedCents: 0, totalCents: 0 });
 
   const first = months[0];
