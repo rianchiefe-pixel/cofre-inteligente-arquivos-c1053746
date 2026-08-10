@@ -297,7 +297,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
     doc.text(g.label, margin, y);
     doc.text(money(g.value), pw - margin, y, { align: "right" });
-    y += 15;
+    y += 14; // Espaçamento após título
 
     const cats = consolidatePeriodCategories(data, g.group);
     const validCats = cats.filter(c => c.name !== UNCATEGORIZED && !c.name.includes("Não identificado"));
@@ -311,10 +311,10 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       const desc = `Principais categorias: ` + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
       const lines = doc.splitTextToSize(desc, contentW - 10);
       doc.text(lines, margin, y, { lineHeightFactor: 1.5 });
-      y += (lines.length * 9 * 1.5) + 25; 
+      y += (lines.length * 9 * 1.5) + 32; // Espaçamento maior antes do próximo grupo
     } else {
       doc.text("Sem categorias detalhadas.", margin, y);
-      y += 25;
+      y += 32;
     }
   }
 
