@@ -1,22 +1,22 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { 
-  AlertCircle, 
   Search, 
   CheckCircle2, 
   Eye,
   MoreVertical,
   BrainCircuit,
   Tags,
-  Filter,
-  Check
+  Check,
+  ShieldAlert,
+  ArrowRight,
+  FileText
 } from 'lucide-react';
 import { 
   Card, 
-  CardContent, 
   CardHeader, 
   CardTitle,
   CardDescription 
@@ -32,13 +32,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
   DropdownMenu, 
@@ -61,24 +54,37 @@ import {
 } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { currencyBRL } from '@/lib/format';
-import { UNCATEGORIZED } from '@/lib/report-data';
+import { UNCATEGORIZED, TECHNICAL_UNCATEGORIZED_NAMES } from '@/lib/report-data';
 import { useActiveProfile } from '@/hooks/use-active-profile';
 import { cn } from '@/lib/utils';
+import { isUncategorizedReceipt } from '@/lib/categorization-utils';
+import { z } from 'zod';
+import { Label } from '@/components/ui/label';
 
-export const Route = createFileRoute('/_authenticated/app/categories/pending')({
-  component: PendingCategorization,
+const searchSchema = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+  profileId: z.string().optional(),
 });
 
-function PendingCategorization() {
+export const Route = createFileRoute('/_authenticated/app/categories/pending')({
+  validateSearch: (s) => searchSchema.parse(s),
+  component: PendingCategorizationPage,
+});
+
+function PendingCategorizationPage() {
   const navigate = useNavigate();
+  const search = useSearch({ from: Route.fullPath });
   const queryClient = useQueryClient();
   const { activeProfileId } = useActiveProfile();
+  
+  const profileId = search.profileId || activeProfileId;
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Rule: category_id IS NULL or technical uncategorized categories
   const { data: pendingReceipts, isLoading } = useQuery({
-    queryKey: ['pending-categorization-receipts', activeProfileId],
+    queryKey: ['pending-categorization-receipts', profileId, search.from, search.to],
     queryFn: async () => {
       let query = supabase
         .from('receipts')
@@ -91,7 +97,7 @@ function PendingCategorization() {
           expense_behavior,
           category_id,
           categories(name),
-          financial_profiles(name),
+          financial_profiles(id, name),
           bank_name,
           status,
           ai_suggested_category_id,
@@ -100,20 +106,22 @@ function PendingCategorization() {
         `)
         .eq('status', 'approved');
 
-      if (activeProfileId) {
-        query = query.eq('profile_id', activeProfileId);
+      if (profileId) {
+        query = query.eq('profile_id', profileId);
+      }
+      
+      if (search.from) {
+        query = query.gte('payment_date', search.from);
+      }
+      
+      if (search.to) {
+        query = query.lte('payment_date', search.to);
       }
 
       const { data, error } = await query;
-      
       if (error) throw error;
       
-      // Filter in JS to include NULLs and specific names since complex OR with subqueries in Supabase JS client can be tricky
-      return (data || []).filter(r => {
-        const catName = (r.categories as any)?.name;
-        const isTechUncategorized = catName === 'Não identificado' || catName === 'Não informado' || catName === UNCATEGORIZED;
-        return !r.category_id || isTechUncategorized;
-      });
+      return (data || []).filter(r => isUncategorizedReceipt(r as any));
     }
   });
 
@@ -126,7 +134,7 @@ function PendingCategorization() {
         .eq('archived', false)
         .order('name');
       if (error) throw error;
-      return data;
+      return (data || []).filter(c => !TECHNICAL_UNCATEGORIZED_NAMES.includes(c.name));
     }
   });
 
@@ -145,7 +153,6 @@ function PendingCategorization() {
       
       if (error) throw error;
 
-      // Log audit
       const { data: userData } = await supabase.auth.getUser();
       await supabase.from('audit_logs').insert({
         entity: 'receipt',
@@ -154,22 +161,24 @@ function PendingCategorization() {
         user_id: userData.user?.id || '',
         old_value: { category_id: oldReceipt?.category_id },
         new_value: { category_id: categoryId, method },
-        profile_id: activeProfileId
+        profile_id: profileId
       });
 
       return { receiptId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-categorization-receipts'] });
-      toast.success('Categoria atualizada com sucesso');
+      toast.success('Lançamento categorizado com sucesso');
     }
   });
 
   const stats = useMemo(() => {
-    if (!pendingReceipts) return { count: 0, total: 0 };
+    if (!pendingReceipts) return { count: 0, total: 0, withAi: 0, withoutAi: 0 };
     return {
       count: pendingReceipts.length,
-      total: pendingReceipts.reduce((sum, r) => sum + Math.abs(r.amount || 0), 0)
+      total: pendingReceipts.reduce((sum, r) => sum + Math.abs(r.amount || 0), 0),
+      withAi: pendingReceipts.filter(r => !!r.ai_suggested_category_id).length,
+      withoutAi: pendingReceipts.filter(r => !r.ai_suggested_category_id).length
     };
   }, [pendingReceipts]);
 
@@ -190,21 +199,33 @@ function PendingCategorization() {
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pendências de Categorização</h1>
-          <p className="text-muted-foreground">Localize e corrija lançamentos sem categoria identificada.</p>
+          <p className="text-muted-foreground">Confira e categorize os lançamentos que ainda estão sem uma categoria definida.</p>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-accent/20 bg-accent/5 shadow-none">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase tracking-wider font-semibold">Sem categoria</CardDescription>
-            <CardTitle className="text-2xl">{stats.count} lançamentos</CardTitle>
+            <CardDescription className="text-xs uppercase tracking-wider font-semibold">Lançamentos pendentes</CardDescription>
+            <CardTitle className="text-2xl">{stats.count}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-red-500/20 bg-red-500/5 shadow-none">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase tracking-wider font-semibold">Valor Total</CardDescription>
+            <CardDescription className="text-xs uppercase tracking-wider font-semibold">Valor sem categoria</CardDescription>
             <CardTitle className="text-2xl">{currencyBRL(stats.total)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-blue-500/20 bg-blue-500/5 shadow-none">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs uppercase tracking-wider font-semibold">Com sugestão da IA</CardDescription>
+            <CardTitle className="text-2xl">{stats.withAi}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-muted bg-muted/20 shadow-none">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs uppercase tracking-wider font-semibold">Sem sugestão</CardDescription>
+            <CardTitle className="text-2xl">{stats.withoutAi}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -225,14 +246,14 @@ function PendingCategorization() {
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 rounded-xl border-2 border-dashed bg-muted/20">
           <CheckCircle2 className="h-12 w-12 text-green-500" />
           <div>
-            <h3 className="text-lg font-semibold">Tudo categorizado ✓</h3>
-            <p className="text-muted-foreground">Não há lançamentos sem categoria neste período.</p>
+            <h3 className="text-lg font-semibold">✓ Tudo categorizado</h3>
+            <p className="text-muted-foreground">Não existem lançamentos sem categoria neste perfil/período.</p>
           </div>
         </div>
       ) : (
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
           <Table>
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="bg-muted/50 text-xs uppercase text-muted-foreground">
               <TableRow>
                 <TableHead className="w-[40px]">
                   <Checkbox 
@@ -243,17 +264,19 @@ function PendingCategorization() {
                   />
                 </TableHead>
                 <TableHead>Data</TableHead>
-                <TableHead>Favorecido</TableHead>
+                <TableHead>Favorecido / De-Para</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Perfil</TableHead>
-                <TableHead>Banco</TableHead>
-                <TableHead>Sugestão IA</TableHead>
+                <TableHead>Banco / Cartão</TableHead>
+                <TableHead>Categoria atual</TableHead>
+                <TableHead>Sugestão da IA</TableHead>
+                <TableHead>Confiança</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData.map((row) => (
-                <TableRow key={row.id} className="group">
+                <TableRow key={row.id} className="group hover:bg-muted/50">
                   <TableCell>
                     <Checkbox 
                       checked={selectedRows.includes(row.id)}
@@ -266,24 +289,34 @@ function PendingCategorization() {
                     {row.payment_date ? format(new Date(row.payment_date), 'dd/MM/yyyy') : '—'}
                   </TableCell>
                   <TableCell className="font-medium">{row.recipient_name || '—'}</TableCell>
-                  <TableCell className={row.amount && row.amount < 0 ? 'text-red-500' : 'text-blue-500'}>
+                  <TableCell className={row.amount && row.amount < 0 ? 'text-red-500 font-semibold' : 'text-blue-500 font-semibold'}>
                     {currencyBRL(Math.abs(row.amount || 0))}
                   </TableCell>
-                  <TableCell>{(row.financial_profiles as any)?.name || '—'}</TableCell>
+                  <TableCell className="text-xs">{(row.financial_profiles as any)?.name || '—'}</TableCell>
                   <TableCell className="text-xs">{row.bank_name || '—'}</TableCell>
                   <TableCell>
+                    <Badge variant="outline" className="text-[10px] font-normal border-destructive/20 text-destructive">
+                      { (row.categories as any)?.name || 'Sem categoria' }
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     {row.ai_suggested_category_id ? (
-                      <div className="flex flex-col gap-1">
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 w-fit font-normal">
-                          <BrainCircuit className="h-3 w-3" />
-                          {allCategories?.find(c => c.id === row.ai_suggested_category_id)?.name || 'Sugerido'}
-                        </Badge>
-                        {row.ai_confidence && (
-                          <span className="text-[10px] text-muted-foreground">Confiança: {(Number(row.ai_confidence) * 100).toFixed(0)}%</span>
-                        )}
+                      <div className="flex items-center gap-1.5 text-blue-600 font-medium text-xs">
+                        <BrainCircuit className="h-3 w-3" />
+                        {allCategories?.find(c => c.id === row.ai_suggested_category_id)?.name || 'Sugerido'}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground italic">Sem sugestão</span>
+                      <span className="text-[10px] text-muted-foreground italic">Sem sugestão</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {row.ai_confidence && (
+                       <span className={cn(
+                         "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                         Number(row.ai_confidence) > 0.8 ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                       )}>
+                         {(Number(row.ai_confidence) * 100).toFixed(0)}%
+                       </span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -292,13 +325,17 @@ function PendingCategorization() {
                          <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2"
                           disabled={updateCategoryMutation.isPending}
-                          onClick={() => updateCategoryMutation.mutate({ 
-                            receiptId: row.id, 
-                            categoryId: row.ai_suggested_category_id!,
-                            method: 'ai_suggested'
-                          })}
+                          onClick={() => {
+                            if (confirm(`Categorizar este lançamento como ${allCategories?.find(c => c.id === row.ai_suggested_category_id)?.name}?`)) {
+                              updateCategoryMutation.mutate({ 
+                                receiptId: row.id, 
+                                categoryId: row.ai_suggested_category_id!,
+                                method: 'ai_suggested'
+                              });
+                            }
+                          }}
                         >
                           Usar Sugestão
                         </Button>
@@ -306,11 +343,16 @@ function PendingCategorization() {
                        
                        <CategoryPicker 
                         categories={allCategories || []} 
-                        onSelect={(catId) => updateCategoryMutation.mutate({ 
-                          receiptId: row.id, 
-                          categoryId: catId, 
-                          method: 'manual' 
-                        })} 
+                        onSelect={(catId) => {
+                          const catName = allCategories?.find(c => c.id === catId)?.name;
+                          if (confirm(`Categorizar este lançamento como ${catName}?`)) {
+                            updateCategoryMutation.mutate({ 
+                              receiptId: row.id, 
+                              categoryId: catId, 
+                              method: 'manual' 
+                            });
+                          }
+                        }} 
                         isLoading={updateCategoryMutation.isPending}
                        />
 
@@ -321,7 +363,7 @@ function PendingCategorization() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate({ to: `/app/vault`, search: { id: row.id } })}>
+                          <DropdownMenuItem onClick={() => navigate({ to: `/app/vault`, search: { receipt: row.id } })}>
                             <Eye className="mr-2 h-4 w-4" /> Ver comprovante
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -341,16 +383,17 @@ function PendingCategorization() {
           <div className="h-4 w-px bg-border" />
           <CategoryPicker 
             categories={allCategories || []} 
-            trigger={<Button size="sm">Definir categoria em lote</Button>}
+            trigger={<Button size="sm">Categorizar selecionados</Button>}
             onSelect={(catId) => {
-              if (confirm(`Deseja definir a categoria para os ${selectedRows.length} lançamentos selecionados?`)) {
-                // Bulk action simulation - usually would be a separate RPC
-                selectedRows.forEach(id => updateCategoryMutation.mutate({ 
+              const catName = allCategories?.find(c => c.id === catId)?.name;
+              if (confirm(`Você deseja categorizar ${selectedRows.length} lançamentos como ${catName}?`)) {
+                Promise.all(selectedRows.map(id => updateCategoryMutation.mutateAsync({ 
                   receiptId: id, 
                   categoryId: catId, 
                   method: 'manual' 
-                }));
-                setSelectedRows([]);
+                }))).then(() => {
+                  setSelectedRows([]);
+                });
               }
             }}
             isLoading={updateCategoryMutation.isPending}
@@ -376,18 +419,18 @@ function CategoryPicker({ categories, onSelect, isLoading, trigger }: {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         {trigger || (
-          <Button variant="outline" size="sm" className="h-8 gap-2" disabled={isLoading}>
+          <Button variant="outline" size="sm" className="h-8 gap-2 px-2" disabled={isLoading}>
             <Tags className="h-3.5 w-3.5" />
-            Definir
+            Definir Categoria
           </Button>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-[250px] p-0" align="end">
-        <Command>
-          <CommandInput placeholder="Procurar categoria..." />
-          <CommandList>
+      <PopoverContent className="w-[280px] p-0 shadow-2xl" align="end">
+        <Command className="rounded-lg border shadow-md">
+          <CommandInput placeholder="Pesquisar categoria..." />
+          <CommandList className="max-h-[300px]">
             <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
-            <CommandGroup>
+            <CommandGroup heading="Categorias Reais">
               {categories.map((cat) => (
                 <CommandItem
                   key={cat.id}
@@ -396,13 +439,9 @@ function CategoryPicker({ categories, onSelect, isLoading, trigger }: {
                     onSelect(cat.id);
                     setOpen(false);
                   }}
+                  className="cursor-pointer"
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      "opacity-0"
-                    )}
-                  />
+                  <Check className={cn("mr-2 h-4 w-4 opacity-0")} />
                   {cat.name}
                 </CommandItem>
               ))}
