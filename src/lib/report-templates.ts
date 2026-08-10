@@ -222,11 +222,22 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       if (uncategorized && uncategorized.cents > 0) {
         doc.setFont("helvetica", "italic");
         doc.setTextColor(RED[0], RED[1], RED[2]);
-        const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada. Ver lançamentos pendentes em: /app/categories/pending`;
-        const alertLines = doc.splitTextToSize(alertText, contentW - 20);
+        const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada.`;
+        const alertLines = doc.splitTextToSize(alertText, contentW - 70);
         doc.text(alertLines, margin + 5, y, { lineHeightFactor: 1.4 });
+        
+        // Link to pending categorization
+        doc.setTextColor(BLUE[0], BLUE[1], BLUE[2]);
+        doc.setFont("helvetica", "bold");
+        const linkText = "Ver lançamentos";
+        const linkX = margin + 5 + doc.getTextWidth(alertLines[alertLines.length - 1]) + 5;
+        const linkY = y + (alertLines.length - 1) * 9 * 1.4;
+        doc.text(linkText, linkX, linkY);
+        doc.link(linkX, linkY - 8, doc.getTextWidth(linkText), 10, { url: `${window.location.origin}/app/categories/pending?from=${data.from}&to=${data.to}&profileId=${data.meta.filters.profileId || ''}` });
+
         y += (alertLines.length * 9 * 1.4) + 12;
       }
+
       
       y += 10;
     }

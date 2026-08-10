@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isUncategorizedReceipt } from "./categorization-utils";
+
 
 export const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -160,6 +162,19 @@ export function resolveReportType(
   return "unclassified";
 }
 
+/**
+ * Returns the filter for technical uncategorized categories to be used in SQL.
+ */
+export const TECHNICAL_UNCATEGORIZED_NAMES = [
+  'Não identificado', 
+  'não identificado', 
+  'Não informado', 
+  'não informado', 
+  'Sem categoria', 
+  'Sem categoria definida'
+];
+
+
 export async function loadReportDataset(f: { from: string; to: string; profileId?: string | null; propertyId?: string | null }): Promise<ReportDataset> {
   const { data: cats, error: catError } = await supabase.from("categories").select("id, name, parent_id, default_type, expense_behavior");
   if (catError) throw new Error(`Falha ao carregar categorias: ${catError.message}`);
@@ -224,7 +239,8 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       categoryName: cat?.name || UNCATEGORIZED,
       parentCategoryId: parent?.id || null,
       parentCategoryName: parent?.name || null,
-      hasCategory: Boolean(cat),
+      hasCategory: !isUncategorizedReceipt({ category_id: r.category_id, categories: cat }),
+
       payee: r.recipient_name ?? "—",
       account: reportType === "investimento" ? "INVESTIMENTOS" : "DESPESAS",
       notes: [r.description, r.notes].filter(Boolean).join("; "),
