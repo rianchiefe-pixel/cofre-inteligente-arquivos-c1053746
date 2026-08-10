@@ -7,7 +7,7 @@ export const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-export const UNCATEGORIZED = "Sem categoria definida";
+export const UNCATEGORIZED = "Sem categoria";
 
 /**
  * ReportFinancialType defines the 4 main financial groups + unclassified.
@@ -171,7 +171,7 @@ export const TECHNICAL_UNCATEGORIZED_NAMES = [
   'Não informado', 
   'não informado', 
   'Sem categoria', 
-  'Sem categoria definida'
+  'Sem categoria'
 ];
 
 
