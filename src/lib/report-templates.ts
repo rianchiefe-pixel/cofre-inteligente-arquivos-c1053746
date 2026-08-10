@@ -253,13 +253,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       });
     }
 
-    if (m.unclassifiedCents > 0) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(RED[0], RED[1], RED[2]);
-      doc.text(`Alerta: ${money(m.unclassified)} não possuem classificação entre fixo/variável/despesa.`, margin, y);
-      y += 20;
-    }
+    // Removido: Alerta de pendências conforme instrução.
   }
 
   // 3. CONSOLIDADO FINAL
