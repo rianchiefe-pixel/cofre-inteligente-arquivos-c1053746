@@ -207,23 +207,25 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       
       if (topCats.length > 0) {
         const desc = "Principais categorias: " + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
-        const lines = doc.splitTextToSize(desc, contentW - 10);
-        doc.text(lines, margin + 5, y);
-        y += lines.length * 12 + 10;
+        const lines = doc.splitTextToSize(desc, contentW - 20); 
+        doc.text(lines, margin + 5, y, { lineHeightFactor: 1.5 });
+        y += (lines.length * 9 * 1.5) + 12; 
       } else if (g.value > 0) {
         doc.text("Lançamentos sem categoria específica.", margin + 5, y);
-        y += 20;
+        y += 18;
       } else {
         doc.text("Sem movimentação neste grupo.", margin + 5, y);
-        y += 20;
+        y += 18;
       }
 
       const uncategorized = g.categories.find(c => c.name === UNCATEGORIZED || c.name.includes("Não identificado"));
       if (uncategorized && uncategorized.cents > 0) {
         doc.setFont("helvetica", "italic");
         doc.setTextColor(RED[0], RED[1], RED[2]);
-        doc.text(`Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada.`, margin + 5, y);
-        y += 15;
+        const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada.`;
+        const alertLines = doc.splitTextToSize(alertText, contentW - 20);
+        doc.text(alertLines, margin + 5, y, { lineHeightFactor: 1.4 });
+        y += (alertLines.length * 9 * 1.4) + 12;
       }
       
       y += 10;
@@ -286,9 +288,9 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     
     if (topCats.length > 0) {
       const desc = `Principais categorias: ` + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
-      const lines = doc.splitTextToSize(desc, contentW);
-      doc.text(lines, margin, y);
-      y += lines.length * 12 + 20;
+      const lines = doc.splitTextToSize(desc, contentW - 10);
+      doc.text(lines, margin, y, { lineHeightFactor: 1.5 });
+      y += (lines.length * 9 * 1.5) + 25; 
     } else {
       doc.text("Sem categorias detalhadas.", margin, y);
       y += 25;
