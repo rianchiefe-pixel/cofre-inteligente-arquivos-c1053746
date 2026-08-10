@@ -133,8 +133,16 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
 
-    const validCats = params.categories.filter(c => c.name !== UNCATEGORIZED && !c.name.includes("Não identificado"));
-    const topCats = validCats.slice(0, 5);
+    const validCats = params.categories.filter(c => {
+      const name = c.name.toLowerCase();
+      return (
+        name !== UNCATEGORIZED.toLowerCase() && 
+        !name.includes("não identificado") && 
+        !name.includes("não classificado") && 
+        !name.includes("sem categoria") && 
+        !name.includes("não informado")
+      );
+    });
     
     let bodyContentY = curY;
 
@@ -178,7 +186,6 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   const subCards = [
     { label: "GASTOS FIXOS", value: data.totals.fixed, color: TAN },
     { label: "GASTOS VARIÁVEIS", value: data.totals.variable, color: TAN_LIGHT },
-    { label: "NÃO CATEGORIZADOS", value: data.totals.unclassified, color: [150, 150, 150] as RGB },
   ];
 
   subCards.forEach((c, i) => {
