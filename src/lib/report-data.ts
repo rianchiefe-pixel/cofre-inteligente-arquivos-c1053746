@@ -276,7 +276,8 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const variableCents = vList.reduce((s, e) => s + e.cents, 0);
     const investimentoCents = iList.reduce((s, e) => s + e.cents, 0);
     const unclassifiedCents = uList.reduce((s, e) => s + e.cents, 0);
-    const totalCents = despesaCents + fixedCents + variableCents + investimentoCents + unclassifiedCents;
+    // Unclassified cents are excluded from the total to ensure consistency with visual reports
+    const totalCents = despesaCents + investimentoCents;
 
     return {
       key,
