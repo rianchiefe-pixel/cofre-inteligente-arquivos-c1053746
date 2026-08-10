@@ -15,7 +15,7 @@ export function isUncategorizedReceipt(receipt: {
     catName === 'Não informado' || 
     catName === 'não informado' || 
     catName === 'Sem categoria' || 
-    catName === 'Sem categoria definida';
+    catName === 'Sem categoria' || catName === 'Sem categoria definida';
     
   return !receipt.category_id || isTechUncategorized;
 }

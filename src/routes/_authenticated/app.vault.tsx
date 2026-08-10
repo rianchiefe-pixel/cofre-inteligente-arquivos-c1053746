@@ -984,7 +984,7 @@ function VaultPage() {
             <div className="w-full md:w-80">
               <MultiSelect
                 options={[
-                  { label: "Sem categoria definida", value: "__none__" },
+                  { label: "Sem categoria", value: "__none__" },
                   ...(categories.data ?? []).map((c) => ({ label: c.name, value: c.id })),
                 ]}
                 selected={selectedCategoryIds}
