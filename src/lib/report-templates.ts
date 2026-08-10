@@ -97,6 +97,91 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   const margin = 40;
   const contentW = pw - margin * 2;
 
+  const drawFinancialSectionFn = (params: {
+    y: number;
+    label: string;
+    value: number;
+    categories: CategoryRow[];
+    color: RGB;
+  }) => {
+    let curY = params.y;
+    const HEADER_HEIGHT = 25;
+    const HEADER_TO_BODY_GAP = 12;
+    const BODY_BOTTOM_GAP = 10;
+    const SECTION_BOTTOM_GAP = 24;
+
+    if (curY + 120 > ph - margin) {
+      doc.addPage();
+      curY = margin + 20;
+    }
+
+    // 1. ÁREA HEADER
+    doc.setFillColor(params.color[0], params.color[1], params.color[2]);
+    doc.rect(margin, curY, contentW, HEADER_HEIGHT, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    const isDark = params.color === TAN || params.color === BLUE || params.color === RED;
+    doc.setTextColor(isDark ? 255 : 60);
+    doc.text(params.label, margin + 10, curY + 16);
+    doc.text(money(params.value), pw - margin - 10, curY + 16, { align: "right" });
+
+    // Avança Y para fora do Header
+    curY += HEADER_HEIGHT + HEADER_TO_BODY_GAP;
+
+    // 2. ÁREA BODY
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+
+    const validCats = params.categories.filter(c => c.name !== UNCATEGORIZED && !c.name.includes("Não identificado"));
+    const topCats = validCats.slice(0, 5);
+    
+    let bodyContentY = curY;
+
+    if (topCats.length > 0) {
+      const desc = "Principais categorias: " + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
+      const lines = doc.splitTextToSize(desc, contentW - 20);
+      doc.text(lines, margin + 5, bodyContentY, { lineHeightFactor: 1.5 });
+      bodyContentY += (lines.length * 9 * 1.5) + BODY_BOTTOM_GAP;
+    } else if (params.value > 0) {
+      doc.text("Lançamentos sem categoria específica.", margin + 5, bodyContentY);
+      bodyContentY += 18;
+    } else {
+      doc.text("Sem movimentação neste grupo.", margin + 5, bodyContentY);
+      bodyContentY += 18;
+    }
+
+    const uncategorized = params.categories.find(c => c.name === UNCATEGORIZED || c.name.includes("Não identificado"));
+    if (uncategorized && uncategorized.cents > 0) {
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(RED[0], RED[1], RED[2]);
+      const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada. `;
+      const linkText = "Ver lançamentos";
+      
+      const fullAlertText = alertText + linkText;
+      const alertLines = doc.splitTextToSize(fullAlertText, contentW - 20);
+      
+      doc.text(alertLines, margin + 5, bodyContentY, { lineHeightFactor: 1.4 });
+      
+      // Link
+      doc.setTextColor(BLUE[0], BLUE[1], BLUE[2]);
+      doc.setFont("helvetica", "bold");
+      const lastLineIndex = alertLines.length - 1;
+      const lastLine = alertLines[lastLineIndex];
+      const linkWidth = doc.getTextWidth(linkText);
+      const linkX = margin + 5 + doc.getTextWidth(lastLine) - linkWidth;
+      const linkY = bodyContentY + (lastLineIndex * 9 * 1.4);
+      
+      doc.link(linkX, linkY - 8, linkWidth, 10, { 
+        url: `${window.location.origin}/app/categories/pending?from=${data.from}&to=${data.to}&profileId=${data.meta.filters.profileId || ''}` 
+      });
+
+      bodyContentY += (alertLines.length * 9 * 1.4) + BODY_BOTTOM_GAP;
+    }
+
+    return bodyContentY + SECTION_BOTTOM_GAP;
+  };
+
   // 1. CAPA / RESUMO INICIAL
   drawReportHeader(doc, "Relatório de Gastos e Investimentos", data.periodLabel, pw, margin);
   
@@ -183,91 +268,6 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       { label: "GASTOS VARIÁVEIS", value: m.variable, categories: m.variableCategories, color: TAN_LIGHT },
       { label: "INVESTIMENTOS", value: m.investimento, categories: m.investimentoCategories, color: BLUE },
     ];
-
-    const drawFinancialSectionFn = (params: {
-      y: number;
-      label: string;
-      value: number;
-      categories: CategoryRow[];
-      color: RGB;
-    }) => {
-      let curY = params.y;
-      const HEADER_HEIGHT = 25;
-      const HEADER_TO_BODY_GAP = 12;
-      const BODY_BOTTOM_GAP = 10;
-      const SECTION_BOTTOM_GAP = 24;
-
-      if (curY + 120 > ph - margin) {
-        doc.addPage();
-        curY = margin + 20;
-      }
-
-      // 1. ÁREA HEADER
-      doc.setFillColor(params.color[0], params.color[1], params.color[2]);
-      doc.rect(margin, curY, contentW, HEADER_HEIGHT, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      const isDark = params.color === TAN || params.color === BLUE || params.color === RED;
-      doc.setTextColor(isDark ? 255 : 60);
-      doc.text(params.label, margin + 10, curY + 16);
-      doc.text(money(params.value), pw - margin - 10, curY + 16, { align: "right" });
-
-      // Avança Y para fora do Header
-      curY += HEADER_HEIGHT + HEADER_TO_BODY_GAP;
-
-      // 2. ÁREA BODY
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(80, 80, 80);
-
-      const validCats = params.categories.filter(c => c.name !== UNCATEGORIZED && !c.name.includes("Não identificado"));
-      const topCats = validCats.slice(0, 5);
-      
-      let bodyContentY = curY;
-
-      if (topCats.length > 0) {
-        const desc = "Principais categorias: " + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
-        const lines = doc.splitTextToSize(desc, contentW - 20);
-        doc.text(lines, margin + 5, bodyContentY, { lineHeightFactor: 1.5 });
-        bodyContentY += (lines.length * 9 * 1.5) + BODY_BOTTOM_GAP;
-      } else if (params.value > 0) {
-        doc.text("Lançamentos sem categoria específica.", margin + 5, bodyContentY);
-        bodyContentY += 18;
-      } else {
-        doc.text("Sem movimentação neste grupo.", margin + 5, bodyContentY);
-        bodyContentY += 18;
-      }
-
-      const uncategorized = params.categories.find(c => c.name === UNCATEGORIZED || c.name.includes("Não identificado"));
-      if (uncategorized && uncategorized.cents > 0) {
-        doc.setFont("helvetica", "italic");
-        doc.setTextColor(RED[0], RED[1], RED[2]);
-        const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada. `;
-        const linkText = "Ver lançamentos";
-        
-        const fullAlertText = alertText + linkText;
-        const alertLines = doc.splitTextToSize(fullAlertText, contentW - 20);
-        
-        doc.text(alertLines, margin + 5, bodyContentY, { lineHeightFactor: 1.4 });
-        
-        // Link
-        doc.setTextColor(BLUE[0], BLUE[1], BLUE[2]);
-        doc.setFont("helvetica", "bold");
-        const lastLineIndex = alertLines.length - 1;
-        const lastLine = alertLines[lastLineIndex];
-        const linkWidth = doc.getTextWidth(linkText);
-        const linkX = margin + 5 + doc.getTextWidth(lastLine) - linkWidth;
-        const linkY = bodyContentY + (lastLineIndex * 9 * 1.4);
-        
-        doc.link(linkX, linkY - 8, linkWidth, 10, { 
-          url: `${window.location.origin}/app/categories/pending?from=${data.from}&to=${data.to}&profileId=${data.meta.filters.profileId || ''}` 
-        });
-
-        bodyContentY += (alertLines.length * 9 * 1.4) + BODY_BOTTOM_GAP;
-      }
-
-      return bodyContentY + SECTION_BOTTOM_GAP;
-    };
 
     for (const g of groups) {
       y = drawFinancialSectionFn({
