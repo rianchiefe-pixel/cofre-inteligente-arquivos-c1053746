@@ -122,6 +122,19 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
   
   for (const e of entries) {
     const id = e.categoryId ?? "uncategorized";
+    const name = e.categoryName.toLowerCase();
+    
+    // Filtro agressivo para remover categorias ausentes da agregação visual do relatório
+    if (
+      !e.categoryId ||
+      name.includes("não identificado") ||
+      name.includes("não classificado") ||
+      name.includes("sem categoria") ||
+      name.includes("não informado")
+    ) {
+      continue;
+    }
+
     const existing = map.get(id) || { name: e.categoryName, cents: 0 };
     existing.cents += e.cents;
     map.set(id, existing);
