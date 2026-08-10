@@ -144,11 +144,9 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       doc.text(lines, margin + 5, bodyContentY, { lineHeightFactor: 1.5 });
       bodyContentY += (lines.length * 9 * 1.5) + BODY_BOTTOM_GAP;
     } else if (params.value > 0) {
-      doc.text("Lançamentos sem categoria específica.", margin + 5, bodyContentY);
-      bodyContentY += 18;
+      bodyContentY += 1;
     } else {
-      doc.text("Sem movimentação neste grupo.", margin + 5, bodyContentY);
-      bodyContentY += 18;
+      bodyContentY += 1;
     }
 
     // Removido: Alerta de qualidade de dados (sem categoria) conforme instrução.
@@ -180,7 +178,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   const subCards = [
     { label: "GASTOS FIXOS", value: data.totals.fixed, color: TAN },
     { label: "GASTOS VARIÁVEIS", value: data.totals.variable, color: TAN_LIGHT },
-    { label: "NÃO CLASSIFICADOS", value: data.totals.unclassified, color: [150, 150, 150] as RGB },
+    { label: "NÃO CATEGORIZADOS", value: data.totals.unclassified, color: [150, 150, 150] as RGB },
   ];
 
   subCards.forEach((c, i) => {
