@@ -143,11 +143,12 @@ export async function generateFixedVariableReport(data: ReportDataset) {
         !name.includes("não informado")
       );
     });
+    const topCats = validCats.slice(0, 5);
     
     let bodyContentY = curY;
 
     if (topCats.length > 0) {
-      const desc = "Principais categorias: " + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
+      const desc = "Principais categorias: " + topCats.map((c: any) => `${c.name} (${money(c.value)})`).join(", ") + ".";
       const lines = doc.splitTextToSize(desc, contentW - 20);
       doc.text(lines, margin + 5, bodyContentY, { lineHeightFactor: 1.5 });
       bodyContentY += (lines.length * 9 * 1.5) + BODY_BOTTOM_GAP;
