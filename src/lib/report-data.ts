@@ -304,7 +304,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     variableCents: acc.variableCents + m.variableCents,
     investimentoCents: acc.investimentoCents + m.investimentoCents,
     unclassifiedCents: acc.unclassifiedCents + m.unclassifiedCents,
-    totalCents: acc.totalCents + m.totalCents,
+    totalCents: acc.totalCents + m.totalCents, // This already excludes unclassified at month level
   }), { despesaCents: 0, fixedCents: 0, variableCents: 0, investimentoCents: 0, unclassifiedCents: 0, totalCents: 0 });
 
   const first = months[0];
