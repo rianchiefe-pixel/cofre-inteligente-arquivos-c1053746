@@ -74,7 +74,7 @@ export const Route = createFileRoute('/_authenticated/app/categories/pending')({
 
 function PendingCategorizationPage() {
   const navigate = useNavigate();
-  const search = useSearch({ from: Route.fullPath });
+  const search = useSearch({ from: Route.id });
   const queryClient = useQueryClient();
   const { activeProfileId } = useActiveProfile();
   
@@ -363,7 +363,7 @@ function PendingCategorizationPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate({ to: `/app/vault`, search: (s: any) => ({ ...s, receipt: row.id }) })}>
+                          <DropdownMenuItem onClick={() => navigate({ to: '/app/vault', search: (s: any) => ({ ...s, receipt: row.id }) })}>
                             <Eye className="mr-2 h-4 w-4" /> Ver comprovante
                           </DropdownMenuItem>
                         </DropdownMenuContent>

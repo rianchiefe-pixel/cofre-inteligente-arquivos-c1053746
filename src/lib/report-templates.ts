@@ -195,7 +195,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       doc.setTextColor(g.color === TAN || g.color === BLUE || g.color === RED ? 255 : 60);
       doc.text(g.label, margin + 10, y + 16);
       doc.text(money(g.value), pw - margin - 10, y + 16, { align: "right" });
-      y += 30;
+      y += 14; // ESPAÇAMENTO MÍNIMO 14px após a faixa
 
       // Brief composition description with values
       doc.setFont("helvetica", "normal");
@@ -209,7 +209,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
         const desc = "Principais categorias: " + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
         const lines = doc.splitTextToSize(desc, contentW - 20); 
         doc.text(lines, margin + 5, y, { lineHeightFactor: 1.5 });
-        y += (lines.length * 9 * 1.5) + 12; 
+        y += (lines.length * 9 * 1.5) + 12; // 12px de espaço após o parágrafo
       } else if (g.value > 0) {
         doc.text("Lançamentos sem categoria específica.", margin + 5, y);
         y += 18;
@@ -222,24 +222,34 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       if (uncategorized && uncategorized.cents > 0) {
         doc.setFont("helvetica", "italic");
         doc.setTextColor(RED[0], RED[1], RED[2]);
-        const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada.`;
-        const alertLines = doc.splitTextToSize(alertText, contentW - 70);
+        const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada. `;
+        const linkText = "Ver lançamentos";
+        
+        const fullAlertText = alertText + linkText;
+        const alertLines = doc.splitTextToSize(fullAlertText, contentW - 20);
+        
         doc.text(alertLines, margin + 5, y, { lineHeightFactor: 1.4 });
         
         // Link to pending categorization
+        // Calculate the exact position of "Ver lançamentos" within the wrapped lines
         doc.setTextColor(BLUE[0], BLUE[1], BLUE[2]);
         doc.setFont("helvetica", "bold");
-        const linkText = "Ver lançamentos";
-        const linkX = margin + 5 + doc.getTextWidth(alertLines[alertLines.length - 1]) + 5;
-        const linkY = y + (alertLines.length - 1) * 9 * 1.4;
-        doc.text(linkText, linkX, linkY);
-        doc.link(linkX, linkY - 8, doc.getTextWidth(linkText), 10, { url: `${window.location.origin}/app/categories/pending?from=${data.from}&to=${data.to}&profileId=${data.meta.filters.profileId || ''}` });
+        
+        // We find which line the linkText is on
+        const lastLineIndex = alertLines.length - 1;
+        const lastLine = alertLines[lastLineIndex];
+        const linkWidth = doc.getTextWidth(linkText);
+        const linkX = margin + 5 + doc.getTextWidth(lastLine) - linkWidth;
+        const linkY = y + (lastLineIndex * 9 * 1.4);
+        
+        doc.link(linkX, linkY - 8, linkWidth, 10, { 
+          url: `${window.location.origin}/app/categories/pending?from=${data.from}&to=${data.to}&profileId=${data.meta.filters.profileId || ''}` 
+        });
 
         y += (alertLines.length * 9 * 1.4) + 12;
       }
-
       
-      y += 10;
+      y += 20; // Espaçamento maior antes da próxima seção (20+10 = 30px total aprox)
     }
 
     if (m.unclassifiedCents > 0) {
@@ -287,7 +297,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     doc.setTextColor(NAVY_TEXT[0], NAVY_TEXT[1], NAVY_TEXT[2]);
     doc.text(g.label, margin, y);
     doc.text(money(g.value), pw - margin, y, { align: "right" });
-    y += 15;
+    y += 14; // Espaçamento após título
 
     const cats = consolidatePeriodCategories(data, g.group);
     const validCats = cats.filter(c => c.name !== UNCATEGORIZED && !c.name.includes("Não identificado"));
@@ -301,10 +311,10 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       const desc = `Principais categorias: ` + topCats.map(c => `${c.name} (${money(c.value)})`).join(", ") + ".";
       const lines = doc.splitTextToSize(desc, contentW - 10);
       doc.text(lines, margin, y, { lineHeightFactor: 1.5 });
-      y += (lines.length * 9 * 1.5) + 25; 
+      y += (lines.length * 9 * 1.5) + 32; // Espaçamento maior antes do próximo grupo
     } else {
       doc.text("Sem categorias detalhadas.", margin, y);
-      y += 25;
+      y += 32;
     }
   }
 
