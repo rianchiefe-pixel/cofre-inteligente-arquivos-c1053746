@@ -74,7 +74,7 @@ export const Route = createFileRoute('/_authenticated/app/categories/pending')({
 
 function PendingCategorizationPage() {
   const navigate = useNavigate();
-  const search = useSearch({ from: AuthenticatedAppCategoriesPendingRoute.id });
+  const search = useSearch({ from: Route.id });
   const queryClient = useQueryClient();
   const { activeProfileId } = useActiveProfile();
   
