@@ -1,0 +1,243 @@
+ perfil  |  amount   |              recipient_name              |                  id                  
+---------+-----------+------------------------------------------+--------------------------------------
+ Pessoal |      0.00 | LENITA FACURY GASPAR                     | d50b0ad7-82e7-42bc-85b1-e4e41c6e6a77
+ Pessoal |      2.50 | REI DO MATE SHOPPING D SAO PAULO         | 014fd2be-1e8a-4ec5-aef8-74dbca0bfe29
+ Pessoal |      3.00 | MODOCASEIRO SAO BERNAR                   | 01f0f0aa-7d3f-41cf-afa9-921cf4b2274b
+ Pessoal |      4.00 | POSTO ALVORADA VERDE N MATO VERDE        | 0e931554-ebbc-4038-b8a0-fa12189ab1fd
+ Pessoal |      5.00 | REI DO MATE SHOPPING D SAO PAULO         | da7aab90-0f2d-4238-a76c-b2f9e6f3e5cb
+ Pessoal |      5.00 | DL*UBERRIDES SAO Paulo                   | 53839783-e96c-4ede-908d-f588f0779b86
+ Pessoal |      5.00 | UBER *TRIP HELP.UBER.COM SAO PAULO       | 5add26f8-939f-4069-8cde-47b6a2a81398
+ Pessoal |      7.00 | MODOCASEIRO SAO BERNAR                   | 88289c3d-19ba-4599-9040-0bc87cfa22f8
+ Pessoal |      8.00 | LOPARK ESTACIONAMENTO SANTO ANDR         | 34b0564b-80d4-451f-85ab-d393473eab96
+ Pessoal |      9.09 | Cartório                                 | 4cfc1801-cbac-492a-93e1-9485b8ce240c
+ Pessoal |      9.09 | 1. CARTORIO DE NOTAS E PROTEST           | 38b12c28-9da2-4c91-bdd4-5083eb4e968a
+ Pessoal |      9.90 | MP*MELIMAIS OSASCO                       | 009c7991-9160-45f8-889e-3e88ca0a316f
+ Pessoal |     10.00 | HR PARK AMAZONAS SAO CAETAN              | 2bad54d2-2e53-4364-a1dc-cb9c4634e512
+ Pessoal |     10.50 | SUPERGASBRAS ENERGIA LTDA                | beef7f45-be46-4661-b007-8b70ac254d4a
+ Pessoal |     12.46 | UBER * PENDING SAO PAULO                 | ef0f0fa8-6303-4b5a-a6d1-e6400f13b8b4
+ Pessoal |     12.90 | REI DO MATE SHOPPING D SAO PAULO         | 254501ac-9616-4234-8bfc-55e26117a40d
+ Pessoal |     13.00 | SIDNEY OLGAS                             | 3619b82e-6eb0-4f8a-89be-c20bad07a580
+ Pessoal |     13.00 | SIDNEY OLGAS                             | fbd2baf0-435e-45a3-8dec-e8cc3441ce49
+ Pessoal |     13.52 | UBER *TRIP HELP.UBER.COM SAO PAULO       | e27e82f1-4593-45a2-b496-b33c75a2aa41
+ Pessoal |     13.90 | Cartório                                 | b7643e47-3f54-480f-87bb-d9b4875cd37a
+ Pessoal |     13.90 | 1. CARTORIO DE NOTAS E PROTEST           | 70a137a8-a6ed-4aa5-8827-b3a9ac7cc95c
+ Pessoal |     16.00 | FAST ESCOVA SAO CAETAN                   | 88e58837-8f9f-4ec5-94ac-bc2b36003b4f
+ Pessoal |     17.00 | DELICIA SORVETES CANDIBA                 | d2a98347-f51c-4f7d-8f7f-63dcd8130559
+ Pessoal |     17.00 | UBER *TRIP HELP.UBER.COM SAO PAULO       | 05cf07ea-8860-48fe-9656-c2f8d4ef1692
+ Pessoal |     19.03 | CENTRO AUTOMOTIVO RUBY SAO CAETAN        | a15ba2c1-d1d9-4bfc-b503-52a3c4853364
+ Pessoal |     19.90 | REI DO MATE SHOPPING D SAO PAULO         | 2b44a622-1ebc-4a6a-8342-a30af29f8b22
+ Pessoal |     19.90 | MERCADOLIVRE*MERCADOLIVRE JUNDIAI        | 4e01d5e0-4ba7-432f-8b3a-808d7c02b5ca
+ Pessoal |     20.00 | PG *PARE AZUL PAREAZUL CAMPO MOUR        | d0717546-692d-4cdc-b923-b1aaaee56b95
+ Pessoal |     20.00 | PG *PARE AZUL PAREAZUL CAMPO MOUR        | 1dbc29d2-c606-48a5-aeb0-5466ffe0f6d9
+ Pessoal |     20.00 | ESTACIONAMENTO MF SAO CAETAN             | 4909b1ac-1f67-43c3-9949-51613eee349c
+ Pessoal |     20.00 | PG *PARE AZUL PAREAZUL CAMPO MOUR        | 1291eb79-b1f6-4b47-b23a-353af9deab8f
+ Pessoal |     20.00 | Pagar Me Pagamentos                      | dfa54e67-11c7-4a35-b2fd-9875d567ab17
+ Pessoal |     20.98 | UBER * PENDING SAO PAULO                 | 1a9efe3b-4f4c-46d0-ac2c-e684b07d37b9
+ Pessoal |     20.98 | UBER * PENDING SAO PAULO                 | 4d2ec164-0b07-493f-855c-15dcd1ccd33d
+ Pessoal |     22.00 | PARK PLACE SAO PAULO                     | 8e38277f-bb6c-4cc1-937d-9630cac24521
+ Pessoal |     22.86 | PRODUTOSUOL SAO Paulo                    | 5304ebc4-9df6-49a6-b755-1d9ede33db30
+ Pessoal |     23.00 | MARIA NEUSA ROSA DE SA TELES F           | eb89b3b5-d02b-4185-a5e5-b6380d744695
+ Pessoal |     23.36 | ONR                                      | d34b1f6b-9254-405b-8872-e36eaa4ea7ea
+ Pessoal |     24.00 | ROBSONMARCOSDA GUARULHOS                 | 8c38c521-6d96-4648-ae92-141922c1bde1
+ Pessoal |     24.68 | UBER *TRIP HELP.UBER.COM SAO PAULO       | 4d51da64-6f43-4f27-9337-0423b913ba25
+ Pessoal |     24.90 | DROGARIA SAO PAULO SA SAO CAETAN         | 6ab03aec-16e9-48d2-974e-585d6118cadd
+ Pessoal |     28.00 | BRUNODOSREIS SANTO ANDR                  | 32f30421-acae-4d4a-ad02-965b485403fb
+ Pessoal |     28.50 | REI DO MATE SHOPPING D SAO PAULO         | ef2f6e66-3483-4c0b-bfb9-884f28c615b6
+ Pessoal |     29.18 | MERCADOLIVRE*MERCADOLIVRE SO PAULO       | 67bdb35c-0b85-4f74-8552-555c9604848d
+ Pessoal |     30.00 | ONR                                      | 8b44bd7c-01c9-4c2f-b63e-5f1538a5ea67
+ Pessoal |     30.75 | DISTRIBUIDORA MUNDIAL CANDIBA            | 62c0329b-c987-44be-abfc-60856eff1a48
+ Pessoal |     31.80 | ATACADAO 639 AS SAO CAETAN               | a36628fb-695a-4d23-b92d-80417aa28305
+ Pessoal |     32.40 | ALLPARK EMPREENDIMENTOS SAO Bernar       | b7d64aa2-1eb1-43c9-a72b-754eeb5607c4
+ Pessoal |     33.80 | MINUTO PA 4999 S. C. DO S                | 3667c825-cc86-4813-aa5e-79ac999caf9d
+ Pessoal |     35.00 | DISTRIBUIDORA MUNDIAL CANDIBA            | 212d54fc-27d5-4da9-b5cf-657d72dc9ab0
+ Pessoal |     35.90 | DROGARIA SAO PAULO SA SAO CAETAN         | a852a4ce-386d-4f55-a913-6d4e8079c34f
+ Pessoal |     37.50 | RESTAURANTE ITAGUARA ITAGUARA            | 96f682a2-5fdf-47b4-bc21-ef2f366b6ed9
+ Pessoal |     41.00 | MODOCASEIRO SAO BERNAR                   | 83b6fe7b-76a8-4397-adc9-d3c309d001ef
+ Pessoal |     42.00 | COMERCIALGORUTUBA CANDIBA                | 9050d999-7c7f-4ef6-b2a5-d69b6b9d204c
+ Pessoal |     43.12 | MINUTO PA 4999 S. C. DO S                | 8e29952a-c92b-4a7a-9f48-aaa0167ec4f5
+ Pessoal |     43.23 | EMBASA                                   | 28fbdbf1-5bb6-42ab-b0fe-48f5b0ac5432
+ Pessoal |     45.23 | ELETROPAULO                              | c07a02a4-72e5-444f-86ab-bd33424f22ea
+ Pessoal |     49.33 | MERCADOLIVRE*BARIGUI JOINVILLE           | d6b55cde-0d35-4bd1-ae95-f794d96478c9
+ Pessoal |     50.00 | FABIO JUNIOR DA ROCHA SAN                | 16dae85b-afa2-4df3-9c41-1073b1f5f127
+ Pessoal |     50.33 | OXXO PAIXAO GUIDO SAO CAETAN             | c9f17a59-2761-4120-af67-9cc40b378360
+ Pessoal |     51.03 | EMPRESA BRASILEIRA DE COR                | a40016f3-ca79-4a9f-9b1a-19969fd7e99e
+ Pessoal |     51.03 | EMPRESA BRASILEIRA DE COR                | 2e299b80-7c27-49b0-9c29-f1d44cc6e45b
+ Pessoal |     51.85 | Adriana Maria Da Conceica                | ae707c43-a973-44aa-a0b2-0a5fa7f0172e
+ Pessoal |     53.90 | MERCADOLIVRE*LOJASCOISARA TIJUCAS        | 9980a3d0-e793-40d8-b3ee-b22e63fb85c1
+ Pessoal |     66.87 | DROGARIA SAO PAULO SAO CAETAN            | 82529b73-c5c7-4503-8b5b-97e8e54c453e
+ Pessoal |     66.98 | OAK ACAI SANTO ANDRE FAST                | 2a44d58a-dd3d-427c-b091-398062a1c2e5
+ Pessoal |     69.29 | MERCADOLIVRE*MARIAHNAWEB SO PAULO        | de6b67ea-c0e4-41f1-bd74-9c566e2599dc
+ Pessoal |     69.90 | APPLE.COM/BILL SAO PAULO                 | c48f8c5a-1c67-4003-8477-50cfebd046c9
+ Pessoal |     70.00 | FERNANDO LUIZ DE SOUZA LEITE 4           | add4083c-b787-4c44-9f51-e6b1f31cc310
+ Pessoal |     71.98 | P12ESPACOLASERSP SAO Bernar              | 85449154-054e-43a7-8cdb-8317b13601d4
+ Pessoal |     73.00 | FARMACIA CANDIBA CANDIBA                 | 63baa51a-ee82-46ec-ba1a-305011fe1bd4
+ Pessoal |     75.84 | 52 393 596 ANA CLARA RAMOS LIM           | 047d38c3-3dde-4063-8f6e-a757f8fa521d
+ Pessoal |     76.96 | IFD*DIANA MENDES MOREIRA SAO CAETAN      | e01791e5-89fe-4feb-9a85-b2172be72b92
+ Pessoal |     78.21 | PADARIA E CONFEITARIA SAO CAETAN         | b4849e06-3392-4724-881a-29a1ace97463
+ Pessoal |     79.00 | FAST BEAUTY ESCOVARIA                    | ab193b69-53bd-455e-9e8d-e0af5ab92fe6
+ Pessoal |     79.00 | FAST BEAUTY ESCOVARIA                    | 42d9a66c-e2da-46a9-8d67-bf5add49fc4e
+ Pessoal |     79.45 | DELICIA SORVETES CANDIBA                 | d9aa2cf1-19e8-4827-83ff-f96b956fd6a4
+ Pessoal |     80.00 | JUCARA G MARQUES / Aniversario Elcir     | 2144b319-25bf-4867-84c8-c037b705fd13
+ Pessoal |     80.00 | Motoboy                                  | f6281507-3a56-4d9b-88d0-400b34607eaa
+ Pessoal |     80.00 | ELDER MATOS SOUZA                        | bc0db57f-86ac-403d-ae3c-0868eff32a50
+ Pessoal |     80.14 | SP Registro de Imóveis                   | c8bcd037-4f5f-4af8-be96-8538690ec3dc
+ Pessoal |     85.00 | ANA PAULA DELMONDES                      | a3f29024-c2df-4cca-ba7d-f893612122ab
+ Pessoal |     86.97 | IFD*OAK ACAI SANTO AND SAO CAETAN        | 8ce68a65-f453-4712-825c-24d200c6455d
+ Pessoal |     87.66 | COMERCIAL OSWALDO CRUZ LI                | b26428fb-af18-40aa-94d0-0bd06bb3c8c9
+ Pessoal |     89.38 | IFD*ARCOS DOURADOS COM SAO CAETAN        | 8cc45d4c-7b56-4afa-904c-afccf6c0a340
+ Pessoal |     89.90 | RESERVA / TINTAS                         | 3363873b-4745-4967-a9b8-4ffadc415308
+ Pessoal |     90.20 | FARMACIA CANDIBA CANDIBA                 | aea1da50-a22e-451a-bc6a-01c0ee7b69d9
+ Pessoal |     91.65 | SUPERGASBRAS ENERGIA LTDA                | 765b4638-fef7-49ff-8fff-94da8813cf36
+ Pessoal |     92.70 | MINUTO PA 4999 S. C. DO S                | b705aac7-690c-4299-8c3b-4e8f2de94143
+ Pessoal |     95.00 | Motoboy                                  | 2c159883-0636-46ba-a769-6e5ce89de7ba
+ Pessoal |     95.00 | ELDER MATOS SOUZA                        | aa167f6f-4b80-4500-a570-7775e405a1b2
+ Pessoal |     97.00 | PAYT TECNOLOGIA E EDUCACAO DIG           | 7b020909-6376-455e-8e69-08ce5afe6f08
+ Pessoal |     98.78 | NEOENERGIA COELBA                        | 70ee90a7-fe67-4520-b26b-f523c27b59e8
+ Pessoal |     99.00 | DELICIA SORVETES CANDIBA                 | 87c5d8ab-cc6b-4cef-8722-170e1770c477
+ Pessoal |     99.90 | APPLE.COM/BILL SAO PAULO                 | 41c620a9-14a1-4162-a228-8a7c7008dac0
+ Pessoal |     99.90 | APPLE.COM/BILL SAO PAULO                 | 34adae3b-93da-414f-b62a-b21ac4f521b8
+ Pessoal |    100.00 | APAE ASSOCIACAO DE                       | 9ba4deed-1a33-44d3-bb86-ccb1c48f98ed
+ Pessoal |    100.00 | ONR                                      | e8fabf53-f56b-4f10-971f-45ad38ab3a4d
+ Pessoal |    100.00 | ANA PAULA DELMONDES                      | d9dc014f-fa1b-401b-8c9e-b2f7fed39012
+ Pessoal |    101.58 | DROGARIA SAO PAULO SA SAO CAETAN         | 7bce8cc7-407e-4437-8bbc-b395131e640f
+ Pessoal |    107.97 | OAK ACAI SANTO ANDRE SAO CAETAN          | 6f48c446-eecd-41f2-b8d1-ba0869d2d288
+ Pessoal |    108.39 | CONSELHO REGIONAL DE ENGENHARI           | 70ada5ab-4363-459d-ad86-2f96eea1e0c7
+ Pessoal |    108.90 | BAR E RESTAURANTE CAM PARAOPEBA          | f174a055-c472-4fb8-8dd3-022be97c1f48
+ Pessoal |    109.00 | BRUNODOSREIS SANTO ANDR                  | a8249351-8b64-4436-8633-f896e6a062ed
+ Pessoal |    110.00 | FLEURY FLEUR*FPARC01/06                  | 0fa5001f-1964-48ee-81f6-e5f1913c174b
+ Pessoal |    110.00 | FLEURY FLEUR*FPARC05/06                  | cfc4bca4-b190-42b9-8c04-61f8d6392da4
+ Pessoal |    110.00 | FLEURY FLEUR*FPARC06/06                  | 0a819556-0172-4dda-96ef-7afa945475f4
+ Pessoal |    111.00 | BRUNODOSREIS SANTO ANDR                  | 85a9eac5-c7a9-4964-b3a1-2ba6d390da0e
+ Pessoal |    112.17 | DROGARIA SAO PAULO                       | 2e9f7c70-f341-48d2-86b3-ca594ba0e04f
+ Pessoal |    120.00 | ALQUIMIA JARDIM FARM SANTO ANDR          | ecb932ee-c6b1-45e2-a029-525a11c850cb
+ Pessoal |    122.28 | DARF (imposto)                           | 778b1dc9-777c-41a6-9d5e-ac3ec8d961ea
+ Pessoal |    124.00 | SAFE2PAY                                 | 13b4873b-e659-401b-aa3b-0919a05d4fc6
+ Pessoal |    133.85 | MERCADOLIVRE*ELETROMILLER PRESIDENTE     | 6bf4262d-8556-4edd-b032-1ef65779257e
+ Pessoal |    138.90 | JUSBRASIL SALVADOR                       | a335fc0f-939b-476e-8ab3-a1839d2e19d8
+ Pessoal |    138.90 | JUSBRASIL SALVADOR                       | e73cb7f6-4ad4-4bd7-b04d-9eae91326f25
+ Pessoal |    145.00 | ANA PAULA DELMONDES                      | 2133ad1d-5355-4bc7-b8b7-272f8642af9f
+ Pessoal |    148.63 | ESPACOLASERSPSAO CAE SAO CAETAN          | d860bb74-9671-4005-9389-823f0adf2c00
+ Pessoal |    151.85 | PIZZARIA ESFIHARIA PINHEIRO              | 3bf93a5b-0e44-4440-b38f-09a563cb200c
+ Pessoal |    152.93 | IFOOD.COM AGENCIA DE REST                | 90625464-561e-4c86-9f30-44710d9b863a
+ Pessoal |    168.00 | CHINA S RESTAURANTE L SAO CAETAN         | 5e31cf0a-d24a-45b9-aacb-6bb7cc938965
+ Pessoal |    170.00 | Thaiara Guimarães Verçosa                | 9b05788c-83d5-42b4-9b62-244b5ab27410
+ Pessoal |    174.00 | MERCADOLIVRE*MERCADOLIVRE SAO PAULO      | 4bb147d2-59ff-443e-b337-33c81ec7e3e5
+ Pessoal |    174.08 | LICENCIAMENTO EWN7E00                    | 007efa97-0fdc-4e7d-b4a9-c5059440fbe0
+ Pessoal |    174.08 | LICENCIAMENTO TAOS                       | c025a719-6705-48eb-bbce-2ee83b432e79
+ Pessoal |    176.00 | BAR DO BOSCO SAO BERNAR                  | 3fd28f3a-a1c6-4454-8fa3-868a3fed6665
+ Pessoal |    180.90 | RR CHOCOLATES E ALIMENTOS                | ad25356a-0ec9-4747-b38d-b4c368a7dab6
+ Pessoal |    192.10 | JVM DERIVADOS DE PETROLEO E TR           | 77e0f892-c2c2-4339-a6f8-50e4aab472c2
+ Pessoal |    195.55 | CRUZEIROS SAO PAULO                      | 20a79690-5feb-4997-a854-7f5ee0ca0136
+ Pessoal |    200.00 | S2P*1RESTGIRASSOL SAO Caetan             | 2e6d3cf8-5441-451c-9db8-579e588b705f
+ Pessoal |    204.06 | MERCADOLIVRE*MERCADOLIVRE MAU            | b098dfc4-629f-4c63-9297-a5a9b4aa73c3
+ Pessoal |    208.33 | POSTO DOM PEDRO SAO G SAO GONCAL         | 5606fa37-0d72-465f-9ff0-340e063dd76e
+ Pessoal |    209.00 | GDS INFORMATICA Alimentação              | c88eb02f-c347-43ef-8873-14774b995863
+ Pessoal |    209.00 | GDS INFORMATICA Alimentação              | 77ad0971-cdd2-4949-90e7-ce2e35df955f
+ Pessoal |    212.10 | FOOD4BODY                                | 9220f776-6f02-45ca-8e3e-6066d0cc410d
+ Pessoal |    216.11 | POSTO NOVA ESPERANCA CANDIBA             | f5187f60-4852-41d4-9eb5-2d2a0a3997de
+ Pessoal |    223.00 | TA SUL COMERCIO DE ALI FRANCISCO         | e58a4bf3-9c38-450e-960a-aec310c26d03
+ Pessoal |    226.00 | BRUNODOSREIS SANTO ANDR                  | d3161774-d2e0-4338-a899-ee3ca41656bf
+ Pessoal |    230.00 | INCLUSIVAMENTE PSICOLOGIA SAUD           | db0279d9-c0ab-4081-88b6-3d3fcb63b335
+ Pessoal |    236.72 | TELEFONICA BRAS                          | 090bcb40-ae71-4a91-aa65-05d03deb0079
+ Pessoal |    237.42 | DAMASIO EDUCACIONAL LTDA.                | 32eb3565-1f04-4036-b5dc-b671a31d63d3
+ Pessoal |    237.42 | DAMASIO EDUCACIONAL SA                   | 06c31197-05d5-41a5-ab29-5c2412d8e8c7
+ Pessoal |    249.90 | SMARTPSCCOMERCIO SAO CAETAN              | 22916691-2cab-4ce7-b94b-4c12d6051a6b
+ Pessoal |    252.58 | ESTACAOPARILLASAO SAO CAETAN             | c44b5c5e-8b5d-43af-aa7c-a06ef179053d
+ Pessoal |    259.99 | MERCADOLIVRE*WWWMAQUINASE SANTA BRBA     | faf6c6f0-b394-421d-8622-03fc0cb3a4a8
+ Pessoal |    264.15 | TARGET – Gestão de bens e condomínios    | 8d8613c7-a8b8-423d-ac7d-8a23e8d82c62
+ Pessoal |    264.75 | ESPACOLASERSPSAO CAE SAO CAETAN          | d3192c7e-b4bb-4a09-b2f9-99e4a2ea82df
+ Pessoal |    266.79 | TARGET – Gestão de bens e condomínios    | 0f42ce4d-345e-4abc-a9d3-14fd8ea238a9
+ Pessoal |    276.35 | CHURRASCARIA GAUCHAO SAO GONCAL          | c2de3c9b-0aef-402f-96c6-02a69ceaa8ea
+ Pessoal |    280.00 | Adriana Maria Da Conceica                | 5725c80e-ae75-42ae-b7f4-c62598fa4da1
+ Pessoal |    285.59 | CONSELHO ADSON                           | 7d59d696-2906-4255-8916-8bc76d7b0827
+ Pessoal |    285.93 | MP*LANALAUNDRY SAO CAETAN                | 41902033-00e9-479c-861a-49710dae59a7
+ Pessoal |    285.93 | LA NA LAUNDRY                            | f6b4349b-99f4-4ab4-ab48-0c00e85f2de6
+ Pessoal |    295.20 | ARBYTES EDITORA E INFORMA                | aafe3afe-bd26-46c2-8986-c78b6af7ccbe
+ Pessoal |    307.23 | CAMARGOS BAR SANTO ANDR                  | 46f1b365-d88c-4647-b47b-a920787eb824
+ Pessoal |    317.36 | CENTRO AUTOMOTIVO RUBY SAO CAETAN        | 3e797011-3c9e-402f-b0b0-438a93cc8746
+ Pessoal |    319.96 | CENTRO AUTOMOTIVO RUBY SAO CAETAN        | 23dc759d-4086-49c4-9233-1f7da4a9ebc1
+ Pessoal |    320.01 | POSTO AZEVEDO I GUANAMBI                 | c616c678-62b1-41c7-ba54-a9d019acc0d6
+ Pessoal |    330.30 | IRONBERG SAO CAETANO                     | cfa09606-012f-4144-9800-c20185e47f14
+ Pessoal |    350.00 | GEORGE MICHAEL GALDINO GONGORA           | cecc59e6-71f5-43c0-948c-dbc4e4c4f59f
+ Pessoal |    353.12 | DROGARIA SAO PAULO SA SAO CAETAN         | e155fc77-017f-4dfa-bee7-95bb6bb6c018
+ Pessoal |    359.00 | PAC IRONBERG SAO CAETA SAO CAETAN        | 06a2a5f7-fc9c-4352-be51-4e4a3bc14e2b
+ Pessoal |    359.00 | IRONBERG SAO*PAC SAO CAETAN              | 926383bf-f0ae-4907-906f-e78bf1307f54
+ Pessoal |    380.00 | OSANE MOREIRA CARDOSO DE ALMEI           | cabe699e-30bf-45c1-80bb-95988a2fa550
+ Pessoal |    391.00 | CALCULO JURIDICO CURITIBA                | d24ccd24-a475-4e7a-be5b-1b42a412e014
+ Pessoal |    391.00 | CALCULO JURIDICO CURITIBA                | b3f509e4-1aa3-49e6-95bf-c58370e03fce
+ Pessoal |    395.01 | LAVANDERIA LA NA LAUNDRY LTDA            | 67d4d70c-c176-46a4-a85e-e01da0b4251a
+ Pessoal |    400.00 | NATALIA                                  | 78007b4e-70b8-4b60-916c-de822a615de9
+ Pessoal |    429.81 | PAO DE ACUCAR-2469 S. C. DO S            | 7aec72eb-261a-42c3-922c-21db4ce49327
+ Pessoal |    430.00 | ANGELA DANIELLE DE RODRIG                | 46b327c3-c81c-4ab6-959e-4b8724fe7f3e
+ Pessoal |    438.87 | PAO DE ACUCAR-2469 S. C. DO S            | 18567ed2-3cd6-4b83-b5e5-28eb8dd06e73
+ Pessoal |    439.99 | PAO DE ACUCAR-2469 S. C. DO S            | a05ffb4d-2786-4022-b6ed-cc9c26f7d4ae
+ Pessoal |    440.00 | MARIA NEUVA DA SILVA                     | f23c1467-0d45-4312-a15c-67e0290cad3b
+ Pessoal |    457.14 | PAPELARIA LUPAPARC01/04                  | 5183cbcc-7e2e-4e29-a514-f0593fed68ed
+ Pessoal |    560.00 | ADRIANA MARIA DA CONCEICAO               | db5bec1c-083c-47cd-ae05-44bcea8dcf04
+ Pessoal |    570.00 | ELOIZA ELZA AVALOS Psicóloga             | 363aee52-59fa-49b2-b8ec-0792d9d2944f
+ Pessoal |    615.69 | CELLEP ENSINO DE IDIOMAS S.A             | d79631d3-a310-4fde-b47e-8a2944292a9e
+ Pessoal |    724.93 | DROGASIL1697 SO CAETANO                  | 0c53a9d1-52be-43f3-a144-71a03afc6b27
+ Pessoal |    735.00 | ORDEM DOS ADVOGADOS DO SAO PAULO         | 64d31be3-758e-466c-8351-04106ae5cae8
+ Pessoal |    763.29 | PAO DE ACUCAR-2469 S. C. DO S            | 231372dc-43c9-41f0-bceb-9f1034c04adf
+ Pessoal |    779.70 | LEROY MERLIN COMPANHIA BRASILE           | 52602a94-06d1-4794-9f9a-45e1d8386cf8
+ Pessoal |    800.00 | ETELVINA DE QUEIROZ SANTO                | e4930613-3f8c-4f44-9215-45d66d638952
+ Pessoal |    800.00 | AAO FRANQUIA DE EDUCACAO                 | a09f36bc-f055-449c-9e97-eb15900d65e7
+ Pessoal |    900.00 | EVELYN CRISTINA DA SILVA                 | 70db6869-b0f0-4bb8-a683-97d72e7b1dd5
+ Pessoal |    935.46 | COND SAO ENTERN SQUARE                   | f23133ea-a119-49ac-935e-d6cd5c8dbf0e
+ Pessoal |    938.09 | DETRAN / SEFAZ-SP - Multa de trânsito    | b7051200-32c6-4e35-b659-d0d821cf08f3
+ Pessoal |    940.00 | ARBYTES EDITORA E INFORMA                | 909d370c-07d0-4ed1-996b-f04870692213
+ Pessoal |    940.98 | ATACADAO 639 AS SAO CAETAN               | ed51adb3-c058-4c5b-9a35-f205e23e47d6
+ Pessoal |   1038.56 | SP AUTOS & BLINDADOS COMERCIO            | c72a7e2a-dfcf-43d5-bf37-ab89159cbf49
+ Pessoal |   1065.90 | MERCADOLIVRE MERCAD 04/04 Osasco B       | 9c10736c-8168-4551-8e3c-3bbfd34564d1
+ Pessoal |   1065.90 | GILBERTO V B SOUZA                       | 27262a97-5c2b-4988-b3e8-943fe622687c
+ Pessoal |   1121.26 | REVERSO DE CHARGEBACK INTERNAC           | af5bab07-4bdc-443a-9103-a6ce1964394b
+ Pessoal |   1143.85 | BMB MATERIAL DE CONSTRUÇÃO S.A.          | 7245e5a1-2d43-4c47-8990-ec73c59bd708
+ Pessoal |   1205.53 | SP Registro de Imóveis                   | 19e33359-de0d-4fa3-9a0b-7b0f47145ba5
+ Pessoal |   1340.56 | MERCADOCAR SANTO ANDRE SANTO ANDR        | fd52f6a9-6065-4bda-8688-fafd95c0197e
+ Pessoal |   1829.68 | COND RESID JARDIM SÃO CAETANO            | cecc5779-a206-4e8c-9c8f-b3c38f4c90de
+ Pessoal |   1830.00 | DIEGO LUIS DA SILVA                      | 9a42a7cc-3973-42fd-91da-34e2e2dfa1e4
+ Pessoal |   1919.88 | SBF COMERCIO DE PRODUTOS ESPORTIVOS S A  | dcf7dc61-5b5e-405d-8b73-537a053dcae7
+ Pessoal |   1921.00 | SP Registro de Imóveis                   | 9176448d-be98-455c-8d4d-5e85363bab13
+ Pessoal |   1985.00 | LANAILLA DECORACOES LTDA                 | c2bac7d5-b82b-43b4-9798-036b24dc2569
+ Pessoal |   1999.59 | COND RESID JARDIM SÃO CAETANO            | 4f5ef811-956e-4a5b-a9d1-5f3fc99512b8
+ Pessoal |   2000.00 | Neide Naura Neves                        | b886c0e7-1874-477e-9c94-2df4f59b2182
+ Pessoal |   2087.00 | ARBOS ENSINO FUNDAMENTAL LTDA            | 4ba9b4d2-5ec8-4d01-823f-1fba87b09cfe
+ Pessoal |   2091.00 | Maria F. Chaves                          | 275f87eb-9766-478d-9526-e98992ba4cb3
+ Pessoal |   2208.33 | JOSÉ BATISTA DE SOUZA                    | 6bc37942-6425-4f7e-ba07-3d752781945e
+ Pessoal |   2331.64 | IPVA CAMIONETE                           | 26b95c74-99c6-477e-b810-cd8c5a6a1883
+ Pessoal |   3000.00 | KAIO                                     | 4077afa6-46e0-4431-b9ae-893ccd8e803a
+ Pessoal |   3077.06 | CONSORCIO NACIONAL EMBRACON              | fd0fed6e-4e55-46d4-ae60-1435dd877e91
+ Pessoal |   3099.34 | Convênio médico / Plano de saúde         | 864e1341-d124-4827-b6ef-086ca8b2cc07
+ Pessoal |   3412.01 | IPTU CASA 25                             | 07840078-c85f-4b9e-8ff8-a47e0dd78ed6
+ Pessoal |   3701.99 | PORTO SEGURO SEG                         | 13e3ef60-f098-4761-aa4b-fb3a15d53e2e
+ Pessoal |   3720.00 | ROBERTO JORGE VILAS BOAS SOUZA           | fe6a21a8-46ff-4d1c-9428-806caab0b35b
+ Pessoal |   4000.00 | Maria F. Chaves                          | a11595d6-36e5-416a-ac38-6162a1fdc311
+ Pessoal |   4000.00 | Anibal Alberto Thomé Juni                | 5e469581-468d-4330-93c6-ce62f7f121b3
+ Pessoal |   4090.73 | ONR                                      | 53509d24-d5ff-4e32-b89d-d4ab9e358987
+ Pessoal |   4153.87 | MADEIRA TERRENO MURZELO                  | 57d64d4b-1f16-44ba-a4a9-e29560911cd0
+ Pessoal |   5321.73 | IPVA TAOS                                | 4dca5f07-9cff-42bc-95ac-fc979a2e57a2
+ Pessoal |   5499.99 | NOVI PISOS                               | 51baf888-fb72-4809-a658-56508c8468fa
+ Pessoal |   7105.27 | OPERADOR NACIONAL                        | 717fca85-4bc8-4083-a1ab-8aae302b2bd0
+ Pessoal |   7178.25 | BRASIL EPOXI PISOS E REVESTIME           | d13828ff-312f-43e0-bc97-a8d5f2fe1069
+ Pessoal |   7505.00 | RONART ESQUADRIAS DE ALUMÍNIO LTDA       | a01e4293-8e19-4dbc-abca-4c0d906fa77a
+ Pessoal |   8000.00 | FORNECEDOR DE GADO                       | 8cff404a-f2bd-4489-811d-e232665506f7
+ Pessoal |  13500.00 | JOSIAS GONGALVES ROCHA ARAUJO Marceneiro | 309d25b6-0071-4377-8772-c26790058206
+ Pessoal |  20000.00 | JOSÉ BATISTA DE SOUZA                    | 1476d6ea-833f-43e2-a027-6e342c645d76
+ Pessoal |  54000.00 | LEANDRO C TEDROS                         | 09fab1e4-45ec-4f04-ac0e-d94a224c0576
+ Holding |     15.24 | DARF (imposto)                           | 2a43a490-2b6d-436b-b181-ff2ba6f8d3e0
+ Holding |     95.56 | ENEL                                     | b9455495-69e6-4800-ad8d-35d98fe96c9d
+ Holding |     95.64 | ENEL                                     | 1241ef20-47f9-4123-b98e-862068ccc825
+ Holding |     98.41 | ENEL                                     | d78718b8-0f04-447b-812c-f3470cfc51a9
+ Holding |    204.00 | Org contábil itauna ltda                 | 61401f02-a99b-4777-bb96-27410f9761cf
+ Holding |    318.55 | SABESP                                   | 45971b7d-677f-4a7b-8ade-9e454838ab76
+ Holding |    409.56 | SABESP                                   | 84268d26-a7fd-48cb-aca2-15e29cbcc2bc
+ Holding |    526.08 | SABESP                                   | 31440efa-62be-43df-a6c0-2242a6a7c110
+ Holding |   1029.12 | DARF (imposto)                           | 81074cb8-573a-41b4-b620-d7f01967e21c
+ Holding |   4766.93 | TARGET – Gestão de bens e condomínios    | 35fcbf61-7225-44ea-a02f-42834a86b9df
+ Holding |   5646.67 | Imóvel Raguna Cabral                     | 53b4de7d-4cee-43ff-8974-5cf553ae7e9f
+ Holding |   5769.19 | Não identificado                         | 7bfa05de-9ff0-407c-80ae-5c69e40deb97
+ Holding |   6612.50 | Condomínio (quando aplicável)            | 8d73fe14-923a-4fff-b6ae-a0f8aa50cdb5
+ Holding |  27450.60 | Comissão de leiloreiro                   | 9ba18376-3cc4-4a00-8113-973ce5c5ef29
+ Holding | 209700.00 | Imóvel Rua josé lins                     | c57b0f1d-6d80-447e-ac2b-702994844eac
+(239 rows)
+
