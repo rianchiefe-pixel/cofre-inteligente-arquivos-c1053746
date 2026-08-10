@@ -29,6 +29,7 @@ import { Route as AuthenticatedAppAuditRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAppPropertiesIndexRouteImport } from './routes/_authenticated/app.properties.index'
 import { Route as AuthenticatedAppCardsIndexRouteImport } from './routes/_authenticated/app.cards.index'
 import { Route as AuthenticatedAppPropertiesIdRouteImport } from './routes/_authenticated/app.properties.$id'
+import { Route as AuthenticatedAppCategoriesPendingRouteImport } from './routes/_authenticated/app.categories.pending'
 import { Route as AuthenticatedAppCardsIdRouteImport } from './routes/_authenticated/app.cards.$id'
 
 const AuthRoute = AuthRouteImport.update({
@@ -137,6 +138,12 @@ const AuthenticatedAppPropertiesIdRoute =
     path: '/properties/$id',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppCategoriesPendingRoute =
+  AuthenticatedAppCategoriesPendingRouteImport.update({
+    id: '/pending',
+    path: '/pending',
+    getParentRoute: () => AuthenticatedAppCategoriesRoute,
+  } as any)
 const AuthenticatedAppCardsIdRoute = AuthenticatedAppCardsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -150,7 +157,7 @@ export interface FileRoutesByFullPath {
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
   '/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
-  '/app/categories': typeof AuthenticatedAppCategoriesRoute
+  '/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
+  '/app/categories/pending': typeof AuthenticatedAppCategoriesPendingRoute
   '/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
   '/app/cards/': typeof AuthenticatedAppCardsIndexRoute
   '/app/properties/': typeof AuthenticatedAppPropertiesIndexRoute
@@ -170,7 +178,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
-  '/app/categories': typeof AuthenticatedAppCategoriesRoute
+  '/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
@@ -181,6 +189,7 @@ export interface FileRoutesByTo {
   '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
+  '/app/categories/pending': typeof AuthenticatedAppCategoriesPendingRoute
   '/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
   '/app/cards': typeof AuthenticatedAppCardsIndexRoute
   '/app/properties': typeof AuthenticatedAppPropertiesIndexRoute
@@ -194,7 +203,7 @@ export interface FileRoutesById {
   '/_authenticated/app/audit': typeof AuthenticatedAppAuditRoute
   '/_authenticated/app/banks': typeof AuthenticatedAppBanksRoute
   '/_authenticated/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
-  '/_authenticated/app/categories': typeof AuthenticatedAppCategoriesRoute
+  '/_authenticated/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
   '/_authenticated/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/_authenticated/app/import': typeof AuthenticatedAppImportRoute
   '/_authenticated/app/profiles': typeof AuthenticatedAppProfilesRoute
@@ -205,6 +214,7 @@ export interface FileRoutesById {
   '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
+  '/_authenticated/app/categories/pending': typeof AuthenticatedAppCategoriesPendingRoute
   '/_authenticated/app/properties/$id': typeof AuthenticatedAppPropertiesIdRoute
   '/_authenticated/app/cards/': typeof AuthenticatedAppCardsIndexRoute
   '/_authenticated/app/properties/': typeof AuthenticatedAppPropertiesIndexRoute
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/acesso-temporario/categorias/$token'
     | '/app/'
     | '/app/cards/$id'
+    | '/app/categories/pending'
     | '/app/properties/$id'
     | '/app/cards/'
     | '/app/properties/'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/acesso-temporario/categorias/$token'
     | '/app'
     | '/app/cards/$id'
+    | '/app/categories/pending'
     | '/app/properties/$id'
     | '/app/cards'
     | '/app/properties'
@@ -272,6 +284,7 @@ export interface FileRouteTypes {
     | '/acesso-temporario/categorias/$token'
     | '/_authenticated/app/'
     | '/_authenticated/app/cards/$id'
+    | '/_authenticated/app/categories/pending'
     | '/_authenticated/app/properties/$id'
     | '/_authenticated/app/cards/'
     | '/_authenticated/app/properties/'
@@ -426,6 +439,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppPropertiesIdRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/categories/pending': {
+      id: '/_authenticated/app/categories/pending'
+      path: '/pending'
+      fullPath: '/app/categories/pending'
+      preLoaderRoute: typeof AuthenticatedAppCategoriesPendingRouteImport
+      parentRoute: typeof AuthenticatedAppCategoriesRoute
+    }
     '/_authenticated/app/cards/$id': {
       id: '/_authenticated/app/cards/$id'
       path: '/$id'
@@ -451,11 +471,26 @@ const AuthenticatedAppCardsRouteWithChildren =
     AuthenticatedAppCardsRouteChildren,
   )
 
+interface AuthenticatedAppCategoriesRouteChildren {
+  AuthenticatedAppCategoriesPendingRoute: typeof AuthenticatedAppCategoriesPendingRoute
+}
+
+const AuthenticatedAppCategoriesRouteChildren: AuthenticatedAppCategoriesRouteChildren =
+  {
+    AuthenticatedAppCategoriesPendingRoute:
+      AuthenticatedAppCategoriesPendingRoute,
+  }
+
+const AuthenticatedAppCategoriesRouteWithChildren =
+  AuthenticatedAppCategoriesRoute._addFileChildren(
+    AuthenticatedAppCategoriesRouteChildren,
+  )
+
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAuditRoute: typeof AuthenticatedAppAuditRoute
   AuthenticatedAppBanksRoute: typeof AuthenticatedAppBanksRoute
   AuthenticatedAppCardsRoute: typeof AuthenticatedAppCardsRouteWithChildren
-  AuthenticatedAppCategoriesRoute: typeof AuthenticatedAppCategoriesRoute
+  AuthenticatedAppCategoriesRoute: typeof AuthenticatedAppCategoriesRouteWithChildren
   AuthenticatedAppHoldingAdvocaciaRoute: typeof AuthenticatedAppHoldingAdvocaciaRoute
   AuthenticatedAppImportRoute: typeof AuthenticatedAppImportRoute
   AuthenticatedAppProfilesRoute: typeof AuthenticatedAppProfilesRoute
@@ -472,7 +507,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppAuditRoute: AuthenticatedAppAuditRoute,
   AuthenticatedAppBanksRoute: AuthenticatedAppBanksRoute,
   AuthenticatedAppCardsRoute: AuthenticatedAppCardsRouteWithChildren,
-  AuthenticatedAppCategoriesRoute: AuthenticatedAppCategoriesRoute,
+  AuthenticatedAppCategoriesRoute: AuthenticatedAppCategoriesRouteWithChildren,
   AuthenticatedAppHoldingAdvocaciaRoute: AuthenticatedAppHoldingAdvocaciaRoute,
   AuthenticatedAppImportRoute: AuthenticatedAppImportRoute,
   AuthenticatedAppProfilesRoute: AuthenticatedAppProfilesRoute,
@@ -508,13 +543,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

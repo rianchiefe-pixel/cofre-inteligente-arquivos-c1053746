@@ -222,7 +222,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       if (uncategorized && uncategorized.cents > 0) {
         doc.setFont("helvetica", "italic");
         doc.setTextColor(RED[0], RED[1], RED[2]);
-        const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada.`;
+        const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada. Ver lançamentos pendentes em: /app/categories/pending`;
         const alertLines = doc.splitTextToSize(alertText, contentW - 20);
         doc.text(alertLines, margin + 5, y, { lineHeightFactor: 1.4 });
         y += (alertLines.length * 9 * 1.4) + 12;

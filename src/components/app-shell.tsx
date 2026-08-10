@@ -39,6 +39,7 @@ const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Per
   { to: "/app/import", label: "Importação Inteligente", icon: Upload, perm: "importData" },
   { to: "/app/vault", label: "Cofre", icon: FolderLock },
   { to: "/app/categories", label: "Categorias", icon: Tags, perm: "manageEntities" },
+  { to: "/app/categories/pending", label: "Pendências de Categorização", icon: ShieldAlert, perm: "manageEntities" },
   { to: "/app/holding-advocacia", label: "Advocacia (Holding)", icon: Scale, perm: "editReceipts" },
   { to: "/app/reports", label: "Relatórios", icon: FileBarChart },
   { to: "/app/audit", label: "Auditoria", icon: ShieldAlert, perm: "viewAudit" },
