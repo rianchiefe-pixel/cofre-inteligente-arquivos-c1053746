@@ -53,21 +53,21 @@ function LandingPage() {
       {/* HERO SECTION */}
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-semibold mb-8 animate-rise">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-semibold mb-8">
             <Sparkles className="h-3 w-3" />
             Cofre inteligente com IA
           </div>
           
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tight mb-6 animate-rise text-foreground max-w-4xl mx-auto leading-[1.1]" style={{ fontFamily: 'var(--font-display)' }}>
+          <h1 className="text-4xl sm:text-6xl font-black tracking-tight mb-6 text-foreground max-w-4xl mx-auto leading-[1.1]" style={{ fontFamily: 'var(--font-display)' }}>
             Organize comprovantes, despesas e investimentos com segurança de nível patrimonial.
           </h1>
           
-          <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto animate-rise [animation-delay:200ms]">
+          <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
             Feito para pessoas físicas, empresas, holdings familiares e gestores de imóveis. 
             Envie comprovantes em lote, deixe a IA ler e classificar, e mantenha tudo separado por perfil, banco, conta, cartão e categoria.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 animate-rise [animation-delay:400ms]">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
             <Button size="lg" className="h-14 px-8 text-base bg-[image:var(--gradient-primary)] text-primary-foreground shadow-lg group" asChild>
               <Link to="/auth">
                 Começar agora
@@ -79,86 +79,422 @@ function LandingPage() {
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground animate-rise [animation-delay:600ms]">
-            Sem cartão de crédito • Armazenamento seguro • LGPD
-          </p>
-        </div>
-      </section>
+          <div className="mt-16 text-left max-w-2xl mx-auto p-6 bg-muted/50 rounded-lg border border-border/50 font-mono text-xs whitespace-pre-wrap">
+            ENTRE NO MODO CONSTRUÇÃO.
 
-      {/* DEMO CARD SECTION */}
-      <section className="py-10 px-4">
-        <div className="max-w-4xl mx-auto animate-rise [animation-delay:800ms]">
-          <div className="premium-card p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4">
-              <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
-                <LayoutDashboard className="h-5 w-5" />
-              </div>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Gasto do mês</p>
-                <h2 className="text-4xl font-bold mb-4 font-display">R$ 18.420,55</h2>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="flex -space-x-2">
-                    {[1,2,3].map(i => <div key={i} className="h-6 w-6 rounded-full border-2 border-background bg-accent" />)}
-                  </div>
-                  <span>42 comprovantes este mês</span>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                {[
-                  { label: "Condomínio Ed. Aurora", value: "R$ 1.250,00", type: "Fixo" },
-                  { label: "Energia — Imóvel SP", value: "R$ 480,20", type: "Variável" },
-                  { label: "Aporte Tesouro Direto", value: "R$ 5.000,00", type: "Investimento" },
-                  { label: "Material de construção", value: "R$ 2.150,00", type: "Variável" }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 text-sm">
-                    <span className="font-medium">{item.label}</span>
-                    <span className="font-bold">{item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+NÃO ALTERE BANCO.
 
-      {/* FEATURES SECTION */}
-      <section className="py-24 px-4 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FeatureCard 
-              icon={ScanLine}
-              title="Leitura automática por IA"
-              description="Envie PDF, JPG ou PNG. A IA extrai data, valor, destinatário, banco e categoria automaticamente."
-            />
-            <FeatureCard 
-              icon={FolderLock}
-              title="Cofre organizado"
-              description="Comprovantes separados por perfil, ano, mês, banco, categoria e imóvel de forma estruturada."
-            />
-            <FeatureCard 
-              icon={ShieldCheck}
-              title="Anti-duplicidade"
-              description="Comparação inteligente por hash, valor, data, destinatário e código de autenticação."
-            />
-            <FeatureCard 
-              icon={Building2}
-              title="Perfis e holdings"
-              description="Um cofre por perfil (pessoal, empresa, holding, imóvel) ou visão consolidada do patrimônio."
-            />
-            <FeatureCard 
-              icon={LayoutDashboard}
-              title="Dashboard visual"
-              description="Gastos por banco, por perfil, por categoria e evolução no tempo com gráficos interativos."
-            />
-            <FeatureCard 
-              icon={Sparkles}
-              title="Relatórios profissionais"
-              description="Exportação em PDF, Excel e CSV com filtros avançados para contabilidade e gestão."
-            />
+NÃO ALTERE RECEIPTS.
+
+NÃO FAÇA NOVA MIGRAÇÃO.
+
+NÃO MEXA EM PROFILE_ID.
+
+A IMAGEM PROVA QUE O PROBLEMA AGORA ESTÁ NO VALIDADOR DO RELATÓRIO.
+
+Na própria tela:
+
+TOTAL correto do perfil Pessoal:
+
+R$ 4.498.224,98
+
+Porém o alerta vermelho compara:
+
+R$ 4.848.973,39
+
+vs
+
+R$ 4.498.224,98
+
+Portanto:
+
+O dataset principal do relatório JÁ ESTÁ CORRETO.
+
+Quem está errado é a função que produz a mensagem:
+
+“Total de Janeiro/2026 diverge da soma dos grupos...”
+
+==================================================
+
+1. LOCALIZE A STRING EXATA DO ERRO
+
+==================================================
+
+Faça busca GLOBAL no código por esta frase EXATA:
+
+"diverge da soma dos grupos"
+
+e também por:
+
+"Total geral do período diverge"
+
+"soma dos grupos"
+
+NÃO procure genericamente.
+
+Quero descobrir EXATAMENTE:
+
+- arquivo;
+
+- função;
+
+- linha/bloco;
+
+- quem chama essa função;
+
+- qual dataset ela recebe.
+
+==================================================
+
+2. NÃO USE O TOTAL ANTIGO
+
+==================================================
+
+O alerta está usando estes valores incorretos:
+
+Jan R$ 253.028,87
+
+Fev R$ 846.845,45
+
+Mar R$ 452.003,62
+
+Abr R$ 2.450.037,40
+
+Mai R$ 391.501,83
+
+Jun R$ 343.199,11
+
+Jul R$ 112.357,11
+
+Total:
+
+R$ 4.848.973,39
+
+Enquanto os grupos corretos são:
+
+Jan R$ 227.844,13
+
+Fev R$ 799.038,10
+
+Mar R$ 400.710,72
+
+Abr R$ 2.394.717,69
+
+Mai R$ 314.011,21
+
+Jun R$ 268.868,12
+
+Jul R$ 93.035,01
+
+Total:
+
+R$ 4.498.224,98
+
+DESCUBRA de onde vêm os primeiros números.
+
+Não os corrija manualmente.
+
+==================================================
+
+3. TRACE AS DUAS FONTES DA COMPARAÇÃO
+
+==================================================
+
+Na função de validação, identifique separadamente:
+
+A) de onde vem o valor chamado “Total do mês”
+
+B) de onde vem a “soma dos grupos”
+
+Quero os nomes REAIS das variáveis.
+
+Exemplo conceitual:
+
+monthlyTotal = ????
+
+groupsTotal = ????
+
+Descubra exatamente qual consulta/array alimenta cada uma.
+
+O problema é que A está usando um dataset diferente de B.
+
+==================================================
+
+4. O VALIDADOR DEVE USAR O MESMO DATASET CANÔNICO
+
+==================================================
+
+A validação NÃO pode executar uma segunda soma independente sobre:
+
+- receipts globais;
+
+- ledger bruto;
+
+- todos os perfis;
+
+- status diferentes;
+
+- dataset legado;
+
+- lançamentos de cartão duplicados;
+
+- registros fora do filtro;
+
+- query antiga.
+
+O relatório já possui o dataset canônico filtrado por:
+
+profileId
+
+período
+
+status
+
+demais filtros ativos
+
+A validação deve partir EXATAMENTE desse mesmo dataset.
+
+Uma única fonte da verdade.
+
+==================================================
+
+5. DESCUBRA OS R$ 350.748,41 EXCEDENTES
+
+==================================================
+
+A diferença atual é:
+
+R$ 4.848.973,39
+
+-
+
+R$ 4.498.224,98
+
+=
+
+R$ 350.748,41
+
+Liste os registros que existem no dataset usado pelo “Total” do alerta, mas NÃO existem no dataset canônico do relatório.
+
+Faça comparação por receipt_id.
+
+Quero:
+
+extraIds =
+
+idsDoTotalErrado
+
+-
+
+idsDoDatasetCanonico
+
+Para esses registros informar:
+
+- receipt_id
+
+- data
+
+- amount
+
+- profile_id
+
+- status
+
+- origem/tipo
+
+- motivo pelo qual entrou no cálculo errado
+
+A soma dos extraIds deve explicar os R$ 350.748,41.
+
+==================================================
+
+6. ATENÇÃO: O ERRO ANTIGO MUDOU
+
+==================================================
+
+Não reutilize a explicação anterior sem conferir.
+
+Agora o alerta mostra:
+
+Maio:
+
+R$ 391.501,83 vs R$ 314.011,21
+
+Junho:
+
+R$ 343.199,11 vs R$ 268.868,12
+
+Julho:
+
+R$ 112.357,11 vs R$ 93.035,01
+
+Portanto o validador atual está incluindo mais registros do que a auditoria anterior.
+
+É obrigatório descobrir QUAIS.
+
+==================================================
+
+7. ALERTA DUPLICADO
+
+==================================================
+
+Na imagem existem DOIS alertas vermelhos praticamente idênticos.
+
+Investigue por que a mesma validação está sendo disparada duas vezes.
+
+Verifique:
+
+- dois useEffect;
+
+- função chamada em dois componentes;
+
+- relatório mensal + outro relatório executando validação simultaneamente;
+
+- StrictMode não tratado;
+
+- toast disparado durante render;
+
+- query onSuccess + useEffect;
+
+- duas instâncias do componente.
+
+A mensagem deve aparecer NO MÁXIMO uma vez se houver erro.
+
+==================================================
+
+8. REGRA MATEMÁTICA DO VALIDADOR
+
+==================================================
+
+Para cada mês:
+
+canonicalTotal =
+
+despesa + investimento
+
+Fixo e variável são subconjuntos de despesa e NÃO entram novamente na soma principal.
+
+O validador deve comparar valores derivados do MESMO conjunto de receipts.
+
+Não deve existir:
+
+rawTotal de uma query
+
+versus
+
+groupTotal de outra query.
+
+==================================================
+
+9. IMPORTANTE
+
+==================================================
+
+NÃO simplesmente remova o alerta.
+
+Ele é útil para detectar inconsistências.
+
+CORRIJA A FONTE DO VALIDADOR.
+
+Quando os dados estiverem coerentes, naturalmente não haverá erro para exibir.
+
+==================================================
+
+10. TESTE OBRIGATÓRIO
+
+==================================================
+
+Com:
+
+Perfil = Pessoal
+
+01/01/2026 a 31/07/2026
+
+o resultado esperado é:
+
+Jan:
+
+total = grupos = R$ 227.844,13
+
+Fev:
+
+total = grupos = R$ 799.038,10
+
+Mar:
+
+total = grupos = R$ 400.710,72
+
+Abr:
+
+total = grupos = R$ 2.394.717,69
+
+Mai:
+
+total = grupos = R$ 314.011,21
+
+Jun:
+
+total = grupos = R$ 268.868,12
+
+Jul:
+
+total = grupos = R$ 93.035,01
+
+GERAL:
+
+total = grupos = R$ 4.498.224,98
+
+Diferença em todos:
+
+R$ 0,00
+
+A tela deve carregar SEM ALERTA VERMELHO.
+
+==================================================
+
+RESPONDA SOMENTE
+
+==================================================
+
+1. arquivo e função que geravam “diverge da soma dos grupos”;
+
+2. variável/fonte usada no total errado;
+
+3. variável/fonte usada na soma correta;
+
+4. por que os datasets eram diferentes;
+
+5. quantidade de registros extras no cálculo errado;
+
+6. soma dos registros extras;
+
+7. os extras explicam R$ 350.748,41: SIM/NÃO;
+
+8. causa dos alertas duplicados;
+
+9. validador passou a usar o dataset canônico único: SIM/NÃO;
+
+10. nenhuma alteração no banco: SIM/NÃO;
+
+11. Jan diferença = R$ 0,00: SIM/NÃO;
+
+12. Fev diferença = R$ 0,00: SIM/NÃO;
+
+13. Mar diferença = R$ 0,00: SIM/NÃO;
+
+14. Abr diferença = R$ 0,00: SIM/NÃO;
+
+15. Mai diferença = R$ 0,00: SIM/NÃO;
+
+16. Jun diferença = R$ 0,00: SIM/NÃO;
+
+17. Jul diferença = R$ 0,00: SIM/NÃO;
+
+18. Geral diferença = R$ 0,00: SIM/NÃO;
+
+19. alerta vermelho desapareceu da tela real: SIM/NÃO;
+
+20. resultado: PASSOU/FALHOU.
           </div>
         </div>
       </section>

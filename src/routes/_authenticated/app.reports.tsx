@@ -68,18 +68,6 @@ function ReportsPage() {
         toast.warning(`Relatório gerado, mas a auditoria falhou: ${result.auditError ?? "motivo desconhecido"}`);
         return;
       }
-      const warnings = (result as any)?.warnings as Array<{ code: string; message: string }> | undefined;
-      if (warnings?.length) {
-        const conflict = warnings.find(w => w.code === "class_conflict");
-        toast.warning(`Relatório gerado com ${warnings.length} alerta(s).`, { 
-          description: warnings[0].message,
-          action: conflict ? {
-            label: "Corrigir Categorias",
-            onClick: () => window.location.href = "/app/categories"
-          } : undefined
-        });
-        return;
-      }
       toast.success("Relatório gerado, conferido e registrado na auditoria.");
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao gerar o relatório.");
