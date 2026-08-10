@@ -184,7 +184,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       { label: "INVESTIMENTOS", value: m.investimento, categories: m.investimentoCategories, color: BLUE },
     ];
 
-    const drawFinancialSection = (params: {
+    const drawFinancialSectionFn = (params: {
       y: number;
       label: string;
       value: number;
@@ -270,7 +270,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     };
 
     for (const g of groups) {
-      y = drawFinancialSection({
+      y = drawFinancialSectionFn({
         y,
         label: g.label,
         value: g.value,
