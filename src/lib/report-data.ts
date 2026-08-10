@@ -164,12 +164,17 @@ export function resolveReportType(
   categoryDefaultType: string | null,
   parentDefaultType: string | null
 ): ReportFinancialType {
+  // Use explicit transactionType if it's already one of the valid canonical types
+  if (transactionType && (EXPENSE_TYPES.has(transactionType) || INVESTMENT_TYPES.has(transactionType))) {
+    return transactionType as ReportFinancialType;
+  }
+
   const types = [transactionType, categoryDefaultType, parentDefaultType];
   
   for (const t of types) {
     if (!t) continue;
     if (INVESTMENT_TYPES.has(t)) return "investimento";
-    if (EXPENSE_TYPES.has(t) || t === 'gasto_fixo' || t === 'gasto_variavel') return "despesa";
+    if (EXPENSE_TYPES.has(t)) return "despesa";
   }
   
   return "unclassified";
