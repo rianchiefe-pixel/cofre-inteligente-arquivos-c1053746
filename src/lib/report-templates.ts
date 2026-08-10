@@ -151,33 +151,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       bodyContentY += 18;
     }
 
-    const uncategorized = params.categories.find(c => c.name === UNCATEGORIZED || c.name.includes("Não identificado"));
-    if (uncategorized && uncategorized.cents > 0) {
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(RED[0], RED[1], RED[2]);
-      const alertText = `Qualidade de dados: ${money(uncategorized.value)} sem categoria identificada. `;
-      const linkText = "Ver lançamentos";
-      
-      const fullAlertText = alertText + linkText;
-      const alertLines = doc.splitTextToSize(fullAlertText, contentW - 20);
-      
-      doc.text(alertLines, margin + 5, bodyContentY, { lineHeightFactor: 1.4 });
-      
-      // Link
-      doc.setTextColor(BLUE[0], BLUE[1], BLUE[2]);
-      doc.setFont("helvetica", "bold");
-      const lastLineIndex = alertLines.length - 1;
-      const lastLine = alertLines[lastLineIndex];
-      const linkWidth = doc.getTextWidth(linkText);
-      const linkX = margin + 5 + doc.getTextWidth(lastLine) - linkWidth;
-      const linkY = bodyContentY + (lastLineIndex * 9 * 1.4);
-      
-      doc.link(linkX, linkY - 8, linkWidth, 10, { 
-        url: `${window.location.origin}/app/categories/pending?from=${data.from}&to=${data.to}&profileId=${data.meta.filters.profileId || ''}` 
-      });
-
-      bodyContentY += (alertLines.length * 9 * 1.4) + BODY_BOTTOM_GAP;
-    }
+    // Removido: Alerta de qualidade de dados (sem categoria) conforme instrução.
 
     return bodyContentY + SECTION_BOTTOM_GAP;
   };
@@ -279,13 +253,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       });
     }
 
-    if (m.unclassifiedCents > 0) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(RED[0], RED[1], RED[2]);
-      doc.text(`Alerta: ${money(m.unclassified)} não possuem classificação entre fixo/variável/despesa.`, margin, y);
-      y += 20;
-    }
+    // Removido: Alerta de pendências conforme instrução.
   }
 
   // 3. CONSOLIDADO FINAL
