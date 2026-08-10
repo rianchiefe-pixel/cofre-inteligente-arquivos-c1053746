@@ -1030,7 +1030,7 @@ function VaultPage() {
                   const data = await loadReportDataset({
                     from: "2026-01-01",
                     to: "2026-07-31",
-                    profileId: profileId !== "all" && profileId !== "__none__" ? profileId : null,
+                    profileId: (profileId !== "all" && profileId !== "__none__" && profileId) ? profileId : "",
                   });
                   await generateFixedVariableReport(data);
                   toast.success("Relatório gerado com sucesso!");
