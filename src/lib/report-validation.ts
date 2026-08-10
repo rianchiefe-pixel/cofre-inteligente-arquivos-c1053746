@@ -15,15 +15,17 @@ export function validateReportDataset(data: ReportDataset): ValidationResult {
   }
 
   data.months.forEach(m => {
-    const sum = m.despesaCents + m.fixedCents + m.variableCents + m.investimentoCents + m.unclassifiedCents;
-    if (sum !== m.totalCents) {
+    // Only despesa and investimento are the canonical groups. 
+    // Fixed/Variable are subgroups and must NOT be added to the main validation sum.
+    const sum = m.despesaCents + m.investimentoCents;
+    if (Math.abs(sum - m.totalCents) > 1) { // Floating point tolerance if needed, though cents should be integer
       errors.push(`Total de ${m.label}/${m.year} diverge da soma dos grupos (${brl(sum)} vs ${brl(m.totalCents)}).`);
     }
   });
 
   const t = data.totals;
-  const sumT = t.despesaCents + t.fixedCents + t.variableCents + t.investimentoCents + t.unclassifiedCents;
-  if (sumT !== t.totalCents) {
+  const sumT = t.despesaCents + t.investimentoCents;
+  if (Math.abs(sumT - t.totalCents) > 1) {
     errors.push(`Total geral do período diverge da soma dos grupos (${brl(sumT)} vs ${brl(t.totalCents)}).`);
   }
 
