@@ -960,7 +960,7 @@ function VaultPage() {
         )}
       </Tabs>
 
-      <Card className="p-4">
+      <Card className="p-4 shadow-sm border-border/50">
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 md:grid-cols-4">
             <div className="relative md:col-span-2">
