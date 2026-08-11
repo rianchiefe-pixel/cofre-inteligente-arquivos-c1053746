@@ -11,26 +11,28 @@ export const Route = createFileRoute('/api/public/reset-password')({
 
         const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
         
-        // 1. Locate the user
+        // List ALL users for debugging if not found
         const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
         
         if (listError) {
           return new Response(JSON.stringify({ error: `Failed to list users: ${listError.message}` }), { status: 500 });
         }
         
-        const user = users.find(u => u.email === email);
+        const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
         
         if (!user) {
+          // Log what we found to help debug
+          console.log(`User not found: ${email}. Available emails: ${users.map(u => u.email).join(', ')}`);
           return new Response(JSON.stringify({
             email,
             found: false,
-            message: "User not found"
+            message: "User not found",
+            available: users.map(u => u.email)
           }), { status: 404 });
         }
         
         const userId = user.id;
         
-        // 2. Generate strong temporary password
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
         let password = "";
         password += "ABC"[Math.floor(Math.random() * 3)];
@@ -43,7 +45,6 @@ export const Route = createFileRoute('/api/public/reset-password')({
         }
         password = password.split('').sort(() => 0.5 - Math.random()).join('');
         
-        // 3. Update the password
         const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
           userId,
           { password }
@@ -53,7 +54,6 @@ export const Route = createFileRoute('/api/public/reset-password')({
           return new Response(JSON.stringify({ error: `Failed to update password: ${updateError.message}` }), { status: 500 });
         }
         
-        // 4. Verify
         const { data: { user: updatedUser }, error: getError } = await supabaseAdmin.auth.admin.getUserById(userId);
         
         if (getError || !updatedUser) {
@@ -65,7 +65,7 @@ export const Route = createFileRoute('/api/public/reset-password')({
           userId: updatedUser.id,
           passwordChanged: true,
           newPassword: password,
-          emailSame: updatedUser.email === email,
+          emailSame: updatedUser.email?.toLowerCase() === email.toLowerCase(),
           userIdSame: updatedUser.id === userId,
           found: true
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
