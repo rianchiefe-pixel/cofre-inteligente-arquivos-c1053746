@@ -79,7 +79,7 @@ import {
   archiveReceipt,
 } from "@/lib/receipts.functions";
 import { generateFixedVariableReport } from "@/lib/report-templates";
-import { loadReportDataset } from "@/lib/report-data";
+import { loadReportDataset, MONTH_NAMES } from "@/lib/report-data";
 
 import { useCan } from "@/lib/permissions";
 import { z } from "zod";
@@ -90,7 +90,14 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/vault")({
   head: () => ({ meta: [{ title: "Cofre de comprovantes — Meu Cofre" }] }),
-  validateSearch: (s) => z.object({ receipt: z.string().optional() }).parse(s),
+  validateSearch: (s) => z.object({ 
+    receipt: z.string().optional(),
+    from: z.string().optional(),
+    to: z.string().optional(),
+    expenseBehavior: z.string().optional(),
+    transactionType: z.string().optional(),
+    month: z.string().optional(),
+  }).parse(s),
   component: VaultPage,
 });
 
@@ -413,12 +420,13 @@ function VaultPage() {
   }, [q]);
 
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page],
+    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
         .select("*", { count: "exact" })
-        .order("created_at", { ascending: false });
+        .order("payment_date", { ascending: false })
+        .order("id", { ascending: true });
       
       if (quick === "pending") qb = qb.in("status", ["pending", "duplicate"]).or(`ocr_status.eq.failed,status.eq.pending`);
       else if (quick === "approved") qb = qb.eq("status", "approved");
@@ -430,6 +438,19 @@ function VaultPage() {
       // Filtro de informações incompletas (Aprovados sem categoria ou sem perfil)
       if (incompleteOnly) {
         qb = qb.or("category_id.is.null,profile_id.is.null");
+      }
+
+      if (search.from) qb = qb.gte("payment_date", search.from);
+      if (search.to) qb = qb.lte("payment_date", search.to);
+      if (search.expenseBehavior && search.expenseBehavior !== "all") {
+        if (search.expenseBehavior === "null") {
+          qb = qb.is("expense_behavior", null);
+        } else {
+          qb = qb.eq("expense_behavior", search.expenseBehavior);
+        }
+      }
+      if (search.transactionType && search.transactionType !== "all") {
+        qb = qb.eq("transaction_type", search.transactionType);
       }
 
       if (profileId === "__none__") {
@@ -979,9 +1000,10 @@ function VaultPage() {
               </SelectContent>
             </Select>
           </div>
-          
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <div className="w-full md:w-80">
+
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-muted-foreground">Categoria</Label>
               <MultiSelect
                 options={[
                   { label: "Sem categoria", value: "__none__" },
@@ -992,8 +1014,104 @@ function VaultPage() {
                 placeholder="Todas as categorias"
               />
             </div>
+
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-muted-foreground">Mês</Label>
+              <Select 
+                value={search.month || "all"} 
+                onValueChange={(v) => {
+                  if (v === "all") {
+                    navigate({ search: { ...search, month: undefined, from: undefined, to: undefined }, replace: true });
+                  } else {
+                    const [year, month] = v.split("-").map(Number);
+                    const start = new Date(year, month - 1, 1);
+                    const end = new Date(year, month, 0);
+                    const fromStr = `${year}-${String(month).padStart(2, "0")}-01`;
+                    const toStr = `${year}-${String(month).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+                    navigate({ search: { ...search, month: v, from: fromStr, to: toStr }, replace: true });
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os meses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os meses</SelectItem>
+                  {(() => {
+                    const months = [];
+                    const now = new Date();
+                    // Show last 24 months
+                    for (let i = 0; i < 24; i++) {
+                      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                      const label = `${MONTH_NAMES[d.getMonth()]}/${d.getFullYear()}`;
+                      months.push(<SelectItem key={val} value={val}>{label}</SelectItem>);
+                    }
+                    return months;
+                  })()}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-muted-foreground">Tipo de Gasto</Label>
+              <Select 
+                value={search.expenseBehavior || "all"} 
+                onValueChange={(v) => navigate({ search: { ...search, expenseBehavior: v === "all" ? undefined : v }, replace: true })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="fixed">Fixo</SelectItem>
+                  <SelectItem value="variable">Variável</SelectItem>
+                  <SelectItem value="null">Não definido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-muted-foreground">Natureza</Label>
+              <Select 
+                value={search.transactionType || "all"} 
+                onValueChange={(v) => navigate({ search: { ...search, transactionType: v === "all" ? undefined : v }, replace: true })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="despesa">Despesa</SelectItem>
+                  <SelectItem value="investimento">Investimento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <div className="grid grid-cols-2 gap-2 w-full md:w-auto">
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase text-muted-foreground">De</Label>
+                <Input 
+                  type="date" 
+                  value={search.from || ""} 
+                  onChange={(e) => navigate({ search: { ...search, from: e.target.value || undefined, month: undefined }, replace: true })}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase text-muted-foreground">Até</Label>
+                <Input 
+                  type="date" 
+                  value={search.to || ""} 
+                  onChange={(e) => navigate({ search: { ...search, to: e.target.value || undefined, month: undefined }, replace: true })}
+                  className="h-9"
+                />
+              </div>
+            </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mt-auto">
               <Button
                 variant={incompleteOnly ? "secondary" : "ghost"}
                 size="sm"
@@ -1001,10 +1119,10 @@ function VaultPage() {
                 onClick={() => setIncompleteOnly(!incompleteOnly)}
               >
                 <AlertTriangle className="h-4 w-4" />
-                Informações incompletas
+                <span className="hidden sm:inline">Incompletos</span>
               </Button>
               
-              {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly) && (
+              {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly || search.from || search.to || search.expenseBehavior || search.transactionType) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1015,35 +1133,18 @@ function VaultPage() {
                     setBankId("all");
                     setSelectedCategoryIds([]);
                     setIncompleteOnly(false);
+                    navigate({ search: { receipt: search.receipt }, replace: true });
                   }}
                 >
                   <FilterX className="h-4 w-4" />
                   Limpar filtros
                 </Button>
               )}
-              
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 ml-auto bg-navy text-white hover:bg-navy/90"
-                onClick={async () => {
-                  const data = await loadReportDataset({
-                    from: "2026-01-01",
-                    to: "2026-07-31",
-                    profileId: (profileId !== "all" && profileId !== "__none__" && profileId) ? profileId : "",
-                  });
-                  await generateFixedVariableReport(data);
-                  toast.success("Relatório gerado com sucesso!");
-                }}
-              >
-                <FileText className="h-4 w-4" />
-                Gerar Relatório (Jan-Jul)
-              </Button>
             </div>
 
-            {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly) && (
+            {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly || search.from || search.to || search.expenseBehavior || search.transactionType) && (
               <Badge variant="outline" className="ml-auto">
-                {total} registros encontrados
+                {total} registros
               </Badge>
             )}
           </div>
