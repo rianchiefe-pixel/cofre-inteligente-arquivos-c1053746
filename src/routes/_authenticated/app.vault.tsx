@@ -1142,11 +1142,23 @@ function VaultPage() {
               )}
             </div>
 
-            {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly || search.from || search.to || search.expenseBehavior || search.transactionType) && (
-              <Badge variant="outline" className="ml-auto">
-                {total} registros
-              </Badge>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 ml-auto bg-navy text-white hover:bg-navy/90"
+              onClick={async () => {
+                const data = await loadReportDataset({
+                  from: search.from || "2026-01-01",
+                  to: search.to || "2026-07-31",
+                  profileId: (profileId !== "all" && profileId !== "__none__" && profileId) ? profileId : "",
+                });
+                await generateFixedVariableReport(data);
+                toast.success("Relatório gerado com sucesso!");
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Gerar Relatório</span>
+            </Button>
           </div>
         </div>
       </Card>
