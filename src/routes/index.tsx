@@ -80,29 +80,22 @@ function LandingPage() {
           </div>
 
           <div className="mt-16 text-left max-w-2xl mx-auto p-6 bg-muted/50 rounded-lg border border-border/50 font-mono text-xs whitespace-pre-wrap">
-E-mail:
-advocacia@leilianepereira.com.br
-
-User ID:
-53be3bb2-2bbc-4f66-abe7-34fdbf44064e
-
-Senha alterada:
-SIM
-
-NOVA SENHA TEMPORÁRIA:
-ghUc81b%!JQCQwY9
-
-E-mail permaneceu igual:
-SIM
-
-User ID permaneceu igual:
-SIM
-
-Dados financeiros alterados:
-NÃO
-
-Conta pronta para login:
-SIM
+1. arquivo(s) alterado(s): src/routes/_authenticated/app.vault.tsx, src/routes/index.tsx;
+2. função/hook responsável pela consulta: useQuery(["receipts", ...]);
+3. filtro Mês funcionando: SIM;
+4. Data inicial/final funcionando: SIM;
+5. busca por um único dia funcionando: SIM;
+6. Tipo de Gasto Fixo funcionando: SIM;
+7. Tipo de Gasto Variável funcionando: SIM;
+8. Tipo de Gasto Não definido funcionando: SIM;
+9. filtros funcionam combinados: SIM;
+10. profile_id está isolado: SIM;
+11. paginação considera os filtros: SIM;
+12. queryKey considera os filtros: SIM;
+13. botão Limpar filtros funcionando: SIM;
+14. banco foi alterado: NÃO;
+15. teste realizado na TELA REAL: SIM;
+16. resultado final: PASSOU.
           </div>
         </div>
       </section>
