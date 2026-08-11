@@ -14,7 +14,6 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
-import { Route as ApiPublicResetPasswordRouteImport } from './routes/api/public/reset-password'
 import { Route as AcessoTemporarioCategoriasTokenRouteImport } from './routes/acesso-temporario.categorias.$token'
 import { Route as AuthenticatedAppVaultRouteImport } from './routes/_authenticated/app.vault'
 import { Route as AuthenticatedAppUploadRouteImport } from './routes/_authenticated/app.upload'
@@ -56,11 +55,6 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const ApiPublicResetPasswordRoute = ApiPublicResetPasswordRouteImport.update({
-  id: '/api/public/reset-password',
-  path: '/api/public/reset-password',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AcessoTemporarioCategoriasTokenRoute =
   AcessoTemporarioCategoriasTokenRouteImport.update({
@@ -172,7 +166,6 @@ export interface FileRoutesByFullPath {
   '/app/upload': typeof AuthenticatedAppUploadRoute
   '/app/vault': typeof AuthenticatedAppVaultRoute
   '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
-  '/api/public/reset-password': typeof ApiPublicResetPasswordRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/app/categories/pending': typeof AuthenticatedAppCategoriesPendingRoute
@@ -194,7 +187,6 @@ export interface FileRoutesByTo {
   '/app/upload': typeof AuthenticatedAppUploadRoute
   '/app/vault': typeof AuthenticatedAppVaultRoute
   '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
-  '/api/public/reset-password': typeof ApiPublicResetPasswordRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/app/categories/pending': typeof AuthenticatedAppCategoriesPendingRoute
@@ -220,7 +212,6 @@ export interface FileRoutesById {
   '/_authenticated/app/upload': typeof AuthenticatedAppUploadRoute
   '/_authenticated/app/vault': typeof AuthenticatedAppVaultRoute
   '/acesso-temporario/categorias/$token': typeof AcessoTemporarioCategoriasTokenRoute
-  '/api/public/reset-password': typeof ApiPublicResetPasswordRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/cards/$id': typeof AuthenticatedAppCardsIdRoute
   '/_authenticated/app/categories/pending': typeof AuthenticatedAppCategoriesPendingRoute
@@ -246,7 +237,6 @@ export interface FileRouteTypes {
     | '/app/upload'
     | '/app/vault'
     | '/acesso-temporario/categorias/$token'
-    | '/api/public/reset-password'
     | '/app/'
     | '/app/cards/$id'
     | '/app/categories/pending'
@@ -268,7 +258,6 @@ export interface FileRouteTypes {
     | '/app/upload'
     | '/app/vault'
     | '/acesso-temporario/categorias/$token'
-    | '/api/public/reset-password'
     | '/app'
     | '/app/cards/$id'
     | '/app/categories/pending'
@@ -293,7 +282,6 @@ export interface FileRouteTypes {
     | '/_authenticated/app/upload'
     | '/_authenticated/app/vault'
     | '/acesso-temporario/categorias/$token'
-    | '/api/public/reset-password'
     | '/_authenticated/app/'
     | '/_authenticated/app/cards/$id'
     | '/_authenticated/app/categories/pending'
@@ -307,7 +295,6 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   AcessoTemporarioCategoriasTokenRoute: typeof AcessoTemporarioCategoriasTokenRoute
-  ApiPublicResetPasswordRoute: typeof ApiPublicResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -346,13 +333,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/api/public/reset-password': {
-      id: '/api/public/reset-password'
-      path: '/api/public/reset-password'
-      fullPath: '/api/public/reset-password'
-      preLoaderRoute: typeof ApiPublicResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/acesso-temporario/categorias/$token': {
       id: '/acesso-temporario/categorias/$token'
@@ -559,7 +539,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   AcessoTemporarioCategoriasTokenRoute: AcessoTemporarioCategoriasTokenRoute,
-  ApiPublicResetPasswordRoute: ApiPublicResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
