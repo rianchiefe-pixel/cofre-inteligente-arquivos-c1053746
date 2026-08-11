@@ -11,7 +11,6 @@ export const Route = createFileRoute('/api/public/reset-password')({
 
         const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
         
-        // List ALL users for debugging if not found
         const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
         
         if (listError) {
@@ -21,8 +20,6 @@ export const Route = createFileRoute('/api/public/reset-password')({
         const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
         
         if (!user) {
-          // Log what we found to help debug
-          console.log(`User not found: ${email}. Available emails: ${users.map(u => u.email).join(', ')}`);
           return new Response(JSON.stringify({
             email,
             found: false,
