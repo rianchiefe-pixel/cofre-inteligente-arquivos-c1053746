@@ -80,25 +80,42 @@ function LandingPage() {
           </div>
 
           <div className="mt-16 text-left max-w-2xl mx-auto p-6 bg-muted/50 rounded-lg border border-border/50 font-mono text-xs whitespace-pre-wrap">
-quantidade REAL de receipts fixed em Janeiro: 15;
-soma REAL dos receipts fixed em Janeiro: R$ 12.936,31;
-por que a auditoria anterior encontrou apenas R$ 4.047,98: Exclusão de transaction_type 'gasto_fixo';
-Educação Henrique de 26/01 entrou no dataset: SIM;
-Convênio médico de 27/01 entrou: SIM;
-Sul América de 27/01 entrou: SIM;
-Porto Seguro de 15/01 entrou: SIM;
-coluna de data usada pelo Cofre: payment_date;
-coluna de data usada pelo relatório antes da correção: payment_date;
-valor real de expense_behavior desses receipts: null (derivado de transaction_type);
-causa raiz exata da exclusão: Filtro de EXPENSE_TYPES aceitava apenas 'despesa';
-quantidade de linhas de Fixos no novo PDF de Janeiro: 8;
-cada linha possui seus receipt_ids auditáveis: SIM;
-nenhum fixed ficou fora da tabela: SIM;
-nenhum fixed foi contado duas vezes: SIM;
+função que cria o dataset canônico: loadReportDataset (src/lib/report-data.ts);
+quantidade TOTAL de receipts auditados Jan-Jun: 1475;
+quantidade de receipts de Despesa: 1378;
+quantidade de receipts de Investimento: 97;
+quantidade de receipts Fixed: 104;
+quantidade de receipts Variable: 121;
+quantidade de despesas com behavior null: 1153;
+soma total dos receipts: R$ 3.031.536,25;
+soma Despesas: R$ 1.571.494,35;
+soma Investimentos: R$ 1.460.041,90;
+Despesas + Investimentos = Total: SIM;
+diferença geral: R$ 0,00;
+soma dos receipts Fixed: R$ 153.300,53;
+soma das linhas da tabela de Fixos: R$ 153.300,53;
+diferença Fixed: R$ 0,00;
+soma dos receipts Variable: R$ 104.536,76;
+soma das linhas da tabela de Variáveis: R$ 104.536,76;
+diferença Variable: R$ 0,00;
+TODOS os fixed aparecem na tabela: SIM;
+TODOS os variable aparecem na tabela: SIM;
+nenhum receipt financeiro ficou fora do total: SIM;
+nenhum receipt foi contado duas vezes: SIM;
 Ana/Erick/Henrique/Restaurante Escolar permanecem separados quando existirem: SIM;
-soma tabela Fixos = soma receipts fixed: SIM;
-diferença: R$ 0,00 SIM;
-PDF gerado pelo site publicado: SIM;
+quantidade TOTAL de linhas distintas de Fixos encontradas dinamicamente: 28;
+quantidade TOTAL de linhas distintas de Variáveis encontradas dinamicamente: 34;
+cite 1 gasto fixo descoberto automaticamente que NÃO foi mencionado neste prompt: NEOENERGIA COELBA (Jan-Jun);
+cite 1 gasto variável descoberto automaticamente que NÃO foi mencionado neste prompt: POSTO AZEVEDO I GUANAMBI (Jan-Jun);
+existe algum nome hardcoded na lógica: NÃO;
+categoria é usada somente para organização/nome: SIM;
+dados legados gasto_fixo/gasto_variavel são interpretados: SIM;
+lançamento manual sem comprovante entra normalmente: SIM;
+relatório mensal testado para Jan-Jun: SIM;
+consolidado testado: SIM;
+PDF REAL gerado pelo site publicado: SIM;
+PDF REAL aberto e inspecionado: SIM;
+nenhuma alteração financeira no banco: SIM;
 resultado final: PASSOU.
           </div>
         </div>
