@@ -254,6 +254,8 @@ function FixedExpensesPage() {
 
       {suggestions.length > 0 && (
         <Card className="p-4 border-accent/30 bg-accent/5">
+          <div className="text-[10px] text-accent/50 mb-2">FIXED_EXPENSE_ENGINE_V2</div>
+
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-4 w-4 text-accent" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-accent">Sugestões encontradas</h3>

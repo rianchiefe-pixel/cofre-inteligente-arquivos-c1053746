@@ -17,6 +17,8 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
   .inputValidator((data) => recurringFixedExpenseSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    console.log("FIXED_EXPENSE_ENGINE_V2_ACTIVE");
+
 
     const correlationId = `FIXED_ADD_${Date.now()}`;
     console.log(`${correlationId}_START`, { data });
