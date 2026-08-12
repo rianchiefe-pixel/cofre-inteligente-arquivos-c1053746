@@ -166,9 +166,18 @@ function FixedExpensesPage() {
     }
   };
 
-  const handleCreateFromSuggestion = async (s: any) => {
+  const handleCreateFromSuggestion = async (s: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Validação de profile_id (item 4 do prompt)
+    if (s.profile_id && s.profile_id !== profileId) {
+      toast.error("Erro: A sugestão pertence a outro perfil.");
+      return;
+    }
+
     try {
-      await createExpenseFn({
+      const result = await createExpenseFn({
         data: {
           profile_id: profileId,
           name: s.recipient_name,
@@ -179,9 +188,19 @@ function FixedExpensesPage() {
           active: true
         }
       });
+
+      if ((result as any)?.already_exists) {
+        toast.info("Este gasto fixo já está sendo acompanhado.");
+        await queryClient.invalidateQueries({ queryKey: ["recurring_fixed_expenses"] });
+        return;
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["recurring_fixed_expenses"] });
       toast.success("Gasto fixo adicionado!");
-    } catch (e) {
+    } catch (err: any) {
+      console.error("HandleCreate error:", err);
+      // Se o erro contiver a mensagem que já vimos nos alertas duplicados
+      // mas aqui só disparamos UM toast.
       toast.error("Erro ao adicionar gasto fixo");
     }
   };
@@ -242,7 +261,7 @@ function FixedExpensesPage() {
             {suggestions.map((s, i) => (
               <div key={i} className="flex items-center gap-3 bg-background p-2 px-3 rounded-lg border border-border/50 text-sm">
                 <span>{s.recipient_name} <span className="text-muted-foreground text-xs">({s.count} meses)</span></span>
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-accent" onClick={() => handleCreateFromSuggestion(s)}>
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-accent" onClick={(e) => handleCreateFromSuggestion(s, e)}>
                   <Plus className="h-3 w-3 mr-1" /> Adicionar
                 </Button>
               </div>
