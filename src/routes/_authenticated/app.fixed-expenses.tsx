@@ -112,12 +112,12 @@ function FixedExpensesPage() {
       });
 
       return Object.entries(counts)
-        .filter(([_, count]) => count >= 3)
+        .filter(([_, count]) => count >= 1)
         .map(([key, count]) => ({
           ...items[key],
           count,
         }))
-        .filter(s => !expenses.find((e: any) => e.name.includes(s.recipient_name)));
+        .filter(s => true);
     },
     enabled: profileId !== "all",
   });
