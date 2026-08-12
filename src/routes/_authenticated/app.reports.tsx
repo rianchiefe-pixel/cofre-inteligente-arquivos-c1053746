@@ -173,7 +173,7 @@ function ReportsPage() {
       brand,
       summary: [
         { label: "Total geral", value: currencyBRL(total) },
-        { label: "Gasto do mês (sem investimentos)", value: currencyBRL(total - totalInvested) },
+        { label: "Gasto do mês (sem investimentos)", value: currencyBRL(totalExpenses) },
         { label: "Investido", value: currencyBRL(totalInvested) },
         { label: "Gasto fixo", value: currencyBRL(totalFixed) },
         { label: "Gasto variável", value: currencyBRL(totalVariable) },
