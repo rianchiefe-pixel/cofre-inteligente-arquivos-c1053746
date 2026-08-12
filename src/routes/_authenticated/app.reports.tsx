@@ -118,7 +118,12 @@ function ReportsPage() {
 
   const rows = (data.data ?? []).filter((r: any) => r.transaction_type === 'despesa' || r.transaction_type === 'investimento');
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
-  const total = useMemo(() => rows.reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
+  
+  // Regra Canônica: TOTAL = DESPESAS + INVESTIMENTOS
+  const totalExpenses = useMemo(() => rows.filter((r: any) => r.transaction_type === 'despesa').reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
+  const totalInvestments = useMemo(() => rows.filter((r: any) => r.transaction_type === 'investimento').reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
+  const total = totalExpenses + totalInvestments;
+
 
   // Razão unificado (comprovantes + lançamentos de cartão, sem dupla contagem).
   const ledger = useQuery({
@@ -146,9 +151,10 @@ function ReportsPage() {
       secondaryColor: b.secondary_color, accentColor: b.accent_color,
       footerText: b.footer_text,
     } : null;
-    const totalInvested = rows.filter((r: any) => r.transaction_type === "investimento").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
-    const totalFixed = rows.filter((r: any) => r.expense_behavior === "fixed" && r.transaction_type === "despesa").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
-    const totalVariable = rows.filter((r: any) => r.expense_behavior === "variable" && r.transaction_type === "despesa").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalInvested = totalInvestments;
+    const totalFixed = rows.filter((r: any) => r.transaction_type === "despesa" && r.expense_behavior === "fixed").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalVariable = rows.filter((r: any) => r.transaction_type === "despesa" && r.expense_behavior === "variable").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+
     const groupSum = (getKey: (r: any) => string) => {
       const m: Record<string, number> = {};
       for (const r of rows as any[]) { 
