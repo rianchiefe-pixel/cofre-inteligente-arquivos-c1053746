@@ -13,11 +13,10 @@ describe("Modelo Financeiro do Relatório (Regras Reais)", () => {
   });
 
   it("patrimonial deve ser normalizado para investimento", () => {
-    // Nota: Atualmente resolveReportType aceita 'investimento' e 'despesa' no Set canonical.
-    // Vamos garantir que se chegar algo fora do padrão vire unclassified.
     const result = resolveReportType("patrimonial");
-    assert.strictEqual(result, "unclassified");
+    assert.strictEqual(result, "investimento");
   });
+
 
   it("fonte da verdade é apenas o transaction_type", () => {
     assert.strictEqual(resolveReportType("despesa"), "despesa");

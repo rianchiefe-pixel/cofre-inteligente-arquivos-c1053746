@@ -171,15 +171,14 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
 export function resolveReportType(
   transactionType: string | null
 ): ReportFinancialType {
-  if (transactionType && EXPENSE_TYPES.has(transactionType)) {
-    return "despesa";
-  }
-  if (transactionType && INVESTMENT_TYPES.has(transactionType)) {
-    return "investimento";
+  if (transactionType) {
+    if (EXPENSE_TYPES.has(transactionType)) return "despesa";
+    if (INVESTMENT_TYPES.has(transactionType)) return "investimento";
   }
   
   return "unclassified";
 }
+
 
 
 /**
