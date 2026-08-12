@@ -125,30 +125,34 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
   const map = new Map<string, { name: string; cents: number; id: string }>();
   
   for (const e of entries) {
-    // A chave de agrupamento deve ser o NOME da categoria MAIS o favorecido para gastos fixos/variáveis
-    // se for genérico, ou apenas o nome se for específico.
-    // Mas a instrução 8 pede: subcategoria/nome específico > categoria mais específica > favorecido > categoria pai.
-    // Vamos garantir que Educação Ana/Erick/Henrique fiquem separados.
+    /**
+     * Regra 10 e 11: Detalhamento granular.
+     * Devemos usar o nível MAIS ESPECÍFICO.
+     * Se for Educação e tivermos "Mensalidade escolar Ana", o nome deve ser "Mensalidade escolar Ana".
+     * O dataset do Cofre usa o campo 'notes' ou 'payee' (descrição/favorecido) para diferenciar se a categoria for genérica.
+     * Mas aqui vamos priorizar a categoria e, se for genérica (uncategorized), o favorecido.
+     * Para garantir a separação de Ana/Erick/Henrique, usaremos o nome da categoria que já deve estar vindo correto.
+     */
     const displayName = e.categoryName;
     const nameLower = displayName.toLowerCase();
     
-    if (
+    // Se for uma categoria "genérica", tentamos ser mais específicos usando o favorecido ou notas
+    const isGeneric = 
       nameLower.includes("não identificado") ||
       nameLower.includes("não classificado") ||
       nameLower.includes("sem categoria") ||
-      nameLower.includes("não informado")
-    ) {
-      // Se não tem categoria, agrupamos pelo favorecido para não perder no detalhamento
-      const fallbackName = e.payee !== "—" ? e.payee : "Diversos";
-      const key = `fallback:${fallbackName}`;
-      const existing = map.get(key) || { name: fallbackName, cents: 0, id: key };
-      existing.cents += e.cents;
-      map.set(key, existing);
-      continue;
-    }
+      nameLower.includes("não informado") ||
+      displayName === UNCATEGORIZED;
 
-    const key = e.categoryId ?? displayName;
-    const existing = map.get(key) || { name: displayName, cents: 0, id: key };
+    const specificName = isGeneric && e.payee !== "—" ? e.payee : displayName;
+    
+    // Para Educação, se houver descrição específica, podemos tentar anexar ou usar se a categoria for apenas "Educação"
+    // Mas a instrução diz: "Não hardcodar nomes".
+    // Então usaremos a categoria. Se o usuário quer separação, ele deve categorizar corretamente ou o sistema deve ser inteligente.
+    // Atualmente, Education Henrique/Ana/Erick são categorias diferentes no banco.
+    
+    const key = e.categoryId ?? specificName;
+    const existing = map.get(key) || { name: specificName, cents: 0, id: key };
     existing.cents += e.cents;
     map.set(key, existing);
   }
@@ -245,9 +249,25 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const cat = r.category_id ? catById.get(r.category_id) : null;
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
     
-    // Regra ABSOLUTA: classificação vem do próprio lançamento.
-    const reportType = resolveReportType(r.transaction_type);
-    const expenseBehavior = r.expense_behavior || (r.transaction_type === 'gasto_fixo' ? 'fixed' : r.transaction_type === 'gasto_variavel' ? 'variable' : null);
+    // Regra 3: Normalização em memória (DADOS LEGADOS)
+    let canonicalNature: ReportFinancialType = "unclassified";
+    let canonicalBehavior = r.expense_behavior;
+
+    if (r.transaction_type === "despesa") {
+      canonicalNature = "despesa";
+    } else if (r.transaction_type === "investimento") {
+      canonicalNature = "investimento";
+      canonicalBehavior = null; // Investimento não tem behavior fixed/variable
+    } else if (r.transaction_type === "gasto_fixo") {
+      canonicalNature = "despesa";
+      canonicalBehavior = r.expense_behavior ?? "fixed";
+    } else if (r.transaction_type === "gasto_variavel") {
+      canonicalNature = "despesa";
+      canonicalBehavior = r.expense_behavior ?? "variable";
+    }
+
+    const reportType = canonicalNature;
+    const expenseBehavior = canonicalBehavior;
 
 
     const cents = toCents(r.amount);

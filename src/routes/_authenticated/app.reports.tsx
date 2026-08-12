@@ -116,11 +116,11 @@ function ReportsPage() {
     },
   });
 
-  const rows = (data.data ?? []).filter((r: any) => r.transaction_type === 'despesa' || r.transaction_type === 'investimento');
+  const rows = (data.data ?? []).filter((r: any) => r.transaction_type === 'despesa' || r.transaction_type === 'investimento' || r.transaction_type === 'gasto_fixo' || r.transaction_type === 'gasto_variavel');
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   
   // Regra Canônica: TOTAL = DESPESAS + INVESTIMENTOS
-  const totalExpenses = useMemo(() => rows.filter((r: any) => r.transaction_type === 'despesa').reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
+  const totalExpenses = useMemo(() => rows.filter((r: any) => r.transaction_type !== 'investimento').reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
   const totalInvestments = useMemo(() => rows.filter((r: any) => r.transaction_type === 'investimento').reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
   const total = totalExpenses + totalInvestments;
 
@@ -152,14 +152,14 @@ function ReportsPage() {
       footerText: b.footer_text,
     } : null;
     const totalInvested = totalInvestments;
-    const totalFixed = rows.filter((r: any) => r.transaction_type === "despesa" && r.expense_behavior === "fixed").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
-    const totalVariable = rows.filter((r: any) => r.transaction_type === "despesa" && r.expense_behavior === "variable").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalFixed = rows.filter((r: any) => (r.transaction_type === "gasto_fixo" || (r.transaction_type === "despesa" && r.expense_behavior === "fixed"))).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalVariable = rows.filter((r: any) => (r.transaction_type === "gasto_variavel" || (r.transaction_type === "despesa" && r.expense_behavior === "variable"))).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
     const groupSum = (getKey: (r: any) => string) => {
       const m: Record<string, number> = {};
       for (const r of rows as any[]) { 
         // Only sum rows that have a valid canonical type (despesa/investimento)
-        if (r.transaction_type !== 'despesa' && r.transaction_type !== 'investimento') continue;
+        if (r.transaction_type !== 'despesa' && r.transaction_type !== 'investimento' && r.transaction_type !== 'gasto_fixo' && r.transaction_type !== 'gasto_variavel') continue;
         const k = getKey(r) || "—"; 
         m[k] = (m[k] ?? 0) + Number(r.amount ?? 0); 
       }
