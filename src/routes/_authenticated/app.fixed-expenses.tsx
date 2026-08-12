@@ -261,7 +261,7 @@ function FixedExpensesPage() {
             {suggestions.map((s, i) => (
               <div key={i} className="flex items-center gap-3 bg-background p-2 px-3 rounded-lg border border-border/50 text-sm">
                 <span>{s.recipient_name} <span className="text-muted-foreground text-xs">({s.count} meses)</span></span>
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-accent" onClick={() => handleCreateFromSuggestion(s)}>
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-accent" onClick={(e) => handleCreateFromSuggestion(s, e)}>
                   <Plus className="h-3 w-3 mr-1" /> Adicionar
                 </Button>
               </div>
