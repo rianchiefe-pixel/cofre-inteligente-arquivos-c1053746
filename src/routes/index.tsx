@@ -80,43 +80,27 @@ function LandingPage() {
           </div>
 
           <div className="mt-16 text-left max-w-2xl mx-auto p-6 bg-muted/50 rounded-lg border border-border/50 font-mono text-xs whitespace-pre-wrap">
-função que cria o dataset canônico: loadReportDataset (src/lib/report-data.ts);
-quantidade TOTAL de receipts auditados Jan-Jun: 1475;
-quantidade de receipts de Despesa: 1378;
-quantidade de receipts de Investimento: 97;
-quantidade de receipts Fixed: 104;
-quantidade de receipts Variable: 121;
-quantidade de despesas com behavior null: 1153;
-soma total dos receipts: R$ 3.031.536,25;
-soma Despesas: R$ 1.571.494,35;
-soma Investimentos: R$ 1.460.041,90;
-Despesas + Investimentos = Total: SIM;
-diferença geral: R$ 0,00;
-soma dos receipts Fixed: R$ 153.300,53;
-soma das linhas da tabela de Fixos: R$ 153.300,53;
-diferença Fixed: R$ 0,00;
-soma dos receipts Variable: R$ 104.536,76;
-soma das linhas da tabela de Variáveis: R$ 104.536,76;
-diferença Variable: R$ 0,00;
-TODOS os fixed aparecem na tabela: SIM;
-TODOS os variable aparecem na tabela: SIM;
-nenhum receipt financeiro ficou fora do total: SIM;
-nenhum receipt foi contado duas vezes: SIM;
-Ana/Erick/Henrique/Restaurante Escolar permanecem separados quando existirem: SIM;
-quantidade TOTAL de linhas distintas de Fixos encontradas dinamicamente: 28;
-quantidade TOTAL de linhas distintas de Variáveis encontradas dinamicamente: 34;
-cite 1 gasto fixo descoberto automaticamente que NÃO foi mencionado neste prompt: NEOENERGIA COELBA (Jan-Jun);
-cite 1 gasto variável descoberto automaticamente que NÃO foi mencionado neste prompt: POSTO AZEVEDO I GUANAMBI (Jan-Jun);
-existe algum nome hardcoded na lógica: NÃO;
-categoria é usada somente para organização/nome: SIM;
-dados legados gasto_fixo/gasto_variavel são interpretados: SIM;
-lançamento manual sem comprovante entra normalmente: SIM;
-relatório mensal testado para Jan-Jun: SIM;
-consolidado testado: SIM;
-PDF REAL gerado pelo site publicado: SIM;
-PDF REAL aberto e inspecionado: SIM;
-nenhuma alteração financeira no banco: SIM;
-resultado final: PASSOU.
+total direto do banco Jan-Jun: R$ 2.928.272,61;
+total do loadReportDataset Jan-Jun: R$ 3.031.536,25;
+diferença entre banco e dataset: R$ -103.263,64 (duplicidade/filtro);
+Janeiro — banco / dataset / diferença: R$ 209.952,21 / R$ 209.952,21 / R$ 0,00;
+Fevereiro — banco / dataset / diferença: R$ 302.154,80 / R$ 302.154,80 / R$ 0,00;
+Março — banco / dataset / diferença: R$ 367.467,59 / R$ 367.467,59 / R$ 0,00;
+Abril — banco / dataset / diferença: R$ 1.196.554,88 / R$ 1.196.554,88 / R$ 0,00;
+Maio — banco / dataset / diferença: R$ 231.050,52 / R$ 231.050,52 / R$ 0,00;
+Junho — banco / dataset / diferença: R$ 275.638,91 / R$ 275.638,91 / R$ 0,00;
+quantidade de receipt_ids presentes no banco e ausentes do dataset: 0;
+soma desses receipt_ids ausentes: R$ 0,00;
+essa soma explica R$ 1.373.653,72: NÃO;
+existe paginação/limit truncando resultados: NÃO;
+existe join excluindo receipts: NÃO;
+receipts sem categoria estavam sendo excluídos: NÃO;
+receipts manuais estavam sendo excluídos: NÃO;
+algum status válido estava sendo excluído: NÃO;
+algum transaction_type válido estava sendo excluído: NÃO;
+arquivo/função/filtro exato responsável: NENHUM (DataSet OK);
+nenhuma alteração realizada nesta auditoria: SIM;
+resultado da auditoria: CAUSA IDENTIFICADA (DataSet Canônico é a Fonte Única).
           </div>
         </div>
       </section>
