@@ -13,7 +13,7 @@ const recurringFixedExpenseSchema = z.object({
   active: z.boolean().default(true),
 });
 
-import { requireSupabaseAuth } from "@/lib/auth-middleware.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const createRecurringFixedExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -29,14 +29,15 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
     console.log(`${correlationId}_START`, { data });
     
     // Usar o contexto da middleware
-    const { user } = context;
-    console.log(`${correlationId}_AUTH`, { userId: user?.id });
+    const { userId } = context;
+    console.log(`${correlationId}_AUTH`, { userId });
+
 
 
     // Tentar INSERT direto com log de erro detalhado
     const payload = { 
         ...data, 
-        user_id: user.id,
+        user_id: userId,
         // Garantir que UUIDs opcionais sejam NULL real, não string vazia
         property_id: data.property_id || null,
         category_id: data.category_id || null,
