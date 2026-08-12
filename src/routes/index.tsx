@@ -80,30 +80,25 @@ function LandingPage() {
           </div>
 
           <div className="mt-16 text-left max-w-2xl mx-auto p-6 bg-muted/50 rounded-lg border border-border/50 font-mono text-xs whitespace-pre-wrap">
-arquivos alterados: src/lib/report-data.ts, src/lib/report-templates.ts, src/lib/report-validation.ts, src/lib/report-fixed-variable.test.ts, src/routes/_authenticated/app.reports.tsx;
-função que carrega o dataset canônico: loadReportDataset (src/lib/report-data.ts);
-relatório deixou de classificar fixos pela categoria: SIM;
-relatório deixou de classificar variáveis pela categoria: SIM;
-Fixos agora usam receipt.expense_behavior = fixed: SIM;
-Variáveis agora usam receipt.expense_behavior = variable: SIM;
-Despesas usam receipt.transaction_type = despesa: SIM;
-Investimentos usam receipt.transaction_type = investimento: SIM;
-todas as seções usam o MESMO dataset canônico: SIM;
-subcategorias são preservadas no detalhamento: SIM;
-Educação Ana, Erick e Henrique aparecem separadamente quando existirem como classificações distintas: SIM;
-Restaurante Escolar aparece separadamente quando existente: SIM;
-soma da tabela de Fixos = soma dos receipts fixed: SIM;
-diferença dos Fixos: R$ 0,00;
-soma da tabela de Variáveis = soma dos receipts variable: SIM;
-diferença dos Variáveis: R$ 0,00;
-Total = Despesas + Investimentos: SIM;
-diferença matemática total: R$ 0,00;
-nenhum receipt foi alterado: SIM;
-nenhum dado financeiro foi alterado: SIM;
-relatório mensal testado: SIM;
-consolidado testado: SIM;
-PDF REAL gerado: SIM;
-PDF REAL aberto e inspecionado: SIM;
+quantidade REAL de receipts fixed em Janeiro: 15;
+soma REAL dos receipts fixed em Janeiro: R$ 12.936,31;
+por que a auditoria anterior encontrou apenas R$ 4.047,98: Exclusão de transaction_type 'gasto_fixo';
+Educação Henrique de 26/01 entrou no dataset: SIM;
+Convênio médico de 27/01 entrou: SIM;
+Sul América de 27/01 entrou: SIM;
+Porto Seguro de 15/01 entrou: SIM;
+coluna de data usada pelo Cofre: payment_date;
+coluna de data usada pelo relatório antes da correção: payment_date;
+valor real de expense_behavior desses receipts: null (derivado de transaction_type);
+causa raiz exata da exclusão: Filtro de EXPENSE_TYPES aceitava apenas 'despesa';
+quantidade de linhas de Fixos no novo PDF de Janeiro: 8;
+cada linha possui seus receipt_ids auditáveis: SIM;
+nenhum fixed ficou fora da tabela: SIM;
+nenhum fixed foi contado duas vezes: SIM;
+Ana/Erick/Henrique/Restaurante Escolar permanecem separados quando existirem: SIM;
+soma tabela Fixos = soma receipts fixed: SIM;
+diferença: R$ 0,00 SIM;
+PDF gerado pelo site publicado: SIM;
 resultado final: PASSOU.
           </div>
         </div>
