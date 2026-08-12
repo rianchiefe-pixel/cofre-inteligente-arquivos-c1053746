@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/app/fixed-expenses")({
 function FixedExpensesPage() {
   const { activeProfileId } = useActiveProfile();
   const profileId = activeProfileId || "all";
-  console.log("FIXED_EXPENSE_PAGE_LOAD", { profileId });
+
 
   const queryClient = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear());
@@ -114,12 +114,12 @@ function FixedExpensesPage() {
       });
 
       return Object.entries(counts)
-        .filter(([_, count]) => count >= 1)
+        .filter(([_, count]) => count >= 3)
         .map(([key, count]) => ({
           ...items[key],
           count,
         }))
-        .filter(s => true);
+        .filter(s => !expenses.find((e: any) => e.name.includes(s.recipient_name)));
     },
     enabled: profileId !== "all",
   });
@@ -189,9 +189,6 @@ function FixedExpensesPage() {
         active: true
       };
       
-      const correlationId = `FIXED_ADD_FRONTEND_${Date.now()}`;
-      console.log(`${correlationId}_SENDING`, payload);
-
       const result = await createExpenseFn({ data: payload });
 
       if ((result as any)?.already_exists) {
@@ -200,12 +197,13 @@ function FixedExpensesPage() {
         return;
       }
 
+
       await queryClient.invalidateQueries({ queryKey: ["recurring_fixed_expenses"] });
       toast.success("Gasto fixo adicionado!");
     } catch (err: any) {
-      console.error("FIXED_ADD_FRONTEND_ERROR", err);
       toast.error(`Erro ao adicionar gasto fixo: ${err.message || "Erro desconhecido"}`);
     }
+
   };
 
   const filteredExpenses = useMemo(() => {
@@ -256,7 +254,7 @@ function FixedExpensesPage() {
 
       {suggestions.length > 0 && (
         <Card className="p-4 border-accent/30 bg-accent/5">
-          <div className="text-[10px] text-accent/50 mb-2">FIXED_EXPENSE_ENGINE_V2</div>
+
 
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-4 w-4 text-accent" />

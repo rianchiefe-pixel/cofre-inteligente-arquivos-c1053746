@@ -21,16 +21,11 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
 
   .handler(async ({ data, context }) => {
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    console.log("FIXED_EXPENSE_ENGINE_V2_ACTIVE");
 
 
-    const correlationId = `FIXED_ADD_${Date.now()}`;
-    console.log(`${correlationId}_START`, { data });
-    
     // Usar o contexto da middleware
     const { userId } = context;
-    console.log(`${correlationId}_AUTH`, { userId });
+
 
 
 
@@ -45,27 +40,20 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
         description_pattern: data.description_pattern || null,
     };
 
-    console.log(`${correlationId}_DB_ATTEMPT`, payload);
-
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: res, error } = await (supabaseAdmin as any)
       .from("recurring_fixed_expenses")
+
       .insert([payload])
       .select()
       .single();
 
     if (error) {
-        console.error(`${correlationId}_DB_ERROR`, { 
-            status: error.status,
-            code: error.code, 
-            message: error.message, 
-            details: error.details, 
-            hint: error.hint 
-        });
-        throw new Error(`[${error.code}] ${error.message}${error.details ? ' - ' + error.details : ''}`);
+        throw new Error(error.message);
     }
     
-    console.log(`${correlationId}_DB_SUCCESS`, { id: res.id });
     return res;
+
   });
 
 export const updateRecurringFixedExpense = createServerFn({ method: "POST" })
