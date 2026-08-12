@@ -1,30 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2, XCircle, AlertTriangle, Minus, Loader2, Plus, Info, ExternalLink, FilterX } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from "date-fns";
+import { CheckCircle2, XCircle, AlertTriangle, Minus, Loader2, Plus, ExternalLink, FilterX, ListTodo, FolderLock, Sparkles, RefreshCw, Search } from "lucide-react";
+import { format, startOfMonth, eachMonthOfInterval, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useProfile } from "@/hooks/use-profile";
+import { useActiveProfile } from "@/hooks/use-active-profile";
 import { findRecurringFixedExpenseMatch, setRecurringExpenseMatch, createRecurringFixedExpense } from "@/lib/recurring-expenses.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/fixed-expenses")({
   component: FixedExpensesPage,
 });
 
-const MONTHS_COUNT = 12;
-
 function FixedExpensesPage() {
-  const { profileId } = useProfile();
+  const { activeProfileId } = useActiveProfile();
+  const profileId = activeProfileId || "all";
   const queryClient = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear());
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("all");
@@ -45,7 +44,7 @@ function FixedExpensesPage() {
     queryKey: ["recurring_fixed_expenses", profileId],
     queryFn: async () => {
       if (profileId === "all") return [];
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("recurring_fixed_expenses")
         .select("*")
         .eq("profile_id", profileId)
@@ -68,13 +67,12 @@ function FixedExpensesPage() {
     },
   });
 
-  // Query to get all matches for the current grid
   const { data: matches = {}, isLoading: isLoadingMatches } = useQuery({
     queryKey: ["recurring_expense_matches", profileId, year],
     queryFn: async () => {
       if (profileId === "all" || expenses.length === 0) return {};
       
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("recurring_expense_matches")
         .select("*, receipts(*)")
         .in("recurring_fixed_expense_id", expenses.map((e: any) => e.id))
@@ -82,7 +80,7 @@ function FixedExpensesPage() {
         .lte("month", `${year}-12-01`);
 
       const map: Record<string, any> = {};
-      data?.forEach(m => {
+      data?.forEach((m: any) => {
         const key = `${m.recurring_fixed_expense_id}-${m.month}`;
         map[key] = m;
       });
@@ -91,12 +89,10 @@ function FixedExpensesPage() {
     enabled: profileId !== "all" && expenses.length > 0,
   });
 
-  // Query to find suggestions
   const { data: suggestions = [] } = useQuery({
     queryKey: ["recurring_suggestions", profileId],
     queryFn: async () => {
       if (profileId === "all") return [];
-      // Look for receipts marked as fixed that appear in at least 3 different months
       const { data } = await supabase
         .from("receipts")
         .select("recipient_name, category_id, property_id")
@@ -106,7 +102,6 @@ function FixedExpensesPage() {
 
       if (!data) return [];
       
-      // Basic grouping logic for suggestions
       const counts: Record<string, number> = {};
       const items: Record<string, any> = {};
       
@@ -136,8 +131,9 @@ function FixedExpensesPage() {
       let foundCount = 0;
       for (const expense of expenses) {
         for (const monthDate of months) {
-          const key = `${expense.id}-${format(monthDate, "yyyy-MM-01")}`;
-          if (matches[key]) continue; // Skip if already has a match
+          const monthStr = format(monthDate, "yyyy-MM-01");
+          const key = `${expense.id}-${monthStr}`;
+          if (matches[key]) continue;
 
           const result = await findMatchFn({
             data: {
@@ -152,9 +148,9 @@ function FixedExpensesPage() {
             await setMatchFn({
               data: {
                 recurring_fixed_expense_id: expense.id,
-                month: format(monthDate, "yyyy-MM-01"),
-                receipt_id: result.match?.id,
-                status: result.status
+                month: monthStr,
+                receipt_id: (result as any).match?.id,
+                status: result.status as any
               }
             });
             foundCount++;
@@ -236,7 +232,6 @@ function FixedExpensesPage() {
         </div>
       </div>
 
-      {/* Sugestões */}
       {suggestions.length > 0 && (
         <Card className="p-4 border-accent/30 bg-accent/5">
           <div className="flex items-center gap-2 mb-3">
@@ -256,7 +251,6 @@ function FixedExpensesPage() {
         </Card>
       )}
 
-      {/* Filtros */}
       <div className="flex flex-wrap items-center gap-3">
         <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId}>
           <SelectTrigger className="w-[180px]">
@@ -274,7 +268,6 @@ function FixedExpensesPage() {
         </Button>
       </div>
 
-      {/* Matriz */}
       <Card className="overflow-hidden border-border/60">
         <div className="overflow-x-auto">
           <Table>
@@ -289,7 +282,7 @@ function FixedExpensesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoadingExpenses ? (
+              {isLoadingExpenses || isLoadingMatches ? (
                 <TableRow>
                   <TableCell colSpan={13} className="h-32 text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-20" />
@@ -343,7 +336,6 @@ function FixedExpensesPage() {
         </div>
       </Card>
 
-      {/* Mensal Indicators */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {months.map(month => {
           const monthKey = format(month, "yyyy-MM-01");
@@ -371,7 +363,6 @@ function FixedExpensesPage() {
         })}
       </div>
 
-      {/* Modal de Detalhe do Mês */}
       <Dialog open={!!selectedMatch} onOpenChange={() => setSelectedMatch(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -462,22 +453,3 @@ function FixedExpensesPage() {
     </div>
   );
 }
-
-const Sparkles = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-    <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
-  </svg>
-);
-
-const RefreshCw = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/>
-  </svg>
-);
-
-const Search = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-  </svg>
-);
