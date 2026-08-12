@@ -1,9 +1,9 @@
 CREATE TABLE public.recurring_fixed_expenses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL DEFAULT auth.uid(),
-    profile_id UUID NOT NULL,
-    property_id UUID,
-    category_id UUID,
+    profile_id UUID REFERENCES public.financial_profiles(id) ON DELETE CASCADE NOT NULL,
+    property_id UUID REFERENCES public.properties(id) ON DELETE SET NULL,
+    category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     merchant_pattern TEXT,
     description_pattern TEXT,
