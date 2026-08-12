@@ -23,10 +23,10 @@ export function validateReportDataset(data: ReportDataset): ValidationResult {
 
     // Regra: FIXOS e VARIÁVEIS devem ser subconjuntos das despesas
     if (m.fixedCents > m.despesaCents + 1) {
-        errors.push(`Total de Fixos em ${m.label} supera o total de Despesas.`);
+        errors.push(`Total de Fixos (${brl(m.fixedCents)}) em ${m.label} supera o total de Despesas (${brl(m.despesaCents)}).`);
     }
     if (m.variableCents > m.despesaCents + 1) {
-        errors.push(`Total de Variáveis em ${m.label} supera o total de Despesas.`);
+        errors.push(`Total de Variáveis (${brl(m.variableCents)}) em ${m.label} supera o total de Despesas (${brl(m.despesaCents)}).`);
     }
 
     // Validação de Detalhamento: A soma das categorias detalhadas deve bater com o total do grupo
@@ -42,10 +42,18 @@ export function validateReportDataset(data: ReportDataset): ValidationResult {
   });
 
   const t = data.totals;
+  // Regra: TOTAL GERAL = DESPESAS + INVESTIMENTOS
   const sumT = t.despesaCents + t.investimentoCents;
   if (Math.abs(sumT - t.totalCents) > 1) {
     errors.push(`Total geral do período diverge da soma dos grupos (${brl(sumT)} vs ${brl(t.totalCents)}).`);
   }
+
+  // Validação extra de integridade do dataset consolidado
+  const totalMonthsFixed = data.months.reduce((s, m) => s + m.fixedCents, 0);
+  if (Math.abs(totalMonthsFixed - t.fixedCents) > 1) {
+      errors.push(`Integridade violada: Soma dos Fixos mensais (${brl(totalMonthsFixed)}) diverge do total acumulado (${brl(t.fixedCents)}).`);
+  }
+
 
 
   return { ok: errors.length === 0, errors };
