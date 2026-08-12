@@ -177,17 +177,20 @@ function FixedExpensesPage() {
     }
 
     try {
-      const result = await createExpenseFn({
-        data: {
-          profile_id: profileId,
-          name: s.recipient_name,
-          merchant_pattern: s.recipient_name,
-          category_id: s.category_id,
-          property_id: s.property_id,
-          start_month: format(startOfMonth(subMonths(new Date(), 6)), "yyyy-MM-01"),
-          active: true
-        }
-      });
+      const payload = {
+        profile_id: profileId,
+        name: s.recipient_name,
+        merchant_pattern: s.recipient_name,
+        category_id: s.category_id,
+        property_id: s.property_id,
+        start_month: format(startOfMonth(subMonths(new Date(), 6)), "yyyy-MM-01"),
+        active: true
+      };
+      
+      const correlationId = `FIXED_ADD_FRONTEND_${Date.now()}`;
+      console.log(`${correlationId}_SENDING`, payload);
+
+      const result = await createExpenseFn({ data: payload });
 
       if ((result as any)?.already_exists) {
         toast.info("Este gasto fixo já está sendo acompanhado.");
@@ -199,8 +202,7 @@ function FixedExpensesPage() {
       toast.success("Gasto fixo adicionado!");
     } catch (err: any) {
       console.error("FIXED_ADD_FRONTEND_ERROR", err);
-      const errorMessage = err.message || "Erro desconhecido";
-      toast.error(`Erro ao adicionar gasto fixo: ${errorMessage}`);
+      toast.error(`Erro ao adicionar gasto fixo: ${err.message || "Erro desconhecido"}`);
     }
   };
 
