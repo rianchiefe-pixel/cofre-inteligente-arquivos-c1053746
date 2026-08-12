@@ -22,6 +22,7 @@ import { Route as AuthenticatedAppReportsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAppProfilesRouteImport } from './routes/_authenticated/app.profiles'
 import { Route as AuthenticatedAppImportRouteImport } from './routes/_authenticated/app.import'
 import { Route as AuthenticatedAppHoldingAdvocaciaRouteImport } from './routes/_authenticated/app.holding-advocacia'
+import { Route as AuthenticatedAppFixedExpensesRouteImport } from './routes/_authenticated/app.fixed-expenses'
 import { Route as AuthenticatedAppCategoriesRouteImport } from './routes/_authenticated/app.categories'
 import { Route as AuthenticatedAppCardsRouteImport } from './routes/_authenticated/app.cards'
 import { Route as AuthenticatedAppBanksRouteImport } from './routes/_authenticated/app.banks'
@@ -99,6 +100,12 @@ const AuthenticatedAppHoldingAdvocaciaRoute =
     path: '/holding-advocacia',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppFixedExpensesRoute =
+  AuthenticatedAppFixedExpensesRouteImport.update({
+    id: '/fixed-expenses',
+    path: '/fixed-expenses',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppCategoriesRoute =
   AuthenticatedAppCategoriesRouteImport.update({
     id: '/categories',
@@ -158,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/app/banks': typeof AuthenticatedAppBanksRoute
   '/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
   '/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
+  '/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
@@ -179,6 +187,7 @@ export interface FileRoutesByTo {
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
   '/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
+  '/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/app/banks': typeof AuthenticatedAppBanksRoute
   '/_authenticated/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
   '/_authenticated/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
+  '/_authenticated/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
   '/_authenticated/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/_authenticated/app/import': typeof AuthenticatedAppImportRoute
   '/_authenticated/app/profiles': typeof AuthenticatedAppProfilesRoute
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/app/banks'
     | '/app/cards'
     | '/app/categories'
+    | '/app/fixed-expenses'
     | '/app/holding-advocacia'
     | '/app/import'
     | '/app/profiles'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/app/audit'
     | '/app/banks'
     | '/app/categories'
+    | '/app/fixed-expenses'
     | '/app/holding-advocacia'
     | '/app/import'
     | '/app/profiles'
@@ -274,6 +286,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/banks'
     | '/_authenticated/app/cards'
     | '/_authenticated/app/categories'
+    | '/_authenticated/app/fixed-expenses'
     | '/_authenticated/app/holding-advocacia'
     | '/_authenticated/app/import'
     | '/_authenticated/app/profiles'
@@ -390,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppHoldingAdvocaciaRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/fixed-expenses': {
+      id: '/_authenticated/app/fixed-expenses'
+      path: '/fixed-expenses'
+      fullPath: '/app/fixed-expenses'
+      preLoaderRoute: typeof AuthenticatedAppFixedExpensesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/categories': {
       id: '/_authenticated/app/categories'
       path: '/categories'
@@ -491,6 +511,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppBanksRoute: typeof AuthenticatedAppBanksRoute
   AuthenticatedAppCardsRoute: typeof AuthenticatedAppCardsRouteWithChildren
   AuthenticatedAppCategoriesRoute: typeof AuthenticatedAppCategoriesRouteWithChildren
+  AuthenticatedAppFixedExpensesRoute: typeof AuthenticatedAppFixedExpensesRoute
   AuthenticatedAppHoldingAdvocaciaRoute: typeof AuthenticatedAppHoldingAdvocaciaRoute
   AuthenticatedAppImportRoute: typeof AuthenticatedAppImportRoute
   AuthenticatedAppProfilesRoute: typeof AuthenticatedAppProfilesRoute
@@ -508,6 +529,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppBanksRoute: AuthenticatedAppBanksRoute,
   AuthenticatedAppCardsRoute: AuthenticatedAppCardsRouteWithChildren,
   AuthenticatedAppCategoriesRoute: AuthenticatedAppCategoriesRouteWithChildren,
+  AuthenticatedAppFixedExpensesRoute: AuthenticatedAppFixedExpensesRoute,
   AuthenticatedAppHoldingAdvocaciaRoute: AuthenticatedAppHoldingAdvocaciaRoute,
   AuthenticatedAppImportRoute: AuthenticatedAppImportRoute,
   AuthenticatedAppProfilesRoute: AuthenticatedAppProfilesRoute,
