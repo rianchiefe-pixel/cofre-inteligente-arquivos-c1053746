@@ -24,6 +24,8 @@ export const Route = createFileRoute("/_authenticated/app/fixed-expenses")({
 function FixedExpensesPage() {
   const { activeProfileId } = useActiveProfile();
   const profileId = activeProfileId || "all";
+  console.log("FIXED_EXPENSE_PAGE_LOAD", { profileId });
+
   const queryClient = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear());
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("all");
