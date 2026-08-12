@@ -198,10 +198,9 @@ function FixedExpensesPage() {
       await queryClient.invalidateQueries({ queryKey: ["recurring_fixed_expenses"] });
       toast.success("Gasto fixo adicionado!");
     } catch (err: any) {
-      console.error("HandleCreate error:", err);
-      // Se o erro contiver a mensagem que já vimos nos alertas duplicados
-      // mas aqui só disparamos UM toast.
-      toast.error("Erro ao adicionar gasto fixo");
+      console.error("FIXED_ADD_FRONTEND_ERROR", err);
+      const errorMessage = err.message || "Erro desconhecido";
+      toast.error(`Erro ao adicionar gasto fixo: ${errorMessage}`);
     }
   };
 

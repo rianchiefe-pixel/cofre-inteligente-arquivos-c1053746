@@ -16,8 +16,15 @@ const recurringFixedExpenseSchema = z.object({
 export const createRecurringFixedExpense = createServerFn({ method: "POST" })
   .inputValidator((data) => recurringFixedExpenseSchema.parse(data))
   .handler(async ({ data }) => {
+    console.log("FIXED_ADD_START", { correlationId: Date.now(), data });
+    
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+    console.log("FIXED_ADD_SERVER_AUTH", { userId: user?.id });
+    
+    if (!user) {
+        console.error("FIXED_ADD_AUTH_ERROR");
+        throw new Error("Unauthorized");
+    }
 
     // Verificar se já existe uma recorrência com esse nome para esse perfil
     const { data: existing } = await (supabase as any)
@@ -28,8 +35,11 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (existing) {
+      console.log("FIXED_ADD_ALREADY_EXISTS", { id: existing.id });
       return { id: existing.id, already_exists: true };
     }
+
+    console.log("FIXED_ADD_DB_ATTEMPT", { ...data, user_id: user.id });
 
     const { data: res, error } = await (supabase as any)
       .from("recurring_fixed_expenses")
@@ -38,9 +48,16 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
       .single();
 
     if (error) {
-        console.error("Error inserting recurring expense:", error);
-        throw new Error(error.message);
+        console.error("FIXED_ADD_DB_ERROR", { 
+            code: error.code, 
+            message: error.message, 
+            details: error.details, 
+            hint: error.hint 
+        });
+        throw new Error(`DB_ERROR: ${error.message} (Code: ${error.code})`);
     }
+    
+    console.log("FIXED_ADD_DB_SUCCESS", { id: res.id });
     return res;
   });
 
