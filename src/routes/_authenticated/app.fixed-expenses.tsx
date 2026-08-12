@@ -24,6 +24,8 @@ export const Route = createFileRoute("/_authenticated/app/fixed-expenses")({
 function FixedExpensesPage() {
   const { activeProfileId } = useActiveProfile();
   const profileId = activeProfileId || "all";
+
+
   const queryClient = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear());
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("all");
@@ -177,17 +179,17 @@ function FixedExpensesPage() {
     }
 
     try {
-      const result = await createExpenseFn({
-        data: {
-          profile_id: profileId,
-          name: s.recipient_name,
-          merchant_pattern: s.recipient_name,
-          category_id: s.category_id,
-          property_id: s.property_id,
-          start_month: format(startOfMonth(subMonths(new Date(), 6)), "yyyy-MM-01"),
-          active: true
-        }
-      });
+      const payload = {
+        profile_id: profileId,
+        name: s.recipient_name,
+        merchant_pattern: s.recipient_name,
+        category_id: s.category_id,
+        property_id: s.property_id,
+        start_month: format(startOfMonth(subMonths(new Date(), 6)), "yyyy-MM-01"),
+        active: true
+      };
+      
+      const result = await createExpenseFn({ data: payload });
 
       if ((result as any)?.already_exists) {
         toast.info("Este gasto fixo já está sendo acompanhado.");
@@ -195,14 +197,13 @@ function FixedExpensesPage() {
         return;
       }
 
+
       await queryClient.invalidateQueries({ queryKey: ["recurring_fixed_expenses"] });
       toast.success("Gasto fixo adicionado!");
     } catch (err: any) {
-      console.error("HandleCreate error:", err);
-      // Se o erro contiver a mensagem que já vimos nos alertas duplicados
-      // mas aqui só disparamos UM toast.
-      toast.error("Erro ao adicionar gasto fixo");
+      toast.error(`Erro ao adicionar gasto fixo: ${err.message || "Erro desconhecido"}`);
     }
+
   };
 
   const filteredExpenses = useMemo(() => {
@@ -253,6 +254,8 @@ function FixedExpensesPage() {
 
       {suggestions.length > 0 && (
         <Card className="p-4 border-accent/30 bg-accent/5">
+
+
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-4 w-4 text-accent" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-accent">Sugestões encontradas</h3>

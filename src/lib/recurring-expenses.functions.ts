@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
 
 const recurringFixedExpenseSchema = z.object({
   profile_id: z.string().uuid(),
@@ -13,35 +15,46 @@ const recurringFixedExpenseSchema = z.object({
   active: z.boolean().default(true),
 });
 
+
 export const createRecurringFixedExpense = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => recurringFixedExpenseSchema.parse(data))
-  .handler(async ({ data }) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
 
-    // Verificar se já existe uma recorrência com esse nome para esse perfil
-    const { data: existing } = await (supabase as any)
+  .handler(async ({ data, context }) => {
+
+
+
+    // Usar o contexto da middleware
+    const { userId } = context;
+
+
+
+
+    // Tentar INSERT direto com log de erro detalhado
+    const payload = { 
+        ...data, 
+        user_id: userId,
+        // Garantir que UUIDs opcionais sejam NULL real, não string vazia
+        property_id: data.property_id || null,
+        category_id: data.category_id || null,
+        merchant_pattern: data.merchant_pattern || null,
+        description_pattern: data.description_pattern || null,
+    };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: res, error } = await (supabaseAdmin as any)
       .from("recurring_fixed_expenses")
-      .select("id")
-      .eq("profile_id", data.profile_id)
-      .eq("name", data.name)
-      .maybeSingle();
 
-    if (existing) {
-      return { id: existing.id, already_exists: true };
-    }
-
-    const { data: res, error } = await (supabase as any)
-      .from("recurring_fixed_expenses")
-      .insert([{ ...data, user_id: user.id }])
+      .insert([payload])
       .select()
       .single();
 
     if (error) {
-        console.error("Error inserting recurring expense:", error);
         throw new Error(error.message);
     }
+    
     return res;
+
   });
 
 export const updateRecurringFixedExpense = createServerFn({ method: "POST" })
