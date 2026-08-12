@@ -106,7 +106,7 @@ export interface ReportDataset {
 }
 
 const INVESTMENT_TYPES = new Set(["investimento", "patrimonial"]);
-const EXPENSE_TYPES = new Set(["despesa"]);
+const EXPENSE_TYPES = new Set(["despesa", "gasto_fixo", "gasto_variavel"]);
 
 export const centsToNumber = (cents: number) => Math.round(cents) / 100;
 export const toCents = (value: unknown) => Math.round(Math.abs(Number(value ?? 0)) * 100);
@@ -125,8 +125,10 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
   const map = new Map<string, { name: string; cents: number; id: string }>();
   
   for (const e of entries) {
-    // A chave de agrupamento deve ser o NOME real para evitar achatamento de subcategorias
-    // Se a categoria/subcategoria for genérica, usamos a identificação técnica do entry
+    // A chave de agrupamento deve ser o NOME da categoria MAIS o favorecido para gastos fixos/variáveis
+    // se for genérico, ou apenas o nome se for específico.
+    // Mas a instrução 8 pede: subcategoria/nome específico > categoria mais específica > favorecido > categoria pai.
+    // Vamos garantir que Educação Ana/Erick/Henrique fiquem separados.
     const displayName = e.categoryName;
     const nameLower = displayName.toLowerCase();
     
@@ -245,7 +247,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     
     // Regra ABSOLUTA: classificação vem do próprio lançamento.
     const reportType = resolveReportType(r.transaction_type);
-    const expenseBehavior = r.expense_behavior || null;
+    const expenseBehavior = r.expense_behavior || (r.transaction_type === 'gasto_fixo' ? 'fixed' : r.transaction_type === 'gasto_variavel' ? 'variable' : null);
 
 
     const cents = toCents(r.amount);
