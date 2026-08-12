@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
 
 const recurringFixedExpenseSchema = z.object({
   profile_id: z.string().uuid(),
@@ -13,7 +15,6 @@ const recurringFixedExpenseSchema = z.object({
   active: z.boolean().default(true),
 });
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const createRecurringFixedExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
