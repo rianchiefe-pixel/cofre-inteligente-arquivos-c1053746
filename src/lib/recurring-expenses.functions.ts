@@ -19,13 +19,28 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Unauthorized");
 
+    // Verificar se já existe uma recorrência com esse nome para esse perfil
+    const { data: existing } = await (supabase as any)
+      .from("recurring_fixed_expenses")
+      .select("id")
+      .eq("profile_id", data.profile_id)
+      .eq("name", data.name)
+      .maybeSingle();
+
+    if (existing) {
+      return { id: existing.id, already_exists: true };
+    }
+
     const { data: res, error } = await (supabase as any)
       .from("recurring_fixed_expenses")
       .insert([{ ...data, user_id: user.id }])
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {
+        console.error("Error inserting recurring expense:", error);
+        throw new Error(error.message);
+    }
     return res;
   });
 
