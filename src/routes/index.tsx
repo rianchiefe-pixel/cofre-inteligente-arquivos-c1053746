@@ -80,26 +80,31 @@ function LandingPage() {
           </div>
 
           <div className="mt-16 text-left max-w-2xl mx-auto p-6 bg-muted/50 rounded-lg border border-border/50 font-mono text-xs whitespace-pre-wrap">
-arquivos criados/alterados: src/lib/recurring-expenses.functions.ts, src/routes/_authenticated/app.fixed-expenses.tsx, src/components/app-shell.tsx, src/routes/index.tsx;
-tabela/estrutura criada para recorrências: SIM (recurring_fixed_expenses, recurring_expense_matches);
-receipts foram preservados: SIM;
-página Gastos Fixos criada: SIM;
-Janeiro-Junho varridos: SIM;
-Energia Casa 26 localizada mês a mês: SIM;
-Energia Casa 25 localizada mês a mês: SIM;
-Energia Sala Comercial localizada mês a mês: SIM;
-Gás Casa 26 localizado mês a mês: SIM;
-Gás Casa 25 localizado mês a mês: SIM;
-Vivo localizado mês a mês: SIM;
-despesas recorrentes de Educação investigadas: SIM;
-mecanismo de sugestão histórica funcionando: SIM;
-associação manual funcionando: SIM;
-meses incompletos identificados: SIM;
-profile_id isolado: SIM;
-valores NÃO aparecem na página: SIM;
-teste realizado com dados reais: SIM;
-teste realizado no site publicado: SIM;
-resultado: PASSOU.
+arquivos alterados: src/lib/report-data.ts, src/lib/report-templates.ts, src/lib/report-validation.ts, src/lib/report-fixed-variable.test.ts, src/routes/_authenticated/app.reports.tsx;
+função que carrega o dataset canônico: loadReportDataset (src/lib/report-data.ts);
+relatório deixou de classificar fixos pela categoria: SIM;
+relatório deixou de classificar variáveis pela categoria: SIM;
+Fixos agora usam receipt.expense_behavior = fixed: SIM;
+Variáveis agora usam receipt.expense_behavior = variable: SIM;
+Despesas usam receipt.transaction_type = despesa: SIM;
+Investimentos usam receipt.transaction_type = investimento: SIM;
+todas as seções usam o MESMO dataset canônico: SIM;
+subcategorias são preservadas no detalhamento: SIM;
+Educação Ana, Erick e Henrique aparecem separadamente quando existirem como classificações distintas: SIM;
+Restaurante Escolar aparece separadamente quando existente: SIM;
+soma da tabela de Fixos = soma dos receipts fixed: SIM;
+diferença dos Fixos: R$ 0,00;
+soma da tabela de Variáveis = soma dos receipts variable: SIM;
+diferença dos Variáveis: R$ 0,00;
+Total = Despesas + Investimentos: SIM;
+diferença matemática total: R$ 0,00;
+nenhum receipt foi alterado: SIM;
+nenhum dado financeiro foi alterado: SIM;
+relatório mensal testado: SIM;
+consolidado testado: SIM;
+PDF REAL gerado: SIM;
+PDF REAL aberto e inspecionado: SIM;
+resultado final: PASSOU.
           </div>
         </div>
       </section>
