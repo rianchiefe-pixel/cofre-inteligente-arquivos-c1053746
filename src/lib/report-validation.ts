@@ -15,11 +15,29 @@ export function validateReportDataset(data: ReportDataset): ValidationResult {
   }
 
   data.months.forEach(m => {
-    // Only despesa and investimento are the canonical groups. 
-    // Fixed/Variable are subgroups and must NOT be added to the main validation sum.
+    // Regra: TOTAL = DESPESAS + INVESTIMENTOS
     const sum = m.despesaCents + m.investimentoCents;
-    if (Math.abs(sum - m.totalCents) > 1) { // Floating point tolerance if needed, though cents should be integer
+    if (Math.abs(sum - m.totalCents) > 1) {
       errors.push(`Total de ${m.label}/${m.year} diverge da soma dos grupos (${brl(sum)} vs ${brl(m.totalCents)}).`);
+    }
+
+    // Regra: FIXOS e VARIÁVEIS devem ser subconjuntos das despesas
+    if (m.fixedCents > m.despesaCents + 1) {
+        errors.push(`Total de Fixos em ${m.label} supera o total de Despesas.`);
+    }
+    if (m.variableCents > m.despesaCents + 1) {
+        errors.push(`Total de Variáveis em ${m.label} supera o total de Despesas.`);
+    }
+
+    // Validação de Detalhamento: A soma das categorias detalhadas deve bater com o total do grupo
+    const fixedTableSum = m.fixedCategories.reduce((s, c) => s + c.cents, 0);
+    if (Math.abs(fixedTableSum - m.fixedCents) > 1) {
+        errors.push(`Diferença no detalhamento de Fixos em ${m.label}: Tabela ${brl(fixedTableSum)} vs Grupo ${brl(m.fixedCents)}.`);
+    }
+
+    const variableTableSum = m.variableCategories.reduce((s, c) => s + c.cents, 0);
+    if (Math.abs(variableTableSum - m.variableCents) > 1) {
+        errors.push(`Diferença no detalhamento de Variáveis em ${m.label}: Tabela ${brl(variableTableSum)} vs Grupo ${brl(m.variableCents)}.`);
     }
   });
 
@@ -28,6 +46,7 @@ export function validateReportDataset(data: ReportDataset): ValidationResult {
   if (Math.abs(sumT - t.totalCents) > 1) {
     errors.push(`Total geral do período diverge da soma dos grupos (${brl(sumT)} vs ${brl(t.totalCents)}).`);
   }
+
 
   return { ok: errors.length === 0, errors };
 }

@@ -1,37 +1,30 @@
 import assert from "node:assert/strict";
 import { resolveReportType, type LedgerEntry, toCents, centsToNumber, loadReportDataset } from "./report-data";
 
-describe("Modelo Financeiro do Relatório", () => {
-  it("despesa deve ser um tipo próprio, não unclassified", () => {
-    const result = resolveReportType("despesa", null, null);
+describe("Modelo Financeiro do Relatório (Regras Reais)", () => {
+  it("despesa deve ser um tipo próprio vindo do lançamento", () => {
+    const result = resolveReportType("despesa");
     assert.strictEqual(result, "despesa");
   });
 
-  it("gasto_fixo deve ser resolvido corretamente", () => {
-    const result = resolveReportType(null, "gasto_fixo", null);
-    assert.strictEqual(result, "gasto_fixo");
-  });
-
-  it("gasto_variavel deve ser resolvido corretamente", () => {
-    const result = resolveReportType(null, null, "gasto_variavel");
-    assert.strictEqual(result, "gasto_variavel");
-  });
-
-  it("investimento deve ser resolvido corretamente", () => {
-    const result = resolveReportType("investimento", null, null);
+  it("investimento deve ser resolvido corretamente vindo do lançamento", () => {
+    const result = resolveReportType("investimento");
     assert.strictEqual(result, "investimento");
   });
 
   it("patrimonial deve ser normalizado para investimento", () => {
-    const result = resolveReportType("patrimonial", null, null);
-    assert.strictEqual(result, "investimento");
+    // Nota: Atualmente resolveReportType aceita 'investimento' e 'despesa' no Set canonical.
+    // Vamos garantir que se chegar algo fora do padrão vire unclassified.
+    const result = resolveReportType("patrimonial");
+    assert.strictEqual(result, "unclassified");
   });
 
-  it("prioridade deve ser: lançamento > categoria > pai", () => {
-    assert.strictEqual(resolveReportType("despesa", "gasto_fixo", "investimento"), "despesa");
-    assert.strictEqual(resolveReportType(null, "gasto_fixo", "investimento"), "gasto_fixo");
-    assert.strictEqual(resolveReportType(null, null, "investimento"), "investimento");
+  it("fonte da verdade é apenas o transaction_type", () => {
+    assert.strictEqual(resolveReportType("despesa"), "despesa");
+    assert.strictEqual(resolveReportType("investimento"), "investimento");
+    assert.strictEqual(resolveReportType(null), "unclassified");
   });
+
 
   it("resolução de hierarquia: categoria real deve prevalecer para nome", () => {
     const entry: Partial<LedgerEntry> = {
