@@ -1887,6 +1887,121 @@ export type Database = {
           },
         ]
       }
+      recurring_expense_matches: {
+        Row: {
+          created_at: string | null
+          id: string
+          month: string
+          receipt_id: string | null
+          recurring_fixed_expense_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          month: string
+          receipt_id?: string | null
+          recurring_fixed_expense_id: string
+          status: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          month?: string
+          receipt_id?: string | null
+          recurring_fixed_expense_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_expense_matches_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_expense_matches_recurring_fixed_expense_id_fkey"
+            columns: ["recurring_fixed_expense_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_fixed_expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_fixed_expenses: {
+        Row: {
+          active: boolean | null
+          category_id: string | null
+          created_at: string | null
+          description_pattern: string | null
+          end_month: string | null
+          id: string
+          merchant_pattern: string | null
+          name: string
+          profile_id: string
+          property_id: string | null
+          recurrence: string | null
+          start_month: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean | null
+          category_id?: string | null
+          created_at?: string | null
+          description_pattern?: string | null
+          end_month?: string | null
+          id?: string
+          merchant_pattern?: string | null
+          name: string
+          profile_id: string
+          property_id?: string | null
+          recurrence?: string | null
+          start_month?: string
+          user_id?: string
+        }
+        Update: {
+          active?: boolean | null
+          category_id?: string | null
+          created_at?: string | null
+          description_pattern?: string | null
+          end_month?: string | null
+          id?: string
+          merchant_pattern?: string | null
+          name?: string
+          profile_id?: string
+          property_id?: string | null
+          recurrence?: string | null
+          start_month?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_fixed_expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_fixed_expenses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_fixed_expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       temporary_access_tokens: {
         Row: {
           access_count: number
