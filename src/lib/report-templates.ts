@@ -103,65 +103,58 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     value: number;
     categories: CategoryRow[];
     color: RGB;
+    compactTable?: boolean;
   }) => {
     let curY = params.y;
-    const HEADER_HEIGHT = 25;
-    const HEADER_TO_BODY_GAP = 12;
-    const BODY_BOTTOM_GAP = 10;
-    const SECTION_BOTTOM_GAP = 24;
+    const HEADER_HEIGHT = 22;
+    const SECTION_GAP = 20;
 
-    if (curY + 120 > ph - margin) {
+    if (curY + 100 > ph - margin) {
       doc.addPage();
       curY = margin + 20;
     }
 
-    // 1. ÁREA HEADER
+    // 1. ÁREA HEADER (Faixa Colorida)
     doc.setFillColor(params.color[0], params.color[1], params.color[2]);
     doc.rect(margin, curY, contentW, HEADER_HEIGHT, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    const isDark = params.color === TAN || params.color === BLUE || params.color === RED;
+    const isDark = params.color === NAVY || params.color === BLUE || params.color === RED;
     doc.setTextColor(isDark ? 255 : 60);
-    doc.text(params.label, margin + 10, curY + 16);
-    doc.text(money(params.value), pw - margin - 10, curY + 16, { align: "right" });
+    doc.text(params.label, margin + 10, curY + 15);
+    doc.text(money(params.value), pw - margin - 10, curY + 15, { align: "right" });
 
-    // Avança Y para fora do Header
-    curY += HEADER_HEIGHT + HEADER_TO_BODY_GAP;
+    curY += HEADER_HEIGHT + 8;
 
-    // 2. ÁREA BODY
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(80, 80, 80);
+    // 2. TABELA DETALHADA (Para Fixos e Variáveis)
+    if (params.categories.length > 0) {
+      const tableData = params.categories.map(c => [
+        c.name.toUpperCase(),
+        money(c.value)
+      ]);
 
-    const validCats = params.categories.filter(c => {
-      const name = c.name.toLowerCase();
-      return (
-        name !== UNCATEGORIZED.toLowerCase() && 
-        !name.includes("não identificado") && 
-        !name.includes("não classificado") && 
-        !name.includes("sem categoria") && 
-        !name.includes("não informado")
-      );
-    });
-    const topCats = validCats.slice(0, 5);
-    
-    let bodyContentY = curY;
-
-    if (topCats.length > 0) {
-      const desc = "Principais categorias: " + topCats.map((c: any) => `${c.name} (${money(c.value)})`).join(", ") + ".";
-      const lines = doc.splitTextToSize(desc, contentW - 20);
-      doc.text(lines, margin + 5, bodyContentY, { lineHeightFactor: 1.5 });
-      bodyContentY += (lines.length * 9 * 1.5) + BODY_BOTTOM_GAP;
-    } else if (params.value > 0) {
-      bodyContentY += 1;
+      autoTable(doc, {
+        startY: curY,
+        body: tableData,
+        theme: "plain",
+        styles: { fontSize: params.compactTable ? 7 : 8, cellPadding: 3 },
+        columnStyles: {
+          0: { cellWidth: contentW * 0.75 },
+          1: { halign: "right", fontStyle: "bold", cellWidth: contentW * 0.25 }
+        },
+        margin: { left: margin, right: margin },
+        didDrawPage: (data) => {
+           // Se a tabela quebrar página, atualizamos o Y
+        }
+      });
+      curY = lastY(doc) + SECTION_GAP;
     } else {
-      bodyContentY += 1;
+      curY += SECTION_GAP;
     }
 
-    // Removido: Alerta de qualidade de dados (sem categoria) conforme instrução.
-
-    return bodyContentY + SECTION_BOTTOM_GAP;
+    return curY;
   };
+
 
   // 1. CAPA / RESUMO INICIAL
   drawReportHeader(doc, "Relatório de Gastos e Investimentos", data.periodLabel, pw, margin);
@@ -243,11 +236,12 @@ export async function generateFixedVariableReport(data: ReportDataset) {
 
     // Financial Groups Sections
     const groups = [
-      { label: "DESPESAS", value: m.despesa, categories: m.despesaCategories, color: RED },
-      { label: "GASTOS FIXOS", value: m.fixed, categories: m.fixedCategories, color: TAN },
-      { label: "GASTOS VARIÁVEIS", value: m.variable, categories: m.variableCategories, color: TAN_LIGHT },
-      { label: "INVESTIMENTOS", value: m.investimento, categories: m.investimentoCategories, color: BLUE },
+      { label: "DESPESAS", value: m.despesa, categories: m.despesaCategories.slice(0, 10), color: RED, compactTable: false },
+      { label: "GASTOS FIXOS", value: m.fixed, categories: m.fixedCategories, color: TAN, compactTable: true },
+      { label: "GASTOS VARIÁVEIS", value: m.variable, categories: m.variableCategories, color: TAN_LIGHT, compactTable: true },
+      { label: "INVESTIMENTOS", value: m.investimento, categories: m.investimentoCategories, color: BLUE, compactTable: false },
     ];
+
 
     for (const g of groups) {
       y = drawFinancialSectionFn({
@@ -298,8 +292,10 @@ export async function generateFixedVariableReport(data: ReportDataset) {
       label: g.label.toUpperCase(),
       value: g.value,
       categories: cats,
-      color: g.label === "Despesas" ? RED : g.label === "Investimentos" ? BLUE : g.label === "Gastos Fixos" ? TAN : TAN_LIGHT
+      color: g.label === "Despesas" ? RED : g.label === "Investimentos" ? BLUE : g.label === "Gastos Fixos" ? TAN : TAN_LIGHT,
+      compactTable: g.label === "Gastos Fixos" || g.label === "Gastos Variáveis"
     });
+
   }
 
   doc.save(`relatorio-executivo-${data.from}-a-${data.to}.pdf`);
