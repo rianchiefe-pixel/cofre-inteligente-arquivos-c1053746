@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const recurringFixedExpenseSchema = z.object({
   profile_id: z.string().uuid(),
@@ -17,6 +16,8 @@ const recurringFixedExpenseSchema = z.object({
 export const createRecurringFixedExpense = createServerFn({ method: "POST" })
   .inputValidator((data) => recurringFixedExpenseSchema.parse(data))
   .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     const correlationId = `FIXED_ADD_${Date.now()}`;
     console.log(`${correlationId}_START`, { data });
     
