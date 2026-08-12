@@ -13,9 +13,14 @@ const recurringFixedExpenseSchema = z.object({
   active: z.boolean().default(true),
 });
 
+import { requireSupabaseAuth } from "@/lib/auth-middleware.server";
+
 export const createRecurringFixedExpense = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => recurringFixedExpenseSchema.parse(data))
-  .handler(async ({ data }) => {
+
+  .handler(async ({ data, context }) => {
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     console.log("FIXED_EXPENSE_ENGINE_V2_ACTIVE");
 
@@ -23,15 +28,10 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
     const correlationId = `FIXED_ADD_${Date.now()}`;
     console.log(`${correlationId}_START`, { data });
     
-    // Usar o cliente com privilégios administrativos para ignorar cache de esquema se necessário
-    // ou garantir que a inserção ocorra no banco correto com logs.
-    const { data: { user } } = await supabase.auth.getUser();
+    // Usar o contexto da middleware
+    const { user } = context;
     console.log(`${correlationId}_AUTH`, { userId: user?.id });
-    
-    if (!user) {
-        console.error(`${correlationId}_AUTH_ERROR`);
-        throw new Error("Unauthorized");
-    }
+
 
     // Tentar INSERT direto com log de erro detalhado
     const payload = { 
