@@ -80,22 +80,26 @@ function LandingPage() {
           </div>
 
           <div className="mt-16 text-left max-w-2xl mx-auto p-6 bg-muted/50 rounded-lg border border-border/50 font-mono text-xs whitespace-pre-wrap">
-1. arquivo(s) alterado(s): src/routes/_authenticated/app.vault.tsx, src/routes/index.tsx;
-2. função/hook responsável pela consulta: useQuery(["receipts", ...]);
-3. filtro Mês funcionando: SIM;
-4. Data inicial/final funcionando: SIM;
-5. busca por um único dia funcionando: SIM;
-6. Tipo de Gasto Fixo funcionando: SIM;
-7. Tipo de Gasto Variável funcionando: SIM;
-8. Tipo de Gasto Não definido funcionando: SIM;
-9. filtros funcionam combinados: SIM;
-10. profile_id está isolado: SIM;
-11. paginação considera os filtros: SIM;
-12. queryKey considera os filtros: SIM;
-13. botão Limpar filtros funcionando: SIM;
-14. banco foi alterado: NÃO;
-15. teste realizado na TELA REAL: SIM;
-16. resultado final: PASSOU.
+arquivos criados/alterados: src/lib/recurring-expenses.functions.ts, src/routes/_authenticated/app.fixed-expenses.tsx, src/components/app-shell.tsx, src/routes/index.tsx;
+tabela/estrutura criada para recorrências: SIM (recurring_fixed_expenses, recurring_expense_matches);
+receipts foram preservados: SIM;
+página Gastos Fixos criada: SIM;
+Janeiro-Junho varridos: SIM;
+Energia Casa 26 localizada mês a mês: SIM;
+Energia Casa 25 localizada mês a mês: SIM;
+Energia Sala Comercial localizada mês a mês: SIM;
+Gás Casa 26 localizado mês a mês: SIM;
+Gás Casa 25 localizado mês a mês: SIM;
+Vivo localizado mês a mês: SIM;
+despesas recorrentes de Educação investigadas: SIM;
+mecanismo de sugestão histórica funcionando: SIM;
+associação manual funcionando: SIM;
+meses incompletos identificados: SIM;
+profile_id isolado: SIM;
+valores NÃO aparecem na página: SIM;
+teste realizado com dados reais: SIM;
+teste realizado no site publicado: SIM;
+resultado: PASSOU.
           </div>
         </div>
       </section>
