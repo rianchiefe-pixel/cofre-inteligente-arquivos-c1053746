@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { supabase } from "@/integrations/supabase/client";
 
 const recurringFixedExpenseSchema = z.object({
@@ -17,9 +16,12 @@ const recurringFixedExpenseSchema = z.object({
 export const createRecurringFixedExpense = createServerFn({ method: "POST" })
   .inputValidator((data) => recurringFixedExpenseSchema.parse(data))
   .handler(async ({ data }) => {
-    const { data: res, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const { data: res, error } = await (supabase as any)
       .from("recurring_fixed_expenses")
-      .insert([data])
+      .insert([{ ...data, user_id: user.id }])
       .select()
       .single();
 
@@ -30,7 +32,7 @@ export const createRecurringFixedExpense = createServerFn({ method: "POST" })
 export const updateRecurringFixedExpense = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ id: z.string().uuid(), updates: recurringFixedExpenseSchema.partial() }).parse(data))
   .handler(async ({ data }) => {
-    const { data: res, error } = await supabase
+    const { data: res, error } = await (supabase as any)
       .from("recurring_fixed_expenses")
       .update(data.updates)
       .eq("id", data.id)
@@ -44,7 +46,7 @@ export const updateRecurringFixedExpense = createServerFn({ method: "POST" })
 export const deleteRecurringFixedExpense = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data }) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("recurring_fixed_expenses")
       .delete()
       .eq("id", data.id);
@@ -56,14 +58,17 @@ export const deleteRecurringFixedExpense = createServerFn({ method: "POST" })
 export const setRecurringExpenseMatch = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({
     recurring_fixed_expense_id: z.string().uuid(),
-    month: z.string(), // YYYY-MM-DD (primeiro dia do mês)
+    month: z.string(), // YYYY-MM-DD
     receipt_id: z.string().uuid().optional().nullable(),
     status: z.enum(['encontrado', 'nao_encontrado', 'revisar', 'nao_se_aplica']),
   }).parse(data))
   .handler(async ({ data }) => {
-    const { data: res, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const { data: res, error } = await (supabase as any)
       .from("recurring_expense_matches")
-      .upsert([data], { onConflict: 'recurring_fixed_expense_id,month' })
+      .upsert([{ ...data, user_id: user.id }], { onConflict: 'recurring_fixed_expense_id,month' })
       .select()
       .single();
 
@@ -74,7 +79,7 @@ export const setRecurringExpenseMatch = createServerFn({ method: "POST" })
 export const findRecurringFixedExpenseMatch = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({
     profile_id: z.string().uuid(),
-    expense: z.any(), // recurring_fixed_expense object
+    expense: z.any(),
     month: z.number().min(1).max(12),
     year: z.number(),
   }).parse(data))
@@ -84,8 +89,7 @@ export const findRecurringFixedExpenseMatch = createServerFn({ method: "POST" })
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
 
-    // 1. Verificar se já existe uma associação manual/confirmada
-    const { data: existingMatch } = await supabase
+    const { data: existingMatch } = await (supabase as any)
       .from("recurring_expense_matches")
       .select("*, receipts(*)")
       .eq("recurring_fixed_expense_id", expense.id)
@@ -96,9 +100,7 @@ export const findRecurringFixedExpenseMatch = createServerFn({ method: "POST" })
       return { match: existingMatch.receipts, status: existingMatch.status, matchId: existingMatch.id };
     }
 
-    // 2. Tentar localização inteligente
-    // Prioridade 1: Perfil + Imóvel + Categoria + Favorecido/Merchant
-    let query = supabase
+    let query = (supabase as any)
       .from("receipts")
       .select("*")
       .eq("profile_id", profile_id)
@@ -115,8 +117,7 @@ export const findRecurringFixedExpenseMatch = createServerFn({ method: "POST" })
       return { match: null, status: 'nao_encontrado' };
     }
 
-    // Refinar candidatos por merchant_pattern ou description_pattern
-    const matches = candidates.filter(c => {
+    const matches = candidates.filter((c: any) => {
       const name = (c.recipient_name || "").toLowerCase();
       const desc = (c.description || "").toLowerCase();
       const mPattern = (expense.merchant_pattern || "").toLowerCase();
@@ -134,7 +135,6 @@ export const findRecurringFixedExpenseMatch = createServerFn({ method: "POST" })
       return { match: matches[0], status: 'revisar', ambiguity: true };
     }
 
-    // Se não encontrou pelo pattern, mas tem candidatos pela categoria/imóvel
     if (candidates.length === 1 && !expense.merchant_pattern && !expense.description_pattern) {
         return { match: candidates[0], status: 'encontrado' };
     }

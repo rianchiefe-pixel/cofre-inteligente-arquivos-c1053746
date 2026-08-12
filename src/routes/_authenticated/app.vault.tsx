@@ -450,7 +450,7 @@ function VaultPage() {
         }
       }
       if (search.transactionType && search.transactionType !== "all") {
-        qb = qb.eq("transaction_type", search.transactionType);
+        qb = qb.eq("transaction_type", search.transactionType as any);
       }
 
       if (profileId === "__none__") {
