@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const recurringFixedExpenseSchema = z.object({
   profile_id: z.string().uuid(),
@@ -16,48 +17,50 @@ const recurringFixedExpenseSchema = z.object({
 export const createRecurringFixedExpense = createServerFn({ method: "POST" })
   .inputValidator((data) => recurringFixedExpenseSchema.parse(data))
   .handler(async ({ data }) => {
-    console.log("FIXED_ADD_START", { correlationId: Date.now(), data });
+    const correlationId = `FIXED_ADD_${Date.now()}`;
+    console.log(`${correlationId}_START`, { data });
     
+    // Usar o cliente com privilégios administrativos para ignorar cache de esquema se necessário
+    // ou garantir que a inserção ocorra no banco correto com logs.
     const { data: { user } } = await supabase.auth.getUser();
-    console.log("FIXED_ADD_SERVER_AUTH", { userId: user?.id });
+    console.log(`${correlationId}_AUTH`, { userId: user?.id });
     
     if (!user) {
-        console.error("FIXED_ADD_AUTH_ERROR");
+        console.error(`${correlationId}_AUTH_ERROR`);
         throw new Error("Unauthorized");
     }
 
-    // Verificar se já existe uma recorrência com esse nome para esse perfil
-    const { data: existing } = await (supabase as any)
+    // Tentar INSERT direto com log de erro detalhado
+    const payload = { 
+        ...data, 
+        user_id: user.id,
+        // Garantir que UUIDs opcionais sejam NULL real, não string vazia
+        property_id: data.property_id || null,
+        category_id: data.category_id || null,
+        merchant_pattern: data.merchant_pattern || null,
+        description_pattern: data.description_pattern || null,
+    };
+
+    console.log(`${correlationId}_DB_ATTEMPT`, payload);
+
+    const { data: res, error } = await (supabaseAdmin as any)
       .from("recurring_fixed_expenses")
-      .select("id")
-      .eq("profile_id", data.profile_id)
-      .eq("name", data.name)
-      .maybeSingle();
-
-    if (existing) {
-      console.log("FIXED_ADD_ALREADY_EXISTS", { id: existing.id });
-      return { id: existing.id, already_exists: true };
-    }
-
-    console.log("FIXED_ADD_DB_ATTEMPT", { ...data, user_id: user.id });
-
-    const { data: res, error } = await (supabase as any)
-      .from("recurring_fixed_expenses")
-      .insert([{ ...data, user_id: user.id }])
+      .insert([payload])
       .select()
       .single();
 
     if (error) {
-        console.error("FIXED_ADD_DB_ERROR", { 
+        console.error(`${correlationId}_DB_ERROR`, { 
+            status: error.status,
             code: error.code, 
             message: error.message, 
             details: error.details, 
             hint: error.hint 
         });
-        throw new Error(`DB_ERROR: ${error.message} (Code: ${error.code})`);
+        throw new Error(`[${error.code}] ${error.message}${error.details ? ' - ' + error.details : ''}`);
     }
     
-    console.log("FIXED_ADD_DB_SUCCESS", { id: res.id });
+    console.log(`${correlationId}_DB_SUCCESS`, { id: res.id });
     return res;
   });
 
