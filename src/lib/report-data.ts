@@ -115,35 +115,46 @@ function pct(part: number, whole: number) {
   return whole > 0 ? (part / whole) * 100 : 0;
 }
 
-/** Agrupa lançamentos por category_id preservando o nome real da categoria. */
+/** 
+ * Agrupa lançamentos por nome de exibição. 
+ * Regra: Prioriza subcategoria, depois categoria, depois descrição/favorecido.
+ * Isso garante que "Educação Ana" e "Educação Erick" sejam itens distintos.
+ */
 function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
   const totalCents = entries.reduce((s, e) => s + e.cents, 0);
-  const map = new Map<string, { name: string; cents: number }>();
+  const map = new Map<string, { name: string; cents: number; id: string }>();
   
   for (const e of entries) {
-    const id = e.categoryId ?? "uncategorized";
-    const name = e.categoryName.toLowerCase();
+    // A chave de agrupamento deve ser o NOME real para evitar achatamento de subcategorias
+    // Se a categoria/subcategoria for genérica, usamos a identificação técnica do entry
+    const displayName = e.categoryName;
+    const nameLower = displayName.toLowerCase();
     
-    // Filtro agressivo para remover categorias ausentes da agregação visual do relatório
     if (
-      !e.categoryId ||
-      name.includes("não identificado") ||
-      name.includes("não classificado") ||
-      name.includes("sem categoria") ||
-      name.includes("não informado")
+      nameLower.includes("não identificado") ||
+      nameLower.includes("não classificado") ||
+      nameLower.includes("sem categoria") ||
+      nameLower.includes("não informado")
     ) {
+      // Se não tem categoria, agrupamos pelo favorecido para não perder no detalhamento
+      const fallbackName = e.payee !== "—" ? e.payee : "Diversos";
+      const key = `fallback:${fallbackName}`;
+      const existing = map.get(key) || { name: fallbackName, cents: 0, id: key };
+      existing.cents += e.cents;
+      map.set(key, existing);
       continue;
     }
 
-    const existing = map.get(id) || { name: e.categoryName, cents: 0 };
+    const key = e.categoryId ?? displayName;
+    const existing = map.get(key) || { name: displayName, cents: 0, id: key };
     existing.cents += e.cents;
-    map.set(id, existing);
+    map.set(key, existing);
   }
 
-  return [...map.entries()]
-    .sort((a, b) => b[1].cents - a[1].cents || a[1].name.localeCompare(b[1].name, "pt-BR"))
-    .map(([id, data]) => ({ 
-      id, 
+  return [...map.values()]
+    .sort((a, b) => b.cents - a.cents || a.name.localeCompare(b.name, "pt-BR"))
+    .map((data) => ({ 
+      id: data.id, 
       name: data.name, 
       cents: data.cents, 
       value: centsToNumber(data.cents), 
@@ -151,34 +162,25 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
     }));
 }
 
+
 /**
  * Função Canônica de Resolução de Tipo do Relatório.
- * Regras:
- * 1. Tipo explícito do lançamento (transaction_type)
- * 2. Tipo padrão da categoria (default_type)
- * 3. Tipo padrão da categoria pai (parent.default_type)
- * 4. Fallback: unclassified
+ * Regra ABSOLUTA: A fonte da verdade é o PRÓPRIO LANÇAMENTO (transaction_type).
+ * Categoria é usada apenas para organização visual posterior.
  */
 export function resolveReportType(
-  transactionType: string | null,
-  categoryDefaultType: string | null,
-  parentDefaultType: string | null
+  transactionType: string | null
 ): ReportFinancialType {
-  // Use explicit transactionType if it's already one of the valid canonical types
-  if (transactionType && (EXPENSE_TYPES.has(transactionType) || INVESTMENT_TYPES.has(transactionType))) {
-    return transactionType as ReportFinancialType;
+  if (transactionType && EXPENSE_TYPES.has(transactionType)) {
+    return "despesa";
   }
-
-  const types = [transactionType, categoryDefaultType, parentDefaultType];
-  
-  for (const t of types) {
-    if (!t) continue;
-    if (INVESTMENT_TYPES.has(t)) return "investimento";
-    if (EXPENSE_TYPES.has(t)) return "despesa";
+  if (transactionType && INVESTMENT_TYPES.has(transactionType)) {
+    return "investimento";
   }
   
   return "unclassified";
 }
+
 
 /**
  * Returns the filter for technical uncategorized categories to be used in SQL.
@@ -242,13 +244,10 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const cat = r.category_id ? catById.get(r.category_id) : null;
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
     
-    const reportType = resolveReportType(
-      r.transaction_type,
-      cat?.default_type || null,
-      parent?.default_type || null
-    );
+    // Regra ABSOLUTA: classificação vem do próprio lançamento.
+    const reportType = resolveReportType(r.transaction_type);
+    const expenseBehavior = r.expense_behavior || null;
 
-    const expenseBehavior = r.expense_behavior || cat?.expense_behavior || parent?.expense_behavior || null;
 
     const cents = toCents(r.amount);
 
