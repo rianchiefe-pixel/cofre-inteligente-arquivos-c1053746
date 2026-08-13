@@ -146,6 +146,10 @@ export function formatBrlNumber(n: number | null | undefined): string {
 
 export const dateBR = (v: string | Date | null | undefined) => {
   if (!v) return "—";
+  if (typeof v === "string" && v.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [y, m, d] = v.split("-");
+    return `${d}/${m}/${y}`;
+  }
   const d = typeof v === "string" ? new Date(v) : v;
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR");

@@ -135,9 +135,11 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       nameLower.includes("não informado") ||
       displayName === UNCATEGORIZED;
 
+    // Para categorias genéricas, usamos uma chave única baseada no recebedor ou ID do recibo
+    // Isso evita agrupar "EBAY" com "PIX MARKETPLACE" na mesma linha de "Não identificado"
+    const key = isGeneric ? `gen:${e.payee}:${e.id}` : (e.categoryId ?? displayName);
     const specificName = isGeneric && e.payee !== "—" ? e.payee : displayName;
     
-    const key = e.categoryId ?? specificName;
     const existing = map.get(key) || { name: specificName, cents: 0, id: key, sourceReceiptIds: new Set() };
     existing.cents += e.cents;
     existing.sourceReceiptIds.add(e.id);
@@ -152,30 +154,50 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       cents: data.cents, 
       value: centsToNumber(data.cents), 
       pct: pct(data.cents, totalCents),
-      // Adicionamos os IDs de origem para auditoria
       sourceReceiptIds: Array.from(data.sourceReceiptIds)
     } as any));
 }
 
-
-
 /**
- * Função Canônica de Resolução de Tipo do Relatório.
- * Regra ABSOLUTA: A fonte da verdade é o PRÓPRIO LANÇAMENTO (transaction_type).
- * Categoria é usada apenas para organização visual posterior.
+ * Função Canônica de Normalização Financeira.
+ * Regra ABSOLUTA: A fonte da verdade é o PRÓPRIO LANÇAMENTO.
+ * O campo expense_behavior tem prioridade total sobre os transaction_type legados.
  */
+export function normalizeFinancialClassification(r: { 
+  transaction_type: string | null; 
+  expense_behavior: string | null; 
+}): { 
+  nature: ReportFinancialType; 
+  behavior: string | null;
+} {
+  const t = r.transaction_type;
+  const b = r.expense_behavior;
+
+  // Investimentos são soberanos e não possuem comportamento (fixed/variable)
+  if (t === "investimento" || t === "patrimonial") {
+    return { nature: "investimento", behavior: null };
+  }
+
+  // Se o tipo for legado (gasto_fixo/gasto_variavel), mapeamos para despesa + comportamento correspondente
+  // MAS se houver um comportamento explícito (b), ele vence o legado.
+  if (t === "gasto_fixo") {
+    return { nature: "despesa", behavior: b ?? "fixed" };
+  }
+  if (t === "gasto_variavel") {
+    return { nature: "despesa", behavior: b ?? "variable" };
+  }
+
+  // Caso padrão: despesa com comportamento explícito ou null
+  return { nature: t === "despesa" ? "despesa" : "unclassified", behavior: b };
+}
+
+/** @deprecated use normalizeFinancialClassification */
 export function resolveReportType(
   transactionType: string | null
 ): ReportFinancialType {
-  if (transactionType) {
-    if (EXPENSE_TYPES.has(transactionType)) return "despesa";
-    if (INVESTMENT_TYPES.has(transactionType)) return "investimento";
-  }
-  
-  return "unclassified";
+  const norm = normalizeFinancialClassification({ transaction_type: transactionType, expense_behavior: null });
+  return norm.nature;
 }
-
-
 
 /**
  * Returns the filter for technical uncategorized categories to be used in SQL.
@@ -245,21 +267,10 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const cat = r.category_id ? catById.get(r.category_id) : null;
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
     
-    let canonicalNature: ReportFinancialType = "unclassified";
-    let canonicalBehavior = r.expense_behavior;
-
-    if (r.transaction_type === "investimento") {
-      canonicalNature = "investimento";
-      canonicalBehavior = null;
-    } else if (r.transaction_type === "despesa") {
-      canonicalNature = "despesa";
-    } else if (r.transaction_type === "gasto_fixo") {
-      canonicalNature = "despesa";
-      canonicalBehavior = r.expense_behavior ?? "fixed";
-    } else if (r.transaction_type === "gasto_variavel") {
-      canonicalNature = "despesa";
-      canonicalBehavior = r.expense_behavior ?? "variable";
-    }
+    const { nature: canonicalNature, behavior: canonicalBehavior } = normalizeFinancialClassification({
+      transaction_type: r.transaction_type,
+      expense_behavior: r.expense_behavior
+    });
 
     const cents = toCents(r.amount);
 
