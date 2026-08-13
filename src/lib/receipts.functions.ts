@@ -619,6 +619,7 @@ export const updateReceiptConference = createServerFn({ method: "POST" })
 
     const diff: Record<string, any> = {
       user_confirmed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       is_manual_correction: true
     };
     const oldValues: Record<string, any> = {};

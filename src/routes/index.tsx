@@ -79,6 +79,39 @@ function LandingPage() {
             </Button>
           </div>
 
+          {/* FEATURES GRID */}
+          <div className="grid md:grid-cols-3 gap-8 mt-20 text-left max-w-6xl mx-auto">
+            <FeatureCard 
+              icon={FolderLock}
+              title="Isolamento por Perfil"
+              description="Gestão separada para Pessoa Física, Holding, Imóveis e Empresas em uma única conta."
+            />
+            <FeatureCard 
+              icon={ScanLine}
+              title="Extração por IA"
+              description="Envie PDFs ou fotos de comprovantes e deixe nossa IA identificar data, valor e favorecido."
+            />
+            <FeatureCard 
+              icon={Building2}
+              title="Gestão Patrimonial"
+              description="Controle despesas vinculadas a imóveis, contas bancárias e cartões específicos."
+            />
+            <FeatureCard 
+              icon={LayoutDashboard}
+              title="Resumos e Relatórios"
+              description="Visualize o consolidado mensal com gráficos de gastos fixos, variáveis e investimentos."
+            />
+            <FeatureCard 
+              icon={ShieldCheck}
+              title="Segurança de Dados"
+              description="Criptografia de ponta a ponta e auditoria completa de cada lançamento financeiro."
+            />
+            <FeatureCard 
+              icon={Sparkles}
+              title="Automação Inteligente"
+              description="Sugestões automáticas de categorias baseadas no seu histórico e comportamento."
+            />
+          </div>
         </div>
       </section>
 
