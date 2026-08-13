@@ -126,7 +126,7 @@ function LandingPage() {
                 description="Visão clara de gastos fixos e variáveis, aportes e investimentos com dashboards intuitivos."
               />
               <FeatureCard 
-                icon={Clock} 
+                icon={ScanLine} 
                 title="Histórico Completo" 
                 description="Trilha temporal de todas as movimentações e edições para conformidade contábil e jurídica."
               />
@@ -139,16 +139,10 @@ function LandingPage() {
           </div>
         </div>
       </section>
-    </div>
-  );
-}
-
-function Clock(props: any) { return <ScanLine {...props} /> } // Mock for feature card
-
 
       {/* FOOTER */}
       <footer className="py-12 px-4 border-t border-border/50">
-        <div className="max-w-7xl mx-auto flex flex-col md:row items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded bg-muted flex items-center justify-center text-muted-foreground">
               <ShieldCheck className="h-3 w-3" />
@@ -163,3 +157,4 @@ function Clock(props: any) { return <ScanLine {...props} /> } // Mock for featur
     </div>
   );
 }
+
