@@ -247,11 +247,11 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     let canonicalNature: ReportFinancialType = "unclassified";
     let canonicalBehavior = r.expense_behavior;
 
-    if (r.transaction_type === "despesa") {
-      canonicalNature = "despesa";
-    } else if (r.transaction_type === "investimento") {
+    if (r.transaction_type === "investimento") {
       canonicalNature = "investimento";
       canonicalBehavior = null;
+    } else if (r.transaction_type === "despesa") {
+      canonicalNature = "despesa";
     } else if (r.transaction_type === "gasto_fixo") {
       canonicalNature = "despesa";
       canonicalBehavior = r.expense_behavior ?? "fixed";
