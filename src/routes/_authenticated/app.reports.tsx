@@ -100,7 +100,7 @@ function ReportsPage() {
           .range(offset, offset + PAGE - 1);
         if (from) q = q.gte("payment_date", from);
         if (to) q = q.lte("payment_date", to);
-        if (profileId === "all") {
+        if (!profileId || profileId === "all") {
           throw new Error("O isolamento por perfil é obrigatório. Selecione um perfil para gerar o relatório.");
         }
         q = q.eq("profile_id", profileId);
