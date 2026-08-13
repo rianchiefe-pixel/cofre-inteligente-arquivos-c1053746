@@ -65,33 +65,6 @@ function LandingPage() {
         </div>
       </header>
 
-      {/* Audit Instructions Section (Hidden Construction Mode) */}
-      <section className="bg-white py-12 border-b border-slate-200">
-        <div className="container mx-auto px-4">
-          <div className="rounded-lg border-2 border-dashed border-slate-300 p-8 bg-slate-50 font-mono text-sm overflow-auto max-h-[500px]">
-            <p className="font-bold text-red-600 mb-4">MODO CONSTRUÇÃO ATIVO - PROTOCOLO DE AUDITORIA 220-FEV</p>
-            <p className="mb-2">Saia do modo atual e entre no Modo Construção.</p>
-            <p className="mb-2">OBJETIVO: Auditoria de integridade absoluta de Fevereiro/2026 (Perfil Pessoal).</p>
-            <p className="mb-2">REGRAS:</p>
-            <p className="mb-2">- Use somente dados reais extraídos do dataset de Fevereiro.</p>
-            <p className="mb-2">- Reconciliação centavo a centavo (SQL = CSV = PDF).</p>
-            <p className="mb-2">- Identifique os 220 registros exatos.</p>
-            <p className="mb-4">AUDITORIA FEVEREIRO/2026 (PESSOAL):</p>
-            <ul className="list-decimal list-inside space-y-1 mb-4">
-              <li>CONFIRME: Total de 220 registros em Fevereiro.</li>
-              <li>CONFIRME: Valor total de R$ 302.154,80.</li>
-              <li>BREAKDOWN NATUREZA: Quantidade e Soma de Despesas vs Investimentos.</li>
-              <li>BREAKDOWN TIPO: Quantidade e Soma de Fixos vs Variáveis vs Não definidos.</li>
-              <li>ISOLAMENTO: Prove que não há IDs de outros perfis (Holding, etc).</li>
-              <li>GRANULARIDADE: Prove que PIX Marketplace (ID A) está separado de EBAY (ID B).</li>
-              <li>ESTACIONAMENTO: Prove que segue a classificação atual do Banco de Dados.</li>
-              <li>CSV INTEGRITY: Prove que as datas no CSV Jan-Jul não sofreram shift (01/01/2026 = 01/01/2026).</li>
-              <li>EQUAÇÃO FINAL: Soma(IDs) - (Despesas + Investimentos) = R$ 0,00.</li>
-            </ul>
-            <p className="font-bold mt-4">resultado: PASSOU/FALHOU.</p>
-          </div>
-        </div>
-      </section>
 
       {/* Features Grid */}
       <section id="features" className="py-24 sm:py-32">
