@@ -221,6 +221,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     rows.push(...page);
     if (page.length < PAGE) break;
   }
+  console.log('REPORT_FETCH_FINISHED', { rowsFetched: rows.length });
 
   // Deduplicação básica por hash/import_row
   const usable: any[] = [];
