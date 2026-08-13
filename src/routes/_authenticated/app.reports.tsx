@@ -152,8 +152,14 @@ function ReportsPage() {
       footerText: b.footer_text,
     } : null;
     const totalInvested = totalInvestments;
-    const totalFixed = rows.filter((r: any) => (r.transaction_type === "gasto_fixo" || (r.transaction_type === "despesa" && r.expense_behavior === "fixed"))).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
-    const totalVariable = rows.filter((r: any) => (r.transaction_type === "gasto_variavel" || (r.transaction_type === "despesa" && r.expense_behavior === "variable"))).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalFixed = rows.filter((r: any) => {
+      const norm = normalizeFinancialClassification({ transaction_type: r.transaction_type, expense_behavior: r.expense_behavior });
+      return norm.nature === 'despesa' && norm.behavior === 'fixed';
+    }).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalVariable = rows.filter((r: any) => {
+      const norm = normalizeFinancialClassification({ transaction_type: r.transaction_type, expense_behavior: r.expense_behavior });
+      return norm.nature === 'despesa' && norm.behavior === 'variable';
+    }).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
 
     const groupSum = (getKey: (r: any) => string) => {
       const m: Record<string, number> = {};
@@ -204,8 +210,12 @@ function ReportsPage() {
         { header: "Perfil", key: "profile", get: (r) => profileIdToName.get(r.profile_id) ?? "", width: 16 },
         { header: "Imóvel", key: "property", get: (r) => r.properties?.name ?? "", width: 18 },
         { header: "Categoria", key: "category", get: (r) => r.category?.name ?? "", width: 16 },
-        { header: "Natureza", key: "type", get: (r) => transactionTypeLabel[r.transaction_type as string] ?? "", width: 14 },
-        { header: "Tipo de Gasto", key: "behavior", get: (r) => r.expense_behavior === 'fixed' ? 'Fixo' : r.expense_behavior === 'variable' ? 'Variável' : 'Não definido', width: 14 },
+        { header: "Natureza", key: "type", get: (r) => normalizeFinancialClassification({ transaction_type: r.transaction_type, expense_behavior: r.expense_behavior }).nature === 'despesa' ? 'Despesa' : 'Investimento', width: 14 },
+        { header: "Tipo de Gasto", key: "behavior", get: (r) => {
+          const norm = normalizeFinancialClassification({ transaction_type: r.transaction_type, expense_behavior: r.expense_behavior });
+          if (norm.nature === 'investimento') return 'Não se aplica';
+          return norm.behavior === 'fixed' ? 'Fixo' : norm.behavior === 'variable' ? 'Variável' : 'Não definido';
+        }, width: 14 },
         { header: "Método", key: "method", get: (r) => paymentMethodLabel[r.payment_method as string] ?? r.payment_method ?? "", width: 14 },
         { header: "Autenticação", key: "auth", get: (r) => r.auth_code ?? "", width: 18 },
         { header: "Observações", key: "notes", get: (r) => r.description ?? "", width: 28 },
