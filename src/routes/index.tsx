@@ -1,6 +1,6 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Sparkles, FolderLock, ScanLine, LayoutDashboard, Building2, ArrowRight } from "lucide-react";
+import { ShieldCheck, Sparkles, FolderLock, ScanLine, LayoutDashboard, Building2, ArrowRight, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute('/')({
