@@ -755,7 +755,9 @@ function VaultPage() {
       setOriginal(merged);
       setDraft({ ...merged });
       toast.success("Alterações salvas com sucesso.");
-      invalidate();
+      await invalidate();
+      await qc.invalidateQueries({ queryKey: ["report"] });
+      await qc.invalidateQueries({ queryKey: ["reports"] });
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar alterações");
     } finally {
