@@ -200,7 +200,6 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
 
   const rows: any[] = [];
   const PAGE = 1000;
-  console.log('REPORT_FETCH_STARTED');
   for (let offset = 0; offset < 100000; offset += PAGE) {
     let q = supabase
       .from("receipts")
@@ -222,7 +221,6 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     rows.push(...page);
     if (page.length < PAGE) break;
   }
-  console.log('REPORT_FETCH_FINISHED', { rowsFetched: rows.length });
   console.log('REPORT_FETCH_FINISHED', { rowsFetched: rows.length });
 
   // Deduplicação básica por hash/import_row
