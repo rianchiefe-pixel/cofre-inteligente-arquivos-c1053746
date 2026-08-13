@@ -298,7 +298,7 @@ export async function generateFixedVariableReport(data: ReportDataset) {
 
   }
 
-  doc.save(`relatorio-executivo-${data.from}-a-${data.to}.pdf`);
+  doc.save(`Relatorio-${data.meta.filters.profileId === 'c44c244d-b05f-47dc-bc58-7056351e7703' ? 'Pessoal' : data.meta.filters.profileId === '2906fc21-93bc-42ad-8ca3-701b94fdb5f6' ? 'Holding' : 'Perfil'}-${data.from}-a-${data.to}-${Date.now()}.pdf`);
   return logExport({
     reportKind: "relatorio_gastos_fixos_variaveis",
     format: "pdf",

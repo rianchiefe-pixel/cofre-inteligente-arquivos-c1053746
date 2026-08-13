@@ -15,9 +15,9 @@ export const UNCATEGORIZED = "Sem categoria";
  */
 export type ReportFinancialType = 
   | "despesa" 
-  | "despesa" 
   | "investimento" 
   | "unclassified";
+
 
 export interface LedgerEntry {
   id: string;
@@ -122,21 +122,12 @@ function pct(part: number, whole: number) {
  */
 function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
   const totalCents = entries.reduce((s, e) => s + e.cents, 0);
-  const map = new Map<string, { name: string; cents: number; id: string }>();
+  const map = new Map<string, { name: string; cents: number; id: string; sourceReceiptIds: Set<string> }>();
   
   for (const e of entries) {
-    /**
-     * Regra 10 e 11: Detalhamento granular.
-     * Devemos usar o nível MAIS ESPECÍFICO.
-     * Se for Educação e tivermos "Mensalidade escolar Ana", o nome deve ser "Mensalidade escolar Ana".
-     * O dataset do Cofre usa o campo 'notes' ou 'payee' (descrição/favorecido) para diferenciar se a categoria for genérica.
-     * Mas aqui vamos priorizar a categoria e, se for genérica (uncategorized), o favorecido.
-     * Para garantir a separação de Ana/Erick/Henrique, usaremos o nome da categoria que já deve estar vindo correto.
-     */
     const displayName = e.categoryName;
     const nameLower = displayName.toLowerCase();
     
-    // Se for uma categoria "genérica", tentamos ser mais específicos usando o favorecido ou notas
     const isGeneric = 
       nameLower.includes("não identificado") ||
       nameLower.includes("não classificado") ||
@@ -146,14 +137,10 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
 
     const specificName = isGeneric && e.payee !== "—" ? e.payee : displayName;
     
-    // Para Educação, se houver descrição específica, podemos tentar anexar ou usar se a categoria for apenas "Educação"
-    // Mas a instrução diz: "Não hardcodar nomes".
-    // Então usaremos a categoria. Se o usuário quer separação, ele deve categorizar corretamente ou o sistema deve ser inteligente.
-    // Atualmente, Education Henrique/Ana/Erick são categorias diferentes no banco.
-    
     const key = e.categoryId ?? specificName;
-    const existing = map.get(key) || { name: specificName, cents: 0, id: key };
+    const existing = map.get(key) || { name: specificName, cents: 0, id: key, sourceReceiptIds: new Set() };
     existing.cents += e.cents;
+    existing.sourceReceiptIds.add(e.id);
     map.set(key, existing);
   }
 
@@ -164,9 +151,12 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       name: data.name, 
       cents: data.cents, 
       value: centsToNumber(data.cents), 
-      pct: pct(data.cents, totalCents) 
-    }));
+      pct: pct(data.cents, totalCents),
+      // Adicionamos os IDs de origem para auditoria
+      sourceReceiptIds: Array.from(data.sourceReceiptIds)
+    } as any));
 }
+
 
 
 /**
@@ -246,10 +236,14 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
   }
 
   const entries: LedgerEntry[] = usable.map((r) => {
+    // Blindagem de Profile ID na normalização (Regra 9)
+    if (r.profile_id !== f.profileId) {
+      throw new Error(`PROFILE_ISOLATION_VIOLATION: Registro ${r.id} pertence ao perfil ${r.profile_id}, mas o perfil selecionado é ${f.profileId}.`);
+    }
+
     const cat = r.category_id ? catById.get(r.category_id) : null;
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
     
-    // Regra 3: Normalização em memória (DADOS LEGADOS)
     let canonicalNature: ReportFinancialType = "unclassified";
     let canonicalBehavior = r.expense_behavior;
 
@@ -257,7 +251,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       canonicalNature = "despesa";
     } else if (r.transaction_type === "investimento") {
       canonicalNature = "investimento";
-      canonicalBehavior = null; // Investimento não tem behavior fixed/variable
+      canonicalBehavior = null;
     } else if (r.transaction_type === "gasto_fixo") {
       canonicalNature = "despesa";
       canonicalBehavior = r.expense_behavior ?? "fixed";
@@ -266,10 +260,6 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       canonicalBehavior = r.expense_behavior ?? "variable";
     }
 
-    const reportType = canonicalNature;
-    const expenseBehavior = canonicalBehavior;
-
-
     const cents = toCents(r.amount);
 
     return {
@@ -277,19 +267,22 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       date: String(r.payment_date).slice(0, 10),
       cents,
       amount: centsToNumber(cents),
-      reportType,
-      expenseBehavior,
+      reportType: canonicalNature,
+      expenseBehavior: canonicalBehavior,
       categoryId: cat?.id || null,
       categoryName: cat?.name || UNCATEGORIZED,
       parentCategoryId: parent?.id || null,
       parentCategoryName: parent?.name || null,
       hasCategory: !isUncategorizedReceipt({ category_id: r.category_id, categories: cat }),
-
       payee: r.recipient_name ?? "—",
-      account: reportType === "investimento" ? "INVESTIMENTOS" : "DESPESAS",
+      account: canonicalNature === "investimento" ? "INVESTIMENTOS" : "DESPESAS",
       notes: [r.description, r.notes].filter(Boolean).join("; "),
-    };
+    } as LedgerEntry & { profile_id: string }; // Mantemos profile_id para auditorias internas se necessário
   });
+
+  // Conjunto Fechado (Regra 8)
+  const REPORT_ALLOWED_RECEIPT_IDS = new Set(usable.map(r => r.id));
+
 
   const monthKeys = [...new Set(entries.map((e) => e.date.slice(0, 7)))].sort();
   const months: MonthBlock[] = monthKeys.map((key) => {
@@ -309,13 +302,14 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const unclassifiedCents = uList.reduce((s, e) => s + e.cents, 0);
     // Unclassified cents are excluded from the total to ensure consistency with visual reports
     // Regra 14: Blindagem defensiva de isolamento
-    const foreignReceipts = list.filter(r => (r as any).profile_id && (r as any).profile_id !== f.profileId);
+    const foreignReceipts = list.filter(r => !REPORT_ALLOWED_RECEIPT_IDS.has(r.id));
     if (foreignReceipts.length > 0) {
-      console.error("PROFILE_ISOLATION_VIOLATION:", foreignReceipts.map(r => r.id));
-      throw new Error("PROFILE_ISOLATION_VIOLATION: Detectados registros de outro perfil no dataset mensal.");
+      console.error("REPORT_RECEIPT_OUTSIDE_CANONICAL_DATASET:", foreignReceipts.map(r => r.id));
+      throw new Error("REPORT_RECEIPT_OUTSIDE_CANONICAL_DATASET: Detectados registros fora do dataset canônico no agrupamento mensal.");
     }
 
     const totalCents = despesaCents + investimentoCents;
+
 
     return {
       key,
