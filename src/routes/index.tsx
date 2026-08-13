@@ -79,27 +79,6 @@ function LandingPage() {
             </Button>
           </div>
 
-          <div className="mt-16 text-left max-w-2xl mx-auto p-6 bg-muted/50 rounded-lg border border-border/50 font-mono text-xs whitespace-pre-wrap">
-Saia do modo arrow atual e entre no Modo Construção. 
-
-NÃO ALTERE CÓDIGO. NÃO ALTERE BANCO. NÃO GERE RELATÓRIOS. 
-
-O RESULTADO ANTERIOR NÃO PODE SER CONSIDERADO PASSOU AINDA. 
-HÁ UMA DISCREPÂNCIA DE R$ 448.717,34 ENTRE AS ÚLTIMAS DUAS AUDITORIAS (3.0M vs 2.5M).
-
-EQUAÇÃO FINAL DE RECONCILIAÇÃO:
-2.582.818,91 (Pessoal Correto) 
-+ 345.453,70 (Outros Perfis: 2906, c080, 4167) 
-+ 103.263,64 (Erro de Duplicação em report-validation.ts) 
-= 3.031.536,25 
-DIFERENÇA: R$ 0,00
-
-RESPONDA SOMENTE:
-1. Explicação técnica do erro de R$ 103k (quais linhas/lógica causaram).
-2. Prova de que os 74 recibos (R$ 345k) pertencem a outros perfis.
-3. Distribuição de status (Approved/Duplicate/Rejected) para Pessoal em Jan/2026.
-4. Resultado final da reconciliação: EXPLICADO.
-          </div>
         </div>
       </section>
 
