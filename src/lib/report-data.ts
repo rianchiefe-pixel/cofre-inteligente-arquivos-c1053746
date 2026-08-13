@@ -308,6 +308,13 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const investimentoCents = iList.reduce((s, e) => s + e.cents, 0);
     const unclassifiedCents = uList.reduce((s, e) => s + e.cents, 0);
     // Unclassified cents are excluded from the total to ensure consistency with visual reports
+    // Regra 14: Blindagem defensiva de isolamento
+    const foreignReceipts = list.filter(r => (r as any).profile_id && (r as any).profile_id !== f.profileId);
+    if (foreignReceipts.length > 0) {
+      console.error("PROFILE_ISOLATION_VIOLATION:", foreignReceipts.map(r => r.id));
+      throw new Error("PROFILE_ISOLATION_VIOLATION: Detectados registros de outro perfil no dataset mensal.");
+    }
+
     const totalCents = despesaCents + investimentoCents;
 
     return {
