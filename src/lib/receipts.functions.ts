@@ -592,6 +592,7 @@ const ConferencePatchSchema = z.object({
   auth_code: z.string().nullable().optional(),
   payment_method: paymentMethodEnum.nullable().optional(),
   transaction_type: transactionTypeEnum.nullable().optional(),
+  expense_behavior: z.string().nullable().optional(),
   category_id: z.string().uuid().nullable().optional(),
   description: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
