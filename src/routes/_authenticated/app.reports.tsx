@@ -211,7 +211,8 @@ function ReportsPage() {
         { header: "Observações", key: "notes", get: (r) => r.description ?? "", width: 28 },
       ],
       rows,
-      filename: `meu-cofre-${from}-a-${to}`,
+      filename: `Relatorio-${profileId === 'c44c244d-b05f-47dc-bc58-7056351e7703' ? 'Pessoal' : profileId === '2906fc21-93bc-42ad-8ca3-701b94fdb5f6' ? 'Holding' : 'Perfil'}-${from}-a-${to}-${Date.now()}`,
+
       reportKind: "relatorio_geral",
     };
   };
