@@ -678,6 +678,7 @@ function VaultPage() {
     "auth_code",
     "payment_method",
     "transaction_type",
+    "expense_behavior",
     "category_id",
     "description",
     "notes",

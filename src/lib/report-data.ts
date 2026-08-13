@@ -135,9 +135,11 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       nameLower.includes("não informado") ||
       displayName === UNCATEGORIZED;
 
+    // Para categorias genéricas, usamos uma chave única baseada no recebedor ou ID do recibo
+    // Isso evita agrupar "EBAY" com "PIX MARKETPLACE" na mesma linha de "Não identificado"
+    const key = isGeneric ? `gen:${e.payee}:${e.id}` : (e.categoryId ?? displayName);
     const specificName = isGeneric && e.payee !== "—" ? e.payee : displayName;
     
-    const key = e.categoryId ?? specificName;
     const existing = map.get(key) || { name: specificName, cents: 0, id: key, sourceReceiptIds: new Set() };
     existing.cents += e.cents;
     existing.sourceReceiptIds.add(e.id);
@@ -152,7 +154,6 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       cents: data.cents, 
       value: centsToNumber(data.cents), 
       pct: pct(data.cents, totalCents),
-      // Adicionamos os IDs de origem para auditoria
       sourceReceiptIds: Array.from(data.sourceReceiptIds)
     } as any));
 }
@@ -245,21 +246,10 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const cat = r.category_id ? catById.get(r.category_id) : null;
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : null;
     
-    let canonicalNature: ReportFinancialType = "unclassified";
-    let canonicalBehavior = r.expense_behavior;
-
-    if (r.transaction_type === "investimento") {
-      canonicalNature = "investimento";
-      canonicalBehavior = null;
-    } else if (r.transaction_type === "despesa") {
-      canonicalNature = "despesa";
-    } else if (r.transaction_type === "gasto_fixo") {
-      canonicalNature = "despesa";
-      canonicalBehavior = r.expense_behavior ?? "fixed";
-    } else if (r.transaction_type === "gasto_variavel") {
-      canonicalNature = "despesa";
-      canonicalBehavior = r.expense_behavior ?? "variable";
-    }
+    const { nature: canonicalNature, behavior: canonicalBehavior } = normalizeFinancialClassification({
+      transaction_type: r.transaction_type,
+      expense_behavior: r.expense_behavior
+    });
 
     const cents = toCents(r.amount);
 

@@ -58,6 +58,7 @@ export type ConferenceField =
   | "auth_code"
   | "payment_method"
   | "transaction_type"
+  | "expense_behavior"
   | "category_id"
   | "description"
   | "notes"
@@ -632,34 +633,41 @@ export function ConferenceDialog(props: {
               </Section>
 
               <Section title="Classificação">
-                <div className="space-y-1">
-                  <Label>Tipo do lançamento</Label>
-                  <Select
-                    value={draft.transaction_type ?? undefined}
-                    onValueChange={(v) => patchDraft({ transaction_type: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="—" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(transactionTypeLabel).map(([v, l]) => (
-                        <SelectItem key={v} value={v}>
-                          {l}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {suggestionFor("transaction_type") && (
-                    <SuggestionHint
-                      value={
-                        transactionTypeLabel[
-                          suggested.transaction_type as keyof typeof transactionTypeLabel
-                        ] ?? String(suggested.transaction_type)
-                      }
-                      onApply={() => applySuggestion("transaction_type")}
-                    />
-                  )}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label>Natureza</Label>
+                    <Select
+                      value={draft.transaction_type ?? undefined}
+                      onValueChange={(v) => patchDraft({ transaction_type: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="despesa">Despesa</SelectItem>
+                        <SelectItem value="investimento">Investimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Tipo de Gasto</Label>
+                    <Select
+                      value={draft.expense_behavior ?? "none"}
+                      onValueChange={(v) => patchDraft({ expense_behavior: v === "none" ? null : v })}
+                      disabled={draft.transaction_type === "investimento"}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Não definido</SelectItem>
+                        <SelectItem value="fixed">Fixo</SelectItem>
+                        <SelectItem value="variable">Variável</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
                 <div className="space-y-1">
                   <Label>Categoria</Label>
                   <div className="flex items-center gap-2">
