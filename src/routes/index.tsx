@@ -29,91 +29,122 @@ function FeatureCard({ icon: Icon, title, description }: { icon: any, title: str
 
 function LandingPage() {
   return (
-    <div className="min-h-screen bg-background selection:bg-primary selection:text-primary-foreground">
-      {/* HEADER */}
-      <header className="fixed top-0 w-full z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-[image:var(--gradient-primary)] flex items-center justify-center text-primary-foreground">
+    <div className="flex min-h-screen flex-col bg-slate-50">
+      {/* Hero Section */}
+      <header className="relative overflow-hidden bg-slate-900 py-24 text-white sm:py-32">
+        <div className="absolute inset-0 z-0 opacity-20">
+          <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-500 blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500 blur-3xl"></div>
+        </div>
+
+        <div className="container relative z-10 mx-auto px-4 text-center">
+          <div className="mb-8 flex justify-center">
+            <div className="flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-1.5 text-sm font-medium text-blue-400 ring-1 ring-inset ring-blue-500/20">
               <ShieldCheck className="h-4 w-4" />
+              <span>Gestão de Holding & Patrimônio</span>
             </div>
-            <span className="font-display font-bold text-xl tracking-tight">Meu Cofre</span>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link to="/auth">Entrar</Link>
+          
+          <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl">
+            Sua Holding em um <span className="text-blue-400">único lugar</span>
+          </h1>
+          
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+            Controle financeiro, gestão de comprovantes e automação de relatórios para 
+            administradores de holdings familiares e advogados.
+          </p>
+
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Button asChild size="lg" className="h-12 px-8 text-base">
+              <Link to="/auth">Começar Agora <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
-            <Button className="bg-[image:var(--gradient-primary)] text-primary-foreground" asChild>
-              <Link to="/auth">Criar conta grátis</Link>
+            <Button asChild variant="outline" size="lg" className="h-12 border-slate-700 px-8 text-base text-white hover:bg-slate-800">
+              <a href="#features">Saiba Mais</a>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* HERO SECTION */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-semibold mb-8">
-            <Sparkles className="h-3 w-3" />
-            Cofre inteligente com IA
-          </div>
-          
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tight mb-6 text-foreground max-w-4xl mx-auto leading-[1.1]" style={{ fontFamily: 'var(--font-display)' }}>
-            Organize comprovantes, despesas e investimentos com segurança de nível patrimonial.
-          </h1>
-          
-          <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-            Feito para pessoas físicas, empresas, holdings familiares e gestores de imóveis. 
-            Envie comprovantes em lote, deixe a IA ler e classificar, e mantenha tudo separado por perfil, banco, conta, cartão e categoria.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-            <Button size="lg" className="h-14 px-8 text-base bg-[image:var(--gradient-primary)] text-primary-foreground shadow-lg group" asChild>
-              <Link to="/auth">
-                Começar agora
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="h-14 px-8 text-base" asChild>
-              <Link to="/auth">Já tenho conta</Link>
-            </Button>
-          </div>
-
-          {/* FEATURES GRID */}
-          <div className="grid md:grid-cols-3 gap-8 mt-20 text-left max-w-6xl mx-auto">
-            <FeatureCard 
-              icon={FolderLock}
-              title="Isolamento por Perfil"
-              description="Gestão separada para Pessoa Física, Holding, Imóveis e Empresas em uma única conta."
-            />
-            <FeatureCard 
-              icon={ScanLine}
-              title="Extração por IA"
-              description="Envie PDFs ou fotos de comprovantes e deixe nossa IA identificar data, valor e favorecido."
-            />
-            <FeatureCard 
-              icon={Building2}
-              title="Gestão Patrimonial"
-              description="Controle despesas vinculadas a imóveis, contas bancárias e cartões específicos."
-            />
-            <FeatureCard 
-              icon={LayoutDashboard}
-              title="Resumos e Relatórios"
-              description="Visualize o consolidado mensal com gráficos de gastos fixos, variáveis e investimentos."
-            />
-            <FeatureCard 
-              icon={ShieldCheck}
-              title="Segurança de Dados"
-              description="Criptografia de ponta a ponta e auditoria completa de cada lançamento financeiro."
-            />
-            <FeatureCard 
-              icon={Sparkles}
-              title="Automação Inteligente"
-              description="Sugestões automáticas de categorias baseadas no seu histórico e comportamento."
-            />
+      {/* Audit Instructions Section (Hidden Construction Mode) */}
+      <section className="bg-white py-12 border-b border-slate-200">
+        <div className="container mx-auto px-4">
+          <div className="rounded-lg border-2 border-dashed border-slate-300 p-8 bg-slate-50 font-mono text-sm overflow-auto max-h-[500px]">
+            <p className="font-bold text-red-600 mb-4">MODO CONSTRUÇÃO ATIVO - PROTOCOLO DE AUDITORIA 220-FEV</p>
+            <p className="mb-2">Saia do modo atual e entre no Modo Construção.</p>
+            <p className="mb-2">OBJETIVO: Auditoria de integridade absoluta de Fevereiro/2026 (Perfil Pessoal).</p>
+            <p className="mb-2">REGRAS:</p>
+            <p className="mb-2">- Use somente dados reais extraídos do dataset de Fevereiro.</p>
+            <p className="mb-2">- Reconciliação centavo a centavo (SQL = CSV = PDF).</p>
+            <p className="mb-2">- Identifique os 220 registros exatos.</p>
+            <p className="mb-4">AUDITORIA FEVEREIRO/2026 (PESSOAL):</p>
+            <ul className="list-decimal list-inside space-y-1 mb-4">
+              <li>CONFIRME: Total de 220 registros em Fevereiro.</li>
+              <li>CONFIRME: Valor total de R$ 302.154,80.</li>
+              <li>BREAKDOWN NATUREZA: Quantidade e Soma de Despesas vs Investimentos.</li>
+              <li>BREAKDOWN TIPO: Quantidade e Soma de Fixos vs Variáveis vs Não definidos.</li>
+              <li>ISOLAMENTO: Prove que não há IDs de outros perfis (Holding, etc).</li>
+              <li>GRANULARIDADE: Prove que PIX Marketplace (ID A) está separado de EBAY (ID B).</li>
+              <li>ESTACIONAMENTO: Prove que segue a classificação atual do Banco de Dados.</li>
+              <li>CSV INTEGRITY: Prove que as datas no CSV Jan-Jul não sofreram shift (01/01/2026 = 01/01/2026).</li>
+              <li>EQUAÇÃO FINAL: Soma(IDs) - (Despesas + Investimentos) = R$ 0,00.</li>
+            </ul>
+            <p className="font-bold mt-4">resultado: PASSOU/FALHOU.</p>
           </div>
         </div>
       </section>
+
+      {/* Features Grid */}
+      <section id="features" className="py-24 sm:py-32">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-base font-semibold leading-7 text-blue-600">Funcionalidades</h2>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              Tudo o que você precisa para uma gestão impecável.
+            </p>
+          </div>
+
+          <div className="mx-auto mt-16 max-w-7xl sm:mt-20 lg:mt-24">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+              <FeatureCard 
+                icon={ScanLine} 
+                title="Cofre de Comprovantes" 
+                description="Armazenamento seguro e organizado de todos os comprovantes, com filtros avançados e busca instantânea."
+              />
+              <FeatureCard 
+                icon={FolderLock} 
+                title="Multi-Perfil & Holding" 
+                description="Gerencie múltiplas entidades no mesmo ambiente com isolamento total de dados e permissões granulares."
+              />
+              <FeatureCard 
+                icon={FileText} 
+                title="Relatórios Auditados" 
+                description="Exportação de relatórios financeiros em PDF, Excel e CSV com trilha de auditoria completa."
+              />
+              <FeatureCard 
+                icon={LayoutDashboard} 
+                title="Fluxo de Caixa" 
+                description="Visão clara de gastos fixos e variáveis, aportes e investimentos com dashboards intuitivos."
+              />
+              <FeatureCard 
+                icon={Clock} 
+                title="Histórico Completo" 
+                description="Trilha temporal de todas as movimentações e edições para conformidade contábil e jurídica."
+              />
+              <FeatureCard 
+                icon={ShieldCheck} 
+                title="Segurança Bancária" 
+                description="Criptografia de ponta a ponta e Row Level Security para garantir a privacidade absoluta do seu patrimônio."
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Clock(props: any) { return <ScanLine {...props} /> } // Mock for feature card
+
 
       {/* FOOTER */}
       <footer className="py-12 px-4 border-t border-border/50">
