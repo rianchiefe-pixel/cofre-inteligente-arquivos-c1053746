@@ -158,25 +158,46 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
     } as any));
 }
 
-
-
 /**
- * Função Canônica de Resolução de Tipo do Relatório.
- * Regra ABSOLUTA: A fonte da verdade é o PRÓPRIO LANÇAMENTO (transaction_type).
- * Categoria é usada apenas para organização visual posterior.
+ * Função Canônica de Normalização Financeira.
+ * Regra ABSOLUTA: A fonte da verdade é o PRÓPRIO LANÇAMENTO.
+ * O campo expense_behavior tem prioridade total sobre os transaction_type legados.
  */
+export function normalizeFinancialClassification(r: { 
+  transaction_type: string | null; 
+  expense_behavior: string | null; 
+}): { 
+  nature: ReportFinancialType; 
+  behavior: string | null;
+} {
+  const t = r.transaction_type;
+  const b = r.expense_behavior;
+
+  // Investimentos são soberanos e não possuem comportamento (fixed/variable)
+  if (t === "investimento" || t === "patrimonial") {
+    return { nature: "investimento", behavior: null };
+  }
+
+  // Se o tipo for legado (gasto_fixo/gasto_variavel), mapeamos para despesa + comportamento correspondente
+  // MAS se houver um comportamento explícito (b), ele vence o legado.
+  if (t === "gasto_fixo") {
+    return { nature: "despesa", behavior: b ?? "fixed" };
+  }
+  if (t === "gasto_variavel") {
+    return { nature: "despesa", behavior: b ?? "variable" };
+  }
+
+  // Caso padrão: despesa com comportamento explícito ou null
+  return { nature: t === "despesa" ? "despesa" : "unclassified", behavior: b };
+}
+
+/** @deprecated use normalizeFinancialClassification */
 export function resolveReportType(
   transactionType: string | null
 ): ReportFinancialType {
-  if (transactionType) {
-    if (EXPENSE_TYPES.has(transactionType)) return "despesa";
-    if (INVESTMENT_TYPES.has(transactionType)) return "investimento";
-  }
-  
-  return "unclassified";
+  const norm = normalizeFinancialClassification({ transaction_type: transactionType, expense_behavior: null });
+  return norm.nature;
 }
-
-
 
 /**
  * Returns the filter for technical uncategorized categories to be used in SQL.
