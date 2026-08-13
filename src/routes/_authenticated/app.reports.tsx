@@ -14,7 +14,7 @@ import { monthRange } from "@/lib/date-range";
 import { useCan } from "@/lib/permissions";
 import { ExportMenu } from "@/components/export-menu";
 import type { ReportPayload } from "@/lib/exports";
-import { loadReportDataset } from "@/lib/report-data";
+import { loadReportDataset, normalizeFinancialClassification } from "@/lib/report-data";
 import { generateFixedVariableReport, generateMonthlyExpenseReport } from "@/lib/report-templates";
 import { toast } from "sonner";
 import { FileText, Loader2, RefreshCw, ArrowRight } from "lucide-react";
