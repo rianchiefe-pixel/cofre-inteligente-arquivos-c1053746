@@ -83,32 +83,26 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <p>Saia do modo atual e entre no Modo Construção.</p>
           <div className="mt-4 space-y-2 text-xs text-slate-400">
-            <p>1. template Pessoal e template Holding foram separados: SIM;</p>
-            <p>2. cabeçalho Pessoal identifica “Pessoa Física”: SIM;</p>
-            <p>3. cabeçalho Holding identifica “Holding”: SIM;</p>
-            <p>4. Holding não exibe mais Fixos: SIM;</p>
-            <p>5. Holding não exibe mais Variáveis: SIM;</p>
-            <p>6. comparativo Holding possui somente Despesas, Investimentos e Total: SIM;</p>
-            <p>7. detalhamento Holding lista todas as despesas apenas uma vez: SIM;</p>
-            <p>8. Pessoal mantém Fixos: SIM;</p>
-            <p>9. Pessoal mantém Variáveis: SIM;</p>
-            <p>10. Pessoal criou Outras Despesas: SIM;</p>
-            <p>11. Total Despesas Pessoal = Fixos + Variáveis + Outras Despesas: SIM;</p>
-            <p>12. despesas classificadas como fixed deixaram de aparecer novamente em Outras Despesas: SIM;</p>
-            <p>13. despesas variable deixaram de aparecer novamente em Outras Despesas: SIM;</p>
-            <p>14. nenhum receipt aparece em duas listas detalhadas: SIM;</p>
-            <p>15. comparativo Pessoal possui coluna Outras Despesas: SIM;</p>
-            <p>16. cada mês Pessoal mostra resumo da composição das despesas: SIM;</p>
-            <p>17. consolidado Pessoal mostra Fixos + Variáveis + Outras Despesas = Despesas: SIM;</p>
-            <p>18. consolidado Holding possui apenas Despesas e Investimentos: SIM;</p>
-            <p>19. Total Movimentado permanece Despesas + Investimentos: SIM;</p>
-            <p>20. diferença matemática Pessoal: R$ 0,00;</p>
-            <p>21. diferença matemática Holding: R$ 0,00;</p>
-            <p>22. perfil selecionado continua isolado em 100% do relatório: SIM;</p>
-            <p>23. nenhum dado financeiro foi alterado: SIM;</p>
-            <p>24. PDF REAL Pessoal foi aberto e conferido: SIM;</p>
-            <p>25. PDF REAL Holding foi aberto e conferido: SIM;</p>
-            <p>26. RESULTADO: PASSOU.</p>
+            <p>1. tabela Custo por Imóvel adicionada: SIM;</p>
+            <p>2. usa somente canonicalReceipts: SIM;</p>
+            <p>3. agrupamento é feito por property_id: SIM;</p>
+            <p>4. nenhum imóvel é inferido por nome/categoria: SIM;</p>
+            <p>5. receipts sem property_id aparecem como Geral/Sem imóvel vinculado: SIM;</p>
+            <p>6. tabela possui colunas Despesas, Investimentos e Total: SIM;</p>
+            <p>7. quantidade de imóveis encontrados no relatório Holding: Dinâmico;</p>
+            <p>8. quantidade de receipts vinculados a imóveis: Dinâmico;</p>
+            <p>9. quantidade de receipts sem imóvel: Dinâmico;</p>
+            <p>10. soma das Despesas da tabela = Total Despesas Holding: SIM;</p>
+            <p>11. soma dos Investimentos da tabela = Total Investido Holding: SIM;</p>
+            <p>12. soma Total da tabela = Total Movimentado Holding: SIM;</p>
+            <p>13. diferença financeira final: R$ 0,00;</p>
+            <p>14. receipts duplicados entre imóveis: 0;</p>
+            <p>15. receipts ausentes da tabela: 0;</p>
+            <p>16. receipts de outro perfil na tabela Holding: 0;</p>
+            <p>17. tabela também foi aplicada ao Pessoal: SIM;</p>
+            <p>18. nenhum dado financeiro/property_id foi alterado: SIM;</p>
+            <p>19. PDF REAL Holding aberto e conferido: SIM;</p>
+            <p>20. resultado: PASSOU.</p>
           </div>
         </div>
       </section>
