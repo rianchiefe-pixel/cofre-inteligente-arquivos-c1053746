@@ -154,8 +154,6 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       nameLower.includes("não informado") ||
       displayName === UNCATEGORIZED;
 
-    // Para categorias genéricas, usamos uma chave única baseada no recebedor ou ID do recibo
-    // Isso evita agrupar "EBAY" com "PIX MARKETPLACE" na mesma linha de "Não identificado"
     const key = isGeneric ? `gen:${e.payee}:${e.id}` : (e.categoryId ?? displayName);
     const specificName = isGeneric && e.payee !== "—" ? e.payee : displayName;
     
@@ -174,7 +172,7 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       value: centsToNumber(data.cents), 
       pct: pct(data.cents, totalCents),
       sourceReceiptIds: Array.from(data.sourceReceiptIds)
-    } as any));
+    }));
 }
 
 /**
