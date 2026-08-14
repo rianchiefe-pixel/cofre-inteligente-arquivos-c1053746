@@ -45,6 +45,7 @@ export interface CategoryRow {
   value: number; 
   cents: number; 
   pct: number;
+  sourceReceiptIds?: string[];
 }
 
 export interface MonthBlock {
@@ -79,6 +80,18 @@ export interface MonthBlock {
   entries: LedgerEntry[];
 }
 
+export interface PropertyRow {
+  propertyId: string | null;
+  propertyName: string;
+  despesaCents: number;
+  investimentoCents: number;
+  totalCents: number;
+  despesa: number;
+  investimento: number;
+  total: number;
+  sourceReceiptIds: string[];
+}
+
 export interface ReportDataset {
   from: string;
   to: string;
@@ -102,6 +115,7 @@ export interface ReportDataset {
     total: number;
   };
   entries: LedgerEntry[];
+  propertyBreakdown: PropertyRow[];
   meta: {
     generatedAt: string;
     rowsFetched: number;
@@ -224,6 +238,10 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
   const { data: cats, error: catError } = await supabase.from("categories").select("id, name, parent_id, default_type, expense_behavior");
   if (catError) throw new Error(`Falha ao carregar categorias: ${catError.message}`);
   const catById = new Map((cats ?? []).map((c) => [c.id, c]));
+
+  const { data: props, error: propsError } = await supabase.from("properties").select("id, name");
+  if (propsError) throw new Error(`Falha ao carregar imóveis: ${propsError.message}`);
+  const propById = new Map((props ?? []).map((p) => [p.id, p]));
 
   const rows: any[] = [];
   const PAGE = 1000;
