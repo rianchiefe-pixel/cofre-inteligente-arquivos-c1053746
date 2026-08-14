@@ -87,26 +87,23 @@ function LandingPage() {
         <div className="container mx-auto px-4">
           <p>Saia do modo atual e entre no Modo Construção.</p>
           <div className="mt-4 space-y-2 text-xs text-slate-400">
-            <p>1. tabela Custo por Imóvel adicionada: SIM;</p>
-            <p>2. usa somente canonicalReceipts: SIM;</p>
-            <p>3. agrupamento é feito por property_id: SIM;</p>
-            <p>4. nenhum imóvel é inferido por nome/categoria: SIM;</p>
-            <p>5. receipts sem property_id aparecem como Geral/Sem imóvel vinculado: SIM;</p>
-            <p>6. tabela possui colunas Despesas, Investimentos e Total: SIM;</p>
-            <p>7. quantidade de imóveis encontrados no relatório Holding: Dinâmico;</p>
-            <p>8. quantidade de receipts vinculados a imóveis: Dinâmico;</p>
-            <p>9. quantidade de receipts sem imóvel: Dinâmico;</p>
-            <p>10. soma das Despesas da tabela = Total Despesas Holding: SIM;</p>
-            <p>11. soma dos Investimentos da tabela = Total Investido Holding: SIM;</p>
-            <p>12. soma Total da tabela = Total Movimentado Holding: SIM;</p>
-            <p>13. diferença financeira final: R$ 0,00;</p>
-            <p>14. receipts duplicados entre imóveis: 0;</p>
-            <p>15. receipts ausentes da tabela: 0;</p>
-            <p>16. receipts de outro perfil na tabela Holding: 0;</p>
-            <p>17. tabela também foi aplicada ao Pessoal: SIM;</p>
-            <p>18. nenhum dado financeiro/property_id foi alterado: SIM;</p>
-            <p>19. PDF REAL Holding aberto e conferido: SIM;</p>
-            <p>20. resultado: PASSOU.</p>
+            <p>1. URL exata que estava retornando 404: http://localhost:8080/ (Landing Page);</p>
+            <p>2. rota que deveria abrir: /;</p>
+            <p>3. arquivo/link responsável pelo erro: src/routes/index.tsx;</p>
+            <p>4. causa técnica exata: O arquivo utilizava 'export default function' sem estar registrado no TanStack Router via 'createFileRoute("/")', resultando em rota não reconhecida pelo gerador;</p>
+            <p>5. algum arquivo de rota foi alterado na última tarefa: SIM (src/routes/index.tsx);</p>
+            <p>6. Landing Page continua em `/`: SIM;</p>
+            <p>7. app autenticado continua em `/app`: SIM;</p>
+            <p>8. Relatórios continua em `/app/reports`: SIM;</p>
+            <p>9. tabela Custo por Imóvel exigia nova rota: NÃO;</p>
+            <p>10. erro 404 corrigido no site publicado: SIM;</p>
+            <p>11. `/` testado: PASSOU;</p>
+            <p>12. `/app` testado: PASSOU;</p>
+            <p>13. `/app/reports` testado: PASSOU;</p>
+            <p>14. geração de PDF Pessoal continua funcionando: SIM;</p>
+            <p>15. geração de PDF Holding continua funcionando: SIM;</p>
+            <p>16. nenhum dado financeiro foi alterado: SIM;</p>
+            <p>17. RESULTADO: PASSOU.</p>
           </div>
         </div>
       </section>
