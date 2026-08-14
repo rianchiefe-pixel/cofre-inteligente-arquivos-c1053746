@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Link } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { 
   ShieldCheck, 
   TrendingUp, 
@@ -12,7 +12,11 @@ import {
   Database
 } from "lucide-react";
 
-export default function LandingPage() {
+export const Route = createFileRoute("/")({
+  component: LandingPage,
+});
+
+function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
