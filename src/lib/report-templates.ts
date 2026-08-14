@@ -386,6 +386,51 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     }
   }
 
+  // 4. TABELA ANALÍTICA: CUSTO POR IMÓVEL (Regra 2, 7, 11, 12)
+  if (data.propertyBreakdown && data.propertyBreakdown.length > 0) {
+    const tableTitle = isPessoal ? "CUSTO POR IMÓVEL — PESSOA FÍSICA" : "CUSTO POR IMÓVEL — HOLDING";
+    
+    if (y + 100 > ph - margin) {
+      doc.addPage();
+      addFooter(doc, profileLabel, pw, ph, margin);
+      y = margin + 20;
+    }
+
+    doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+    doc.rect(margin, y, contentW, 22, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(255);
+    doc.text(tableTitle, margin + 10, y + 15);
+
+    y += 22 + 8;
+
+    const propertyTableBody = data.propertyBreakdown.map(p => [
+      p.propertyName.toUpperCase(),
+      money(p.despesa),
+      money(p.investimento),
+      money(p.total)
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Imóvel / Origem", "Despesas", "Investimentos", "Total"]],
+      body: propertyTableBody,
+      theme: "striped",
+      styles: { fontSize: 8, cellPadding: 5 },
+      headStyles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
+      columnStyles: {
+        0: { cellWidth: contentW * 0.4 },
+        1: { halign: "right", cellWidth: contentW * 0.2 },
+        2: { halign: "right", cellWidth: contentW * 0.2 },
+        3: { halign: "right", fontStyle: "bold", cellWidth: contentW * 0.2 }
+      },
+      margin: { left: margin, right: margin }
+    });
+    
+    y = lastY(doc) + 20;
+  }
+
   addFooter(doc, profileLabel, pw, ph, margin);
 
   doc.save(`Relatorio-${isPessoal ? 'Pessoal' : 'Holding'}-${data.from}-a-${data.to}-${Date.now()}.pdf`);
