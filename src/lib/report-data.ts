@@ -37,6 +37,8 @@ export interface LedgerEntry {
   payee: string;
   account: string;
   notes: string;
+  propertyId: string | null;
+  propertyName: string | null;
 }
 
 export interface CategoryRow { 
@@ -45,6 +47,7 @@ export interface CategoryRow {
   value: number; 
   cents: number; 
   pct: number;
+  sourceReceiptIds?: string[];
 }
 
 export interface MonthBlock {
@@ -79,6 +82,18 @@ export interface MonthBlock {
   entries: LedgerEntry[];
 }
 
+export interface PropertyRow {
+  propertyId: string | null;
+  propertyName: string;
+  despesaCents: number;
+  investimentoCents: number;
+  totalCents: number;
+  despesa: number;
+  investimento: number;
+  total: number;
+  sourceReceiptIds: string[];
+}
+
 export interface ReportDataset {
   from: string;
   to: string;
@@ -102,6 +117,7 @@ export interface ReportDataset {
     total: number;
   };
   entries: LedgerEntry[];
+  propertyBreakdown: PropertyRow[];
   meta: {
     generatedAt: string;
     rowsFetched: number;
@@ -140,8 +156,6 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       nameLower.includes("não informado") ||
       displayName === UNCATEGORIZED;
 
-    // Para categorias genéricas, usamos uma chave única baseada no recebedor ou ID do recibo
-    // Isso evita agrupar "EBAY" com "PIX MARKETPLACE" na mesma linha de "Não identificado"
     const key = isGeneric ? `gen:${e.payee}:${e.id}` : (e.categoryId ?? displayName);
     const specificName = isGeneric && e.payee !== "—" ? e.payee : displayName;
     
@@ -160,7 +174,7 @@ function groupCategories(entries: LedgerEntry[]): CategoryRow[] {
       value: centsToNumber(data.cents), 
       pct: pct(data.cents, totalCents),
       sourceReceiptIds: Array.from(data.sourceReceiptIds)
-    } as any));
+    }));
 }
 
 /**
@@ -224,6 +238,10 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
   const { data: cats, error: catError } = await supabase.from("categories").select("id, name, parent_id, default_type, expense_behavior");
   if (catError) throw new Error(`Falha ao carregar categorias: ${catError.message}`);
   const catById = new Map((cats ?? []).map((c) => [c.id, c]));
+
+  const { data: props, error: propsError } = await supabase.from("properties").select("id, name");
+  if (propsError) throw new Error(`Falha ao carregar imóveis: ${propsError.message}`);
+  const propById = new Map((props ?? []).map((p) => [p.id, p]));
 
   const rows: any[] = [];
   const PAGE = 1000;
@@ -294,7 +312,9 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       payee: r.recipient_name ?? "—",
       account: canonicalNature === "investimento" ? "INVESTIMENTOS" : "DESPESAS",
       notes: [r.description, r.notes].filter(Boolean).join("; "),
-    } as LedgerEntry & { profile_id: string }; // Mantemos profile_id para auditorias internas se necessário
+      propertyId: r.property_id || null,
+      propertyName: propById.get(r.property_id)?.name || null,
+    } as LedgerEntry & { profile_id: string; propertyId: string | null; propertyName: string | null };
   });
 
   // Conjunto Fechado (Regra 8)
@@ -361,6 +381,41 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     totalCents: acc.totalCents + m.totalCents, // This already excludes unclassified at month level
   }), { despesaCents: 0, fixedCents: 0, variableCents: 0, otherExpenseCents: 0, investimentoCents: 0, unclassifiedCents: 0, totalCents: 0 });
 
+  // CUSTO POR IMÓVEL (Regra 5, 6, 7)
+  const propMap = new Map<string | null, PropertyRow>();
+  const isHolding = f.profileId === '2906fc21-93bc-42ad-8ca3-701b94fdb5f6';
+  const generalLabel = isHolding ? "Despesas gerais da Holding / Sem imóvel vinculado" : "Geral / Sem imóvel vinculado";
+
+  for (const e of entries) {
+    const pid = e.propertyId;
+    const pname = e.propertyName || generalLabel;
+    
+    const existing = propMap.get(pid) || {
+      propertyId: pid,
+      propertyName: pname,
+      despesaCents: 0,
+      investimentoCents: 0,
+      totalCents: 0,
+      despesa: 0,
+      investimento: 0,
+      total: 0,
+      sourceReceiptIds: []
+    };
+
+    if (e.reportType === "despesa") existing.despesaCents += e.cents;
+    else if (e.reportType === "investimento") existing.investimentoCents += e.cents;
+    
+    existing.totalCents = existing.despesaCents + existing.investimentoCents;
+    existing.despesa = centsToNumber(existing.despesaCents);
+    existing.investimento = centsToNumber(existing.investimentoCents);
+    existing.total = centsToNumber(existing.totalCents);
+    existing.sourceReceiptIds.push(e.id);
+    
+    propMap.set(pid, existing);
+  }
+
+  const propertyBreakdown = [...propMap.values()].sort((a, b) => b.totalCents - a.totalCents);
+
   const first = months[0];
   const last = months[months.length - 1];
   const periodLabel = first ? (first.key === last.key ? `${first.label} de ${first.year}` : `${first.label} de ${first.year} a ${last.label} de ${last.year}`) : "Sem dados";
@@ -369,6 +424,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     from: f.from, to: f.to, periodLabel, months,
     totals: { ...totals, despesa: centsToNumber(totals.despesaCents), fixed: centsToNumber(totals.fixedCents), variable: centsToNumber(totals.variableCents), otherExpense: centsToNumber(totals.otherExpenseCents), investimento: centsToNumber(totals.investimentoCents), unclassified: centsToNumber(totals.unclassifiedCents), total: centsToNumber(totals.totalCents) },
     entries,
+    propertyBreakdown,
     meta: { generatedAt: new Date().toISOString(), rowsFetched: rows.length, rowsUsed: entries.length, filters: { from: f.from, to: f.to, profileId: f.profileId ?? null, propertyId: f.propertyId ?? null } }
   };
 }
