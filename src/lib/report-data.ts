@@ -37,6 +37,8 @@ export interface LedgerEntry {
   payee: string;
   account: string;
   notes: string;
+  propertyId: string | null;
+  propertyName: string | null;
 }
 
 export interface CategoryRow { 
@@ -310,7 +312,9 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       payee: r.recipient_name ?? "—",
       account: canonicalNature === "investimento" ? "INVESTIMENTOS" : "DESPESAS",
       notes: [r.description, r.notes].filter(Boolean).join("; "),
-    } as LedgerEntry & { profile_id: string }; // Mantemos profile_id para auditorias internas se necessário
+      propertyId: r.property_id || null,
+      propertyName: propById.get(r.property_id)?.name || null,
+    } as LedgerEntry & { profile_id: string; propertyId: string | null; propertyName: string | null };
   });
 
   // Conjunto Fechado (Regra 8)
@@ -377,6 +381,41 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     totalCents: acc.totalCents + m.totalCents, // This already excludes unclassified at month level
   }), { despesaCents: 0, fixedCents: 0, variableCents: 0, otherExpenseCents: 0, investimentoCents: 0, unclassifiedCents: 0, totalCents: 0 });
 
+  // CUSTO POR IMÓVEL (Regra 5, 6, 7)
+  const propMap = new Map<string | null, PropertyRow>();
+  const isHolding = f.profileId === '2906fc21-93bc-42ad-8ca3-701b94fdb5f6';
+  const generalLabel = isHolding ? "Despesas gerais da Holding / Sem imóvel vinculado" : "Geral / Sem imóvel vinculado";
+
+  for (const e of entries) {
+    const pid = e.propertyId;
+    const pname = e.propertyName || generalLabel;
+    
+    const existing = propMap.get(pid) || {
+      propertyId: pid,
+      propertyName: pname,
+      despesaCents: 0,
+      investimentoCents: 0,
+      totalCents: 0,
+      despesa: 0,
+      investimento: 0,
+      total: 0,
+      sourceReceiptIds: []
+    };
+
+    if (e.reportType === "despesa") existing.despesaCents += e.cents;
+    else if (e.reportType === "investimento") existing.investimentoCents += e.cents;
+    
+    existing.totalCents = existing.despesaCents + existing.investimentoCents;
+    existing.despesa = centsToNumber(existing.despesaCents);
+    existing.investimento = centsToNumber(existing.investimentoCents);
+    existing.total = centsToNumber(existing.totalCents);
+    existing.sourceReceiptIds.push(e.id);
+    
+    propMap.set(pid, existing);
+  }
+
+  const propertyBreakdown = [...propMap.values()].sort((a, b) => b.totalCents - a.totalCents);
+
   const first = months[0];
   const last = months[months.length - 1];
   const periodLabel = first ? (first.key === last.key ? `${first.label} de ${first.year}` : `${first.label} de ${first.year} a ${last.label} de ${last.year}`) : "Sem dados";
@@ -385,6 +424,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     from: f.from, to: f.to, periodLabel, months,
     totals: { ...totals, despesa: centsToNumber(totals.despesaCents), fixed: centsToNumber(totals.fixedCents), variable: centsToNumber(totals.variableCents), otherExpense: centsToNumber(totals.otherExpenseCents), investimento: centsToNumber(totals.investimentoCents), unclassified: centsToNumber(totals.unclassifiedCents), total: centsToNumber(totals.totalCents) },
     entries,
+    propertyBreakdown,
     meta: { generatedAt: new Date().toISOString(), rowsFetched: rows.length, rowsUsed: entries.length, filters: { from: f.from, to: f.to, profileId: f.profileId ?? null, propertyId: f.propertyId ?? null } }
   };
 }
