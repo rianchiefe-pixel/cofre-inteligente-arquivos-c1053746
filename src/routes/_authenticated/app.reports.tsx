@@ -120,8 +120,38 @@ function ReportsPage() {
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   
   // Regra Canônica: TOTAL = DESPESAS + INVESTIMENTOS
-  const totalExpenses = useMemo(() => rows.filter((r: any) => r.transaction_type !== 'investimento').reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
-  const totalInvestments = useMemo(() => rows.filter((r: any) => r.transaction_type === 'investimento').reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0), [rows]);
+  const { totalExpenses, totalInvestments, totalFixed, totalVariable, totalOther } = useMemo(() => {
+    let exp = 0;
+    let inv = 0;
+    let fix = 0;
+    let var_ = 0;
+    let oth = 0;
+
+    for (const r of rows) {
+      const norm = normalizeFinancialClassification({ 
+        transaction_type: r.transaction_type, 
+        expense_behavior: r.expense_behavior 
+      });
+      
+      if (norm.nature === 'investimento') {
+        inv += Number(r.amount ?? 0);
+      } else if (norm.nature === 'despesa') {
+        const val = Number(r.amount ?? 0);
+        exp += val;
+        if (norm.behavior === 'fixed') fix += val;
+        else if (norm.behavior === 'variable') var_ += val;
+        else oth += val;
+      }
+    }
+    return { 
+      totalExpenses: exp, 
+      totalInvestments: inv, 
+      totalFixed: fix, 
+      totalVariable: var_, 
+      totalOther: oth 
+    };
+  }, [rows]);
+
   const total = totalExpenses + totalInvestments;
 
 
@@ -152,14 +182,9 @@ function ReportsPage() {
       footerText: b.footer_text,
     } : null;
     const totalInvested = totalInvestments;
-    const totalFixed = rows.filter((r: any) => {
-      const norm = normalizeFinancialClassification({ transaction_type: r.transaction_type, expense_behavior: r.expense_behavior });
-      return norm.nature === 'despesa' && norm.behavior === 'fixed';
-    }).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
-    const totalVariable = rows.filter((r: any) => {
-      const norm = normalizeFinancialClassification({ transaction_type: r.transaction_type, expense_behavior: r.expense_behavior });
-      return norm.nature === 'despesa' && norm.behavior === 'variable';
-    }).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const totalFixedVal = totalFixed;
+    const totalVariableVal = totalVariable;
+    const totalOtherVal = totalOther;
 
     const groupSum = (getKey: (r: any) => string) => {
       const m: Record<string, number> = {};
@@ -181,8 +206,9 @@ function ReportsPage() {
         { label: "Total geral", value: currencyBRL(total) },
         { label: "Gasto do mês (sem investimentos)", value: currencyBRL(totalExpenses) },
         { label: "Investido", value: currencyBRL(totalInvested) },
-        { label: "Gasto fixo", value: currencyBRL(totalFixed) },
-        { label: "Gasto variável", value: currencyBRL(totalVariable) },
+        { label: "Gasto fixo", value: currencyBRL(totalFixedVal) },
+        { label: "Gasto variável", value: currencyBRL(totalVariableVal) },
+        { label: "Outras despesas", value: currencyBRL(totalOtherVal) },
         { label: "Comprovantes", value: String(rows.length) },
         { label: "Ticket médio", value: currencyBRL(rows.length ? total / rows.length : 0) },
       ],
@@ -316,8 +342,27 @@ function ReportsPage() {
           )}
 
         </Card>
+        <Card className="p-5">
+          <p className="text-xs uppercase text-muted-foreground">Despesas</p>
+          <p className="mt-2 text-2xl font-bold">{currencyBRL(totalExpenses)}</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-xs uppercase text-muted-foreground">Investimentos</p>
+          <p className="mt-2 text-2xl font-bold">{currencyBRL(totalInvestments)}</p>
+        </Card>
         <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Comprovantes</p><p className="mt-2 text-2xl font-bold">{rows.length}</p></Card>
-        <Card className="p-5"><p className="text-xs uppercase text-muted-foreground">Ticket médio</p><p className="mt-2 text-2xl font-bold">{currencyBRL(rows.length ? total / rows.length : 0)}</p></Card>
+        <Card className="p-5">
+          <p className="text-xs uppercase text-muted-foreground">Fixos</p>
+          <p className="mt-2 text-2xl font-bold text-orange-600">{currencyBRL(totalFixed)}</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-xs uppercase text-muted-foreground">Variáveis</p>
+          <p className="mt-2 text-2xl font-bold text-orange-400">{currencyBRL(totalVariable)}</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-xs uppercase text-muted-foreground">Outros</p>
+          <p className="mt-2 text-2xl font-bold text-gray-500">{currencyBRL(totalOther)}</p>
+        </Card>
       </div>
 
       {data.isError && (

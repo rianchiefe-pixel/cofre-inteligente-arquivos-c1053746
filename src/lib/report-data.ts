@@ -56,6 +56,7 @@ export interface MonthBlock {
   despesaCents: number;
   fixedCents: number;
   variableCents: number;
+  otherExpenseCents: number;
   investimentoCents: number;
   unclassifiedCents: number;
   totalCents: number;
@@ -63,6 +64,7 @@ export interface MonthBlock {
   despesa: number;
   fixed: number;
   variable: number;
+  otherExpense: number;
   investimento: number;
   unclassified: number;
   total: number;
@@ -71,6 +73,7 @@ export interface MonthBlock {
   despesaCategories: CategoryRow[];
   fixedCategories: CategoryRow[];
   variableCategories: CategoryRow[];
+  otherExpenseCategories: CategoryRow[];
   investimentoCategories: CategoryRow[];
   
   entries: LedgerEntry[];
@@ -85,6 +88,7 @@ export interface ReportDataset {
     despesaCents: number;
     fixedCents: number;
     variableCents: number;
+    otherExpenseCents: number;
     investimentoCents: number;
     unclassifiedCents: number;
     totalCents: number;
@@ -92,6 +96,7 @@ export interface ReportDataset {
     despesa: number;
     fixed: number;
     variable: number;
+    otherExpense: number;
     investimento: number;
     unclassified: number;
     total: number;
@@ -304,12 +309,14 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     const dList = list.filter(e => e.reportType === "despesa");
     const fList = list.filter(e => e.reportType === "despesa" && e.expenseBehavior === "fixed");
     const vList = list.filter(e => e.reportType === "despesa" && e.expenseBehavior === "variable");
+    const oList = list.filter(e => e.reportType === "despesa" && e.expenseBehavior === null);
     const iList = list.filter(e => e.reportType === "investimento");
     const uList = list.filter(e => e.reportType === "unclassified");
 
     const despesaCents = dList.reduce((s, e) => s + e.cents, 0);
     const fixedCents = fList.reduce((s, e) => s + e.cents, 0);
     const variableCents = vList.reduce((s, e) => s + e.cents, 0);
+    const otherExpenseCents = oList.reduce((s, e) => s + e.cents, 0);
     const investimentoCents = iList.reduce((s, e) => s + e.cents, 0);
     const unclassifiedCents = uList.reduce((s, e) => s + e.cents, 0);
     // Unclassified cents are excluded from the total to ensure consistency with visual reports
@@ -327,16 +334,18 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
       key,
       label: MONTH_NAMES[Number(m) - 1],
       year: Number(y),
-      despesaCents, fixedCents, variableCents, investimentoCents, unclassifiedCents, totalCents,
+      despesaCents, fixedCents, variableCents, otherExpenseCents, investimentoCents, unclassifiedCents, totalCents,
       despesa: centsToNumber(despesaCents),
       fixed: centsToNumber(fixedCents),
       variable: centsToNumber(variableCents),
+      otherExpense: centsToNumber(otherExpenseCents),
       investimento: centsToNumber(investimentoCents),
       unclassified: centsToNumber(unclassifiedCents),
       total: centsToNumber(totalCents),
       despesaCategories: groupCategories(dList),
       fixedCategories: groupCategories(fList),
       variableCategories: groupCategories(vList),
+      otherExpenseCategories: groupCategories(oList),
       investimentoCategories: groupCategories(iList),
       entries: list,
     };
@@ -346,10 +355,11 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     despesaCents: acc.despesaCents + m.despesaCents,
     fixedCents: acc.fixedCents + m.fixedCents,
     variableCents: acc.variableCents + m.variableCents,
+    otherExpenseCents: acc.otherExpenseCents + m.otherExpenseCents,
     investimentoCents: acc.investimentoCents + m.investimentoCents,
     unclassifiedCents: acc.unclassifiedCents + m.unclassifiedCents,
     totalCents: acc.totalCents + m.totalCents, // This already excludes unclassified at month level
-  }), { despesaCents: 0, fixedCents: 0, variableCents: 0, investimentoCents: 0, unclassifiedCents: 0, totalCents: 0 });
+  }), { despesaCents: 0, fixedCents: 0, variableCents: 0, otherExpenseCents: 0, investimentoCents: 0, unclassifiedCents: 0, totalCents: 0 });
 
   const first = months[0];
   const last = months[months.length - 1];
@@ -357,7 +367,7 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
 
   return {
     from: f.from, to: f.to, periodLabel, months,
-    totals: { ...totals, despesa: centsToNumber(totals.despesaCents), fixed: centsToNumber(totals.fixedCents), variable: centsToNumber(totals.variableCents), investimento: centsToNumber(totals.investimentoCents), unclassified: centsToNumber(totals.unclassifiedCents), total: centsToNumber(totals.totalCents) },
+    totals: { ...totals, despesa: centsToNumber(totals.despesaCents), fixed: centsToNumber(totals.fixedCents), variable: centsToNumber(totals.variableCents), otherExpense: centsToNumber(totals.otherExpenseCents), investimento: centsToNumber(totals.investimentoCents), unclassified: centsToNumber(totals.unclassifiedCents), total: centsToNumber(totals.totalCents) },
     entries,
     meta: { generatedAt: new Date().toISOString(), rowsFetched: rows.length, rowsUsed: entries.length, filters: { from: f.from, to: f.to, profileId: f.profileId ?? null, propertyId: f.propertyId ?? null } }
   };
