@@ -50,6 +50,9 @@ function ReportsPage() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [extraIncludes, setExtraIncludes] = useState<{ propertyIds: string[], categoryIds: string[], recipients: string[] }>({ propertyIds: [], categoryIds: [], recipients: [] });
+  const [openAddRecipient, setOpenAddRecipient] = useState(false);
+  const [openAddProperty, setOpenAddProperty] = useState(false);
+  const [openAddCategory, setOpenAddCategory] = useState(false);
   
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   
