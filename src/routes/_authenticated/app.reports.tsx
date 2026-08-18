@@ -163,15 +163,36 @@ function ReportsPage() {
         
         if (from) q = q.gte("payment_date", from);
         if (to) q = q.lte("payment_date", to);
-        
-        if (normalizedProfileId) {
-          q = q.eq("profile_id", normalizedProfileId);
-        }
+        if (normalizedProfileId) q = q.eq("profile_id", normalizedProfileId);
 
+        const hasNormalFilters = (type !== "all") || (normalizedPropertyIds.length > 0) || (normalizedCategoryIds.length > 0) || (selectedRecipients.length > 0);
+        const hasExtraIncludes = (extraIncludes.propertyIds.length > 0) || (extraIncludes.categoryIds.length > 0) || (extraIncludes.recipients.length > 0);
+
+        if (hasNormalFilters || hasExtraIncludes) {
+          const orParts: string[] = [];
+          
+          // Filtros normais (OR entre eles para composição do set de entrada)
+          if (type !== "all") {
+             // transaction_type não funciona bem no OR do PostgREST se quisermos AND type AND (outros).
+             // Mas o usuário quer: (Imóvel A OU Imóvel B OU Destinatário X) respeitando o tipo global se selecionado.
+             // Então o tipo continua sendo um AND global se não for "all".
+          }
+
+          if (normalizedPropertyIds.length > 0) orParts.push(`property_id.in.(${normalizedPropertyIds.join(",")})`);
+          if (normalizedCategoryIds.length > 0) orParts.push(`category_id.in.(${normalizedCategoryIds.join(",")})`);
+          if (selectedRecipients.length > 0) orParts.push(`recipient_name.in.(${selectedRecipients.map(r => `"${r}"`).join(",")})`);
+
+          // Inclusões extras (OR)
+          if (extraIncludes.propertyIds.length > 0) orParts.push(`property_id.in.(${extraIncludes.propertyIds.join(",")})`);
+          if (extraIncludes.categoryIds.length > 0) orParts.push(`category_id.in.(${extraIncludes.categoryIds.join(",")})`);
+          if (extraIncludes.recipients.length > 0) orParts.push(`recipient_name.in.(${extraIncludes.recipients.map(r => `"${r}"`).join(",")})`);
+
+          if (orParts.length > 0) {
+            q = q.or(orParts.join(","));
+          }
+        }
+        
         if (type !== "all") q = q.eq("transaction_type", type as any);
-        if (normalizedPropertyIds.length > 0) q = q.in("property_id", normalizedPropertyIds);
-        if (normalizedCategoryIds.length > 0) q = q.in("category_id", normalizedCategoryIds);
-        if (selectedRecipients.length > 0) q = q.in("recipient_name", selectedRecipients);
 
         const { data, error } = await q;
         if (error) throw error;
