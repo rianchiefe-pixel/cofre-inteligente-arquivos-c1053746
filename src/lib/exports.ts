@@ -209,7 +209,7 @@ export function exportXLSX<T>(payload: ReportPayload<T>) {
 }
 
 export function exportPDF<T>(payload: ReportPayload<T>) {
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 40;
