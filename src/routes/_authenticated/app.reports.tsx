@@ -204,7 +204,22 @@ function ReportsPage() {
     },
   });
 
-  const rows = (data.data ?? []).filter((r: any) => r.transaction_type === 'despesa' || r.transaction_type === 'investimento' || r.transaction_type === 'gasto_fixo' || r.transaction_type === 'gasto_variavel');
+  // Deduplicação rigorosa por ID para evitar somar o mesmo valor duas vezes (Regra 9, 20)
+  const rows = useMemo(() => {
+    const raw = data.data ?? [];
+    const uniqueMap = new Map();
+    for (const r of raw) {
+      if (!uniqueMap.has(r.id)) {
+        uniqueMap.set(r.id, r);
+      }
+    }
+    return Array.from(uniqueMap.values()).filter((r: any) => 
+      r.transaction_type === 'despesa' || 
+      r.transaction_type === 'investimento' || 
+      r.transaction_type === 'gasto_fixo' || 
+      r.transaction_type === 'gasto_variavel'
+    );
+  }, [data.data]);
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   
   // Regra Canônica: TOTAL = DESPESAS + INVESTIMENTOS
