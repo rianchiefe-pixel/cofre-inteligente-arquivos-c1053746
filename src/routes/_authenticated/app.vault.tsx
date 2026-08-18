@@ -355,6 +355,8 @@ function VaultPage() {
   const bulkUpdate = useServerFn(bulkUpdateReceipts);
   const bulkDelete = useServerFn(deleteReceipts);
   const archive = useServerFn(archiveReceipt);
+  const merge = useServerFn(mergeReceipts);
+  const markNotDuplicate = useServerFn(markAsNotDuplicate);
 
   const canApprove = useCan("approveReceipts");
   const canBulk = useCan("bulkActions");
