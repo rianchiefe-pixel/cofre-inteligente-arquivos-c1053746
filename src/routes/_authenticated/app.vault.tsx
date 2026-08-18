@@ -1905,12 +1905,40 @@ function ReceiptPanel({
   rec,
   url,
   tone,
+  compareWith,
 }: {
   title: string;
   rec: any;
   url: string | null;
   tone: "new" | "old";
+  compareWith?: any;
 }) {
+  if (!rec) {
+    return (
+      <Card className="grid place-items-center p-8 text-sm text-muted-foreground border-dashed">
+        Nenhum registro para comparar.
+      </Card>
+    );
+  }
+
+  const getDiff = (field: string, val: any) => {
+    if (!compareWith) return null;
+    const otherVal = compareWith[field];
+    
+    // Normalize for comparison
+    const norm = (v: any) => {
+      if (v === null || v === undefined) return "";
+      if (typeof v === "string") return v.trim().toLowerCase();
+      if (typeof v === "number") return v.toFixed(2);
+      return String(v);
+    };
+
+    const isDifferent = norm(val) !== norm(otherVal);
+    if (!isDifferent) return <span className="ml-1 text-[10px] text-success">🟢 Igual</span>;
+    if (val && !otherVal) return <span className="ml-1 text-[10px] text-yellow-600">🟡 Novo dado</span>;
+    return <span className="ml-1 text-[10px] text-destructive">🔴 Diferente</span>;
+  };
+
   return (
     <Card className={`p-3 ${tone === "new" ? "border-primary/50" : "border-muted"}`}>
       <div className="mb-2 flex items-center justify-between">
@@ -1934,24 +1962,53 @@ function ReceiptPanel({
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
         <dt className="text-muted-foreground">Valor</dt>
-        <dd className="font-medium">{currencyBRL(Number(rec.amount ?? 0))}</dd>
+        <dd className="font-medium">
+          {currencyBRL(Number(rec.amount ?? 0))}
+          {getDiff("amount", rec.amount)}
+        </dd>
+        
         <dt className="text-muted-foreground">Data</dt>
-        <dd>{dateBR(rec.payment_date)}</dd>
+        <dd>
+          {dateBR(rec.payment_date)}
+          {getDiff("payment_date", rec.payment_date)}
+        </dd>
+        
         <dt className="text-muted-foreground">Destinatário</dt>
-        <dd className="truncate">{rec.recipient_name ?? "—"}</dd>
+        <dd className="truncate">
+          {rec.recipient_name ?? "—"}
+          {getDiff("recipient_name", rec.recipient_name)}
+        </dd>
+        
         <dt className="text-muted-foreground">Banco</dt>
-        <dd>{rec.banks?.name ?? rec.bank_name ?? "—"}</dd>
+        <dd>
+          {rec.banks?.name ?? rec.bank_name ?? "—"}
+          {getDiff("bank_name", rec.bank_name)}
+        </dd>
+        
         <dt className="text-muted-foreground">Cód. autenticação</dt>
-        <dd className="truncate">{rec.auth_code ?? "—"}</dd>
+        <dd className="truncate">
+          {rec.auth_code ?? "—"}
+          {getDiff("auth_code", rec.auth_code)}
+        </dd>
+        
         <dt className="text-muted-foreground">Categoria</dt>
-        <dd>{rec.category?.name ?? "—"}</dd>
+        <dd>
+          {rec.category?.name ?? "—"}
+          {getDiff("category_id", rec.category_id)}
+        </dd>
+        
         <dt className="text-muted-foreground">Perfil</dt>
-        <dd>{rec.financial_profiles?.name ?? "—"}</dd>
+        <dd>
+          {rec.financial_profiles?.name ?? "—"}
+          {getDiff("profile_id", rec.profile_id)}
+        </dd>
+        
         <dt className="text-muted-foreground">Tipo</dt>
         <dd>
           {rec.transaction_type
             ? transactionTypeLabel[rec.transaction_type as keyof typeof transactionTypeLabel]
             : "—"}
+          {getDiff("transaction_type", rec.transaction_type)}
         </dd>
       </dl>
     </Card>
