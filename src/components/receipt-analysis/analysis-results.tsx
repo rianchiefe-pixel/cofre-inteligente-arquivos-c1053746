@@ -32,6 +32,7 @@ import { downloadAnalysisZip } from "@/lib/receipt-analysis.functions";
 import { useServerFn } from "@tanstack/react-start";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { AnalysisCompareDialog } from "./analysis-compare-dialog";
 
 type Batch = {
   id: string;
@@ -231,14 +232,8 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
         <Card className="p-4 bg-red-50">
           <p className="text-xs text-red-600">ERROS</p>
           <p className="text-2xl font-bold text-red-700">{batch.errors}</p>
-      </Card>
-
-      <AnalysisCompareDialog 
-        file={compareFile} 
-        open={!!compareFile} 
-        onOpenChange={(open) => !open && setCompareFile(null)} 
-      />
-    </div>
+        </Card>
+      </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
@@ -368,6 +363,12 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
           </TableBody>
         </Table>
       </Card>
+
+      <AnalysisCompareDialog 
+        file={compareFile} 
+        open={!!compareFile} 
+        onOpenChange={(open: boolean) => !open && setCompareFile(null)} 
+      />
     </div>
   );
 }
