@@ -32,6 +32,10 @@ import { downloadAnalysisZip } from "@/lib/receipt-analysis.functions";
 import { useServerFn } from "@tanstack/react-start";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { Database } from "@/integrations/supabase/types";
+
+type Batch = Database["public"]["Tables"]["receipt_analysis_batches"]["Row"];
+type AnalysisFile = Database["public"]["Tables"]["receipt_analysis_files"]["Row"];
 
 interface AnalysisResultsProps {
   batchId: string;
@@ -52,7 +56,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
         .eq("id", batchId)
         .single();
       if (error) throw error;
-      return data;
+      return data as Batch;
     },
     refetchInterval: (query) => {
       return query.state.data?.status === "processing" ? 2000 : false;
@@ -68,7 +72,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
         .eq("batch_id", batchId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as AnalysisFile[];
     },
     refetchInterval: (query) => {
       return batch?.status === "processing" ? 2000 : false;
@@ -97,7 +101,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
   const toggleAll = () => {
     // Somente não localizados podem ser selecionados (Regra 29)
     const notFoundFiles = filteredFiles.filter(f => f.analysis_status === "not_found");
-    if (selectedIds.size === notFoundFiles.length) {
+    if (selectedIds.size === notFoundFiles.length && selectedIds.size > 0) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(notFoundFiles.map(f => f.id)));
@@ -105,11 +109,15 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
   };
 
   const handleDownload = async () => {
-    if (selectedIds.size === 0) return;
+    const idsToDownload = selectedIds.size > 0 
+      ? Array.from(selectedIds) 
+      : files?.filter(f => f.analysis_status === "not_found").map(f => f.id) || [];
+      
+    if (idsToDownload.length === 0) return;
     
-    const toastId = toast.loading(`Preparando ZIP com ${selectedIds.size} arquivos...`);
+    const toastId = toast.loading(`Preparando ZIP com ${idsToDownload.length} arquivos...`);
     try {
-      const urls = await downloadZipFn({ fileIds: Array.from(selectedIds) });
+      const urls = await downloadZipFn({ data: { fileIds: idsToDownload } });
       if (!urls.length) throw new Error("Nenhum arquivo encontrado para download.");
 
       const zip = new JSZip();
@@ -153,6 +161,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
       case "not_found": return "Não localizado";
       case "possible_match": return "Revisar";
       case "error": return "Erro";
+      case "duplicate_in_zip": return "Duplicado (ZIP)";
       default: return "Processando";
     }
   };
@@ -199,7 +208,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
             </Button>
           )}
           {batch.not_found > 0 && selectedIds.size === 0 && (
-            <Button onClick={toggleAll} variant="outline" className="gap-2">
+            <Button onClick={handleDownload} variant="outline" className="gap-2">
               <Download className="h-4 w-4" /> Baixar não lançados ({batch.not_found})
             </Button>
           )}
@@ -275,7 +284,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
                   </div>
                 </TableCell>
                 <TableCell>{f.payment_date ? dateBR(f.payment_date) : "—"}</TableCell>
-                <TableCell>{f.amount ? currencyBRL(f.amount) : "—"}</TableCell>
+                <TableCell>{f.amount ? currencyBRL(Number(f.amount)) : "—"}</TableCell>
                 <TableCell className="max-w-[150px] truncate">{f.recipient_name || "—"}</TableCell>
                 <TableCell>
                   {f.similarity_score ? (
