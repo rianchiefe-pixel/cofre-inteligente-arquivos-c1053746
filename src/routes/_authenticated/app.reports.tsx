@@ -388,7 +388,7 @@ function ReportsPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-3 md:items-end">
+        <div className="mt-4 grid gap-4 md:grid-cols-3 md:items-start">
           <div className="space-y-2">
             <Label>Imóveis</Label>
             <MultiSelect
@@ -397,6 +397,115 @@ function ReportsPage() {
               selected={selectedPropertyIds}
               onChange={setSelectedPropertyIds}
             />
+            
+            <div className="mt-2 flex flex-col gap-2">
+              <Select onValueChange={(val) => {
+                if (val === "recipient") {
+                  // Handled by the dialog/popover below
+                  document.getElementById("btn-add-recipient")?.click();
+                } else if (val === "property") {
+                  document.getElementById("btn-add-property")?.click();
+                } else if (val === "category") {
+                  document.getElementById("btn-add-category")?.click();
+                }
+              }}>
+                <SelectTrigger className="h-7 w-fit border-dashed bg-transparent text-[11px] hover:bg-muted">
+                  <span className="flex items-center gap-1"><RefreshCw className="h-3 w-3" /> + Adicionar ao relatório</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recipient">Destinatários</SelectItem>
+                  <SelectItem value="property">Imóveis</SelectItem>
+                  <SelectItem value="category">Categorias</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Inclusões extras UI */}
+              {(extraIncludes.recipients.length > 0 || extraIncludes.propertyIds.length > 0 || extraIncludes.categoryIds.length > 0) && (
+                <div className="mt-2 space-y-2 rounded-lg border border-dashed p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Inclusões adicionais</p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-5 px-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setExtraIncludes({ propertyIds: [], categoryIds: [], recipients: [] })}
+                    >
+                      Limpar inclusões
+                    </Button>
+                  </div>
+                  
+                  {extraIncludes.recipients.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground">Destinatários:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {extraIncludes.recipients.map(r => (
+                          <span key={r} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                            {r}
+                            <button onClick={() => setExtraIncludes(prev => ({ ...prev, recipients: prev.recipients.filter(x => x !== r) }))} className="hover:text-red-600">×</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {extraIncludes.propertyIds.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground">Imóveis:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {extraIncludes.propertyIds.map(id => {
+                          const name = properties.data?.find(p => p.id === id)?.name || id;
+                          return (
+                            <span key={id} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                              {name}
+                              <button onClick={() => setExtraIncludes(prev => ({ ...prev, propertyIds: prev.propertyIds.filter(x => x !== id) }))} className="hover:text-red-600">×</button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {extraIncludes.categoryIds.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground">Categorias:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {extraIncludes.categoryIds.map(id => {
+                          const name = categories.data?.find(c => c.id === id)?.name || id;
+                          return (
+                            <span key={id} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                              {name}
+                              <button onClick={() => setExtraIncludes(prev => ({ ...prev, categoryIds: prev.categoryIds.filter(x => x !== id) }))} className="hover:text-red-600">×</button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Hidden MultiSelects triggered by Select */}
+              <div className="hidden">
+                <MultiSelect
+                  id="btn-add-recipient"
+                  options={recipients.data ?? []}
+                  selected={extraIncludes.recipients}
+                  onChange={(vals) => setExtraIncludes(prev => ({ ...prev, recipients: vals }))}
+                />
+                <MultiSelect
+                  id="btn-add-property"
+                  options={(properties.data ?? []).map(p => ({ label: p.name, value: p.id }))}
+                  selected={extraIncludes.propertyIds}
+                  onChange={(vals) => setExtraIncludes(prev => ({ ...prev, propertyIds: vals }))}
+                />
+                <MultiSelect
+                  id="btn-add-category"
+                  options={(categories.data ?? []).map(c => ({ label: c.name, value: c.id }))}
+                  selected={extraIncludes.categoryIds}
+                  onChange={(vals) => setExtraIncludes(prev => ({ ...prev, categoryIds: vals }))}
+                />
+              </div>
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Categorias</Label>
