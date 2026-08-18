@@ -66,7 +66,7 @@ function AnalyzeReceiptsPage() {
             <h2 className="text-xl font-bold">Análises recentes</h2>
           </div>
           <div className="grid gap-4">
-            {history.map(batch => (
+            {history.map((batch: any) => (
               <Card 
                 key={batch.id} 
                 className="p-4 hover:bg-muted/50 cursor-pointer transition-colors"
