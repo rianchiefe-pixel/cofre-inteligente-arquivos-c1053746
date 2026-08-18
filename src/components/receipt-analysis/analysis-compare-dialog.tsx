@@ -206,9 +206,11 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant={file.similarity_score >= 90 ? "default" : "secondary"} className="h-7 text-sm px-3">
-                Score: {file.similarity_score}%
-              </Badge>
+              {hasScore && (
+                <Badge variant={file.similarity_score >= 90 ? "default" : "secondary"} className="h-7 text-sm px-3">
+                  Score: {file.similarity_score}%
+                </Badge>
+              )}
               {file.analysis_status === 'already_posted' ? (
                 <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none h-7 px-3">
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Já Lançado
