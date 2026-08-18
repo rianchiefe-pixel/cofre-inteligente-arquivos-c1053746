@@ -77,6 +77,8 @@ import {
   analyzeReceipt,
   updateReceiptConference,
   archiveReceipt,
+  mergeReceipts,
+  markAsNotDuplicate,
 } from "@/lib/receipts.functions";
 import { generateFixedVariableReport } from "@/lib/report-templates";
 import { loadReportDataset, MONTH_NAMES } from "@/lib/report-data";
