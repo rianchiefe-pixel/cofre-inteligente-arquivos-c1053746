@@ -45,16 +45,29 @@ export async function processAnalysisZip(
   const entries: { path: string; entry: JSZip.JSZipObject }[] = [];
   
   // 1. Identificar arquivos válidos (Regra 10)
+  const entries: { path: string; entry: JSZip.JSZipObject }[] = [];
   zip.forEach((path, entry) => {
     if (entry.dir) return;
-    const lower = path.toLowerCase();
-    if (lower.includes("__macosx") || lower.includes(".ds_store") || lower.includes("thumbs.db")) return;
+    
+    // Ignorar lixo de sistema
+    const lowerPath = path.toLowerCase();
+    if (
+      lowerPath.includes("__macosx") ||
+      lowerPath.endsWith(".ds_store") ||
+      lowerPath.endsWith("thumbs.db")
+    ) {
+      return;
+    }
     
     const ext = path.split(".").pop()?.toLowerCase();
     if (ext && ["pdf", "jpg", "jpeg", "png", "webp"].includes(ext)) {
       entries.push({ path, entry });
     }
   });
+
+  if (entries.length === 0) {
+    throw new Error("O ZIP não contém comprovantes válidos.");
+  }
 
   // 2. Criar o lote de análise
   const { data: batch, error: bErr } = await (supabase as any)
