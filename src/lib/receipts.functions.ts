@@ -692,18 +692,21 @@ export const mergeReceipts = createServerFn({ method: "POST" })
 
     for (const field of fieldsToMerge) {
       const selection = data.selections?.[field];
+      const sourceVal = (source as any)[field];
+      const targetVal = (target as any)[field];
+      
       if (selection === "source") {
-        merged[field] = source[field];
+        merged[field] = sourceVal;
       } else if (selection === "target") {
-        merged[field] = target[field];
+        merged[field] = targetVal;
       } else {
         // Default: use non-null value, prioritize target (existing) if both exist
-        merged[field] = target[field] ?? source[field];
+        merged[field] = targetVal ?? sourceVal;
       }
     }
 
     // Update target and delete source
-    const { error: upErr } = await supabase.from("receipts").update(merged).eq("id", data.targetId);
+    const { error: upErr } = await supabase.from("receipts").update(merged as any).eq("id", data.targetId);
     if (upErr) throw new Error(`Erro ao atualizar registro: ${upErr.message}`);
 
     const { error: delErr } = await supabase.from("receipts").delete().eq("id", data.sourceId);
