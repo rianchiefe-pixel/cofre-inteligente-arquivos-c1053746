@@ -167,7 +167,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="px-3 py-4 border-b border-sidebar-border/40 mb-2">
             <ProfileSelector />
           </div>
-          <nav className="space-y-0.5 p-3">
+          <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto scrollbar-hide">
             {visibleNav.map(({ to, label, icon: Icon }) => {
               const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
               return (
