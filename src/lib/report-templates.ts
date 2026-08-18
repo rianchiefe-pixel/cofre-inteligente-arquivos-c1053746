@@ -199,6 +199,22 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     filterSummary.push(`Destinatários: ${filters.recipients.join(", ")}`);
   }
 
+  // Inclusões extras no cabeçalho (Regra 13)
+  const extras = filters.extraIncludes;
+  if (extras) {
+    if (extras.propertyIds.length > 0) {
+      const names = [...new Set(data.entries.filter(e => e.propertyId && extras.propertyIds.includes(e.propertyId)).map(e => e.propertyName))].filter(Boolean);
+      filterSummary.push(`[Extra] Imóveis: ${names.join(", ")}`);
+    }
+    if (extras.categoryIds.length > 0) {
+      const names = [...new Set(data.entries.filter(e => e.categoryId && extras.categoryIds.includes(e.categoryId)).map(e => e.categoryName))].filter(Boolean);
+      filterSummary.push(`[Extra] Categorias: ${names.join(", ")}`);
+    }
+    if (extras.recipients.length > 0) {
+      filterSummary.push(`[Extra] Destinatários: ${extras.recipients.join(", ")}`);
+    }
+  }
+
   if (filterSummary.length > 0) {
     doc.setFontSize(8);
     doc.setTextColor(100);

@@ -122,7 +122,19 @@ export interface ReportDataset {
     generatedAt: string;
     rowsFetched: number;
     rowsUsed: number;
-    filters: { from: string; to: string; profileId: string | null; propertyIds: string[] | null; categoryIds: string[] | null; recipients: string[] | null };
+    filters: { 
+      from: string; 
+      to: string; 
+      profileId: string | null; 
+      propertyIds: string[] | null; 
+      categoryIds: string[] | null; 
+      recipients: string[] | null;
+      extraIncludes?: {
+        propertyIds: string[];
+        categoryIds: string[];
+        recipients: string[];
+      } | null;
+    };
   };
 }
 
@@ -238,6 +250,11 @@ export async function loadReportDataset(f: {
   propertyIds?: string[] | null;
   categoryIds?: string[] | null;
   recipients?: string[] | null;
+  extraIncludes?: {
+    propertyIds: string[];
+    categoryIds: string[];
+    recipients: string[];
+  } | null;
 }): Promise<ReportDataset> {
 
   if (!f.profileId || f.profileId === "all") {
@@ -264,9 +281,43 @@ export async function loadReportDataset(f: {
     if (f.from) q = q.gte("payment_date", f.from);
     if (f.to) q = q.lte("payment_date", f.to);
     if (f.profileId) q = q.eq("profile_id", f.profileId);
-    if (f.propertyIds && f.propertyIds.length > 0) q = q.in("property_id", f.propertyIds);
-    if (f.categoryIds && f.categoryIds.length > 0) q = q.in("category_id", f.categoryIds);
-    if (f.recipients && f.recipients.length > 0) q = q.in("recipient_name", f.recipients);
+    const hasNormalFilters = (f.propertyIds && f.propertyIds.length > 0) || (f.categoryIds && f.categoryIds.length > 0) || (f.recipients && f.recipients.length > 0);
+    const hasExtraIncludes = f.extraIncludes && (f.extraIncludes.propertyIds.length > 0 || f.extraIncludes.categoryIds.length > 0 || f.extraIncludes.recipients.length > 0);
+
+    if (hasNormalFilters || hasExtraIncludes) {
+      const orParts: string[] = [];
+      
+      // Filtros normais (AND entre si se existirem, mas aqui estamos montando o set de "o que entra")
+      // Na verdade, o usuário quer: (Imóvel A OU Imóvel B OU Destinatário X)
+      // Então todos os critérios de "o que entra" são OR.
+      
+      if (f.propertyIds && f.propertyIds.length > 0) {
+        orParts.push(`property_id.in.(${f.propertyIds.join(",")})`);
+      }
+      if (f.categoryIds && f.categoryIds.length > 0) {
+        orParts.push(`category_id.in.(${f.categoryIds.join(",")})`);
+      }
+      if (f.recipients && f.recipients.length > 0) {
+        orParts.push(`recipient_name.in.(${f.recipients.map(r => `"${r}"`).join(",")})`);
+      }
+
+      // Inclusões extras
+      if (f.extraIncludes) {
+        if (f.extraIncludes.propertyIds.length > 0) {
+          orParts.push(`property_id.in.(${f.extraIncludes.propertyIds.join(",")})`);
+        }
+        if (f.extraIncludes.categoryIds.length > 0) {
+          orParts.push(`category_id.in.(${f.extraIncludes.categoryIds.join(",")})`);
+        }
+        if (f.extraIncludes.recipients.length > 0) {
+          orParts.push(`recipient_name.in.(${f.extraIncludes.recipients.map(r => `"${r}"`).join(",")})`);
+        }
+      }
+
+      if (orParts.length > 0) {
+        q = q.or(orParts.join(","));
+      }
+    }
 
     const { data, error } = await q;
     if (error) throw new Error(`Falha ao carregar lançamentos: ${error.message}`);
@@ -279,16 +330,22 @@ export async function loadReportDataset(f: {
   }
   console.log('REPORT_FETCH_FINISHED', { rowsFetched: rows.length });
 
-  // Deduplicação básica por hash/import_row
+  // Deduplicação absoluta por receipt.id (Regra 9, 20, 21)
   const usable: any[] = [];
+  const seenIds = new Set<string>();
   const seenCanonical = new Set<string>();
+  
   for (const r of rows) {
     if (!r.payment_date) continue;
+    if (seenIds.has(r.id)) continue;
+    
     const canonical = r.file_hash ? `h:${r.file_hash}|${r.payment_date}|${toCents(r.amount)}` : (r.import_row_id ? `i:${r.import_row_id}` : null);
     if (canonical) {
       if (seenCanonical.has(canonical)) continue;
       seenCanonical.add(canonical);
     }
+    
+    seenIds.add(r.id);
     usable.push(r);
   }
 
@@ -436,6 +493,6 @@ export async function loadReportDataset(f: {
     totals: { ...totals, despesa: centsToNumber(totals.despesaCents), fixed: centsToNumber(totals.fixedCents), variable: centsToNumber(totals.variableCents), otherExpense: centsToNumber(totals.otherExpenseCents), investimento: centsToNumber(totals.investimentoCents), unclassified: centsToNumber(totals.unclassifiedCents), total: centsToNumber(totals.totalCents) },
     entries,
     propertyBreakdown,
-    meta: { generatedAt: new Date().toISOString(), rowsFetched: rows.length, rowsUsed: entries.length, filters: { from: f.from, to: f.to, profileId: f.profileId ?? null, propertyIds: f.propertyIds ?? null, categoryIds: f.categoryIds ?? null, recipients: f.recipients ?? null } }
+    meta: { generatedAt: new Date().toISOString(), rowsFetched: rows.length, rowsUsed: entries.length, filters: { from: f.from, to: f.to, profileId: f.profileId ?? null, propertyIds: f.propertyIds ?? null, categoryIds: f.categoryIds ?? null, recipients: f.recipients ?? null, extraIncludes: f.extraIncludes } }
   };
 }
