@@ -434,7 +434,7 @@ function VaultPage() {
   }, [q]);
 
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType],
+    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType, "audit-v10"],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
