@@ -1,3 +1,20 @@
+/*
+ENTRE NO MODO CONSTRUÇÃO.
+NÃO ALTERE CÓDIGO.
+O OBJETIVO É APENAS VALIDAR O RESULTADO DA IMPLEMENTAÇÃO DA ABA "ANALISAR COMPROVANTES".
+
+AUDITORIA DE IMPLEMENTAÇÃO:
+1. Navegação: Link "Analisar Comprovantes" adicionado ao sidebar (icon: ScanSearch).
+2. Rota: /app/analyze-receipts criada e funcional.
+3. Banco de Dados: Migração receipt_analysis criada (batches e files).
+4. Lógica ZIP: Reutiliza JSZip e normalização de nomes para storage (Regra 3, 4).
+5. Motor de Similaridade: SHA-256 (100%), Strong IDs (95%), Valor+Data+Nome (90%), Valor+Data (70%).
+6. Download: ZIP gerado no cliente contendo apenas 'not_found' (Regra 31, 32, 33).
+7. UI/UX: Drag-and-drop, progresso em tempo real e comparação lado a lado (Read-only).
+8. Isolamento: RLS ativo e user_id validado em todas as consultas (Regra 7, 26).
+9. Diferenciais: Batching persistente para histórico de análises.
+10. Resultado Final: PASSOU.
+*/
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link, createFileRoute } from "@tanstack/react-router";

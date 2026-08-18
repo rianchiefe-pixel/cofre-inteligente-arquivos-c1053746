@@ -19,6 +19,7 @@ import {
   ShieldAlert,
   ListTodo,
   Scale,
+  ScanSearch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Per
   { to: "/app/upload", label: "Enviar comprovantes", icon: Upload, perm: "uploadReceipts" },
   { to: "/app/import", label: "Importação Inteligente", icon: Upload, perm: "importData" },
   { to: "/app/vault", label: "Cofre", icon: FolderLock },
+  { to: "/app/analyze-receipts", label: "Analisar Comprovantes", icon: ScanSearch },
   { to: "/app/fixed-expenses", label: "Gastos Fixos", icon: ListTodo },
   { to: "/app/categories", label: "Categorias", icon: Tags, perm: "manageEntities" },
   { to: "/app/categories/pending", label: "Pendências de Categorização", icon: ShieldAlert, perm: "manageEntities" },
