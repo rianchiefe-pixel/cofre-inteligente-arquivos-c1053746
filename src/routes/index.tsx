@@ -111,7 +111,7 @@ function LandingPage() {
             <p>22. exibição de diferenças (different_fields): SIM;</p>
             <p>23. comparativo visual 🟢🟡🔴: SIM;</p>
             <p>24. ação de mesclagem inteligente: SIM (mergeReceipts);</p>
-            <p>25. preservação de dados na mesclagem (não-nulo > nulo): SIM;</p>
+            <p>25. preservação de dados na mesclagem (não-nulo {">"} nulo): SIM;</p>
             <p>26. ação "Manter como novo" (markAsNotDuplicate): SIM;</p>
             <p>27. resultado final do sistema de duplicidade: PASSOU.</p>
           </div>
