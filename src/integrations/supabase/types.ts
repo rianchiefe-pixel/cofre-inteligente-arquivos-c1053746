@@ -669,6 +669,66 @@ export type Database = {
           },
         ]
       }
+      duplicate_checks: {
+        Row: {
+          candidate_receipt_id: string
+          created_at: string
+          different_fields: string[] | null
+          id: string
+          matched_fields: string[] | null
+          new_receipt_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          similarity_score: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          candidate_receipt_id: string
+          created_at?: string
+          different_fields?: string[] | null
+          id?: string
+          matched_fields?: string[] | null
+          new_receipt_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          similarity_score?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          candidate_receipt_id?: string
+          created_at?: string
+          different_fields?: string[] | null
+          id?: string
+          matched_fields?: string[] | null
+          new_receipt_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          similarity_score?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_checks_candidate_receipt_id_fkey"
+            columns: ["candidate_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_checks_new_receipt_id_fkey"
+            columns: ["new_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_profiles: {
         Row: {
           accent_color: string | null
