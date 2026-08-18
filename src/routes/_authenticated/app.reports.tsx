@@ -412,11 +412,11 @@ function ReportsPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" disabled={modelLoading !== null} onClick={() => runModelReport("monthly")}>
+              <Button variant="outline" disabled={!normalizedProfileId || modelLoading !== null} onClick={() => runModelReport("monthly")}>
                 {modelLoading === "monthly" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 Relatório de gastos (mensal)
               </Button>
-              <Button variant="outline" disabled={modelLoading !== null} onClick={() => runModelReport("fixed")}>
+              <Button variant="outline" disabled={!normalizedProfileId || modelLoading !== null} onClick={() => runModelReport("fixed")}>
                 {modelLoading === "fixed" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 Gastos fixos e variáveis
               </Button>
