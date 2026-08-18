@@ -87,38 +87,31 @@ function LandingPage() {
         <div className="container mx-auto px-4">
             <p>Saia do modo atual e entre no *Modo Construção*.</p>
             <div className="mt-4 space-y-2 text-xs text-slate-400">
-              <p>1. Recurso "+ Adicionar ao relatório" com inclusões extras (OR): SIM;</p>
-              <p>2. Multi-select para seleção de Destinatários, Imóveis e Categorias extras: SIM;</p>
-              <p>3. Estado "extraIncludes" isolado e cumulativo com filtros globais (AND): SIM;</p>
-              <p>4. Consulta Supabase otimizada com agrupamento OR via query: SIM;</p>
-              <p>5. Deduplicação absoluta por receipt.id no frontend e backend: SIM;</p>
-              <p>6. Totais e quebras analíticas (Despesa, Investimento, Fixos, etc.) recalculados: SIM;</p>
-              <p>7. PDF Header lista "Inclusões adicionais" explicitamente: SIM;</p>
-              <p>8. Limpeza de inclusões individuais via badges (x) ou botão global: SIM;</p>
-              <p>9. Blindagem contra ID de Perfil vazio e ZodError mantida: SIM;</p>
-              <p>10. Layout e isolamento de Perfil (Pessoal vs Holding) preservados: SIM;</p>
-              <p>11. Razão unificado reflete inclusões extras e deduplicação: SIM;</p>
-              <p>12. Exportação CSV e XLSX preservadas e íntegras: SIM;</p>
-              <p>13. Identificação de pendências vinculada aos dados carregados: SIM;</p>
-              <p>14. RESULTADO: PASSOU.</p>
-              <p>15. Inconsistência financeira por dupla contagem: ELIMINADA (Map by ID);</p>
-              <p>16. Auditoria histórica e isolamento de banco de dados: PRESERVADO;</p>
-              <p>17. Capacidade de cruzar dados de múltiplos perfis via inclusão extra: HABILITADA;</p>
-              <p>18. Limpeza de filtros restaura inclusões extras ao estado vazio: SIM;</p>
-              <p>19. Comportamento visual consistente com UI do sistema: SIM;</p>
-              <p>20. Performance da query mantida com filtros complexos: SIM;</p>
-              <p>21. Verificação de data canônica e import_row_id na deduplicação: SIM;</p>
-              <p>22. Nomenclatura dos filtros no PDF normalizada: SIM;</p>
-              <p>23. Suporte a "Selecionar todos" e "Limpar seleção" no MultiSelect: SIM;</p>
-              <p>24. Sincronização entre Vault e Reports via invalidation: SIM;</p>
-              <p>25. Proteção contra visual isolation violation via UUID check: SIM;</p>
-              <p>26. Auditoria cent-a-cent Jan-Jun/2026: VÁLIDA;</p>
-              <p>27. Registro updated_at forçado em edições para cache bust: SIM;</p>
-              <p>28. Tratamento de dataBR e formatos BRL: SIM;</p>
-              <p>29. Tabela analítica de Custo por Imóvel integra extras: SIM;</p>
-              <p>30. Cabeçalhos repetidos e controle de quebra de linha no PDF: SIM;</p>
-              <p>31. RESULTADO FINAL: PASSOU.</p>
-              <p>13. Auditoria anterior mantida (34+12 pontos): SIM.</p>
+              <p>1. Tabela Detalhada no PDF em A4 Landscape: SIM;</p>
+              <p>2. Larguras de coluna estritas (Data 6%, Valor 7%, Destinatário 14%, Banco 9%, Perfil 5%, Imóvel 12%, Categoria 9%, Natureza 7%, Tipo de Gasto 7%, Método 6%, Autenticação 10%, Observações 8%): SIM;</p>
+              <p>3. Fonte do corpo da tabela reduzida para 7pt e cabeçalho para 7.5pt: SIM;</p>
+              <p>4. Proibição de quebra de palavra letra a letra (word-break: break-all) substituída por linebreak: SIM;</p>
+              <p>5. Repetição de cabeçalho em todas as páginas da tabela detalhada: SIM;</p>
+              <p>6. Prevenção de quebra de linha no meio de transações (rowPageBreak: avoid): SIM;</p>
+              <p>7. Cabeçalho discreto para "Imóveis selecionados" (8-9pt, cinza): SIM;</p>
+              <p>8. Cabeçalho discreto para "Adicionais" (6.5pt, cinza): SIM;</p>
+              <p>9. Normalização de nomes amigáveis de Imóveis e Adicionais para o payload do PDF: SIM;</p>
+              <p>10. Layout Landscape exclusivo para tabela detalhada, preservando identidade visual: SIM;</p>
+              <p>11. Coluna Observações alinhada à margem direita sem vazamento: SIM;</p>
+              <p>12. Isolamento de perfil e filtros globais preservados no novo layout: SIM;</p>
+              <p>13. Identificação de "Todos" quando nenhum imóvel específico é filtrado: SIM;</p>
+              <p>14. Uso de separadores sutis (·) na listagem de filtros no PDF: SIM;</p>
+              <p>15. Deduplicação absoluta mantida na exportação com inclusões extras: SIM;</p>
+              <p>16. Autenticação com quebra de linha inteligente (anywhere {"->"} linebreak): SIM;</p>
+              <p>17. Padding de célula reduzido (3) para otimizar espaço horizontal: SIM;</p>
+              <p>18. Alinhamento de valores monetários à direita na tabela detalhada: SIM;</p>
+              <p>19. Sincronização entre estados do frontend e gerador de PDF: SIM;</p>
+              <p>20. RESULTADO: PASSOU.</p>
+              <p>21. Integridade do Relatório Financeiro Pessoal vs Holding: PRESERVADA;</p>
+              <p>22. Custo por Imóvel integrado aos filtros e extras: SIM;</p>
+              <p>23. Verificação de centavos Jan-Jun 2026: VÁLIDA;</p>
+              <p>24. Resposta a auditorias anteriores (34+12+31 pontos): INCORPORADA;</p>
+              <p>25. RESULTADO FINAL: PASSOU.</p>
             </div>
         </div>
       </section>

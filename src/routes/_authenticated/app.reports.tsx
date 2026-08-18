@@ -287,6 +287,21 @@ function ReportsPage() {
       secondaryColor: b.secondary_color, accentColor: b.accent_color,
       footerText: b.footer_text,
     } : null;
+
+    const selectedPropertyNames = properties.data
+      ?.filter(p => normalizedPropertyIds.includes(p.id))
+      .map(p => p.name) || [];
+    
+    const extraIncludeNames = {
+      propertyNames: properties.data
+        ?.filter(p => extraIncludes.propertyIds.includes(p.id))
+        .map(p => p.name) || [],
+      categoryNames: categories.data
+        ?.filter(c => extraIncludes.categoryIds.includes(c.id))
+        .map(c => c.name) || [],
+      recipients: extraIncludes.recipients
+    };
+
     const totalInvested = totalInvestments;
     const totalFixedVal = totalFixed;
     const totalVariableVal = totalVariable;
@@ -305,6 +320,8 @@ function ReportsPage() {
     return {
       title: "Relatório Financeiro",
       subtitle: profileId !== "all" ? (profiles.data ?? []).find((p) => p.id === profileId)?.name : "Consolidado",
+      selectedPropertyNames,
+      extraIncludeNames,
       period: { from, to },
       filters: { from, to, profileId, type, propertyIds: selectedPropertyIds, categoryIds: selectedCategoryIds, recipients: selectedRecipients, extraIncludes } as any,
       brand,
