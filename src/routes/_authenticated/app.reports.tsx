@@ -260,7 +260,7 @@ function ReportsPage() {
 
   // Razão unificado (comprovantes + lançamentos de cartão, sem dupla contagem).
   const ledger = useQuery({
-    queryKey: ["ledger", from, to, normalizedProfileId, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients],
+    queryKey: ["ledger", from, to, normalizedProfileId, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients, extraIncludes],
     enabled: Boolean(normalizedProfileId),
     queryFn: () =>
       ledgerFn({
