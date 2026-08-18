@@ -301,6 +301,9 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                         <Button variant="outline" size="sm" onClick={() => window.open(fileUrl || "", "_blank")} disabled={!fileUrl}>
                           Abrir em nova aba
                         </Button>
+                        <Button variant="outline" size="sm" asChild disabled={!fileUrl}>
+                          <a href={fileUrl || ""} download={file.file_name}>Baixar arquivo</a>
+                        </Button>
                       </div>
                     </div>
                   </div>
