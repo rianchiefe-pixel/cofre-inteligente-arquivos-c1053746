@@ -1697,30 +1697,89 @@ function CompareDialog({
     enabled: !!receiptId,
     queryFn: async () => {
       // 1. Load basic records (Transactions/Receipts metadata)
-      const { data: newRec } = await supabase
+      const { data: newRec, error: newError } = await supabase
         .from("receipts")
-        .select("*, category:categories(name), financial_profiles(name), banks(name)")
+        .select(`
+          *,
+          category:categories!receipts_category_id_fkey(name),
+          financial_profiles:financial_profiles!receipts_profile_id_fkey(name),
+          banks:banks!receipts_bank_id_fkey(name)
+        `)
         .eq("id", receiptId!)
         .single();
-      if (!newRec) return null;
+
+      if (newError) {
+        console.error("[CompareDialog] Erro ao carregar lançamento novo:", newError);
+        throw new Error(
+          `Erro ao carregar lançamento novo: ${newError.message} (${newError.code ?? "sem código"})`
+        );
+      }
+
+      if (!newRec) {
+        throw new Error("O lançamento novo não foi encontrado.");
+      }
 
       let oldRec = null;
       if (newRec.duplicate_of) {
-        const { data } = await supabase
+        const { data: oldData, error: oldError } = await supabase
           .from("receipts")
-          .select("*, category:categories(name), financial_profiles(name), banks(name)")
+          .select(`
+            *,
+            category:categories!receipts_category_id_fkey(name),
+            financial_profiles:financial_profiles!receipts_profile_id_fkey(name),
+            banks:banks!receipts_bank_id_fkey(name)
+          `)
           .eq("id", newRec.duplicate_of)
           .maybeSingle();
-        oldRec = data;
+
+        if (oldError) {
+          console.error("[CompareDialog] Erro ao carregar candidato:", oldError);
+        } else {
+          oldRec = oldData;
+        }
+      }
+
+      // Fallback for candidate if duplicate_of is missing
+      if (!oldRec) {
+        const { data: fallbackCheck } = await supabase
+          .from("duplicate_checks")
+          .select("*")
+          .eq("new_receipt_id", newRec.id)
+          .order("similarity_score", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (fallbackCheck?.candidate_receipt_id) {
+          const { data: fallbackRec } = await supabase
+            .from("receipts")
+            .select(`
+              *,
+              category:categories!receipts_category_id_fkey(name),
+              financial_profiles:financial_profiles!receipts_profile_id_fkey(name),
+              banks:banks!receipts_bank_id_fkey(name)
+            `)
+            .eq("id", fallbackCheck.candidate_receipt_id)
+            .maybeSingle();
+          oldRec = fallbackRec;
+        }
       }
 
       // 2. Load duplicate check details
-      const { data: check } = await supabase
-        .from("duplicate_checks")
-        .select("*")
-        .eq("new_receipt_id", newRec.id)
-        .eq("candidate_receipt_id", oldRec?.id ?? "")
-        .maybeSingle();
+      let check = null;
+      if (oldRec?.id) {
+        const { data: checkData, error: checkError } = await supabase
+          .from("duplicate_checks")
+          .select("*")
+          .eq("new_receipt_id", newRec.id)
+          .eq("candidate_receipt_id", oldRec.id)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error("[CompareDialog] Erro ao carregar duplicate_check:", checkError);
+        } else {
+          check = checkData;
+        }
+      }
 
       // 3. Load file URLs independently to avoid blocking on file errors
       const getFileUrl = async (path: string | null) => {
