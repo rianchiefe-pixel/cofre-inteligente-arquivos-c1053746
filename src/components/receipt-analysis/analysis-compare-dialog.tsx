@@ -271,17 +271,16 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <p className="text-xs">Carregando visualização...</p>
                   </div>
-                ) : viewerStatus === "success" && fileUrl ? (
+                ) : viewerStatus === "success" && objectUrl ? (
                   <div className="w-full h-full p-2 overflow-auto">
-                    {file.mime_type?.includes("pdf") ? (
+                    {resolveMimeType(file) === "application/pdf" ? (
                       <iframe 
-                        src={fileUrl} 
+                        src={objectUrl} 
                         className="w-full h-full border-none rounded shadow-sm"
-                        onLoad={() => console.log("[ANALYZE VIEWER] PDF Loaded")}
                       />
                     ) : (
                       <img 
-                        src={fileUrl} 
+                        src={objectUrl} 
                         className="max-w-full h-auto mx-auto rounded shadow-sm" 
                         onLoad={() => console.log("[ANALYZE VIEWER] Image Loaded")}
                         onError={() => setViewerStatus("error")}
