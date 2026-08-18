@@ -52,10 +52,10 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
         .from("receipts")
         .select(`
           *,
-          category:categories(name),
-          profile:financial_profiles(name),
-          bank:banks(name),
-          property:properties(name)
+          category:categories!receipts_category_id_fkey(name),
+          profile:financial_profiles!receipts_profile_id_fkey(name),
+          bank:banks!receipts_bank_id_fkey(name),
+          property:properties!receipts_property_id_fkey(name)
         `)
         .eq("id", file.candidate_receipt_id)
         .single();

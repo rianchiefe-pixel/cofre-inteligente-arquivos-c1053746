@@ -87,6 +87,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [compareFile, setCompareFile] = useState<AnalysisFile | null>(null);
   const downloadZipFn = useServerFn(downloadAnalysisZip);
 
   const { data: batch, isLoading: isBatchLoading } = useQuery({
@@ -230,8 +231,14 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
         <Card className="p-4 bg-red-50">
           <p className="text-xs text-red-600">ERROS</p>
           <p className="text-2xl font-bold text-red-700">{batch.errors}</p>
-        </Card>
-      </div>
+      </Card>
+
+      <AnalysisCompareDialog 
+        file={compareFile} 
+        open={!!compareFile} 
+        onOpenChange={(open) => !open && setCompareFile(null)} 
+      />
+    </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
@@ -336,12 +343,22 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
                   ) : "—"}
                 </TableCell>
                 <TableCell className="text-right">
-                  {f.analysis_status === "already_posted" ? (
-                    <Button variant="ghost" size="sm" className="gap-2">
+                  {f.analysis_status === "already_posted" || f.analysis_status === "possible_match" ? (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => setCompareFile(f)}
+                    >
                       <GitCompareArrows className="h-4 w-4" /> Comparar
                     </Button>
                   ) : (
-                    <Button variant="ghost" size="sm" className="gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => setCompareFile(f)}
+                    >
                       <Eye className="h-4 w-4" /> Visualizar
                     </Button>
                   )}
