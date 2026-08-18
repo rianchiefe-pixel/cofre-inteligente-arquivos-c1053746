@@ -303,7 +303,7 @@ function ReportsPage() {
       title: "Relatório Financeiro",
       subtitle: profileId !== "all" ? (profiles.data ?? []).find((p) => p.id === profileId)?.name : "Consolidado",
       period: { from, to },
-      filters: { from, to, profileId, type, propertyIds: selectedPropertyIds, categoryIds: selectedCategoryIds, recipients: selectedRecipients } as any,
+      filters: { from, to, profileId, type, propertyIds: selectedPropertyIds, categoryIds: selectedCategoryIds, recipients: selectedRecipients, extraIncludes } as any,
       brand,
       summary: [
         { label: "Total geral", value: currencyBRL(total) },
