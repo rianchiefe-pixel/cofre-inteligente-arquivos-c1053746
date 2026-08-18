@@ -28,6 +28,8 @@ interface MultiSelectProps {
   className?: string;
   onSelectAll?: () => void;
   onClearSelection?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function MultiSelect({
@@ -39,8 +41,12 @@ export function MultiSelect({
   className,
   onSelectAll,
   onClearSelection,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
 }: MultiSelectProps) {
-  const [open, setOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = setControlledOpen ?? setInternalOpen;
 
   const handleUnselect = (value: string) => {
     onChange(selected.filter((s) => s !== value));

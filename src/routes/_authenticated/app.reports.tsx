@@ -49,6 +49,10 @@ function ReportsPage() {
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [extraIncludes, setExtraIncludes] = useState<{ propertyIds: string[], categoryIds: string[], recipients: string[] }>({ propertyIds: [], categoryIds: [], recipients: [] });
+  const [openAddRecipient, setOpenAddRecipient] = useState(false);
+  const [openAddProperty, setOpenAddProperty] = useState(false);
+  const [openAddCategory, setOpenAddCategory] = useState(false);
   
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   
@@ -81,6 +85,7 @@ function ReportsPage() {
         propertyIds: normalizedPropertyIds.length > 0 ? normalizedPropertyIds : null,
         categoryIds: normalizedCategoryIds.length > 0 ? normalizedCategoryIds : null,
         recipients: selectedRecipients.length > 0 ? selectedRecipients : null,
+        extraIncludes: extraIncludes,
       });
       if (!dataset.months.length) {
         toast.error("Nenhum lançamento aprovado no período selecionado.");
@@ -136,7 +141,8 @@ function ReportsPage() {
   });
 
   const data = useQuery({
-    queryKey: ["report", from, to, normalizedProfileId, type, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients],
+    queryKey: ["report", from, to, normalizedProfileId, type, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients, extraIncludes],
+
 
     queryFn: async () => {
       if (!normalizedProfileId) {
@@ -160,15 +166,36 @@ function ReportsPage() {
         
         if (from) q = q.gte("payment_date", from);
         if (to) q = q.lte("payment_date", to);
-        
-        if (normalizedProfileId) {
-          q = q.eq("profile_id", normalizedProfileId);
-        }
+        if (normalizedProfileId) q = q.eq("profile_id", normalizedProfileId);
 
+        const hasNormalFilters = (type !== "all") || (normalizedPropertyIds.length > 0) || (normalizedCategoryIds.length > 0) || (selectedRecipients.length > 0);
+        const hasExtraIncludes = (extraIncludes.propertyIds.length > 0) || (extraIncludes.categoryIds.length > 0) || (extraIncludes.recipients.length > 0);
+
+        if (hasNormalFilters || hasExtraIncludes) {
+          const orParts: string[] = [];
+          
+          // Filtros normais (OR entre eles para composição do set de entrada)
+          if (type !== "all") {
+             // transaction_type não funciona bem no OR do PostgREST se quisermos AND type AND (outros).
+             // Mas o usuário quer: (Imóvel A OU Imóvel B OU Destinatário X) respeitando o tipo global se selecionado.
+             // Então o tipo continua sendo um AND global se não for "all".
+          }
+
+          if (normalizedPropertyIds.length > 0) orParts.push(`property_id.in.(${normalizedPropertyIds.join(",")})`);
+          if (normalizedCategoryIds.length > 0) orParts.push(`category_id.in.(${normalizedCategoryIds.join(",")})`);
+          if (selectedRecipients.length > 0) orParts.push(`recipient_name.in.(${selectedRecipients.map(r => `"${r}"`).join(",")})`);
+
+          // Inclusões extras (OR)
+          if (extraIncludes.propertyIds.length > 0) orParts.push(`property_id.in.(${extraIncludes.propertyIds.join(",")})`);
+          if (extraIncludes.categoryIds.length > 0) orParts.push(`category_id.in.(${extraIncludes.categoryIds.join(",")})`);
+          if (extraIncludes.recipients.length > 0) orParts.push(`recipient_name.in.(${extraIncludes.recipients.map(r => `"${r}"`).join(",")})`);
+
+          if (orParts.length > 0) {
+            q = q.or(orParts.join(","));
+          }
+        }
+        
         if (type !== "all") q = q.eq("transaction_type", type as any);
-        if (normalizedPropertyIds.length > 0) q = q.in("property_id", normalizedPropertyIds);
-        if (normalizedCategoryIds.length > 0) q = q.in("category_id", normalizedCategoryIds);
-        if (selectedRecipients.length > 0) q = q.in("recipient_name", selectedRecipients);
 
         const { data, error } = await q;
         if (error) throw error;
@@ -180,7 +207,22 @@ function ReportsPage() {
     },
   });
 
-  const rows = (data.data ?? []).filter((r: any) => r.transaction_type === 'despesa' || r.transaction_type === 'investimento' || r.transaction_type === 'gasto_fixo' || r.transaction_type === 'gasto_variavel');
+  // Deduplicação rigorosa por ID para evitar somar o mesmo valor duas vezes (Regra 9, 20)
+  const rows = useMemo(() => {
+    const raw = data.data ?? [];
+    const uniqueMap = new Map();
+    for (const r of raw) {
+      if (!uniqueMap.has(r.id)) {
+        uniqueMap.set(r.id, r);
+      }
+    }
+    return Array.from(uniqueMap.values()).filter((r: any) => 
+      r.transaction_type === 'despesa' || 
+      r.transaction_type === 'investimento' || 
+      r.transaction_type === 'gasto_fixo' || 
+      r.transaction_type === 'gasto_variavel'
+    );
+  }, [data.data]);
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   
   // Regra Canônica: TOTAL = DESPESAS + INVESTIMENTOS
@@ -221,7 +263,7 @@ function ReportsPage() {
 
   // Razão unificado (comprovantes + lançamentos de cartão, sem dupla contagem).
   const ledger = useQuery({
-    queryKey: ["ledger", from, to, normalizedProfileId, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients],
+    queryKey: ["ledger", from, to, normalizedProfileId, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients, extraIncludes],
     enabled: Boolean(normalizedProfileId),
     queryFn: () =>
       ledgerFn({
@@ -264,7 +306,7 @@ function ReportsPage() {
       title: "Relatório Financeiro",
       subtitle: profileId !== "all" ? (profiles.data ?? []).find((p) => p.id === profileId)?.name : "Consolidado",
       period: { from, to },
-      filters: { from, to, profileId, type, propertyIds: selectedPropertyIds, categoryIds: selectedCategoryIds, recipients: selectedRecipients } as any,
+      filters: { from, to, profileId, type, propertyIds: selectedPropertyIds, categoryIds: selectedCategoryIds, recipients: selectedRecipients, extraIncludes } as any,
       brand,
       summary: [
         { label: "Total geral", value: currencyBRL(total) },
@@ -349,7 +391,7 @@ function ReportsPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-3 md:items-end">
+        <div className="mt-4 grid gap-4 md:grid-cols-3 md:items-start">
           <div className="space-y-2">
             <Label>Imóveis</Label>
             <MultiSelect
@@ -358,6 +400,116 @@ function ReportsPage() {
               selected={selectedPropertyIds}
               onChange={setSelectedPropertyIds}
             />
+            
+            <div className="mt-2 flex flex-col gap-2">
+              <Select onValueChange={(val) => {
+                if (val === "recipient") {
+                  setOpenAddRecipient(true);
+                } else if (val === "property") {
+                  setOpenAddProperty(true);
+                } else if (val === "category") {
+                  setOpenAddCategory(true);
+                }
+              }}>
+                <SelectTrigger className="h-7 w-fit border-dashed bg-transparent text-[11px] hover:bg-muted">
+                  <span className="flex items-center gap-1"><RefreshCw className="h-3 w-3" /> + Adicionar ao relatório</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recipient">Destinatários</SelectItem>
+                  <SelectItem value="property">Imóveis</SelectItem>
+                  <SelectItem value="category">Categorias</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Inclusões extras UI */}
+              {(extraIncludes.recipients.length > 0 || extraIncludes.propertyIds.length > 0 || extraIncludes.categoryIds.length > 0) && (
+                <div className="mt-2 space-y-2 rounded-lg border border-dashed p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Inclusões adicionais</p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-5 px-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setExtraIncludes({ propertyIds: [], categoryIds: [], recipients: [] })}
+                    >
+                      Limpar inclusões
+                    </Button>
+                  </div>
+                  
+                  {extraIncludes.recipients.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground">Destinatários:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {extraIncludes.recipients.map(r => (
+                          <span key={r} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                            {r}
+                            <button onClick={() => setExtraIncludes(prev => ({ ...prev, recipients: prev.recipients.filter(x => x !== r) }))} className="hover:text-red-600">×</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {extraIncludes.propertyIds.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground">Imóveis:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {extraIncludes.propertyIds.map(id => {
+                          const name = properties.data?.find(p => p.id === id)?.name || id;
+                          return (
+                            <span key={id} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                              {name}
+                              <button onClick={() => setExtraIncludes(prev => ({ ...prev, propertyIds: prev.propertyIds.filter(x => x !== id) }))} className="hover:text-red-600">×</button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {extraIncludes.categoryIds.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground">Categorias:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {extraIncludes.categoryIds.map(id => {
+                          const name = categories.data?.find(c => c.id === id)?.name || id;
+                          return (
+                            <span key={id} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                              {name}
+                              <button onClick={() => setExtraIncludes(prev => ({ ...prev, categoryIds: prev.categoryIds.filter(x => x !== id) }))} className="hover:text-red-600">×</button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="hidden">
+                <MultiSelect
+                  open={openAddRecipient}
+                  onOpenChange={setOpenAddRecipient}
+                  options={recipients.data ?? []}
+                  selected={extraIncludes.recipients}
+                  onChange={(vals) => setExtraIncludes(prev => ({ ...prev, recipients: vals }))}
+                />
+                <MultiSelect
+                  open={openAddProperty}
+                  onOpenChange={setOpenAddProperty}
+                  options={(properties.data ?? []).map(p => ({ label: p.name, value: p.id }))}
+                  selected={extraIncludes.propertyIds}
+                  onChange={(vals) => setExtraIncludes(prev => ({ ...prev, propertyIds: vals }))}
+                />
+                <MultiSelect
+                  open={openAddCategory}
+                  onOpenChange={setOpenAddCategory}
+                  options={(categories.data ?? []).map(c => ({ label: c.name, value: c.id }))}
+                  selected={extraIncludes.categoryIds}
+                  onChange={(vals) => setExtraIncludes(prev => ({ ...prev, categoryIds: vals }))}
+                />
+              </div>
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Categorias</Label>
@@ -393,6 +545,7 @@ function ReportsPage() {
               setSelectedPropertyIds([]);
               setSelectedCategoryIds([]);
               setSelectedRecipients([]);
+              setExtraIncludes({ propertyIds: [], categoryIds: [], recipients: [] });
             }}
           >
             Limpar filtros
