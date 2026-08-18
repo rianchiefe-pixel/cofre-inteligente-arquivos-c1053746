@@ -426,7 +426,10 @@ function VaultPage() {
 
   // Busca é aplicada no servidor (com debounce) para não depender de um teto de linhas.
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q.trim()), 350);
+    const t = setTimeout(() => {
+      console.log("Setting debouncedQ:", q.trim());
+      setDebouncedQ(q.trim());
+    }, 350);
     return () => clearTimeout(t);
   }, [q]);
 
