@@ -114,6 +114,13 @@ function LandingPage() {
             <p>25. preservação de dados na mesclagem (não-nulo {">"} nulo): SIM;</p>
             <p>26. ação "Manter como novo" (markAsNotDuplicate): SIM;</p>
             <p>27. resultado final do sistema de duplicidade: PASSOU.</p>
+            <p>28. desacoplamento de arquivos no modal: SIM (getFileUrl independente);</p>
+            <p>29. Promise.allSettled ou Try/Catch individual para URLs: SIM;</p>
+            <p>30. erro "Não foi possível carregar os comprovantes" corrigido: SIM;</p>
+            <p>31. exibição de fallback "Sem arquivo" ou "Arquivo indisponível": SIM;</p>
+            <p>32. abertura do modal garantida mesmo com erros de storage: SIM;</p>
+            <p>33. candidate_transaction_id recuperado via duplicate_of: SIM;</p>
+            <p>34. resultado final da correção: PASSOU.</p>
           </div>
         </div>
       </section>

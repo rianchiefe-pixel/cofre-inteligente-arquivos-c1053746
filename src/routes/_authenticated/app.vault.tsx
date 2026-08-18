@@ -65,6 +65,8 @@ import {
   Maximize2,
   FilterX,
   Sparkles,
+  AlertCircle,
+  FileWarning,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -1694,6 +1696,7 @@ function CompareDialog({
     queryKey: ["compare", receiptId],
     enabled: !!receiptId,
     queryFn: async () => {
+      // 1. Load basic records (Transactions/Receipts metadata)
       const { data: newRec } = await supabase
         .from("receipts")
         .select("*, category:categories(name), financial_profiles(name), banks(name)")
@@ -1701,14 +1704,17 @@ function CompareDialog({
         .single();
       if (!newRec) return null;
 
-      const { data: oldRec } = newRec.duplicate_of
-        ? await supabase
-            .from("receipts")
-            .select("*, category:categories(name), financial_profiles(name), banks(name)")
-            .eq("id", newRec.duplicate_of)
-            .maybeSingle()
-        : { data: null };
+      let oldRec = null;
+      if (newRec.duplicate_of) {
+        const { data } = await supabase
+          .from("receipts")
+          .select("*, category:categories(name), financial_profiles(name), banks(name)")
+          .eq("id", newRec.duplicate_of)
+          .maybeSingle();
+        oldRec = data;
+      }
 
+      // 2. Load duplicate check details
       const { data: check } = await supabase
         .from("duplicate_checks")
         .select("*")
@@ -1716,20 +1722,29 @@ function CompareDialog({
         .eq("candidate_receipt_id", oldRec?.id ?? "")
         .maybeSingle();
 
+      // 3. Load file URLs independently to avoid blocking on file errors
+      const getFileUrl = async (path: string | null) => {
+        if (!path) return null;
+        try {
+          const { data, error } = await supabase.storage
+            .from("receipts")
+            .createSignedUrl(path, 600);
+          if (error) {
+            console.warn("Could not generate signed URL for path:", path, error);
+            return null;
+          }
+          return data?.signedUrl ?? null;
+        } catch (e) {
+          console.error("Error in getFileUrl:", e);
+          return null;
+        }
+      };
+
       const [newUrl, oldUrl] = await Promise.all([
-        newRec.file_path
-          ? supabase.storage
-              .from("receipts")
-              .createSignedUrl(newRec.file_path, 600)
-              .then((r) => r.data?.signedUrl ?? null)
-          : null,
-        oldRec?.file_path
-          ? supabase.storage
-              .from("receipts")
-              .createSignedUrl(oldRec.file_path, 600)
-              .then((r) => r.data?.signedUrl ?? null)
-          : null,
+        getFileUrl(newRec.file_path),
+        getFileUrl(oldRec?.file_path ?? null),
       ]);
+
       return { newRec, oldRec, newUrl, oldUrl, check };
     },
   });
@@ -1951,15 +1966,27 @@ function ReceiptPanel({
         {statusBadge(rec.status)}
       </div>
       <div className="mb-3 h-64 overflow-hidden rounded border border-border bg-muted/40">
-        {url ? (
+        {!rec.file_path ? (
+          <div className="grid h-full place-items-center text-center p-4">
+            <div>
+              <AlertCircle className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
+              <p className="text-xs font-medium text-muted-foreground">Sem arquivo anexado</p>
+              <p className="mt-1 text-[10px] text-muted-foreground/60">Este lançamento foi criado sem um comprovante físico.</p>
+            </div>
+          </div>
+        ) : url ? (
           rec.file_mime?.startsWith("image/") ? (
             <img src={url} alt={title} className="h-full w-full object-contain" />
           ) : (
             <iframe src={url} title={title} className="h-full w-full" />
           )
         ) : (
-          <div className="grid h-full place-items-center text-xs text-muted-foreground">
-            Sem prévia
+          <div className="grid h-full place-items-center text-center p-4">
+            <div>
+              <FileWarning className="mx-auto mb-2 h-8 w-8 text-yellow-500/50" />
+              <p className="text-xs font-medium text-muted-foreground">Arquivo indisponível</p>
+              <p className="mt-1 text-[10px] text-muted-foreground/60">Não foi possível carregar a prévia do arquivo.</p>
+            </div>
           </div>
         )}
       </div>
