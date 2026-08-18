@@ -65,6 +65,8 @@ import {
   Maximize2,
   FilterX,
   Sparkles,
+  AlertCircle,
+  FileWarning,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
