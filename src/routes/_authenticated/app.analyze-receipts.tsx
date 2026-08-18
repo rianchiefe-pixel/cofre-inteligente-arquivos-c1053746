@@ -21,7 +21,7 @@ function AnalyzeReceiptsPage() {
   const { data: history } = useQuery({
     queryKey: ["analysis_history"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("receipt_analysis_batches")
         .select("*")
         .order("created_at", { ascending: false })

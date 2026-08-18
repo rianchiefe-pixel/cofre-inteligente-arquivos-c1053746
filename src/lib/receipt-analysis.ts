@@ -49,7 +49,7 @@ export async function processAnalysisZip(
   });
 
   // 2. Criar o lote de análise
-  const { data: batch, error: bErr } = await supabase
+  const { data: batch, error: bErr } = await (supabase as any)
     .from("receipt_analysis_batches")
     .insert({
       user_id: userId,
@@ -85,7 +85,7 @@ export async function processAnalysisZip(
       
       // Regra 34: Duplicidade dentro do próprio ZIP
       if (processedHashes.has(hash)) {
-        await supabase.from("receipt_analysis_files").insert({
+        await (supabase as any).from("receipt_analysis_files").insert({
           batch_id: batch.id,
           user_id: userId,
           original_path: path,
@@ -111,7 +111,7 @@ export async function processAnalysisZip(
       const facts = extractReceiptFacts(text); // Placeholder, a IA preencherá melhor depois
 
       // Criar registro inicial do arquivo
-      const { data: analysisFile, error: fErr } = await supabase
+      const { data: analysisFile, error: fErr } = await (supabase as any)
         .from("receipt_analysis_files")
         .insert({
           batch_id: batch.id,
@@ -140,7 +140,7 @@ export async function processAnalysisZip(
         .limit(1);
 
       if (hashMatch?.length) {
-        await supabase.from("receipt_analysis_files").update({
+        await (supabase as any).from("receipt_analysis_files").update({
           analysis_status: "already_posted",
           candidate_receipt_id: hashMatch[0].id,
           similarity_score: 100,
@@ -149,7 +149,7 @@ export async function processAnalysisZip(
         progress.alreadyFound++;
       } else {
         // Marcamos como not_found por enquanto, a UI pode permitir rodar IA individualmente
-        await supabase.from("receipt_analysis_files").update({
+        await (supabase as any).from("receipt_analysis_files").update({
           analysis_status: "not_found"
         }).eq("id", analysisFile.id);
         progress.notFound++;
@@ -166,7 +166,7 @@ export async function processAnalysisZip(
   }
 
   // Finalizar lote
-  await supabase.from("receipt_analysis_batches").update({
+  await (supabase as any).from("receipt_analysis_batches").update({
     status: "finished",
     files_processed: progress.filesProcessed,
     already_found: progress.alreadyFound,

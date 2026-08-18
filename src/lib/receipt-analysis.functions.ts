@@ -15,7 +15,7 @@ export const findAnalysisCandidates = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     
     // 1. Carregar os dados do arquivo de análise
-    const { data: file, error: fErr } = await supabase
+    const { data: file, error: fErr } = await (supabase as any)
       .from("receipt_analysis_files")
       .select("*")
       .eq("id", data.fileId)
@@ -127,24 +127,20 @@ export const downloadAnalysisZip = createServerFn({ method: "POST" })
     fileIds: z.array(z.string().uuid())
   }).parse(data))
   .handler(async ({ data, context }) => {
-    // Esta função seria idealmente processada no servidor para juntar os arquivos
-    // No entanto, para evitar download de muitos MBs no worker, podemos retornar
-    // as URLs assinadas e o JSZip faz o trabalho no cliente, ou implementar via API Route.
-    // Para simplificar e garantir performance, vamos retornar os metadados necessários.
     const { supabase, userId } = context;
     
-    const { data: files, error } = await supabase
+    const { data: files, error } = await (supabase as any)
       .from("receipt_analysis_files")
       .select("id, original_path, storage_path, analysis_status, file_name")
       .in("id", data.fileIds)
       .eq("user_id", userId)
-      .eq("analysis_status", "not_found"); // Regra 33: Validar status no backend
+      .eq("analysis_status", "not_found"); 
     
     if (error || !files) throw new Error("Erro ao carregar arquivos para download");
 
     // Gerar URLs assinadas
     const results = [];
-    for (const f of files) {
+    for (const f of (files as any[])) {
       if (!f.storage_path) continue;
       const { data: signed } = await supabase.storage
         .from("receipts")

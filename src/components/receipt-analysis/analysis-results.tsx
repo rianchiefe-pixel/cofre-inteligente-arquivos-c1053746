@@ -92,7 +92,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
   const { data: batch, isLoading: isBatchLoading } = useQuery({
     queryKey: ["analysis_batch", batchId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("receipt_analysis_batches")
         .select("*")
         .eq("id", batchId)
@@ -108,7 +108,7 @@ export function AnalysisResults({ batchId }: AnalysisResultsProps) {
   const { data: files, isLoading: isFilesLoading } = useQuery({
     queryKey: ["analysis_files", batchId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("receipt_analysis_files")
         .select("*")
         .eq("batch_id", batchId)
