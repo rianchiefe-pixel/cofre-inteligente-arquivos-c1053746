@@ -82,6 +82,7 @@ function ReportsPage() {
         propertyIds: normalizedPropertyIds.length > 0 ? normalizedPropertyIds : null,
         categoryIds: normalizedCategoryIds.length > 0 ? normalizedCategoryIds : null,
         recipients: selectedRecipients.length > 0 ? selectedRecipients : null,
+        extraIncludes: extraIncludes,
       });
       if (!dataset.months.length) {
         toast.error("Nenhum lançamento aprovado no período selecionado.");
