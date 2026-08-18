@@ -36,8 +36,22 @@ interface AnalysisCompareDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function resolveMimeType(file: any): string {
+  if (file.mime_type) return file.mime_type;
+  const ext = file.extension || file.file_name?.split(".").pop()?.toLowerCase() || "";
+  const map: Record<string, string> = {
+    pdf: "application/pdf",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+  };
+  return map[ext] || "application/octet-stream";
+}
+
 export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisCompareDialogProps) {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [viewerStatus, setViewerStatus] = useState<"idle" | "loading" | "success" | "no_file" | "error">("idle");
   const [candidateFileUrl, setCandidateFileUrl] = useState<string | null>(null);
   const [candidateStatus, setCandidateStatus] = useState<"loading" | "success" | "no_candidate" | "not_found" | "error">("loading");
