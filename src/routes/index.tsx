@@ -102,7 +102,7 @@ function LandingPage() {
               <p>13. Identificação de "Todos" quando nenhum imóvel específico é filtrado: SIM;</p>
               <p>14. Uso de separadores sutis (·) na listagem de filtros no PDF: SIM;</p>
               <p>15. Deduplicação absoluta mantida na exportação com inclusões extras: SIM;</p>
-              <p>16. Autenticação com quebra de linha inteligente (anywhere -> linebreak): SIM;</p>
+              <p>16. Autenticação com quebra de linha inteligente (anywhere {"->"} linebreak): SIM;</p>
               <p>17. Padding de célula reduzido (3) para otimizar espaço horizontal: SIM;</p>
               <p>18. Alinhamento de valores monetários à direita na tabela detalhada: SIM;</p>
               <p>19. Sincronização entre estados do frontend e gerador de PDF: SIM;</p>
