@@ -33,7 +33,15 @@ export async function processAnalysisZip(
   userId: string,
   onProgress: AnalysisCallback
 ): Promise<string> {
-  const zip = await JSZip.loadAsync(file);
+  let zip;
+  try {
+    zip = await JSZip.loadAsync(file);
+  } catch (error) {
+    console.error("[ANALYZE] JSZip.loadAsync falhou:", error);
+    throw new Error(
+      "Não foi possível abrir o ZIP. Verifique se o arquivo está íntegro e não possui senha."
+    );
+  }
   const entries: { path: string; entry: JSZip.JSZipObject }[] = [];
   
   // 1. Identificar arquivos válidos (Regra 10)
