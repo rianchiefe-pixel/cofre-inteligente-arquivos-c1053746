@@ -1107,7 +1107,7 @@ function VaultPage() {
             </Select>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
             <div className="space-y-1">
               <Label className="text-[10px] uppercase text-muted-foreground">Categoria</Label>
               <MultiSelect
@@ -1190,6 +1190,22 @@ function VaultPage() {
                   <SelectItem value="all">Todas</SelectItem>
                   <SelectItem value="despesa">Despesa</SelectItem>
                   <SelectItem value="investimento">Investimento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-muted-foreground">Imóvel</Label>
+              <Select value={propertyId} onValueChange={setPropertyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os imóveis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os imóveis</SelectItem>
+                  {(properties.data ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
