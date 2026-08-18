@@ -1964,15 +1964,27 @@ function ReceiptPanel({
         {statusBadge(rec.status)}
       </div>
       <div className="mb-3 h-64 overflow-hidden rounded border border-border bg-muted/40">
-        {url ? (
+        {!rec.file_path ? (
+          <div className="grid h-full place-items-center text-center p-4">
+            <div>
+              <AlertCircle className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
+              <p className="text-xs font-medium text-muted-foreground">Sem arquivo anexado</p>
+              <p className="mt-1 text-[10px] text-muted-foreground/60">Este lançamento foi criado sem um comprovante físico.</p>
+            </div>
+          </div>
+        ) : url ? (
           rec.file_mime?.startsWith("image/") ? (
             <img src={url} alt={title} className="h-full w-full object-contain" />
           ) : (
             <iframe src={url} title={title} className="h-full w-full" />
           )
         ) : (
-          <div className="grid h-full place-items-center text-xs text-muted-foreground">
-            Sem prévia
+          <div className="grid h-full place-items-center text-center p-4">
+            <div>
+              <FileWarning className="mx-auto mb-2 h-8 w-8 text-yellow-500/50" />
+              <p className="text-xs font-medium text-muted-foreground">Arquivo indisponível</p>
+              <p className="mt-1 text-[10px] text-muted-foreground/60">Não foi possível carregar a prévia do arquivo.</p>
+            </div>
           </div>
         )}
       </div>
