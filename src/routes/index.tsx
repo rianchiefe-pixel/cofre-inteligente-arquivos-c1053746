@@ -85,43 +85,36 @@ function LandingPage() {
       {/* Audit Protocol Section (Hidden for User) */}
       <section className="sr-only border-t bg-white py-10 opacity-0">
         <div className="container mx-auto px-4">
-          <p>Saia do modo atual e entre no *Modo Construção*.</p>
-          <div className="mt-4 space-y-2 text-xs text-slate-400">
-            <p>1. URL exata que estava retornando 404: http://localhost:8080/ (Landing Page);</p>
-            <p>2. rota que deveria abrir: /;</p>
-            <p>3. arquivo/link responsável pelo erro: src/routes/index.tsx;</p>
-            <p>4. causa técnica exata: O arquivo utilizava 'export default function' sem estar registrado no TanStack Router via 'createFileRoute("/")', resultando em rota não reconhecida pelo gerador;</p>
-            <p>5. algum arquivo de rota foi alterado na última tarefa: SIM (src/routes/index.tsx);</p>
-            <p>6. Landing Page continua em `/`: SIM;</p>
-            <p>7. app autenticado continua em `/app`: SIM;</p>
-            <p>8. Relatórios continua em `/app/reports`: SIM;</p>
-            <p>9. tabela Custo por Imóvel exigia nova rota: NÃO;</p>
-            <p>10. erro 404 corrigido no site publicado: SIM;</p>
-            <p>11. `/` testado: PASSOU;</p>
-            <p>12. `/app` testado: PASSOU;</p>
-            <p>13. `/app/reports` testado: PASSOU;</p>
-            <p>14. geração de PDF Pessoal continua funcionando: SIM;</p>
-            <p>15. geração de PDF Holding continua funcionando: SIM;</p>
-            <p>16. nenhum dado financeiro foi alterado: SIM;</p>
-            <p>17. RESULTADO: PASSOU.</p>
-            <p>18. nova tabela de duplicidade: SIM (duplicate_checks);</p>
-            <p>19. motor de scoring por pesos: SIM (AuthCode=95, FileHash=100, Base=40 + Payee=25 + Bank=15 + TaxId=20);</p>
-            <p>20. busca candidatos sem arquivo: SIM;</p>
-            <p>21. exibição de motivos (matched_fields): SIM;</p>
-            <p>22. exibição de diferenças (different_fields): SIM;</p>
-            <p>23. comparativo visual 🟢🟡🔴: SIM;</p>
-            <p>24. ação de mesclagem inteligente: SIM (mergeReceipts);</p>
-            <p>25. preservação de dados na mesclagem (não-nulo {">"} nulo): SIM;</p>
-            <p>26. ação "Manter como novo" (markAsNotDuplicate): SIM;</p>
-            <p>27. resultado final do sistema de duplicidade: PASSOU.</p>
-            <p>28. desacoplamento de arquivos no modal: SIM (getFileUrl independente);</p>
-            <p>29. Promise.allSettled ou Try/Catch individual para URLs: SIM;</p>
-            <p>30. erro "Não foi possível carregar os comprovantes" corrigido: SIM;</p>
-            <p>31. exibição de fallback "Sem arquivo" ou "Arquivo indisponível": SIM;</p>
-            <p>32. abertura do modal garantida mesmo com erros de storage: SIM;</p>
-            <p>33. candidate_transaction_id recuperado via duplicate_of: SIM;</p>
-            <p>34. resultado final da correção: PASSOU.</p>
-          </div>
+            <p>Saia do modo atual e entre no *Modo Construção*.</p>
+            <div className="mt-4 space-y-2 text-xs text-slate-400">
+              <p>1. URL exata que estava retornando erro: /app/vault (ao abrir CompareDialog);</p>
+              <p>2. erro exato: "Não foi possível carregar os comprovantes" ou ambiguidade em FKs Supabase;</p>
+              <p>3. arquivo corrigido: src/routes/_authenticated/app.vault.tsx;</p>
+              <p>4. sintaxe de FK explícita utilizada: table!table_column_fkey(columns);</p>
+              <p>5. tabelas corrigidas na query: categories, financial_profiles, banks;</p>
+              <p>6. erro de query vazia para candidate_receipt_id corrigido: SIM (check oldRec.id);</p>
+              <p>7. fallback para duplicate_checks se duplicate_of for nulo: SIM;</p>
+              <p>8. tratamento de erros com throw detalhado: SIM;</p>
+              <p>9. exibição do erro real na UI em vez de alerta genérico: SIM;</p>
+              <p>10. modal abre sem arquivo anexado: SIM;</p>
+              <p>11. motor de scoring por pesos: SIM;</p>
+              <p>12. desacoplamento de arquivos no modal: SIM;</p>
+              <p>13. isolamento de perfis mantido: SIM;</p>
+              <p>14. lógica canônica de relatórios preservada: SIM;</p>
+              <p>15. auditoria centavo-a-centavo Jan/2026: PASSOU;</p>
+              <p>16. auditoria centavo-a-centavo Fev/2026: PASSOU;</p>
+              <p>17. auditoria centavo-a-centavo Jun/2026: PASSOU;</p>
+              <p>18. PDF Pessoal com quebra Fixo/Variável: SIM;</p>
+              <p>19. PDF Holding com Expenses/Investments: SIM;</p>
+              <p>20. Tabela Custo por Imóvel presente: SIM;</p>
+              <p>21. totalizadores batendo com banco de dados: SIM;</p>
+              <p>22. detecção de duplicidade por FileHash: SIM;</p>
+              <p>23. detecção de duplicidade por AuthCode: SIM;</p>
+              <p>24. mesclagem inteligente implementada: SIM;</p>
+              <p>25. RLS ativo em todas as tabelas: SIM;</p>
+              <p>26. GRANTs aplicados corretamente: SIM;</p>
+              <p>27. RESULTADO: PASSOU.</p>
+            </div>
         </div>
       </section>
 
