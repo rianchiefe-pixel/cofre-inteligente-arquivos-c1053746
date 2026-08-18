@@ -131,7 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex">
         {/* Sidebar */}
         <aside
-          className={`${open ? "block" : "hidden"} md:block fixed inset-x-0 top-[57px] z-20 border-b border-sidebar-border bg-sidebar md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r md:border-sidebar-border/60`}
+          className={`${open ? "flex" : "hidden"} md:flex flex-col fixed inset-x-0 top-[57px] z-20 border-b border-sidebar-border bg-sidebar md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r md:border-sidebar-border/60`}
           style={{ backgroundImage: "linear-gradient(180deg, var(--sidebar) 0%, color-mix(in oklab, var(--sidebar) 92%, black) 100%)" }}
         >
           <div className="hidden items-center gap-3 border-b border-sidebar-border/60 px-6 py-5 md:flex">
