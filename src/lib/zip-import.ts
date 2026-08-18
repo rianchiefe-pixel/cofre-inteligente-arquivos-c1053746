@@ -43,7 +43,7 @@ function sanitizePath(p: string): string | null {
   return clean;
 }
 
-function guessMime(ext: string): string {
+export function guessMime(ext: string): string {
   const map: Record<string, string> = {
     pdf: "application/pdf",
     jpg: "image/jpeg",
