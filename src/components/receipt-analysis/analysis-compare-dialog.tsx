@@ -83,6 +83,8 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
   useEffect(() => {
     if (open) {
       setFileUrl(null);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setObjectUrl(null);
       setViewerStatus("idle");
       setCandidateFileUrl(null);
       setCandidateStatus("loading");
