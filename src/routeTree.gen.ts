@@ -27,6 +27,7 @@ import { Route as AuthenticatedAppCategoriesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAppCardsRouteImport } from './routes/_authenticated/app.cards'
 import { Route as AuthenticatedAppBanksRouteImport } from './routes/_authenticated/app.banks'
 import { Route as AuthenticatedAppAuditRouteImport } from './routes/_authenticated/app.audit'
+import { Route as AuthenticatedAppAnalyzeReceiptsRouteImport } from './routes/_authenticated/app.analyze-receipts'
 import { Route as AuthenticatedAppPropertiesIndexRouteImport } from './routes/_authenticated/app.properties.index'
 import { Route as AuthenticatedAppCardsIndexRouteImport } from './routes/_authenticated/app.cards.index'
 import { Route as AuthenticatedAppPropertiesIdRouteImport } from './routes/_authenticated/app.properties.$id'
@@ -127,6 +128,12 @@ const AuthenticatedAppAuditRoute = AuthenticatedAppAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppAnalyzeReceiptsRoute =
+  AuthenticatedAppAnalyzeReceiptsRouteImport.update({
+    id: '/analyze-receipts',
+    path: '/analyze-receipts',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppPropertiesIndexRoute =
   AuthenticatedAppPropertiesIndexRouteImport.update({
     id: '/properties/',
@@ -161,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
   '/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
@@ -184,6 +192,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
   '/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
@@ -209,6 +218,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
   '/_authenticated/app/audit': typeof AuthenticatedAppAuditRoute
   '/_authenticated/app/banks': typeof AuthenticatedAppBanksRoute
   '/_authenticated/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/app'
+    | '/app/analyze-receipts'
     | '/app/audit'
     | '/app/banks'
     | '/app/cards'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/app/analyze-receipts'
     | '/app/audit'
     | '/app/banks'
     | '/app/categories'
@@ -282,6 +294,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/app'
+    | '/_authenticated/app/analyze-receipts'
     | '/_authenticated/app/audit'
     | '/_authenticated/app/banks'
     | '/_authenticated/app/cards'
@@ -438,6 +451,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAuditRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/analyze-receipts': {
+      id: '/_authenticated/app/analyze-receipts'
+      path: '/analyze-receipts'
+      fullPath: '/app/analyze-receipts'
+      preLoaderRoute: typeof AuthenticatedAppAnalyzeReceiptsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/properties/': {
       id: '/_authenticated/app/properties/'
       path: '/properties'
@@ -507,6 +527,7 @@ const AuthenticatedAppCategoriesRouteWithChildren =
   )
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAnalyzeReceiptsRoute: typeof AuthenticatedAppAnalyzeReceiptsRoute
   AuthenticatedAppAuditRoute: typeof AuthenticatedAppAuditRoute
   AuthenticatedAppBanksRoute: typeof AuthenticatedAppBanksRoute
   AuthenticatedAppCardsRoute: typeof AuthenticatedAppCardsRouteWithChildren
@@ -525,6 +546,7 @@ interface AuthenticatedAppRouteChildren {
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAnalyzeReceiptsRoute: AuthenticatedAppAnalyzeReceiptsRoute,
   AuthenticatedAppAuditRoute: AuthenticatedAppAuditRoute,
   AuthenticatedAppBanksRoute: AuthenticatedAppBanksRoute,
   AuthenticatedAppCardsRoute: AuthenticatedAppCardsRouteWithChildren,
