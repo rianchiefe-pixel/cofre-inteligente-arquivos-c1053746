@@ -43,9 +43,6 @@ export async function processAnalysisZip(
     );
   }
   const entries: { path: string; entry: JSZip.JSZipObject }[] = [];
-  
-  // 1. Identificar arquivos válidos (Regra 10)
-  const entries: { path: string; entry: JSZip.JSZipObject }[] = [];
   zip.forEach((path, entry) => {
     if (entry.dir) return;
     
