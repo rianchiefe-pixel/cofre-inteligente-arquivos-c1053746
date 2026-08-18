@@ -427,14 +427,13 @@ function VaultPage() {
   // Busca é aplicada no servidor (com debounce) para não depender de um teto de linhas.
   useEffect(() => {
     const t = setTimeout(() => {
-      console.log("Setting debouncedQ:", q.trim());
       setDebouncedQ(q.trim());
     }, 350);
     return () => clearTimeout(t);
   }, [q]);
 
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType, "audit-v10"],
+    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
