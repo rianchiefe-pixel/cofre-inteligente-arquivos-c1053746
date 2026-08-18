@@ -1694,6 +1694,7 @@ function CompareDialog({
     queryKey: ["compare", receiptId],
     enabled: !!receiptId,
     queryFn: async () => {
+      // 1. Load basic records (Transactions/Receipts metadata)
       const { data: newRec } = await supabase
         .from("receipts")
         .select("*, category:categories(name), financial_profiles(name), banks(name)")
@@ -1701,14 +1702,17 @@ function CompareDialog({
         .single();
       if (!newRec) return null;
 
-      const { data: oldRec } = newRec.duplicate_of
-        ? await supabase
-            .from("receipts")
-            .select("*, category:categories(name), financial_profiles(name), banks(name)")
-            .eq("id", newRec.duplicate_of)
-            .maybeSingle()
-        : { data: null };
+      let oldRec = null;
+      if (newRec.duplicate_of) {
+        const { data } = await supabase
+          .from("receipts")
+          .select("*, category:categories(name), financial_profiles(name), banks(name)")
+          .eq("id", newRec.duplicate_of)
+          .maybeSingle();
+        oldRec = data;
+      }
 
+      // 2. Load duplicate check details
       const { data: check } = await supabase
         .from("duplicate_checks")
         .select("*")
@@ -1716,20 +1720,29 @@ function CompareDialog({
         .eq("candidate_receipt_id", oldRec?.id ?? "")
         .maybeSingle();
 
+      // 3. Load file URLs independently to avoid blocking on file errors
+      const getFileUrl = async (path: string | null) => {
+        if (!path) return null;
+        try {
+          const { data, error } = await supabase.storage
+            .from("receipts")
+            .createSignedUrl(path, 600);
+          if (error) {
+            console.warn("Could not generate signed URL for path:", path, error);
+            return null;
+          }
+          return data?.signedUrl ?? null;
+        } catch (e) {
+          console.error("Error in getFileUrl:", e);
+          return null;
+        }
+      };
+
       const [newUrl, oldUrl] = await Promise.all([
-        newRec.file_path
-          ? supabase.storage
-              .from("receipts")
-              .createSignedUrl(newRec.file_path, 600)
-              .then((r) => r.data?.signedUrl ?? null)
-          : null,
-        oldRec?.file_path
-          ? supabase.storage
-              .from("receipts")
-              .createSignedUrl(oldRec.file_path, 600)
-              .then((r) => r.data?.signedUrl ?? null)
-          : null,
+        getFileUrl(newRec.file_path),
+        getFileUrl(oldRec?.file_path ?? null),
       ]);
+
       return { newRec, oldRec, newUrl, oldUrl, check };
     },
   });
