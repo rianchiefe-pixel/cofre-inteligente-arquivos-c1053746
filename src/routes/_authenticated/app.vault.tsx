@@ -1848,7 +1848,7 @@ function CompareDialog({
                 size="sm"
                 onClick={() =>
                   run(
-                    () => markNotDuplicate({ data: { receiptId: data.newRec.id, candidateId: data.oldRec.id } }),
+                    () => markNotDuplicate({ data: { receiptId: data.newRec.id, candidateId: data.oldRec?.id ?? "" } }),
                     "Marcado como não duplicado e mantido",
                   )
                 }
@@ -1859,9 +1859,10 @@ function CompareDialog({
                 variant="outline"
                 size="sm"
                 className="text-yellow-600 hover:text-yellow-700"
+                disabled={!data.oldRec}
                 onClick={() =>
                   run(
-                    () => merge({ data: { sourceId: data.newRec.id, targetId: data.oldRec.id } }),
+                    () => merge({ data: { sourceId: data.newRec.id, targetId: data.oldRec!.id } }),
                     "Lançamentos mesclados com sucesso",
                   )
                 }
