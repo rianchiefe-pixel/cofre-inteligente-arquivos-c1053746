@@ -320,13 +320,13 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Duplicate detection engine v2
+    // Duplicate detection engine v3 (Strict Candidate Enforcement)
     let duplicate_of: string | null = null;
     let score = 0;
     const matchedFields: string[] = [];
     const differentFields: string[] = [];
 
-    // Exact file hash (100%)
+    // 1. Exact file hash (100%)
     if (rec.file_hash) {
       const { data: sameHash } = await supabase
         .from("receipts")
@@ -341,7 +341,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Strong Identifiers (Auth Code, Pix E2E, NSU)
+    // 2. Strong Identifiers (Auth Code, Pix E2E, NSU)
     if (!duplicate_of && extracted.auth_code) {
       const { data: sameAuth } = await supabase
         .from("receipts")
@@ -356,18 +356,18 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Multi-factor detection (Amount + Date + Payee/Bank)
+    // 3. Multi-factor detection (Amount + Date + Payee/Bank)
     if (!duplicate_of && extracted.amount && extracted.payment_date) {
+      // Searching all receipts, with or without files
       const { data: candidates } = await supabase
         .from("receipts")
         .select("id, amount, payment_date, recipient_name, bank_name, auth_code, recipient_tax_id")
         .eq("amount", extracted.amount)
         .eq("payment_date", extracted.payment_date)
         .neq("id", rec.id)
-        .limit(5);
+        .limit(10);
 
       if (candidates?.length) {
-        // Evaluate each candidate to find the best match
         for (const cand of candidates) {
           let candScore = 40; // Base for same Amount + Date
           const candMatched: string[] = ["amount", "payment_date"];
@@ -375,14 +375,14 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
 
           const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().trim();
           
-          if (norm(extracted.recipient_name) === norm(cand.recipient_name)) {
+          if (extracted.recipient_name && cand.recipient_name && norm(extracted.recipient_name) === norm(cand.recipient_name)) {
             candScore += 25;
             candMatched.push("recipient_name");
           } else if (extracted.recipient_name && cand.recipient_name) {
             candDifferent.push("recipient_name");
           }
 
-          if (norm(extracted.bank_name) === norm(cand.bank_name)) {
+          if (extracted.bank_name && cand.bank_name && norm(extracted.bank_name) === norm(cand.bank_name)) {
             candScore += 15;
             candMatched.push("bank_name");
           } else if (extracted.bank_name && cand.bank_name) {
@@ -394,7 +394,8 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
             candMatched.push("recipient_tax_id");
           }
 
-          if (candScore >= 65) {
+          // Strict threshold for automatic flag
+          if (candScore >= 60) {
             duplicate_of = cand.id;
             score = Math.min(candScore, 90);
             matchedFields.push(...candMatched);
@@ -404,6 +405,12 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
         }
       }
     }
+
+    // Score Integrity: If no candidate identified, score MUST be 0
+    if (!duplicate_of) {
+      score = 0;
+    }
+
 
     // Persist detailed duplicate check
     if (duplicate_of) {

@@ -1826,11 +1826,16 @@ function CompareDialog({
   }, [data]);
 
   const scoreLabel = useMemo(() => {
+    // Score Integrity: Only show score if candidate exists
+    if (!data?.oldRec) return { label: "", color: "", score: 0 };
+    
     const s = data?.check?.similarity_score ?? data?.newRec?.duplicate_score ?? 0;
     if (s >= 90) return { label: "Alta chance de duplicidade", color: "text-destructive", score: s };
     if (s >= 70) return { label: "Média chance de duplicidade", color: "text-yellow-600", score: s };
-    return { label: "Baixa chance de duplicidade", color: "text-muted-foreground", score: s };
+    if (s > 0) return { label: "Baixa chance de duplicidade", color: "text-muted-foreground", score: s };
+    return { label: "", color: "", score: 0 };
   }, [data]);
+
 
   const run = async (fn: () => Promise<any>, msg: string) => {
     try {
@@ -1903,14 +1908,17 @@ function CompareDialog({
                 </div>
               )}
 
-              <div className="flex items-center justify-center gap-4 py-2">
-                <div className="h-px flex-1 bg-border" />
-                <div className="text-center">
-                  <p className={`text-sm font-bold ${scoreLabel.color}`}>{scoreLabel.label}</p>
-                  <p className="text-xs text-muted-foreground">Similaridade: {scoreLabel.score}/100</p>
+              {scoreLabel.label && (
+                <div className="flex items-center justify-center gap-4 py-2">
+                  <div className="h-px flex-1 bg-border" />
+                  <div className="text-center">
+                    <p className={`text-sm font-bold ${scoreLabel.color}`}>{scoreLabel.label}</p>
+                    <p className="text-xs text-muted-foreground">Similaridade: {scoreLabel.score}/100</p>
+                  </div>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
-                <div className="h-px flex-1 bg-border" />
-              </div>
+              )}
+
 
               <div className="grid gap-4 md:grid-cols-2">
                 <ReceiptPanel
