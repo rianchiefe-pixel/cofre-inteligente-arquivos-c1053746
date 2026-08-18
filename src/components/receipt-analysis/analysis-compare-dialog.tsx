@@ -237,27 +237,44 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
             
             <div className="flex-1 overflow-hidden flex flex-col">
               <div className="h-2/3 border-b bg-black/5 flex items-center justify-center p-4 relative">
-                {fileUrl ? (
+                {viewerStatus === "loading" ? (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <p className="text-xs">Carregando visualização...</p>
+                  </div>
+                ) : viewerStatus === "success" && fileUrl ? (
                   <div className="w-full h-full p-2 overflow-auto">
                     {file.mime_type?.includes("pdf") ? (
-                      <iframe src={fileUrl} className="w-full h-full border-none rounded shadow-sm" />
+                      <iframe 
+                        src={fileUrl} 
+                        className="w-full h-full border-none rounded shadow-sm"
+                        onLoad={() => console.log("[ANALYZE VIEWER] PDF Loaded")}
+                      />
                     ) : (
-                      <img src={fileUrl} className="max-w-full h-auto mx-auto rounded shadow-sm" />
+                      <img 
+                        src={fileUrl} 
+                        className="max-w-full h-auto mx-auto rounded shadow-sm" 
+                        onLoad={() => console.log("[ANALYZE VIEWER] Image Loaded")}
+                        onError={() => setViewerStatus("error")}
+                      />
                     )}
                   </div>
+                ) : viewerStatus === "no_file" ? (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground p-8 text-center">
+                    <FileText className="h-12 w-12 opacity-20" />
+                    <p className="text-sm font-medium">Sem arquivo anexado</p>
+                  </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground p-8">
-                    {file.storage_path ? (
-                      <>
-                        <Loader2 className="h-8 w-8 animate-spin" />
-                        <p className="text-xs">Carregando visualização...</p>
-                      </>
-                    ) : (
-                      <>
-                        <AlertTriangle className="h-8 w-8 text-yellow-500" />
-                        <p className="text-xs">Sem arquivo vinculado</p>
-                      </>
-                    )}
+                  <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 text-center">
+                    <AlertTriangle className="h-10 w-10 text-yellow-500 opacity-50" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Não foi possível carregar a visualização</p>
+                      <div className="flex gap-2 justify-center mt-2">
+                        <Button variant="outline" size="sm" onClick={() => window.open(fileUrl || "", "_blank")} disabled={!fileUrl}>
+                          Abrir em nova aba
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -270,15 +287,21 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                   <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                     <div>
                       <label className="text-[10px] text-muted-foreground uppercase font-medium">Valor</label>
-                      <p className={`text-sm font-semibold ${diff('amount')}`}>{file.amount ? currencyBRL(file.amount) : '—'}</p>
+                      <p className={`text-sm font-semibold ${file.different_fields?.includes('amount') ? "text-red-600 font-bold bg-red-50 px-1 rounded" : ""}`}>
+                        {file.amount ? currencyBRL(file.amount) : '—'}
+                      </p>
                     </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground uppercase font-medium">Data</label>
-                      <p className={`text-sm font-semibold ${diff('payment_date')}`}>{file.payment_date ? dateBR(file.payment_date) : '—'}</p>
+                      <p className={`text-sm font-semibold ${file.different_fields?.includes('payment_date') ? "text-red-600 font-bold bg-red-50 px-1 rounded" : ""}`}>
+                        {file.payment_date ? dateBR(file.payment_date) : '—'}
+                      </p>
                     </div>
                     <div className="col-span-2">
                       <label className="text-[10px] text-muted-foreground uppercase font-medium">Destinatário</label>
-                      <p className={`text-sm font-semibold ${diff('recipient_name')}`}>{file.recipient_name || '—'}</p>
+                      <p className={`text-sm font-semibold ${file.different_fields?.includes('recipient_name') ? "text-red-600 font-bold bg-red-50 px-1 rounded" : ""}`}>
+                        {file.recipient_name || '—'}
+                      </p>
                     </div>
                     <div className="col-span-2">
                       <label className="text-[10px] text-muted-foreground uppercase font-medium">Motivo da Análise</label>
@@ -301,12 +324,12 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col">
-              {isCandidateLoading ? (
+              {candidateStatus === "loading" ? (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3">
                   <Loader2 className="h-10 w-10 text-primary animate-spin" />
                   <p className="text-sm text-muted-foreground">Buscando detalhes no Cofre...</p>
                 </div>
-              ) : candidate ? (
+              ) : candidateStatus === "success" && candidate ? (
                 <>
                   <div className="h-2/3 border-b bg-black/5 flex items-center justify-center p-4">
                     {candidateFileUrl ? (
@@ -350,13 +373,23 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                     </div>
                   </ScrollArea>
                 </>
-              ) : (
+              ) : candidateStatus === "not_found" ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
                   <AlertTriangle className="h-12 w-12 text-yellow-500 opacity-50" />
                   <div className="space-y-2">
                     <p className="font-bold">Lançamento não encontrado</p>
                     <p className="text-sm text-muted-foreground">
-                      O ID do candidato pode ter sido removido ou o registro está inacessível.
+                      O registro associado a esta análise não foi localizado no Cofre.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                  <AlertTriangle className="h-12 w-12 text-red-500 opacity-50" />
+                  <div className="space-y-2">
+                    <p className="font-bold">Erro ao consultar o lançamento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Não foi possível carregar os detalhes do candidato.
                     </p>
                   </div>
                 </div>
