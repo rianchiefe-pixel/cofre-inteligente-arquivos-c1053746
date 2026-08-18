@@ -1842,14 +1842,14 @@ function CompareDialog({
                 />
               </div>
             </div>
-            <div className="mt-2 flex flex-wrap justify-end gap-2">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() =>
                   run(
-                    () => bulkAction({ data: { receiptIds: [data.newRec.id], action: "approve" } }),
-                    "Marcado como novo e aprovado",
+                    () => markNotDuplicate({ data: { receiptId: data.newRec.id, candidateId: data.oldRec.id } }),
+                    "Marcado como não duplicado e mantido",
                   )
                 }
               >
@@ -1858,53 +1858,23 @@ function CompareDialog({
               <Button
                 variant="outline"
                 size="sm"
+                className="text-yellow-600 hover:text-yellow-700"
                 onClick={() =>
                   run(
-                    () => reject({ data: { receiptId: data.newRec.id, reason: "duplicate" } }),
-                    "Novo marcado como duplicado",
+                    () => merge({ data: { sourceId: data.newRec.id, targetId: data.oldRec.id } }),
+                    "Lançamentos mesclados com sucesso",
                   )
                 }
               >
-                Marcar novo como duplicado
-              </Button>
-              {data.oldRec &&
-                (() => {
-                  const oldRec = data.oldRec;
-                  return (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        await bulkDelete({ data: { receiptIds: [oldRec.id] } });
-                        await approve({ data: { receiptId: data.newRec.id } });
-                        toast.success("Comprovante antigo substituído");
-                        onChanged();
-                        onClose();
-                      }}
-                    >
-                      Substituir antigo pelo novo
-                    </Button>
-                  );
-                })()}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  run(
-                    () => bulkAction({ data: { receiptIds: [data.newRec.id], action: "archive" } }),
-                    "Novo arquivado",
-                  )
-                }
-              >
-                Arquivar novo
+                Mesclar dados
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() =>
                   run(
-                    () => reject({ data: { receiptId: data.newRec.id, reason: "rejected" } }),
-                    "Novo rejeitado",
+                    () => reject({ data: { receiptId: data.newRec.id, reason: "duplicate" } }),
+                    "Novo rejeitado por duplicidade",
                   )
                 }
               >
