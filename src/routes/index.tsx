@@ -104,6 +104,16 @@ function LandingPage() {
             <p>15. geração de PDF Holding continua funcionando: SIM;</p>
             <p>16. nenhum dado financeiro foi alterado: SIM;</p>
             <p>17. RESULTADO: PASSOU.</p>
+            <p>18. nova tabela de duplicidade: SIM (duplicate_checks);</p>
+            <p>19. motor de scoring por pesos: SIM (AuthCode=95, FileHash=100, Base=40 + Payee=25 + Bank=15 + TaxId=20);</p>
+            <p>20. busca candidatos sem arquivo: SIM;</p>
+            <p>21. exibição de motivos (matched_fields): SIM;</p>
+            <p>22. exibição de diferenças (different_fields): SIM;</p>
+            <p>23. comparativo visual 🟢🟡🔴: SIM;</p>
+            <p>24. ação de mesclagem inteligente: SIM (mergeReceipts);</p>
+            <p>25. preservação de dados na mesclagem (não-nulo {">"} nulo): SIM;</p>
+            <p>26. ação "Manter como novo" (markAsNotDuplicate): SIM;</p>
+            <p>27. resultado final do sistema de duplicidade: PASSOU.</p>
           </div>
         </div>
       </section>

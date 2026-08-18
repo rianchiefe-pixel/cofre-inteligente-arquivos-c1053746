@@ -320,46 +320,102 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Duplicate detection
+    // Duplicate detection engine v2
     let duplicate_of: string | null = null;
     let score = 0;
+    const matchedFields: string[] = [];
+    const differentFields: string[] = [];
 
+    // Exact file hash (100%)
     if (rec.file_hash) {
       const { data: sameHash } = await supabase
         .from("receipts")
         .select("id")
         .eq("file_hash", rec.file_hash)
         .neq("id", rec.id)
-        .limit(2);
-      if (sameHash?.length) { duplicate_of = sameHash[0].id; score = 100; }
+        .limit(1);
+      if (sameHash?.length) { 
+        duplicate_of = sameHash[0].id; 
+        score = 100;
+        matchedFields.push("file_hash");
+      }
     }
 
+    // Strong Identifiers (Auth Code, Pix E2E, NSU)
     if (!duplicate_of && extracted.auth_code) {
       const { data: sameAuth } = await supabase
         .from("receipts")
         .select("id")
         .eq("auth_code", extracted.auth_code)
         .neq("id", rec.id)
-        .limit(2);
-      if (sameAuth?.length) { duplicate_of = sameAuth[0].id; score = 95; }
+        .limit(1);
+      if (sameAuth?.length) { 
+        duplicate_of = sameAuth[0].id; 
+        score = 95;
+        matchedFields.push("auth_code");
+      }
     }
 
+    // Multi-factor detection (Amount + Date + Payee/Bank)
     if (!duplicate_of && extracted.amount && extracted.payment_date) {
-      const { data: sameVD } = await supabase
+      const { data: candidates } = await supabase
         .from("receipts")
-        .select("id, recipient_name, bank_name, profile_id")
+        .select("id, amount, payment_date, recipient_name, bank_name, auth_code, recipient_tax_id")
         .eq("amount", extracted.amount)
         .eq("payment_date", extracted.payment_date)
         .neq("id", rec.id)
         .limit(5);
-      if (sameVD?.length) {
-        let s = 40;
-        for (const d of sameVD) {
-          if (extracted.recipient_name && d.recipient_name && d.recipient_name.toLowerCase() === extracted.recipient_name.toLowerCase()) s += 15;
-          if (extracted.bank_name && d.bank_name && d.bank_name.toLowerCase() === extracted.bank_name.toLowerCase()) s += 10;
+
+      if (candidates?.length) {
+        // Evaluate each candidate to find the best match
+        for (const cand of candidates) {
+          let candScore = 40; // Base for same Amount + Date
+          const candMatched: string[] = ["amount", "payment_date"];
+          const candDifferent: string[] = [];
+
+          const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().trim();
+          
+          if (norm(extracted.recipient_name) === norm(cand.recipient_name)) {
+            candScore += 25;
+            candMatched.push("recipient_name");
+          } else if (extracted.recipient_name && cand.recipient_name) {
+            candDifferent.push("recipient_name");
+          }
+
+          if (norm(extracted.bank_name) === norm(cand.bank_name)) {
+            candScore += 15;
+            candMatched.push("bank_name");
+          } else if (extracted.bank_name && cand.bank_name) {
+            candDifferent.push("bank_name");
+          }
+
+          if (extracted.recipient_tax_id && extracted.recipient_tax_id === cand.recipient_tax_id) {
+            candScore += 20;
+            candMatched.push("recipient_tax_id");
+          }
+
+          if (candScore >= 65) {
+            duplicate_of = cand.id;
+            score = Math.min(candScore, 90);
+            matchedFields.push(...candMatched);
+            differentFields.push(...candDifferent);
+            break;
+          }
         }
-        score = Math.min(s, 75);
       }
+    }
+
+    // Persist detailed duplicate check
+    if (duplicate_of) {
+      await supabase.from("duplicate_checks").insert({
+        user_id: context.userId,
+        new_receipt_id: rec.id,
+        candidate_receipt_id: duplicate_of,
+        similarity_score: score,
+        matched_fields: Array.from(new Set(matchedFields)),
+        different_fields: Array.from(new Set(differentFields)),
+        status: "pending"
+      });
     }
 
     const update: any = {
@@ -601,6 +657,106 @@ const ConferencePatchSchema = z.object({
   bank_id: z.string().uuid().nullable().optional(),
   account_id: z.string().uuid().nullable().optional(),
 }).strict();
+
+export const mergeReceipts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    sourceId: z.string().uuid(),
+    targetId: z.string().uuid(),
+    selections: z.record(z.string(), z.enum(["source", "target"])).optional(),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Load both receipts
+    const { data: source } = await supabase.from("receipts").select("*").eq("id", data.sourceId).single();
+    const { data: target } = await supabase.from("receipts").select("*").eq("id", data.targetId).single();
+
+    if (!source || !target) throw new Error("Um ou ambos os comprovantes não foram encontrados.");
+    if (source.user_id !== userId || target.user_id !== userId) throw new Error("Sem permissão para mesclar estes comprovantes.");
+
+    // Smart merge logic
+    const merged: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+      user_confirmed_at: new Date().toISOString(),
+      status: "approved",
+    };
+
+    const fieldsToMerge = [
+      "payment_date", "amount", "recipient_name", "recipient_tax_id", 
+      "bank_name", "auth_code", "payment_method", "transaction_type", 
+      "expense_behavior", "category_id", "description", "notes", 
+      "profile_id", "property_id", "bank_id", "account_id", "file_path", 
+      "file_name", "file_mime", "file_size", "file_hash", "ocr_data"
+    ];
+
+    for (const field of fieldsToMerge) {
+      const selection = data.selections?.[field];
+      const sourceVal = (source as any)[field];
+      const targetVal = (target as any)[field];
+      
+      if (selection === "source") {
+        merged[field] = sourceVal;
+      } else if (selection === "target") {
+        merged[field] = targetVal;
+      } else {
+        // Default: use non-null value, prioritize target (existing) if both exist
+        merged[field] = targetVal ?? sourceVal;
+      }
+    }
+
+    // Update target and delete source
+    const { error: upErr } = await supabase.from("receipts").update(merged as any).eq("id", data.targetId);
+    if (upErr) throw new Error(`Erro ao atualizar registro: ${upErr.message}`);
+
+    const { error: delErr } = await supabase.from("receipts").delete().eq("id", data.sourceId);
+    if (delErr) {
+      console.error("Erro ao deletar origem após mesclagem:", delErr);
+      // Not fatal but should be logged
+    }
+
+    // Mark duplicate check as merged
+    await supabase.from("duplicate_checks")
+      .update({ status: "merged", reviewed_at: new Date().toISOString(), reviewed_by: userId })
+      .or(`new_receipt_id.eq.${data.sourceId},candidate_receipt_id.eq.${data.sourceId}`);
+
+    await logAudit(supabase, userId, {
+      action: "receipt_merged",
+      entity: "receipt",
+      entity_id: data.targetId,
+      profile_id: merged.profile_id,
+      note: `Lançamento ${data.sourceId} mesclado em ${data.targetId}`
+    });
+
+    return { ok: true, targetId: data.targetId };
+  });
+
+export const markAsNotDuplicate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    receiptId: z.string().uuid(),
+    candidateId: z.string().uuid(),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    await supabase.from("duplicate_checks")
+      .update({ 
+        status: "not_duplicate", 
+        reviewed_at: new Date().toISOString(), 
+        reviewed_by: userId 
+      })
+      .eq("new_receipt_id", data.receiptId)
+      .eq("candidate_receipt_id", data.candidateId);
+
+    // Also clear the simple duplicate_of reference in the receipt itself if it matches
+    await supabase.from("receipts")
+      .update({ duplicate_of: null, status: "pending", duplicate_score: 0 })
+      .eq("id", data.receiptId)
+      .eq("duplicate_of", data.candidateId);
+
+    return { ok: true };
+  });
 
 export const updateReceiptConference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

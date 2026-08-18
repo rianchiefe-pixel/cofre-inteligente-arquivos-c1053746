@@ -77,6 +77,8 @@ import {
   analyzeReceipt,
   updateReceiptConference,
   archiveReceipt,
+  mergeReceipts,
+  markAsNotDuplicate,
 } from "@/lib/receipts.functions";
 import { generateFixedVariableReport } from "@/lib/report-templates";
 import { loadReportDataset, MONTH_NAMES } from "@/lib/report-data";
@@ -353,6 +355,8 @@ function VaultPage() {
   const bulkUpdate = useServerFn(bulkUpdateReceipts);
   const bulkDelete = useServerFn(deleteReceipts);
   const archive = useServerFn(archiveReceipt);
+  const merge = useServerFn(mergeReceipts);
+  const markNotDuplicate = useServerFn(markAsNotDuplicate);
 
   const canApprove = useCan("approveReceipts");
   const canBulk = useCan("bulkActions");
@@ -1683,6 +1687,8 @@ function CompareDialog({
   const reject = useServerFn(rejectReceipt);
   const bulkAction = useServerFn(bulkReceiptAction);
   const bulkDelete = useServerFn(deleteReceipts);
+  const merge = useServerFn(mergeReceipts);
+  const markNotDuplicate = useServerFn(markAsNotDuplicate);
 
   const query = useQuery({
     queryKey: ["compare", receiptId],
@@ -1690,17 +1696,26 @@ function CompareDialog({
     queryFn: async () => {
       const { data: newRec } = await supabase
         .from("receipts")
-        .select("*")
+        .select("*, category:categories(name), financial_profiles(name), banks(name)")
         .eq("id", receiptId!)
         .single();
       if (!newRec) return null;
+
       const { data: oldRec } = newRec.duplicate_of
         ? await supabase
             .from("receipts")
-            .select("*")
+            .select("*, category:categories(name), financial_profiles(name), banks(name)")
             .eq("id", newRec.duplicate_of)
             .maybeSingle()
         : { data: null };
+
+      const { data: check } = await supabase
+        .from("duplicate_checks")
+        .select("*")
+        .eq("new_receipt_id", newRec.id)
+        .eq("candidate_receipt_id", oldRec?.id ?? "")
+        .maybeSingle();
+
       const [newUrl, oldUrl] = await Promise.all([
         newRec.file_path
           ? supabase.storage
@@ -1715,30 +1730,32 @@ function CompareDialog({
               .then((r) => r.data?.signedUrl ?? null)
           : null,
       ]);
-      return { newRec, oldRec, newUrl, oldUrl };
+      return { newRec, oldRec, newUrl, oldUrl, check };
     },
   });
 
   const data = query.data;
   const reason = useMemo(() => {
     if (!data?.newRec || !data.oldRec) return "";
-    const n = data.newRec,
-      o = data.oldRec;
-    if (n.file_hash && o.file_hash && n.file_hash === o.file_hash)
+    const n = data.newRec, o = data.oldRec;
+    const check = data.check;
+
+    if (check?.matched_fields?.includes("file_hash"))
       return "Este comprovante tem exatamente o mesmo arquivo de outro já salvo.";
-    if (n.auth_code && n.auth_code === o.auth_code)
+    if (check?.matched_fields?.includes("auth_code"))
       return "Este comprovante tem o mesmo código de autenticação de outro comprovante.";
-    const sameAmount = Number(n.amount) === Number(o.amount);
-    const sameDate = n.payment_date === o.payment_date;
-    const sameRecipient =
-      n.recipient_name &&
-      o.recipient_name &&
-      n.recipient_name.toLowerCase() === o.recipient_name.toLowerCase();
-    if (sameAmount && sameDate && sameRecipient)
-      return "Este comprovante parece repetido porque possui o mesmo valor, a mesma data e o mesmo destinatário de um comprovante já salvo.";
-    if (sameAmount && sameDate)
-      return "Este comprovante tem o mesmo valor e a mesma data de outro comprovante já salvo.";
-    return "Este comprovante tem semelhança alta com outro já salvo. Confira antes de aprovar.";
+    
+    if (check?.similarity_score && check.similarity_score >= 80)
+      return "Este comprovante tem semelhança crítica com outro já salvo. Confira todos os campos abaixo.";
+    
+    return "O Meu Cofre identificou dados semelhantes entre este novo comprovante e um lançamento já existente.";
+  }, [data]);
+
+  const scoreLabel = useMemo(() => {
+    const s = data?.check?.similarity_score ?? data?.newRec?.duplicate_score ?? 0;
+    if (s >= 90) return { label: "Alta chance de duplicidade", color: "text-destructive", score: s };
+    if (s >= 70) return { label: "Média chance de duplicidade", color: "text-yellow-600", score: s };
+    return { label: "Baixa chance de duplicidade", color: "text-muted-foreground", score: s };
   }, [data]);
 
   const run = async (fn: () => Promise<any>, msg: string) => {
@@ -1782,34 +1799,59 @@ function CompareDialog({
                 <span>{reason}</span>
               </div>
             )}
-            <div className="grid gap-4 md:grid-cols-2">
-              <ReceiptPanel
-                title="Comprovante novo"
-                rec={data.newRec}
-                url={data.newUrl}
-                tone="new"
-              />
-              {data.oldRec ? (
+            <div className="flex flex-col gap-4">
+              {data.check?.matched_fields && data.check.matched_fields.length > 0 && (
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Motivos da possível duplicidade</p>
+                  <div className="flex flex-wrap gap-2">
+                    {data.check.matched_fields.map((f: string) => (
+                      <Badge key={f} variant="outline" className="border-success/50 bg-success/10 text-success-foreground">
+                        ✅ Mesmo {f.replace("_", " ")}
+                      </Badge>
+                    ))}
+                    {data.check.different_fields?.map((f: string) => (
+                      <Badge key={f} variant="outline" className="border-destructive/50 bg-destructive/10 text-destructive">
+                        ❌ {f.replace("_", " ")} diferente
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-center gap-4 py-2">
+                <div className="h-px flex-1 bg-border" />
+                <div className="text-center">
+                  <p className={`text-sm font-bold ${scoreLabel.color}`}>{scoreLabel.label}</p>
+                  <p className="text-xs text-muted-foreground">Similaridade: {scoreLabel.score}/100</p>
+                </div>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
                 <ReceiptPanel
-                  title="Comprovante existente"
+                  title="Comprovante / Lançamento novo"
+                  rec={data.newRec}
+                  url={data.newUrl}
+                  tone="new"
+                  compareWith={data.oldRec}
+                />
+                <ReceiptPanel
+                  title="Lançamento já existente"
                   rec={data.oldRec}
                   url={data.oldUrl}
                   tone="old"
+                  compareWith={data.newRec}
                 />
-              ) : (
-                <Card className="grid place-items-center p-8 text-sm text-muted-foreground">
-                  Nenhum comprovante existente vinculado.
-                </Card>
-              )}
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap justify-end gap-2">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() =>
                   run(
-                    () => bulkAction({ data: { receiptIds: [data.newRec.id], action: "approve" } }),
-                    "Marcado como novo e aprovado",
+                    () => markNotDuplicate({ data: { receiptId: data.newRec.id, candidateId: data.oldRec?.id ?? "" } }),
+                    "Marcado como não duplicado e mantido",
                   )
                 }
               >
@@ -1818,53 +1860,24 @@ function CompareDialog({
               <Button
                 variant="outline"
                 size="sm"
+                className="text-yellow-600 hover:text-yellow-700"
+                disabled={!data.oldRec}
                 onClick={() =>
                   run(
-                    () => reject({ data: { receiptId: data.newRec.id, reason: "duplicate" } }),
-                    "Novo marcado como duplicado",
+                    () => merge({ data: { sourceId: data.newRec.id, targetId: data.oldRec!.id } }),
+                    "Lançamentos mesclados com sucesso",
                   )
                 }
               >
-                Marcar novo como duplicado
-              </Button>
-              {data.oldRec &&
-                (() => {
-                  const oldRec = data.oldRec;
-                  return (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        await bulkDelete({ data: { receiptIds: [oldRec.id] } });
-                        await approve({ data: { receiptId: data.newRec.id } });
-                        toast.success("Comprovante antigo substituído");
-                        onChanged();
-                        onClose();
-                      }}
-                    >
-                      Substituir antigo pelo novo
-                    </Button>
-                  );
-                })()}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  run(
-                    () => bulkAction({ data: { receiptIds: [data.newRec.id], action: "archive" } }),
-                    "Novo arquivado",
-                  )
-                }
-              >
-                Arquivar novo
+                Mesclar dados
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() =>
                   run(
-                    () => reject({ data: { receiptId: data.newRec.id, reason: "rejected" } }),
-                    "Novo rejeitado",
+                    () => reject({ data: { receiptId: data.newRec.id, reason: "duplicate" } }),
+                    "Novo rejeitado por duplicidade",
                   )
                 }
               >
@@ -1895,12 +1908,40 @@ function ReceiptPanel({
   rec,
   url,
   tone,
+  compareWith,
 }: {
   title: string;
   rec: any;
   url: string | null;
   tone: "new" | "old";
+  compareWith?: any;
 }) {
+  if (!rec) {
+    return (
+      <Card className="grid place-items-center p-8 text-sm text-muted-foreground border-dashed">
+        Nenhum registro para comparar.
+      </Card>
+    );
+  }
+
+  const getDiff = (field: string, val: any) => {
+    if (!compareWith) return null;
+    const otherVal = compareWith[field];
+    
+    // Normalize for comparison
+    const norm = (v: any) => {
+      if (v === null || v === undefined) return "";
+      if (typeof v === "string") return v.trim().toLowerCase();
+      if (typeof v === "number") return v.toFixed(2);
+      return String(v);
+    };
+
+    const isDifferent = norm(val) !== norm(otherVal);
+    if (!isDifferent) return <span className="ml-1 text-[10px] text-success">🟢 Igual</span>;
+    if (val && !otherVal) return <span className="ml-1 text-[10px] text-yellow-600">🟡 Novo dado</span>;
+    return <span className="ml-1 text-[10px] text-destructive">🔴 Diferente</span>;
+  };
+
   return (
     <Card className={`p-3 ${tone === "new" ? "border-primary/50" : "border-muted"}`}>
       <div className="mb-2 flex items-center justify-between">
@@ -1924,24 +1965,53 @@ function ReceiptPanel({
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
         <dt className="text-muted-foreground">Valor</dt>
-        <dd className="font-medium">{currencyBRL(Number(rec.amount ?? 0))}</dd>
+        <dd className="font-medium">
+          {currencyBRL(Number(rec.amount ?? 0))}
+          {getDiff("amount", rec.amount)}
+        </dd>
+        
         <dt className="text-muted-foreground">Data</dt>
-        <dd>{dateBR(rec.payment_date)}</dd>
+        <dd>
+          {dateBR(rec.payment_date)}
+          {getDiff("payment_date", rec.payment_date)}
+        </dd>
+        
         <dt className="text-muted-foreground">Destinatário</dt>
-        <dd className="truncate">{rec.recipient_name ?? "—"}</dd>
+        <dd className="truncate">
+          {rec.recipient_name ?? "—"}
+          {getDiff("recipient_name", rec.recipient_name)}
+        </dd>
+        
         <dt className="text-muted-foreground">Banco</dt>
-        <dd>{rec.banks?.name ?? rec.bank_name ?? "—"}</dd>
+        <dd>
+          {rec.banks?.name ?? rec.bank_name ?? "—"}
+          {getDiff("bank_name", rec.bank_name)}
+        </dd>
+        
         <dt className="text-muted-foreground">Cód. autenticação</dt>
-        <dd className="truncate">{rec.auth_code ?? "—"}</dd>
+        <dd className="truncate">
+          {rec.auth_code ?? "—"}
+          {getDiff("auth_code", rec.auth_code)}
+        </dd>
+        
         <dt className="text-muted-foreground">Categoria</dt>
-        <dd>{rec.category?.name ?? "—"}</dd>
+        <dd>
+          {rec.category?.name ?? "—"}
+          {getDiff("category_id", rec.category_id)}
+        </dd>
+        
         <dt className="text-muted-foreground">Perfil</dt>
-        <dd>{rec.financial_profiles?.name ?? "—"}</dd>
+        <dd>
+          {rec.financial_profiles?.name ?? "—"}
+          {getDiff("profile_id", rec.profile_id)}
+        </dd>
+        
         <dt className="text-muted-foreground">Tipo</dt>
         <dd>
           {rec.transaction_type
             ? transactionTypeLabel[rec.transaction_type as keyof typeof transactionTypeLabel]
             : "—"}
+          {getDiff("transaction_type", rec.transaction_type)}
         </dd>
       </dl>
     </Card>
