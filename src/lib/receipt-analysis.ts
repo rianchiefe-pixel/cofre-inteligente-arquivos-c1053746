@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import { supabase } from "@/integrations/supabase/client";
-import { extractReceiptFacts, storageSafeName, normalizeBank } from "./zip-import";
-import { analyzeReceipt } from "./receipts.functions";
+import { extractReceiptFacts, storageSafeName } from "./zip-import";
+import { findAnalysisCandidates } from "./receipt-analysis.functions";
 
 /**
  * Motor de análise de ZIP para a nova aba "Analisar Comprovantes".
@@ -95,7 +95,7 @@ export async function processAnalysisZip(
           analysis_reason: "Arquivo repetido dentro do mesmo ZIP"
         });
         progress.filesProcessed++;
-        onProgress(progress);
+        onProgress({ ...progress });
         continue;
       }
       processedHashes.add(hash);
@@ -103,12 +103,6 @@ export async function processAnalysisZip(
       // Upload temporário (Regra 49)
       const storagePath = `analysis/${userId}/${batch.id}/${hash.slice(0, 2)}/${hash}-${storageSafeName(name)}`;
       await supabase.storage.from("receipts").upload(storagePath, blob, { upsert: true });
-
-      // Extração de fatos (Reutilizando extractReceiptFacts - Regra 4)
-      // Nota: Em um fluxo ideal, chamaríamos a IA para análise profunda.
-      // Aqui vamos extrair o básico localmente para agilidade na UI inicial.
-      const text = ""; // O ZIP-import extrai texto de PDF/OCR, aqui faremos via server-fn se necessário
-      const facts = extractReceiptFacts(text); // Placeholder, a IA preencherá melhor depois
 
       // Criar registro inicial do arquivo
       const { data: analysisFile, error: fErr } = await (supabase as any)
@@ -128,32 +122,23 @@ export async function processAnalysisZip(
 
       if (fErr || !analysisFile) throw fErr;
 
-      // TODO: No futuro, disparar worker para análise IA profunda
-      // Para o MVP, vamos apenas marcar como pendente de análise IA ou fazer busca por Hash
-      
-      // Busca inicial por Hash (Regra 11)
-      const { data: hashMatch } = await supabase
-        .from("receipts")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("file_hash", hash)
-        .limit(1);
+      // Executar motor de localização (Regra 11, 38)
+      // Nota: Como estamos no cliente, chamamos a lógica exportada do motor de busca
+      // Passamos o supabase e userId simulando o context do serverFn
+      const result = await findAnalysisCandidates({ data: { fileId: analysisFile.id } });
 
-      if (hashMatch?.length) {
-        await (supabase as any).from("receipt_analysis_files").update({
-          analysis_status: "already_posted",
-          candidate_receipt_id: hashMatch[0].id,
-          similarity_score: 100,
-          analysis_reason: "Mesmo hash do arquivo"
-        }).eq("id", analysisFile.id);
-        progress.alreadyFound++;
-      } else {
-        // Marcamos como not_found por enquanto, a UI pode permitir rodar IA individualmente
-        await (supabase as any).from("receipt_analysis_files").update({
-          analysis_status: "not_found"
-        }).eq("id", analysisFile.id);
-        progress.notFound++;
-      }
+      // Atualizar o registro com o resultado da busca
+      await (supabase as any).from("receipt_analysis_files").update({
+        analysis_status: result.status,
+        candidate_receipt_id: result.candidate_id,
+        similarity_score: result.score,
+        analysis_reason: result.reason,
+        matched_fields: result.matched_fields
+      }).eq("id", analysisFile.id);
+
+      if (result.status === "already_posted") progress.alreadyFound++;
+      else if (result.status === "possible_match") progress.needsReview++;
+      else if (result.status === "not_found") progress.notFound++;
 
     } catch (e) {
       console.error(e);
@@ -161,7 +146,7 @@ export async function processAnalysisZip(
     } finally {
       progress.filesProcessed++;
       progress.percent = Math.round((progress.filesProcessed / entries.length) * 100);
-      onProgress(progress);
+      onProgress({ ...progress });
     }
   }
 
@@ -171,6 +156,7 @@ export async function processAnalysisZip(
     files_processed: progress.filesProcessed,
     already_found: progress.alreadyFound,
     not_found: progress.notFound,
+    needs_review: progress.needsReview,
     errors: progress.errors,
     finished_at: new Date().toISOString()
   }).eq("id", batch.id);
