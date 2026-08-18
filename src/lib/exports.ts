@@ -61,8 +61,10 @@ export interface SummaryItem {
 export interface ReportPayload<T = any> {
   title: string;
   subtitle?: string;
+  selectedPropertyNames?: string[];
+  extraIncludeNames?: { propertyNames: string[], categoryNames: string[], recipients: string[] };
   period?: { from?: string; to?: string };
-  filters?: Record<string, string | undefined>;
+  filters?: Record<string, any>;
   summary?: SummaryItem[];
   breakdowns?: Array<{ title: string; rows: Array<{ name: string; value: string }> }>;
   columns: ExportColumn<T>[];
@@ -243,8 +245,46 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
     doc.setFontSize(10);
     doc.text(payload.subtitle, textLeft, 78);
   }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  let filterY = 105;
+
+  // Imóveis selecionados (Regra 13, 14, 18)
+  if (payload.selectedPropertyNames) {
+    let propText = "";
+    if (payload.selectedPropertyNames.length === 0) {
+      propText = "Imóveis selecionados: Todos";
+    } else if (payload.selectedPropertyNames.length === 1) {
+      propText = `Imóvel selecionado: ${payload.selectedPropertyNames[0]}`;
+    } else {
+      propText = `Imóveis selecionados: ${payload.selectedPropertyNames.join(" · ")}`;
+    }
+    doc.setTextColor(100, 100, 100);
+    doc.text(propText, textLeft, filterY);
+    filterY += 12;
+  }
+
+  // Adicionais (Regra 15, 16, 17, 18)
+  if (payload.extraIncludeNames) {
+    const extras = payload.extraIncludeNames;
+    const allExtras = [
+      ...extras.propertyNames,
+      ...extras.categoryNames,
+      ...extras.recipients
+    ];
+    
+    if (allExtras.length > 0) {
+      doc.setFontSize(6.5);
+      doc.setTextColor(119, 119, 119);
+      doc.text(`Adicionais: ${allExtras.join(" · ")}`, textLeft, filterY);
+      filterY += 10;
+    }
+  }
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255); // Reset to white for generatedAt since it's in the band
   const generatedAt = fmtDate(new Date());
   doc.text(`Gerado em ${generatedAt}`, pageWidth - margin, 34, { align: "right" });
   if (payload.period?.from || payload.period?.to) {
@@ -252,7 +292,7 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
   }
   if (brand?.taxId) doc.text(`CPF/CNPJ: ${brand.taxId}`, pageWidth - margin, 66, { align: "right" });
 
-  let y = 120;
+  let y = filterY + 10;
   // Institutional block
   if (brand?.address || brand?.phone || brand?.email) {
     doc.setTextColor(...GRAY);
@@ -315,14 +355,40 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
         return v == null ? "" : String(v);
       })),
       theme: "striped",
-      styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak", cellWidth: "wrap", minCellHeight: 10, textColor: [30, 30, 30] },
-      headStyles: { fillColor: tableHeadColor, textColor: 255, fontStyle: "bold", fontSize: 8 },
+      tableWidth: "auto",
+      styles: { 
+        fontSize: 7, 
+        cellPadding: 3, 
+        overflow: "linebreak", 
+        minCellHeight: 10, 
+        textColor: [30, 30, 30],
+        valign: "middle"
+      },
+      headStyles: { 
+        fillColor: tableHeadColor, 
+        textColor: 255, 
+        fontStyle: "bold", 
+        fontSize: 7.5,
+        halign: "center"
+      },
       alternateRowStyles: { fillColor: [248, 249, 252] },
-      columnStyles: payload.columns.reduce((acc, c, i) => {
-        acc[i] = { cellWidth: (c.width ? (c.width * pageWidth) / 100 : "auto") };
-        return acc;
-      }, {} as any),
-      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: (pageWidth - margin * 2) * 0.06 },  // Data
+        1: { cellWidth: (pageWidth - margin * 2) * 0.07, halign: "right" }, // Valor
+        2: { cellWidth: (pageWidth - margin * 2) * 0.14 }, // Destinatário
+        3: { cellWidth: (pageWidth - margin * 2) * 0.09 }, // Banco
+        4: { cellWidth: (pageWidth - margin * 2) * 0.05 }, // Perfil
+        5: { cellWidth: (pageWidth - margin * 2) * 0.12 }, // Imóvel
+        6: { cellWidth: (pageWidth - margin * 2) * 0.09 }, // Categoria
+        7: { cellWidth: (pageWidth - margin * 2) * 0.07 }, // Natureza
+        8: { cellWidth: (pageWidth - margin * 2) * 0.07 }, // Tipo de Gasto
+        9: { cellWidth: (pageWidth - margin * 2) * 0.06 }, // Método
+        10: { cellWidth: (pageWidth - margin * 2) * 0.10, overflow: "anywhere" }, // Autenticação
+        11: { cellWidth: (pageWidth - margin * 2) * 0.08 }, // Observações
+      },
+      margin: { left: margin, right: margin, bottom: margin },
+      showHead: "everyPage",
+      rowPageBreak: "avoid",
       didDrawPage: () => {
         const p = doc.getNumberOfPages();
         doc.setFontSize(8);
