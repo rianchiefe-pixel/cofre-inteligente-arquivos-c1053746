@@ -198,7 +198,7 @@ function ReportsPage() {
           from: from || undefined,
           to: to || undefined,
           profileId: profileId === "all" ? null : profileId,
-          propertyId: selectedPropertyIds.length === 1 ? selectedPropertyIds[0] : null,
+          propertyId: selectedPropertyIds.length === 1 ? selectedPropertyIds[0] : (null as any),
 
           includeCards: true,
         },
@@ -234,7 +234,7 @@ function ReportsPage() {
       title: "Relatório Financeiro",
       subtitle: profileId !== "all" ? (profiles.data ?? []).find((p) => p.id === profileId)?.name : "Consolidado",
       period: { from, to },
-      filters: { from, to, profileId, type, propertyIds: selectedPropertyIds, categoryIds: selectedCategoryIds, recipients: selectedRecipients },
+      filters: { from, to, profileId, type, propertyIds: selectedPropertyIds, categoryIds: selectedCategoryIds, recipients: selectedRecipients } as any,
       brand,
       summary: [
         { label: "Total geral", value: currencyBRL(total) },

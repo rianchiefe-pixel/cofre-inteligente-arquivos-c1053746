@@ -203,11 +203,11 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     const filterText = `Filtros Aplicados: ${filterSummary.join(" | ")}`;
     const splitText = doc.splitTextToSize(filterText, contentW);
     doc.text(splitText, margin, 95);
-    y = 130;
+    curY = 130;
   }
 
-  
-  let y = 110;
+  let y = curY || 110;
+
   
   const cardW = (contentW - 20) / 3;
   const cardH = 60;

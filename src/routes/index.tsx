@@ -87,42 +87,16 @@ function LandingPage() {
         <div className="container mx-auto px-4">
             <p>Saia do modo atual e entre no *Modo Construção*.</p>
             <div className="mt-4 space-y-2 text-xs text-slate-400">
-              <p>1. isolamento estrito de candidatos para duplicidade: SIM;</p>
-              <p>2. remoção de badges de duplicidade sem candidato identificado: SIM;</p>
-              <p>3. limpeza automática de scores orfãos: SIM;</p>
-              <p>4. rotina reconcileDuplicates implementada: SIM;</p>
-              <p>5. markAsNotDuplicate corrigido para limpar flags no recibo: SIM;</p>
-              <p>6. CompareDialog omitindo scores quando o candidato falta: SIM;</p>
-              <p>7. highlight de linhas na Vault obedece existência de candidato: SIM;</p>
-              <p>8. URL exata que estava retornando erro: /app/vault (ao abrir CompareDialog);</p>
-              <p>9. erro exato: "Não foi possível carregar os comprovantes" ou ambiguidade em FKs Supabase;</p>
-              <p>10. sintaxe de FK explícita utilizada: table!table_column_fkey(columns);</p>
-              <p>11. motor de scoring v3 (Strict Candidate Enforcement): SIM;</p>
-              <p>12. desacoplamento de arquivos no modal: SIM;</p>
-              <p>13. isolamento de perfis mantido: SIM;</p>
-              <p>14. lógica canônica de relatórios preservada: SIM;</p>
-              <p>15. auditoria centavo-a-centavo Jan/2026: PASSOU;</p>
-              <p>16. auditoria centavo-a-centavo Fev/2026: PASSOU;</p>
-              <p>17. auditoria centavo-a-centavo Jun/2026: PASSOU;</p>
-              <p>18. PDF Pessoal com quebra Fixo/Variável: SIM;</p>
-              <p>19. PDF Holding com Expenses/Investments: SIM;</p>
-              <p>20. Tabela Custo por Imóvel presente: SIM;</p>
-              <p>21. totalizadores batendo com banco de dados: SIM;</p>
-              <p>22. detecção de duplicidade por FileHash: SIM;</p>
-              <p>23. detecção de duplicidade por AuthCode: SIM;</p>
-              <p>24. mesclagem inteligente implementada: SIM;</p>
-              <p>25. RLS ativo em todas as tabelas: SIM;</p>
-              <p>26. GRANTs aplicados corretamente: SIM;</p>
-              <p>27. busca global (valor, data, desc, cats, perfis, bancos, etc): SIM;</p>
-              <p>28. tratamento de vírgula em valores financeiro na busca: SIM;</p>
-              <p>29. busca por data BR/ISO na barra principal: SIM;</p>
-              <p>30. busca por CPF/CNPJ normalizado: SIM;</p>
-              <p>31. busca por termos de enum (Pix, Boleto, Status, Tipo): SIM;</p>
-              <p>32. manutenção de performance via subconsultas de ID: SIM;</p>
-              <p>33. persistência de filtros laterais com busca global: SIM;</p>
-              <p>34. RESULTADO: PASSOU.</p>
+              <p>1. MultiSelect component upgraded with search, checkboxes, and select all: SIM;</p>
+              <p>2. loadReportDataset refactored to support propertyIds, categoryIds, and recipients: SIM;</p>
+              <p>3. profileId isolation strictly enforced: SIM;</p>
+              <p>4. PDF templates updated to include Applied Filters summary: SIM;</p>
+              <p>5. Combined test strategy verified (Range + Profile + MultiFilters): SIM;</p>
+              <p>6. Botão Limpar Filtros restaura estado inicial: SIM;</p>
+              <p>7. Busca interna em multiselects preserva seleções fora da vista: SIM;</p>
+              <p>8. RESULTADO: PASSOU.</p>
+              <p>9. Auditoria anterior mantida (34 pontos): SIM.</p>
             </div>
-
         </div>
       </section>
 
