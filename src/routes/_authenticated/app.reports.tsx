@@ -401,12 +401,11 @@ function ReportsPage() {
             <div className="mt-2 flex flex-col gap-2">
               <Select onValueChange={(val) => {
                 if (val === "recipient") {
-                  // Handled by the dialog/popover below
-                  document.getElementById("btn-add-recipient")?.click();
+                  setOpenAddRecipient(true);
                 } else if (val === "property") {
-                  document.getElementById("btn-add-property")?.click();
+                  setOpenAddProperty(true);
                 } else if (val === "category") {
-                  document.getElementById("btn-add-category")?.click();
+                  setOpenAddCategory(true);
                 }
               }}>
                 <SelectTrigger className="h-7 w-fit border-dashed bg-transparent text-[11px] hover:bg-muted">
