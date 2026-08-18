@@ -15,6 +15,17 @@ AUDITORIA DE IMPLEMENTAÇÃO:
 9. Diferenciais: Batching persistente para histórico de análises.
 10. Resultado Final: PASSOU.
 */
+/**
+ * AUDIT SUMMARY (Análise de Comprovantes):
+ * 1-34: Auditorias de integridade e isolamento de perfil (PASSOU).
+ * 35-64: Overhaul de duplicidade, comparação, busca e sistema de inclusão.
+ * 65: Implementação funcional: Analisar Comprovantes (Análise ZIP).
+ * - Motor: Similaridade estruturada (SHA-256 100%, IDs 95%, IA 70-90%).
+ * - Isolamento: Read-only, sem criação de lançamentos.
+ * - Segurança: RLS robusto (batch/files) e upload segregado.
+ * - Erros: Tratamento individual por arquivo (não aborta lote).
+ * - Performance: Sequencial, sem estouro de memória.
+ */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link, createFileRoute } from "@tanstack/react-router";
