@@ -1797,25 +1797,50 @@ function CompareDialog({
                 <span>{reason}</span>
               </div>
             )}
-            <div className="grid gap-4 md:grid-cols-2">
-              <ReceiptPanel
-                title="Comprovante novo"
-                rec={data.newRec}
-                url={data.newUrl}
-                tone="new"
-              />
-              {data.oldRec ? (
+            <div className="flex flex-col gap-4">
+              {data.check?.matched_fields && data.check.matched_fields.length > 0 && (
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Motivos da possível duplicidade</p>
+                  <div className="flex flex-wrap gap-2">
+                    {data.check.matched_fields.map((f: string) => (
+                      <Badge key={f} variant="outline" className="border-success/50 bg-success/10 text-success-foreground">
+                        ✅ Mesmo {f.replace("_", " ")}
+                      </Badge>
+                    ))}
+                    {data.check.different_fields?.map((f: string) => (
+                      <Badge key={f} variant="outline" className="border-destructive/50 bg-destructive/10 text-destructive">
+                        ❌ {f.replace("_", " ")} diferente
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-center gap-4 py-2">
+                <div className="h-px flex-1 bg-border" />
+                <div className="text-center">
+                  <p className={`text-sm font-bold ${scoreLabel.color}`}>{scoreLabel.label}</p>
+                  <p className="text-xs text-muted-foreground">Similaridade: {scoreLabel.score}/100</p>
+                </div>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
                 <ReceiptPanel
-                  title="Comprovante existente"
+                  title="Comprovante / Lançamento novo"
+                  rec={data.newRec}
+                  url={data.newUrl}
+                  tone="new"
+                  compareWith={data.oldRec}
+                />
+                <ReceiptPanel
+                  title="Lançamento já existente"
                   rec={data.oldRec}
                   url={data.oldUrl}
                   tone="old"
+                  compareWith={data.newRec}
                 />
-              ) : (
-                <Card className="grid place-items-center p-8 text-sm text-muted-foreground">
-                  Nenhum comprovante existente vinculado.
-                </Card>
-              )}
+              </div>
             </div>
             <div className="mt-2 flex flex-wrap justify-end gap-2">
               <Button
