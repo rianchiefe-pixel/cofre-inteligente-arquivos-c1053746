@@ -388,7 +388,7 @@ function ReportsPage() {
             onClick={() => {
               setFrom(initialRange.from);
               setTo(initialRange.to);
-              setProfileId("");
+              setProfileId("all");
               setType("all");
               setSelectedPropertyIds([]);
               setSelectedCategoryIds([]);
