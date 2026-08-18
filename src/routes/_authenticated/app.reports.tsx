@@ -117,8 +117,8 @@ function ReportsPage() {
   
   // Destinatários para o filtro (distinct name)
   const recipients = useQuery({
-    queryKey: ["recipients-list", profileId],
-    enabled: !!profileId && profileId !== "all",
+    queryKey: ["recipients-list", normalizedProfileId],
+    enabled: Boolean(normalizedProfileId),
     queryFn: async () => {
       const { data } = await supabase
         .from("receipts")
