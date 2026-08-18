@@ -140,9 +140,20 @@ export async function processAnalysisZip(
 
       if (fErr || !analysisFile) throw fErr;
 
+      // Extração de fatos (OCR estruturado) antes do matching
+      const facts = extractReceiptFacts(name); // Nome do arquivo é o primeiro sinal
+      
+      // Se tivermos texto extraído do processamento prévio ou IA, poderíamos preencher aqui.
+      // Por enquanto, garantimos que o registro tenha o mínimo para o findAnalysisCandidates
+      await (supabase as any).from("receipt_analysis_files").update({
+        amount: facts.amount,
+        payment_date: facts.date,
+        recipient_name: facts.payee,
+        auth_code: facts.auth_code,
+        transaction_id: facts.transaction_id
+      }).eq("id", analysisFile.id);
+
       // Executar motor de localização (Regra 11, 38)
-      // Nota: Como estamos no cliente, chamamos a lógica exportada do motor de busca
-      // Passamos o supabase e userId simulando o context do serverFn
       const result = await findAnalysisCandidates({ data: { fileId: analysisFile.id } });
 
       // Atualizar o registro com o resultado da busca

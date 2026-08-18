@@ -17,12 +17,17 @@ import {
   User,
   CreditCard,
   History,
-  Info
+  Info,
+  Link,
+  Loader2
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { currencyBRL, dateBR } from "@/lib/format";
 import { useState, useEffect } from "react";
+import { linkReceiptToAnalysisFile } from "@/lib/link-receipt.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 
 interface AnalysisCompareDialogProps {
   file: any;
@@ -32,6 +37,27 @@ interface AnalysisCompareDialogProps {
 
 export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisCompareDialogProps) {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const linkReceiptFn = useServerFn(linkReceiptToAnalysisFile);
+
+  const linkMutation = useMutation({
+    mutationFn: async () => {
+      return linkReceiptFn({
+        data: {
+          analysisFileId: file.id,
+          receiptId: file.candidate_receipt_id
+        }
+      });
+    },
+    onSuccess: () => {
+      toast.success("Comprovante vinculado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["analysis_files", file.batch_id] });
+      onOpenChange(false);
+    },
+    onError: (err) => {
+      toast.error(`Erro ao vincular: ${err instanceof Error ? err.message : "Desconhecido"}`);
+    }
+  });
 
   // 1. Buscar a URL do arquivo de análise
   useEffect(() => {
@@ -188,9 +214,10 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                     {candidateFileUrl ? (
                       <iframe src={candidateFileUrl} className="w-full h-full border-none rounded shadow-sm" />
                     ) : (
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground p-8 text-center">
                         <FileText className="h-12 w-12 opacity-20" />
-                        <p className="text-xs italic">Visualização não disponível</p>
+                        <p className="text-sm font-medium">Sem comprovante anexado</p>
+                        <p className="text-xs italic">Este lançamento existe no Cofre, mas não possui um arquivo digitalizado vinculado.</p>
                       </div>
                     )}
                   </div>
@@ -243,7 +270,14 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
         <div className="p-4 bg-muted/10 border-t flex justify-end gap-3 shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar Comparação</Button>
           {file.analysis_status === 'possible_match' && (
-            <Button className="bg-primary hover:bg-primary/90">Confirmar Correspondência</Button>
+            <Button 
+              className="bg-primary hover:bg-primary/90 gap-2"
+              onClick={() => linkMutation.mutate()}
+              disabled={linkMutation.isPending}
+            >
+              {linkMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link className="h-4 w-4" />}
+              Vincular ao Lançamento
+            </Button>
           )}
         </div>
       </DialogContent>
