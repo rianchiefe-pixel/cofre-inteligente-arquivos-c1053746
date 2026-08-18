@@ -123,7 +123,7 @@ function ReportsPage() {
       const { data } = await supabase
         .from("receipts")
         .select("recipient_name")
-        .eq("profile_id", profileId)
+        .eq("profile_id", normalizedProfileId!)
         .eq("status", "approved")
         .not("recipient_name", "is", null);
       
