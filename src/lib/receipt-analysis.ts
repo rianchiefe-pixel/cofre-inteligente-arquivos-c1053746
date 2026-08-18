@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { supabase } from "@/integrations/supabase/client";
-import { extractReceiptFacts, storageSafeName } from "./zip-import";
+import { extractReceiptFacts, storageSafeName, guessMime, extractStoredReceiptContent } from "./zip-import";
 import { findAnalysisCandidates } from "./receipt-analysis.functions";
 
 /**
@@ -100,6 +100,8 @@ export async function processAnalysisZip(
       const buf = await blob.arrayBuffer();
       const hash = await sha256Hex(buf);
       const name = path.split("/").pop() ?? path;
+      const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+      const mime = guessMime(ext);
       
       // Regra 34: Duplicidade dentro do próprio ZIP
       if (processedHashes.has(hash)) {
@@ -108,6 +110,8 @@ export async function processAnalysisZip(
           user_id: userId,
           original_path: path,
           file_name: name,
+          extension: ext,
+          mime_type: mime,
           content_hash: hash,
           analysis_status: "duplicate_in_zip",
           analysis_reason: "Arquivo repetido dentro do mesmo ZIP"
@@ -118,11 +122,21 @@ export async function processAnalysisZip(
       }
       processedHashes.add(hash);
 
-      // Upload temporário (Regra 49)
+      // Upload temporário (Regra 49) com Content-Type (Regra 4)
       const storagePath = `analysis/${userId}/${batch.id}/${hash.slice(0, 2)}/${hash}-${storageSafeName(name)}`;
-      await supabase.storage.from("receipts").upload(storagePath, blob, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from("receipts")
+        .upload(storagePath, blob, { 
+          upsert: true,
+          contentType: mime
+        });
 
-      // Criar registro inicial do arquivo
+      if (uploadError) {
+        console.error("[ANALYSIS UPLOAD]", uploadError);
+        throw uploadError;
+      }
+
+      // Criar registro inicial do arquivo com mime_type e extension (Regra 1, 3)
       const { data: analysisFile, error: fErr } = await (supabase as any)
         .from("receipt_analysis_files")
         .insert({
@@ -130,6 +144,8 @@ export async function processAnalysisZip(
           user_id: userId,
           original_path: path,
           file_name: name,
+          extension: ext,
+          mime_type: mime,
           content_hash: hash,
           storage_path: storagePath,
           size_bytes: buf.byteLength,
@@ -140,17 +156,29 @@ export async function processAnalysisZip(
 
       if (fErr || !analysisFile) throw fErr;
 
-      // Extração de fatos (OCR estruturado) antes do matching
-      const facts = extractReceiptFacts(name); // Nome do arquivo é o primeiro sinal
+      // Extração de conteúdo real (PDF/Imagem) usando o motor compartilhado (Regra 12, 13, 14, 15, 18)
+      console.log(`[ANALYZE] Iniciando extração real para: ${name}`);
+      const extraction = await extractStoredReceiptContent({
+        storagePath,
+        extension: ext,
+        mimeType: mime,
+        runOcr: true
+      });
+
+      const facts = extraction.facts;
       
-      // Se tivermos texto extraído do processamento prévio ou IA, poderíamos preencher aqui.
-      // Por enquanto, garantimos que o registro tenha o mínimo para o findAnalysisCandidates
+      // Atualizar com dados reais extraídos do documento
       await (supabase as any).from("receipt_analysis_files").update({
-        amount: facts.amount,
-        payment_date: facts.date,
-        recipient_name: facts.payee,
-        auth_code: facts.auth_code,
-        transaction_id: facts.transaction_id
+        extracted_text: extraction.extractedText,
+        ocr_data: extraction.facts,
+        amount: facts.amount ?? null,
+        payment_date: facts.date ?? null,
+        recipient_name: facts.payee ?? null,
+        recipient_tax_id: facts.cnpj?.[0] ?? facts.cpf?.[0] ?? null,
+        bank_name: facts.bank_to ?? facts.bank_from ?? facts.banks?.[0] ?? null,
+        payment_method: facts.payment_method ?? null,
+        auth_code: facts.auth_code ?? null,
+        transaction_id: facts.transaction_id ?? null
       }).eq("id", analysisFile.id);
 
       // Executar motor de localização (Regra 11, 38)

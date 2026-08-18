@@ -43,7 +43,7 @@ function sanitizePath(p: string): string | null {
   return clean;
 }
 
-function guessMime(ext: string): string {
+export function guessMime(ext: string): string {
   const map: Record<string, string> = {
     pdf: "application/pdf",
     jpg: "image/jpeg",
@@ -495,6 +495,97 @@ export async function hydrateDuplicateFiles(batchId: string): Promise<number> {
 // -----------------------------------------------------------------------------
 // Post-processing (PDF text + optional OCR). Idempotent, resumable.
 // -----------------------------------------------------------------------------
+
+export interface ExtractResult {
+  extractedText: string;
+  facts: ReceiptFacts;
+  pageCount?: number;
+  readable: boolean;
+}
+
+/**
+ * Função compartilhada para extrair conteúdo de um arquivo já armazenado.
+ * Reutiliza a infraestrutura de PDF.js e OCR.
+ */
+export async function extractStoredReceiptContent(opts: {
+  storagePath: string;
+  extension: string;
+  mimeType?: string;
+  runOcr: boolean;
+}): Promise<ExtractResult> {
+  const { storagePath, extension, runOcr } = opts;
+  const { data: signed } = await supabase.storage
+    .from("receipts")
+    .createSignedUrl(storagePath, 600);
+  
+  if (!signed?.signedUrl) throw new Error("Falha ao gerar URL de acesso ao arquivo");
+
+  const ext = extension.toLowerCase();
+  let extractedText = "";
+  let pageCount: number | undefined;
+
+  const pdfjs = (ext === "pdf")
+    ? await import("pdfjs-dist").then((m) => {
+        m.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        return m;
+      })
+    : null;
+
+  let worker: any = null;
+  if (runOcr) {
+    const tesseract = await import("tesseract.js");
+    worker = await tesseract.createWorker("por+eng");
+  }
+
+  try {
+    if (ext === "pdf" && pdfjs) {
+      const task = pdfjs.getDocument({ url: signed.signedUrl });
+      const doc = await task.promise;
+      pageCount = doc.numPages;
+      const parts: string[] = [];
+      let ocrPages = 0;
+
+      for (let p = 1; p <= doc.numPages; p += 1) {
+        const page = await doc.getPage(p);
+        const content = await page.getTextContent();
+        let pageText = content.items
+          .map((it: any) => ("str" in it ? it.str : ""))
+          .join(" ");
+
+        if (runOcr && worker && pageText.trim().length < 20 && ocrPages < MAX_OCR_PAGES) {
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d")!;
+          await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+          const { data } = await worker.recognize(canvas);
+          pageText = data.text ?? "";
+          ocrPages += 1;
+        }
+        parts.push(pageText);
+      }
+      extractedText = parts.join("\n\n");
+    } else if (IMAGE_EXTS.has(ext)) {
+      if (runOcr && worker) {
+        const { data } = await worker.recognize(signed.signedUrl);
+        extractedText = data.text;
+      }
+    }
+
+    const facts = extractedText ? extractReceiptFacts(extractedText) : {};
+    const readable = extractedText.trim().length >= 20;
+
+    return {
+      extractedText,
+      facts,
+      pageCount,
+      readable
+    };
+  } finally {
+    if (worker) await worker.terminate();
+  }
+}
 
 export type ProcessOptions = {
   batchId: string;

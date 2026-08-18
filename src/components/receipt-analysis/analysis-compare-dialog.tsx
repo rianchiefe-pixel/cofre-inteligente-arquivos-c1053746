@@ -36,8 +36,22 @@ interface AnalysisCompareDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function resolveMimeType(file: any): string {
+  if (file.mime_type) return file.mime_type;
+  const ext = file.extension || file.file_name?.split(".").pop()?.toLowerCase() || "";
+  const map: Record<string, string> = {
+    pdf: "application/pdf",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+  };
+  return map[ext] || "application/octet-stream";
+}
+
 export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisCompareDialogProps) {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [viewerStatus, setViewerStatus] = useState<"idle" | "loading" | "success" | "no_file" | "error">("idle");
   const [candidateFileUrl, setCandidateFileUrl] = useState<string | null>(null);
   const [candidateStatus, setCandidateStatus] = useState<"loading" | "success" | "no_candidate" | "not_found" | "error">("loading");
@@ -69,18 +83,21 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
   useEffect(() => {
     if (open) {
       setFileUrl(null);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setObjectUrl(null);
       setViewerStatus("idle");
       setCandidateFileUrl(null);
       setCandidateStatus("loading");
     }
   }, [open, file?.id]);
 
-  // 2. Buscar a URL do arquivo de análise (Regra 3, 4, 5, 27)
+  // 2. Buscar a URL do arquivo de análise (Regra 3, 4, 5, 27, 7, 8)
   useEffect(() => {
     if (!open || !file?.id) return;
     
     let cancelled = false;
     let timeoutId: any = null;
+    let currentObjectUrl: string | null = null;
 
     async function loadAnalysisFile() {
       if (!file?.storage_path) {
@@ -92,17 +109,20 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
       
       // Timeout de segurança (Regra 2)
       timeoutId = setTimeout(() => {
-        if (!cancelled && viewerStatus === "loading") {
+        if (!cancelled) {
           console.error("[ANALYZE VIEWER] Timeout no carregamento");
           setViewerStatus("error");
         }
       }, 15000);
 
       try {
-        console.log("[ANALYZE VIEWER] Gerando Signed URL", {
-          id: file.id,
-          path: file.storage_path,
-          mime: file.mime_type
+        const effectiveMime = resolveMimeType(file);
+        console.log("[ANALYZE VIEWER]", {
+          analysisFileId: file.id,
+          fileName: file.file_name,
+          storagePath: file.storage_path,
+          mimeType: file.mime_type,
+          effectiveMime
         });
 
         const { data, error } = await supabase.storage
@@ -111,22 +131,30 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
 
         if (cancelled) return;
 
-        if (error) {
-          console.error("[ANALYZE VIEWER] Erro no Signed URL:", error);
-          setViewerStatus("error");
-          return;
-        }
-
-        if (!data?.signedUrl) {
-          console.error("[ANALYZE VIEWER] Signed URL não retornada");
+        if (error || !data?.signedUrl) {
+          console.error("[ANALYZE VIEWER] Signed URL Fail:", error);
           setViewerStatus("error");
           return;
         }
 
         setFileUrl(data.signedUrl);
-        setViewerStatus("success");
+
+        // Baixar como Blob para visualização robusta (Regra 7)
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const originalBlob = await response.blob();
+        const displayBlob = new Blob([await originalBlob.arrayBuffer()], { type: effectiveMime });
+        currentObjectUrl = URL.createObjectURL(displayBlob);
+
+        if (!cancelled) {
+          setObjectUrl(currentObjectUrl);
+          setViewerStatus("success");
+        } else {
+          URL.revokeObjectURL(currentObjectUrl);
+        }
       } catch (err) {
-        console.error("[ANALYZE VIEWER] Exceção:", err);
+        console.error("[ANALYZE VIEWER] Error:", err);
         if (!cancelled) setViewerStatus("error");
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
@@ -138,6 +166,7 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
     return () => {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
+      if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     };
   }, [open, file?.id, file?.storage_path]);
 
@@ -242,17 +271,16 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <p className="text-xs">Carregando visualização...</p>
                   </div>
-                ) : viewerStatus === "success" && fileUrl ? (
+                ) : viewerStatus === "success" && objectUrl ? (
                   <div className="w-full h-full p-2 overflow-auto">
-                    {file.mime_type?.includes("pdf") ? (
+                    {resolveMimeType(file) === "application/pdf" ? (
                       <iframe 
-                        src={fileUrl} 
+                        src={objectUrl} 
                         className="w-full h-full border-none rounded shadow-sm"
-                        onLoad={() => console.log("[ANALYZE VIEWER] PDF Loaded")}
                       />
                     ) : (
                       <img 
-                        src={fileUrl} 
+                        src={objectUrl} 
                         className="max-w-full h-auto mx-auto rounded shadow-sm" 
                         onLoad={() => console.log("[ANALYZE VIEWER] Image Loaded")}
                         onError={() => setViewerStatus("error")}
@@ -272,6 +300,9 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                       <div className="flex gap-2 justify-center mt-2">
                         <Button variant="outline" size="sm" onClick={() => window.open(fileUrl || "", "_blank")} disabled={!fileUrl}>
                           Abrir em nova aba
+                        </Button>
+                        <Button variant="outline" size="sm" asChild disabled={!fileUrl}>
+                          <a href={fileUrl || ""} download={file.file_name}>Baixar arquivo</a>
                         </Button>
                       </div>
                     </div>
