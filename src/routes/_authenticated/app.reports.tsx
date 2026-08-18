@@ -545,6 +545,7 @@ function ReportsPage() {
               setSelectedPropertyIds([]);
               setSelectedCategoryIds([]);
               setSelectedRecipients([]);
+              setExtraIncludes({ propertyIds: [], categoryIds: [], recipients: [] });
             }}
           >
             Limpar filtros
