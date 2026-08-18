@@ -100,6 +100,8 @@ export async function processAnalysisZip(
       const buf = await blob.arrayBuffer();
       const hash = await sha256Hex(buf);
       const name = path.split("/").pop() ?? path;
+      const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+      const mime = guessMime(ext);
       
       // Regra 34: Duplicidade dentro do próprio ZIP
       if (processedHashes.has(hash)) {
@@ -108,6 +110,8 @@ export async function processAnalysisZip(
           user_id: userId,
           original_path: path,
           file_name: name,
+          extension: ext,
+          mime_type: mime,
           content_hash: hash,
           analysis_status: "duplicate_in_zip",
           analysis_reason: "Arquivo repetido dentro do mesmo ZIP"
@@ -118,11 +122,21 @@ export async function processAnalysisZip(
       }
       processedHashes.add(hash);
 
-      // Upload temporário (Regra 49)
+      // Upload temporário (Regra 49) com Content-Type (Regra 4)
       const storagePath = `analysis/${userId}/${batch.id}/${hash.slice(0, 2)}/${hash}-${storageSafeName(name)}`;
-      await supabase.storage.from("receipts").upload(storagePath, blob, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from("receipts")
+        .upload(storagePath, blob, { 
+          upsert: true,
+          contentType: mime
+        });
 
-      // Criar registro inicial do arquivo
+      if (uploadError) {
+        console.error("[ANALYSIS UPLOAD]", uploadError);
+        throw uploadError;
+      }
+
+      // Criar registro inicial do arquivo com mime_type e extension (Regra 1, 3)
       const { data: analysisFile, error: fErr } = await (supabase as any)
         .from("receipt_analysis_files")
         .insert({
@@ -130,6 +144,8 @@ export async function processAnalysisZip(
           user_id: userId,
           original_path: path,
           file_name: name,
+          extension: ext,
+          mime_type: mime,
           content_hash: hash,
           storage_path: storagePath,
           size_bytes: buf.byteLength,
@@ -140,11 +156,10 @@ export async function processAnalysisZip(
 
       if (fErr || !analysisFile) throw fErr;
 
-      // Extração de fatos (OCR estruturado) antes do matching
-      const facts = extractReceiptFacts(name); // Nome do arquivo é o primeiro sinal
+      // TODO: Reutilizar motor de OCR real do zip-import.ts (Regra 12, 13)
+      // Por enquanto, preenchemos via extractReceiptFacts do nome como fallback
+      const facts = extractReceiptFacts(name);
       
-      // Se tivermos texto extraído do processamento prévio ou IA, poderíamos preencher aqui.
-      // Por enquanto, garantimos que o registro tenha o mínimo para o findAnalysisCandidates
       await (supabase as any).from("receipt_analysis_files").update({
         amount: facts.amount,
         payment_date: facts.date,
