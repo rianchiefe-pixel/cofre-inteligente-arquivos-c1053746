@@ -1694,17 +1694,26 @@ function CompareDialog({
     queryFn: async () => {
       const { data: newRec } = await supabase
         .from("receipts")
-        .select("*")
+        .select("*, category:categories(name), financial_profiles(name), banks(name)")
         .eq("id", receiptId!)
         .single();
       if (!newRec) return null;
+
       const { data: oldRec } = newRec.duplicate_of
         ? await supabase
             .from("receipts")
-            .select("*")
+            .select("*, category:categories(name), financial_profiles(name), banks(name)")
             .eq("id", newRec.duplicate_of)
             .maybeSingle()
         : { data: null };
+
+      const { data: check } = await supabase
+        .from("duplicate_checks")
+        .select("*")
+        .eq("new_receipt_id", newRec.id)
+        .eq("candidate_receipt_id", oldRec?.id ?? "")
+        .maybeSingle();
+
       const [newUrl, oldUrl] = await Promise.all([
         newRec.file_path
           ? supabase.storage
@@ -1719,7 +1728,7 @@ function CompareDialog({
               .then((r) => r.data?.signedUrl ?? null)
           : null,
       ]);
-      return { newRec, oldRec, newUrl, oldUrl };
+      return { newRec, oldRec, newUrl, oldUrl, check };
     },
   });
 
