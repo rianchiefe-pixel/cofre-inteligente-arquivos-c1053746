@@ -320,46 +320,102 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Duplicate detection
+    // Duplicate detection engine v2
     let duplicate_of: string | null = null;
     let score = 0;
+    const matchedFields: string[] = [];
+    const differentFields: string[] = [];
 
+    // Exact file hash (100%)
     if (rec.file_hash) {
       const { data: sameHash } = await supabase
         .from("receipts")
         .select("id")
         .eq("file_hash", rec.file_hash)
         .neq("id", rec.id)
-        .limit(2);
-      if (sameHash?.length) { duplicate_of = sameHash[0].id; score = 100; }
+        .limit(1);
+      if (sameHash?.length) { 
+        duplicate_of = sameHash[0].id; 
+        score = 100;
+        matchedFields.push("file_hash");
+      }
     }
 
+    // Strong Identifiers (Auth Code, Pix E2E, NSU)
     if (!duplicate_of && extracted.auth_code) {
       const { data: sameAuth } = await supabase
         .from("receipts")
         .select("id")
         .eq("auth_code", extracted.auth_code)
         .neq("id", rec.id)
-        .limit(2);
-      if (sameAuth?.length) { duplicate_of = sameAuth[0].id; score = 95; }
+        .limit(1);
+      if (sameAuth?.length) { 
+        duplicate_of = sameAuth[0].id; 
+        score = 95;
+        matchedFields.push("auth_code");
+      }
     }
 
+    // Multi-factor detection (Amount + Date + Payee/Bank)
     if (!duplicate_of && extracted.amount && extracted.payment_date) {
-      const { data: sameVD } = await supabase
+      const { data: candidates } = await supabase
         .from("receipts")
-        .select("id, recipient_name, bank_name, profile_id")
+        .select("id, amount, payment_date, recipient_name, bank_name, auth_code, recipient_tax_id")
         .eq("amount", extracted.amount)
         .eq("payment_date", extracted.payment_date)
         .neq("id", rec.id)
         .limit(5);
-      if (sameVD?.length) {
-        let s = 40;
-        for (const d of sameVD) {
-          if (extracted.recipient_name && d.recipient_name && d.recipient_name.toLowerCase() === extracted.recipient_name.toLowerCase()) s += 15;
-          if (extracted.bank_name && d.bank_name && d.bank_name.toLowerCase() === extracted.bank_name.toLowerCase()) s += 10;
+
+      if (candidates?.length) {
+        // Evaluate each candidate to find the best match
+        for (const cand of candidates) {
+          let candScore = 40; // Base for same Amount + Date
+          const candMatched: string[] = ["amount", "payment_date"];
+          const candDifferent: string[] = [];
+
+          const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().trim();
+          
+          if (norm(extracted.recipient_name) === norm(cand.recipient_name)) {
+            candScore += 25;
+            candMatched.push("recipient_name");
+          } else if (extracted.recipient_name && cand.recipient_name) {
+            candDifferent.push("recipient_name");
+          }
+
+          if (norm(extracted.bank_name) === norm(cand.bank_name)) {
+            candScore += 15;
+            candMatched.push("bank_name");
+          } else if (extracted.bank_name && cand.bank_name) {
+            candDifferent.push("bank_name");
+          }
+
+          if (extracted.recipient_tax_id && extracted.recipient_tax_id === cand.recipient_tax_id) {
+            candScore += 20;
+            candMatched.push("recipient_tax_id");
+          }
+
+          if (candScore >= 65) {
+            duplicate_of = cand.id;
+            score = Math.min(candScore, 90);
+            matchedFields.push(...candMatched);
+            differentFields.push(...candDifferent);
+            break;
+          }
         }
-        score = Math.min(s, 75);
       }
+    }
+
+    // Persist detailed duplicate check
+    if (duplicate_of) {
+      await supabase.from("duplicate_checks").insert({
+        user_id: context.userId,
+        new_receipt_id: rec.id,
+        candidate_receipt_id: duplicate_of,
+        similarity_score: score,
+        matched_fields: Array.from(new Set(matchedFields)),
+        different_fields: Array.from(new Set(differentFields)),
+        status: "pending"
+      });
     }
 
     const update: any = {
