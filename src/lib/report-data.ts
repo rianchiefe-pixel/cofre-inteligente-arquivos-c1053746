@@ -122,7 +122,7 @@ export interface ReportDataset {
     generatedAt: string;
     rowsFetched: number;
     rowsUsed: number;
-    filters: { from: string; to: string; profileId: string | null; propertyId: string | null };
+    filters: { from: string; to: string; profileId: string | null; propertyIds: string[] | null; categoryIds: string[] | null; recipients: string[] | null };
   };
 }
 
@@ -231,7 +231,15 @@ export const TECHNICAL_UNCATEGORIZED_NAMES = [
 ];
 
 
-export async function loadReportDataset(f: { from: string; to: string; profileId: string; propertyId?: string | null }): Promise<ReportDataset> {
+export async function loadReportDataset(f: { 
+  from: string; 
+  to: string; 
+  profileId: string; 
+  propertyIds?: string[] | null;
+  categoryIds?: string[] | null;
+  recipients?: string[] | null;
+}): Promise<ReportDataset> {
+
   if (!f.profileId || f.profileId === "all") {
     throw new Error("ID do perfil é obrigatório para carregar o dataset do relatório.");
   }
@@ -256,7 +264,10 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     if (f.from) q = q.gte("payment_date", f.from);
     if (f.to) q = q.lte("payment_date", f.to);
     if (f.profileId) q = q.eq("profile_id", f.profileId);
-    if (f.propertyId) q = q.eq("property_id", f.propertyId);
+    if (f.propertyIds && f.propertyIds.length > 0) q = q.in("property_id", f.propertyIds);
+    if (f.categoryIds && f.categoryIds.length > 0) q = q.in("category_id", f.categoryIds);
+    if (f.recipients && f.recipients.length > 0) q = q.in("recipient_name", f.recipients);
+
     const { data, error } = await q;
     if (error) throw new Error(`Falha ao carregar lançamentos: ${error.message}`);
     const page = data ?? [];
@@ -425,6 +436,6 @@ export async function loadReportDataset(f: { from: string; to: string; profileId
     totals: { ...totals, despesa: centsToNumber(totals.despesaCents), fixed: centsToNumber(totals.fixedCents), variable: centsToNumber(totals.variableCents), otherExpense: centsToNumber(totals.otherExpenseCents), investimento: centsToNumber(totals.investimentoCents), unclassified: centsToNumber(totals.unclassifiedCents), total: centsToNumber(totals.totalCents) },
     entries,
     propertyBreakdown,
-    meta: { generatedAt: new Date().toISOString(), rowsFetched: rows.length, rowsUsed: entries.length, filters: { from: f.from, to: f.to, profileId: f.profileId ?? null, propertyId: f.propertyId ?? null } }
+    meta: { generatedAt: new Date().toISOString(), rowsFetched: rows.length, rowsUsed: entries.length, filters: { from: f.from, to: f.to, profileId: f.profileId ?? null, propertyIds: f.propertyIds ?? null, categoryIds: f.categoryIds ?? null, recipients: f.recipients ?? null } }
   };
 }

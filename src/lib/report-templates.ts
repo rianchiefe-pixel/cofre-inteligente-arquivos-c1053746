@@ -181,6 +181,31 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   // 1. CAPA / RESUMO INICIAL
   const reportTitle = isPessoal ? "RELATÓRIO FINANCEIRO — PESSOA FÍSICA" : "RELATÓRIO FINANCEIRO — HOLDING";
   drawReportHeader(doc, reportTitle, `Perfil: ${profileLabel} | Período: ${data.periodLabel}`, pw, margin);
+
+  // Bloco informativo de filtros (Regra 19)
+  const filters = data.meta.filters;
+  const filterSummary: string[] = [];
+  if (filters.propertyIds && filters.propertyIds.length > 0) {
+    const names = [...new Set(data.entries.filter(e => e.propertyId && filters.propertyIds?.includes(e.propertyId)).map(e => e.propertyName))].filter(Boolean);
+    filterSummary.push(`Imóveis: ${names.join(", ")}`);
+  }
+  if (filters.categoryIds && filters.categoryIds.length > 0) {
+    const names = [...new Set(data.entries.filter(e => e.categoryId && filters.categoryIds?.includes(e.categoryId)).map(e => e.categoryName))].filter(Boolean);
+    filterSummary.push(`Categorias: ${names.join(", ")}`);
+  }
+  if (filters.recipients && filters.recipients.length > 0) {
+    filterSummary.push(`Destinatários: ${filters.recipients.join(", ")}`);
+  }
+
+  if (filterSummary.length > 0) {
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    const filterText = `Filtros Aplicados: ${filterSummary.join(" | ")}`;
+    const splitText = doc.splitTextToSize(filterText, contentW);
+    doc.text(splitText, margin, 95);
+    y = 130;
+  }
+
   
   let y = 110;
   
