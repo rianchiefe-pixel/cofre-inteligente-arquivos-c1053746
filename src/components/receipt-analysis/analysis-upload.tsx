@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileArchive, Loader2 } from "lucide-react";
 import { processAnalysisZip, type AnalysisProgress } from "@/lib/receipt-analysis";
-import { useAuth } from "@/hooks/use-auth";
+import { Route } from "@/routes/_authenticated/route";
 import { toast } from "sonner";
 
 interface AnalysisUploadProps {
@@ -13,7 +13,7 @@ interface AnalysisUploadProps {
 }
 
 export function AnalysisUpload({ onComplete }: AnalysisUploadProps) {
-  const { user } = useAuth();
+  const { user } = Route.useRouteContext();
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
 
