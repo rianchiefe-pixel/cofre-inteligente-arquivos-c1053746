@@ -38,11 +38,16 @@ interface AnalysisCompareDialogProps {
 
 export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisCompareDialogProps) {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [viewerStatus, setViewerStatus] = useState<"idle" | "loading" | "success" | "no_file" | "error">("idle");
+  const [candidateFileUrl, setCandidateFileUrl] = useState<string | null>(null);
+  const [candidateStatus, setCandidateStatus] = useState<"loading" | "success" | "no_candidate" | "not_found" | "error">("loading");
+  
   const queryClient = useQueryClient();
   const linkReceiptFn = useServerFn(linkReceiptToAnalysisFile);
 
   const linkMutation = useMutation({
     mutationFn: async () => {
+      if (!file?.candidate_receipt_id) throw new Error("ID do lançamento não informado");
       return linkReceiptFn({
         data: {
           analysisFileId: file.id,
@@ -60,18 +65,84 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
     }
   });
 
-  // 1. Buscar a URL do arquivo de análise
+  // 1. Resetar estado ao trocar de arquivo (Regra 24)
   useEffect(() => {
-    if (open && file?.storage_path) {
-      supabase.storage
-        .from("receipts")
-        .createSignedUrl(file.storage_path, 3600)
-        .then(({ data }) => setFileUrl(data?.signedUrl || null));
+    if (open) {
+      setFileUrl(null);
+      setViewerStatus("idle");
+      setCandidateFileUrl(null);
+      setCandidateStatus("loading");
     }
-  }, [open, file]);
+  }, [open, file?.id]);
 
-  // 2. Buscar dados do recibo candidato no Cofre
-  const { data: candidate, isLoading: isCandidateLoading } = useQuery({
+  // 2. Buscar a URL do arquivo de análise (Regra 3, 4, 5, 27)
+  useEffect(() => {
+    if (!open || !file?.id) return;
+    
+    let cancelled = false;
+    let timeoutId: any = null;
+
+    async function loadAnalysisFile() {
+      if (!file?.storage_path) {
+        setViewerStatus("no_file");
+        return;
+      }
+
+      setViewerStatus("loading");
+      
+      // Timeout de segurança (Regra 2)
+      timeoutId = setTimeout(() => {
+        if (!cancelled && viewerStatus === "loading") {
+          console.error("[ANALYZE VIEWER] Timeout no carregamento");
+          setViewerStatus("error");
+        }
+      }, 15000);
+
+      try {
+        console.log("[ANALYZE VIEWER] Gerando Signed URL", {
+          id: file.id,
+          path: file.storage_path,
+          mime: file.mime_type
+        });
+
+        const { data, error } = await supabase.storage
+          .from("receipts")
+          .createSignedUrl(file.storage_path, 3600);
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error("[ANALYZE VIEWER] Erro no Signed URL:", error);
+          setViewerStatus("error");
+          return;
+        }
+
+        if (!data?.signedUrl) {
+          console.error("[ANALYZE VIEWER] Signed URL não retornada");
+          setViewerStatus("error");
+          return;
+        }
+
+        setFileUrl(data.signedUrl);
+        setViewerStatus("success");
+      } catch (err) {
+        console.error("[ANALYZE VIEWER] Exceção:", err);
+        if (!cancelled) setViewerStatus("error");
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    }
+
+    loadAnalysisFile();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [open, file?.id, file?.storage_path]);
+
+  // 3. Buscar dados do recibo candidato (Regra 11, 13, 14, 18)
+  const { data: candidate, error: candidateError } = useQuery({
     queryKey: ["receipt_candidate", file?.candidate_receipt_id],
     queryFn: async () => {
       if (!file?.candidate_receipt_id) return null;
@@ -85,31 +156,40 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
           property:properties!receipts_property_id_fkey(name)
         `)
         .eq("id", file.candidate_receipt_id)
-        .single();
+        .maybeSingle();
+      
       if (error) throw error;
       return data;
     },
     enabled: !!file?.candidate_receipt_id && open
   });
 
-  const [candidateFileUrl, setCandidateFileUrl] = useState<string | null>(null);
-  
-  // 3. Buscar a URL do arquivo do candidato
   useEffect(() => {
-    if (open && candidate?.file_path) {
-      supabase.storage
-        .from("receipts")
-        .createSignedUrl(candidate.file_path, 3600)
-        .then(({ data }) => setCandidateFileUrl(data?.signedUrl || null));
+    if (!open) return;
+    if (!file?.candidate_receipt_id) {
+      setCandidateStatus("no_candidate");
+      return;
     }
-  }, [open, candidate]);
+
+    if (candidate) {
+      setCandidateStatus("success");
+      // Buscar arquivo do candidato se existir
+      if (candidate.file_path) {
+        supabase.storage
+          .from("receipts")
+          .createSignedUrl(candidate.file_path, 3600)
+          .then(({ data }) => setCandidateFileUrl(data?.signedUrl || null));
+      }
+    } else if (candidate === null) {
+      setCandidateStatus("not_found");
+    } else if (candidateError) {
+      setCandidateStatus("error");
+    }
+  }, [open, candidate, candidateError, file?.candidate_receipt_id]);
 
   if (!file) return null;
 
-  const diff = (field: string) => {
-    const isDifferent = file.different_fields?.includes(field);
-    return isDifferent ? "text-red-600 font-bold bg-red-50 px-1 rounded" : "";
-  };
+  const hasScore = typeof file.similarity_score === 'number' && Number.isFinite(file.similarity_score);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -126,9 +206,11 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant={file.similarity_score >= 90 ? "default" : "secondary"} className="h-7 text-sm px-3">
-                Score: {file.similarity_score}%
-              </Badge>
+              {hasScore && (
+                <Badge variant={file.similarity_score >= 90 ? "default" : "secondary"} className="h-7 text-sm px-3">
+                  Score: {file.similarity_score}%
+                </Badge>
+              )}
               {file.analysis_status === 'already_posted' ? (
                 <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none h-7 px-3">
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Já Lançado
@@ -155,12 +237,44 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
             
             <div className="flex-1 overflow-hidden flex flex-col">
               <div className="h-2/3 border-b bg-black/5 flex items-center justify-center p-4 relative">
-                {fileUrl ? (
-                  <iframe src={fileUrl} className="w-full h-full border-none rounded shadow-sm" />
-                ) : (
+                {viewerStatus === "loading" ? (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <p className="text-xs">Carregando visualização...</p>
+                  </div>
+                ) : viewerStatus === "success" && fileUrl ? (
+                  <div className="w-full h-full p-2 overflow-auto">
+                    {file.mime_type?.includes("pdf") ? (
+                      <iframe 
+                        src={fileUrl} 
+                        className="w-full h-full border-none rounded shadow-sm"
+                        onLoad={() => console.log("[ANALYZE VIEWER] PDF Loaded")}
+                      />
+                    ) : (
+                      <img 
+                        src={fileUrl} 
+                        className="max-w-full h-auto mx-auto rounded shadow-sm" 
+                        onLoad={() => console.log("[ANALYZE VIEWER] Image Loaded")}
+                        onError={() => setViewerStatus("error")}
+                      />
+                    )}
+                  </div>
+                ) : viewerStatus === "no_file" ? (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground p-8 text-center">
+                    <FileText className="h-12 w-12 opacity-20" />
+                    <p className="text-sm font-medium">Sem arquivo anexado</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 text-center">
+                    <AlertTriangle className="h-10 w-10 text-yellow-500 opacity-50" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Não foi possível carregar a visualização</p>
+                      <div className="flex gap-2 justify-center mt-2">
+                        <Button variant="outline" size="sm" onClick={() => window.open(fileUrl || "", "_blank")} disabled={!fileUrl}>
+                          Abrir em nova aba
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -173,15 +287,21 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                   <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                     <div>
                       <label className="text-[10px] text-muted-foreground uppercase font-medium">Valor</label>
-                      <p className={`text-sm font-semibold ${diff('amount')}`}>{file.amount ? currencyBRL(file.amount) : '—'}</p>
+                      <p className={`text-sm font-semibold ${file.different_fields?.includes('amount') ? "text-red-600 font-bold bg-red-50 px-1 rounded" : ""}`}>
+                        {file.amount ? currencyBRL(file.amount) : '—'}
+                      </p>
                     </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground uppercase font-medium">Data</label>
-                      <p className={`text-sm font-semibold ${diff('payment_date')}`}>{file.payment_date ? dateBR(file.payment_date) : '—'}</p>
+                      <p className={`text-sm font-semibold ${file.different_fields?.includes('payment_date') ? "text-red-600 font-bold bg-red-50 px-1 rounded" : ""}`}>
+                        {file.payment_date ? dateBR(file.payment_date) : '—'}
+                      </p>
                     </div>
                     <div className="col-span-2">
                       <label className="text-[10px] text-muted-foreground uppercase font-medium">Destinatário</label>
-                      <p className={`text-sm font-semibold ${diff('recipient_name')}`}>{file.recipient_name || '—'}</p>
+                      <p className={`text-sm font-semibold ${file.different_fields?.includes('recipient_name') ? "text-red-600 font-bold bg-red-50 px-1 rounded" : ""}`}>
+                        {file.recipient_name || '—'}
+                      </p>
                     </div>
                     <div className="col-span-2">
                       <label className="text-[10px] text-muted-foreground uppercase font-medium">Motivo da Análise</label>
@@ -204,12 +324,12 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col">
-              {isCandidateLoading ? (
+              {candidateStatus === "loading" ? (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3">
                   <Loader2 className="h-10 w-10 text-primary animate-spin" />
                   <p className="text-sm text-muted-foreground">Buscando detalhes no Cofre...</p>
                 </div>
-              ) : candidate ? (
+              ) : candidateStatus === "success" && candidate ? (
                 <>
                   <div className="h-2/3 border-b bg-black/5 flex items-center justify-center p-4">
                     {candidateFileUrl ? (
@@ -253,13 +373,23 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
                     </div>
                   </ScrollArea>
                 </>
-              ) : (
+              ) : candidateStatus === "not_found" ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
                   <AlertTriangle className="h-12 w-12 text-yellow-500 opacity-50" />
                   <div className="space-y-2">
                     <p className="font-bold">Lançamento não encontrado</p>
                     <p className="text-sm text-muted-foreground">
-                      O ID do candidato pode ter sido removido ou o registro está inacessível.
+                      O registro associado a esta análise não foi localizado no Cofre.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                  <AlertTriangle className="h-12 w-12 text-red-500 opacity-50" />
+                  <div className="space-y-2">
+                    <p className="font-bold">Erro ao consultar o lançamento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Não foi possível carregar os detalhes do candidato.
                     </p>
                   </div>
                 </div>

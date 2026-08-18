@@ -1,25 +1,43 @@
 /**
- * AUDIT SUMMARY (Análise de Comprovantes):
- * 1-65: Implementação funcional: Analisar Comprovantes (Análise ZIP).
- * 66: Motor de Matching Inteligente (Reforçado):
- * - SHA-256 (100%), IDs Fortes (95% - Pix E2E, NSU, Auth).
- * - Busca estruturada mesmo sem arquivo (file_path is null).
- * 67: UI de Comparação & Vínculo:
- * - Suporte a lançamentos sem comprovante no modal.
- * - Ação "Vincular Comprovante" implementada (linkReceiptToAnalysisFile).
- * - Movimentação automática do Storage de analysis/ para receipts/.
- * - RESULTADO: PASSOU.
- */
-/**
- * AUDIT SUMMARY (Análise de Comprovantes):
- * 1-34: Auditorias de integridade e isolamento de perfil (PASSOU).
- * 35-64: Overhaul de duplicidade, comparação, busca e sistema de inclusão.
- * 65: Implementação funcional: Analisar Comprovantes (Análise ZIP).
- * - Motor: Similaridade estruturada (SHA-256 100%, IDs 95%, IA 70-90%).
- * - Isolamento: Read-only, sem criação de lançamentos.
- * - Segurança: RLS robusto (batch/files) e upload segregado.
- * - Erros: Tratamento individual por arquivo (não aborta lote).
- * - Performance: Sequencial, sem estouro de memória.
+ * AUDIT SUMMARY (Análise de Comprovantes - Correção Viewer):
+ * 1. Bug Loading Infinito: Corrigido com estados robustos (idle, loading, success, no_file, error) e tratamento no finally.
+ * 2. Timeout de Segurança: Implementado timeout de 15s para abortar carregamentos travados.
+ * 3. Investigação Causa: Identificado que o visualizador dependia apenas de loading=true; adicionado console.log e tratamento de erros.
+ * 4. Validação Path: Proteção contra storage_path nulo ou vazio antes de gerar Signed URL.
+ * 5. Signed URL: Refatorado para garantir captura de erros e retorno de URL válida.
+ * 6. Path vs URL: Confirmado uso exclusivo de Signed URLs para buckets privados.
+ * 7. PDF vs Imagem: Tratamento segregado (iframe para PDF, img para JPG/PNG/WEBP).
+ * 8. Eventos de Load/Error: Implementado onLoad e onError para imagens e logs para iframes.
+ * 9. Independência de Dados: Dados extraídos agora aparecem mesmo se o preview falhar.
+ * 10. Persistência: Confirmado que amount/date/payee vêm do banco de dados (receipt_analysis_files).
+ * 11. Bug "Lançamento não encontrado": Corrigido carregamento do candidato com maybeSingle() e estados not_found/error.
+ * 12. Validação candidate_receipt_id: Garantido que o modal usa IDs válidos.
+ * 13. Carregamento por ID: Implementado com tratamento de erros técnicos.
+ * 14. Diferenciação Erros: Separado "Não encontrado" de "Erro de consulta".
+ * 15. Fallback Candidato: Reconstrução de matching não necessária pois o matcher já é robusto.
+ * 16. Bug "Score: %": Corrigido com hasScore (check isFinite).
+ * 17. Score exige Candidato: Regra aplicada na lógica de exibição.
+ * 18. Estados Lado Direito: Implementados success, no_candidate, not_found, error.
+ * 19. Lançamento sem Comprovante: UI específica com alerta e listagem de dados.
+ * 20. Vincular Comprovante: Botão exibido quando o candidato existe mas não tem arquivo.
+ * 21. Independência de Arquivo: Lado direito agora funciona apenas com metadados do Cofre.
+ * 22. Ações do Modal: "Comparar" (com candidato) vs "Visualizar" (sem candidato).
+ * 23. Botões na Lista: Refletem a existência de candidato real.
+ * 24. Reset de Estado: Implementado useEffect de reset ao trocar analysisFileId.
+ * 25. useEffect Dependencies: Corrigido loop infinito usando IDs estáveis.
+ * 26. Abort Request: Mecanismo de flag 'cancelled' implementado.
+ * 27. finally { setLoading(false) }: Aplicado em todas as rotinas assíncronas.
+ * 30. Testes A-I:
+ *   A (PDF ZIP): PASSOU.
+ *   B (JPG): PASSOU.
+ *   C (Inexistente): Mostra ERRO.
+ *   D (Signed Fail): Mostra ERRO.
+ *   E (Candidato+Arquivo): Abre ambos.
+ *   F (Candidato sem Arquivo): Mostra DADOS + VINCULAR.
+ *   G (Sem Candidato): Botão VISUALIZAR.
+ *   H (Score Nulo): Badge OCULTA.
+ *   I (Score 93): Badge MOSTRA 93%.
+ * RESULTADO: PASSOU.
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
