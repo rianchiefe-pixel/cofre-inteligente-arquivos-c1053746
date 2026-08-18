@@ -68,16 +68,19 @@ function ReportsPage() {
   const ledgerFn = useServerFn(getUnifiedLedger);
 
   const runModelReport = async (model: "monthly" | "fixed") => {
+    if (!normalizedProfileId) {
+      toast.error("Selecione um perfil para gerar este relatório.");
+      return;
+    }
     try {
       setModelLoading(model);
       const dataset = await loadReportDataset({
         from,
         to,
-        profileId: profileId,
-        propertyIds: selectedPropertyIds.length > 0 ? selectedPropertyIds : null,
-        categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : null,
+        profileId: normalizedProfileId,
+        propertyIds: normalizedPropertyIds.length > 0 ? normalizedPropertyIds : null,
+        categoryIds: normalizedCategoryIds.length > 0 ? normalizedCategoryIds : null,
         recipients: selectedRecipients.length > 0 ? selectedRecipients : null,
-
       });
       if (!dataset.months.length) {
         toast.error("Nenhum lançamento aprovado no período selecionado.");
