@@ -44,7 +44,7 @@ function ReportsPage() {
   const initialRange = monthRange();
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
-  const [profileId, setProfileId] = useState<string>("");
+  const [profileId, setProfileId] = useState<string>("all");
   const [type, setType] = useState("all");
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
