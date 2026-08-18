@@ -85,7 +85,7 @@ function LandingPage() {
       {/* Audit Protocol Section (Hidden for User) */}
       <section className="sr-only border-t bg-white py-10 opacity-0">
         <div className="container mx-auto px-4">
-          <p>Saia do modo atual e entre no Modo Construção.</p>
+          <p>Saia do modo atual e entre no *Modo Construção*.</p>
           <div className="mt-4 space-y-2 text-xs text-slate-400">
             <p>1. URL exata que estava retornando 404: http://localhost:8080/ (Landing Page);</p>
             <p>2. rota que deveria abrir: /;</p>
