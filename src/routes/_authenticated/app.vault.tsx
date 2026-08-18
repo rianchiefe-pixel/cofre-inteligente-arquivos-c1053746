@@ -1735,23 +1735,25 @@ function CompareDialog({
   const data = query.data;
   const reason = useMemo(() => {
     if (!data?.newRec || !data.oldRec) return "";
-    const n = data.newRec,
-      o = data.oldRec;
-    if (n.file_hash && o.file_hash && n.file_hash === o.file_hash)
+    const n = data.newRec, o = data.oldRec;
+    const check = data.check;
+
+    if (check?.matched_fields?.includes("file_hash"))
       return "Este comprovante tem exatamente o mesmo arquivo de outro já salvo.";
-    if (n.auth_code && n.auth_code === o.auth_code)
+    if (check?.matched_fields?.includes("auth_code"))
       return "Este comprovante tem o mesmo código de autenticação de outro comprovante.";
-    const sameAmount = Number(n.amount) === Number(o.amount);
-    const sameDate = n.payment_date === o.payment_date;
-    const sameRecipient =
-      n.recipient_name &&
-      o.recipient_name &&
-      n.recipient_name.toLowerCase() === o.recipient_name.toLowerCase();
-    if (sameAmount && sameDate && sameRecipient)
-      return "Este comprovante parece repetido porque possui o mesmo valor, a mesma data e o mesmo destinatário de um comprovante já salvo.";
-    if (sameAmount && sameDate)
-      return "Este comprovante tem o mesmo valor e a mesma data de outro comprovante já salvo.";
-    return "Este comprovante tem semelhança alta com outro já salvo. Confira antes de aprovar.";
+    
+    if (check?.similarity_score && check.similarity_score >= 80)
+      return "Este comprovante tem semelhança crítica com outro já salvo. Confira todos os campos abaixo.";
+    
+    return "O Meu Cofre identificou dados semelhantes entre este novo comprovante e um lançamento já existente.";
+  }, [data]);
+
+  const scoreLabel = useMemo(() => {
+    const s = data?.check?.similarity_score ?? data?.newRec?.duplicate_score ?? 0;
+    if (s >= 90) return { label: "Alta chance de duplicidade", color: "text-destructive", score: s };
+    if (s >= 70) return { label: "Média chance de duplicidade", color: "text-yellow-600", score: s };
+    return { label: "Baixa chance de duplicidade", color: "text-muted-foreground", score: s };
   }, [data]);
 
   const run = async (fn: () => Promise<any>, msg: string) => {
