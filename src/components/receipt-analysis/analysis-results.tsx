@@ -32,10 +32,52 @@ import { downloadAnalysisZip } from "@/lib/receipt-analysis.functions";
 import { useServerFn } from "@tanstack/react-start";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import { Database } from "@/integrations/supabase/types";
 
-type Batch = Database["public"]["Tables"]["receipt_analysis_batches"]["Row"];
-type AnalysisFile = Database["public"]["Tables"]["receipt_analysis_files"]["Row"];
+type Batch = {
+  id: string;
+  user_id: string;
+  file_name: string;
+  status: string;
+  files_total: number;
+  files_processed: number;
+  already_found: number;
+  not_found: number;
+  needs_review: number;
+  errors: number;
+  created_at: string;
+  finished_at: string | null;
+};
+
+type AnalysisFile = {
+  id: string;
+  batch_id: string;
+  user_id: string;
+  original_path: string;
+  file_name: string;
+  extension: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  content_hash: string | null;
+  storage_path: string | null;
+  extracted_text: string | null;
+  ocr_data: any;
+  ai_extracted_data: any;
+  amount: number | null;
+  payment_date: string | null;
+  recipient_name: string | null;
+  recipient_tax_id: string | null;
+  bank_name: string | null;
+  payment_method: string | null;
+  auth_code: string | null;
+  transaction_id: string | null;
+  analysis_status: "processing" | "already_posted" | "not_found" | "possible_match" | "unreadable" | "duplicate_in_zip" | "error";
+  candidate_receipt_id: string | null;
+  similarity_score: number | null;
+  matched_fields: string[] | null;
+  different_fields: string[] | null;
+  analysis_reason: string | null;
+  created_at: string;
+};
 
 interface AnalysisResultsProps {
   batchId: string;
