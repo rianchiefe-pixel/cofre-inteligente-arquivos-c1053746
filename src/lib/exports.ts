@@ -315,9 +315,13 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
         return v == null ? "" : String(v);
       })),
       theme: "striped",
-      styles: { fontSize: 8, cellPadding: 5, overflow: "linebreak", textColor: [30, 30, 30] },
-      headStyles: { fillColor: tableHeadColor, textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak", cellWidth: "wrap", minCellHeight: 10, textColor: [30, 30, 30] },
+      headStyles: { fillColor: tableHeadColor, textColor: 255, fontStyle: "bold", fontSize: 8 },
       alternateRowStyles: { fillColor: [248, 249, 252] },
+      columnStyles: payload.columns.reduce((acc, c, i) => {
+        acc[i] = { cellWidth: (c.width ? (c.width * pageWidth) / 100 : "auto") };
+        return acc;
+      }, {} as any),
       margin: { left: margin, right: margin },
       didDrawPage: () => {
         const p = doc.getNumberOfPages();
