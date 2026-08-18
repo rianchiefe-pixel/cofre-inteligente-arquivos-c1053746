@@ -49,6 +49,20 @@ function ReportsPage() {
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  
+  const normalizeOptionalUuid = (value: string | null | undefined): string | null => {
+    if (!value || value === "all") return null;
+    return UUID_REGEX.test(value) ? value : null;
+  };
+
+  const normalizeUuidArray = (values: string[]) => 
+    values.filter(v => UUID_REGEX.test(v));
+
+  const normalizedProfileId = normalizeOptionalUuid(profileId);
+  const normalizedPropertyIds = normalizeUuidArray(selectedPropertyIds);
+  const normalizedCategoryIds = normalizeUuidArray(selectedCategoryIds);
 
   const [modelLoading, setModelLoading] = useState<"monthly" | "fixed" | null>(null);
   const ledgerFn = useServerFn(getUnifiedLedger);
