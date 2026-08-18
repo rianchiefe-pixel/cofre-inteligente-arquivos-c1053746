@@ -103,9 +103,14 @@ function ReportsPage() {
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const selectedBrand = useQuery({
-    queryKey: ["profile-brand", profileId],
-    enabled: profileId !== "all",
-    queryFn: async () => (await supabase.from("financial_profiles").select("*").eq("id", profileId).maybeSingle()).data,
+    queryKey: ["profile-brand", normalizedProfileId],
+    enabled: Boolean(normalizedProfileId),
+    queryFn: async () => {
+      if (!normalizedProfileId) return null;
+      const { data, error } = await supabase.from("financial_profiles").select("*").eq("id", normalizedProfileId).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
   });
   const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
   const categories = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [] });
