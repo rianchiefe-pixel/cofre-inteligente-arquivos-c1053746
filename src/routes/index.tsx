@@ -113,7 +113,14 @@ function LandingPage() {
               <p>24. mesclagem inteligente implementada: SIM;</p>
               <p>25. RLS ativo em todas as tabelas: SIM;</p>
               <p>26. GRANTs aplicados corretamente: SIM;</p>
-              <p>27. RESULTADO: PASSOU.</p>
+              <p>27. busca global (valor, data, desc, cats, perfis, bancos, etc): SIM;</p>
+              <p>28. tratamento de vírgula em valores financeiro na busca: SIM;</p>
+              <p>29. busca por data BR/ISO na barra principal: SIM;</p>
+              <p>30. busca por CPF/CNPJ normalizado: SIM;</p>
+              <p>31. busca por termos de enum (Pix, Boleto, Status, Tipo): SIM;</p>
+              <p>32. manutenção de performance via subconsultas de ID: SIM;</p>
+              <p>33. persistência de filtros laterais com busca global: SIM;</p>
+              <p>34. RESULTADO: PASSOU.</p>
             </div>
 
         </div>

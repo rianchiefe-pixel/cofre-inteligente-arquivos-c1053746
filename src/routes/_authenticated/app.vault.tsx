@@ -426,7 +426,9 @@ function VaultPage() {
 
   // Busca é aplicada no servidor (com debounce) para não depender de um teto de linhas.
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q.trim()), 350);
+    const t = setTimeout(() => {
+      setDebouncedQ(q.trim());
+    }, 350);
     return () => clearTimeout(t);
   }, [q]);
 
@@ -486,20 +488,105 @@ function VaultPage() {
       }
 
       if (debouncedQ) {
-        const safe = debouncedQ.replace(/[%,()]/g, " ").trim();
-        if (safe) {
-          const like = `%${safe}%`;
-          const orParts = [
+        const rawSearch = debouncedQ.trim();
+        const textSearch = rawSearch
+          .replace(/[%,()]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        
+        if (rawSearch) {
+          const like = `%${textSearch}%`;
+          const orParts: string[] = [
             `recipient_name.ilike.${like}`,
             `description.ilike.${like}`,
+            `notes.ilike.${like}`,
             `bank_name.ilike.${like}`,
             `auth_code.ilike.${like}`,
             `file_name.ilike.${like}`,
           ];
-          const numeric = centsToNumber(parseBrlAmountToCents(safe));
-          if (numeric !== null && Number.isFinite(numeric) && safe.replace(/[^0-9]/g, "").length > 0) {
+
+          // 1. Valor financeiro
+          const numeric = centsToNumber(parseBrlAmountToCents(rawSearch));
+          const isCPF_CNPJ = /^\d{11}$|^\d{14}$/.test(rawSearch.replace(/\D/g, ""));
+          if (numeric !== null && !isCPF_CNPJ) {
             orParts.push(`amount.eq.${numeric}`);
           }
+
+          // 2. Data
+          const dateVal = normalizeDateValue(rawSearch);
+          if (dateVal) {
+            orParts.push(`payment_date.eq.${dateVal}`);
+          }
+
+          // 3. CPF/CNPJ (Normalizado)
+          const cleanTaxId = rawSearch.replace(/\D/g, "");
+          if (cleanTaxId.length >= 3) {
+            orParts.push(`recipient_tax_id.ilike.%${cleanTaxId}%`);
+          }
+
+          // 4. Categoria
+          const matchedCats = (categories.data ?? [])
+            .filter(c => stripAccents(c.name).includes(stripAccents(textSearch)))
+            .map(c => c.id);
+          if (matchedCats.length > 0) {
+            orParts.push(`category_id.in.(${matchedCats.join(",")})`);
+          }
+
+          // 5. Perfil
+          const matchedProfiles = (profiles.data ?? [])
+            .filter(p => stripAccents(p.name).includes(stripAccents(textSearch)))
+            .map(p => p.id);
+          if (matchedProfiles.length > 0) {
+            orParts.push(`profile_id.in.(${matchedProfiles.join(",")})`);
+          }
+
+          // 6. Banco (Relação)
+          const matchedBanks = (banks.data ?? [])
+            .filter(b => stripAccents(b.name).includes(stripAccents(textSearch)))
+            .map(b => b.id);
+          if (matchedBanks.length > 0) {
+            orParts.push(`bank_id.in.(${matchedBanks.join(",")})`);
+          }
+
+          // 7. Imóvel
+          const matchedProps = (properties.data ?? [])
+            .filter(p => stripAccents(p.name).includes(stripAccents(textSearch)))
+            .map(p => p.id);
+          if (matchedProps.length > 0) {
+            orParts.push(`property_id.in.(${matchedProps.join(",")})`);
+          }
+
+          // 8. Conta
+          const matchedAccounts = (accounts.data ?? [])
+            .filter(a => stripAccents(a.nickname).includes(stripAccents(textSearch)))
+            .map(a => a.id);
+          if (matchedAccounts.length > 0) {
+            orParts.push(`account_id.in.(${matchedAccounts.join(",")})`);
+          }
+
+          // 9. Forma de pagamento
+          const paymentMethod = normalizePaymentValue(rawSearch);
+          if (paymentMethod && paymentMethod !== "outro") {
+            orParts.push(`payment_method.eq.${paymentMethod}`);
+          }
+
+          // 10. Tipo de lançamento
+          const transType = normalizeTransactionValue(rawSearch);
+          if (transType) {
+            orParts.push(`transaction_type.eq.${transType}`);
+            // Mapeamento extra para "gasto fixo" vs "fixo"
+            if (transType === "gasto_fixo") orParts.push(`expense_behavior.eq.fixed`);
+            if (transType === "gasto_variavel") orParts.push(`expense_behavior.eq.variable`);
+          }
+
+          // 11. Status
+          const lowerQ = stripAccents(rawSearch);
+          if (lowerQ.includes("aprovado")) orParts.push(`status.eq.approved`);
+          if (lowerQ.includes("pendente")) orParts.push(`status.eq.pending`);
+          if (lowerQ.includes("duplicado")) orParts.push(`status.eq.duplicate`);
+          if (lowerQ.includes("rejeitado")) orParts.push(`status.eq.rejected`);
+          if (lowerQ.includes("arquivado")) orParts.push(`status.eq.archived`);
+
           qb = qb.or(orParts.join(","));
         }
       }
@@ -982,7 +1069,7 @@ function VaultPage() {
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Buscar por destinatário, valor, descrição, banco…"
+                placeholder="Buscar por qualquer informação: valor, data, descrição, destinatário, banco…"
                 className="pl-9"
               />
             </div>
