@@ -383,7 +383,7 @@ export function exportPDF<T>(payload: ReportPayload<T>) {
         7: { cellWidth: (pageWidth - margin * 2) * 0.07 }, // Natureza
         8: { cellWidth: (pageWidth - margin * 2) * 0.07 }, // Tipo de Gasto
         9: { cellWidth: (pageWidth - margin * 2) * 0.06 }, // Método
-        10: { cellWidth: (pageWidth - margin * 2) * 0.10, overflow: "anywhere" }, // Autenticação
+        10: { cellWidth: (pageWidth - margin * 2) * 0.10, overflow: "linebreak" }, // Autenticação
         11: { cellWidth: (pageWidth - margin * 2) * 0.08 }, // Observações
       },
       margin: { left: margin, right: margin, bottom: margin },
