@@ -1638,6 +1638,116 @@ export type Database = {
           },
         ]
       }
+      receipt_analysis_batches: {
+        Row: {
+          already_found: number | null
+          created_at: string | null
+          errors: number | null
+          file_name: string
+          files_processed: number | null
+          files_total: number | null
+          finished_at: string | null
+          id: string
+          needs_review: number | null
+          not_found: number | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          already_found?: number | null
+          created_at?: string | null
+          errors?: number | null
+          file_name: string
+          files_processed?: number | null
+          files_total?: number | null
+          finished_at?: string | null
+          id?: string
+          needs_review?: number | null
+          not_found?: number | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          already_found?: number | null
+          created_at?: string | null
+          errors?: number | null
+          file_name?: string
+          files_processed?: number | null
+          files_total?: number | null
+          finished_at?: string | null
+          id?: string
+          needs_review?: number | null
+          not_found?: number | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      receipt_analysis_files: {
+        Row: {
+          analysis_reason: string | null
+          analysis_status:
+            | Database["public"]["Enums"]["receipt_analysis_status"]
+            | null
+          batch_id: string
+          candidate_receipt_id: string | null
+          content_hash: string
+          created_at: string | null
+          file_name: string
+          id: string
+          matched_fields: Json | null
+          original_path: string
+          similarity_score: number | null
+          size_bytes: number | null
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          analysis_reason?: string | null
+          analysis_status?:
+            | Database["public"]["Enums"]["receipt_analysis_status"]
+            | null
+          batch_id: string
+          candidate_receipt_id?: string | null
+          content_hash: string
+          created_at?: string | null
+          file_name: string
+          id?: string
+          matched_fields?: Json | null
+          original_path: string
+          similarity_score?: number | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          analysis_reason?: string | null
+          analysis_status?:
+            | Database["public"]["Enums"]["receipt_analysis_status"]
+            | null
+          batch_id?: string
+          candidate_receipt_id?: string | null
+          content_hash?: string
+          created_at?: string | null
+          file_name?: string
+          id?: string
+          matched_fields?: Json | null
+          original_path?: string
+          similarity_score?: number | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_analysis_files_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "receipt_analysis_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receipts: {
         Row: {
           account_id: string | null
@@ -2402,6 +2512,13 @@ export type Database = {
         | "lote"
         | "terreno_urbano"
         | "terreno_rural"
+      receipt_analysis_status:
+        | "processing"
+        | "already_posted"
+        | "possible_match"
+        | "not_found"
+        | "duplicate_in_zip"
+        | "error"
       receipt_status:
         | "pending"
         | "approved"
@@ -2617,6 +2734,14 @@ export const Constants = {
         "lote",
         "terreno_urbano",
         "terreno_rural",
+      ],
+      receipt_analysis_status: [
+        "processing",
+        "already_posted",
+        "possible_match",
+        "not_found",
+        "duplicate_in_zip",
+        "error",
       ],
       receipt_status: [
         "pending",

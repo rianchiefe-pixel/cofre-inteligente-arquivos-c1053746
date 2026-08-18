@@ -36,8 +36,24 @@ export function AnalysisUpload({ onComplete }: AnalysisUploadProps) {
       onComplete(batchId);
       toast.success("Processamento concluído!");
     } catch (error) {
-      console.error(error);
-      toast.error("Erro ao processar o arquivo ZIP.");
+      console.error("[ANALYZE RECEIPTS] ZIP ERROR:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : JSON.stringify(error);
+
+      if (error && typeof error === 'object' && 'code' in error) {
+        console.error({
+          message: (error as any).message,
+          details: (error as any).details,
+          hint: (error as any).hint,
+          code: (error as any).code,
+        });
+      }
+
+      toast.error(`Erro ao processar ZIP: ${message}`);
     } finally {
       setIsUploading(false);
       setProgress(null);
