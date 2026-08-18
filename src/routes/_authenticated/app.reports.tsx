@@ -138,7 +138,8 @@ function ReportsPage() {
   });
 
   const data = useQuery({
-    queryKey: ["report", from, to, normalizedProfileId, type, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients],
+    queryKey: ["report", from, to, normalizedProfileId, type, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients, extraIncludes],
+
 
     queryFn: async () => {
       if (!normalizedProfileId) {
