@@ -156,16 +156,29 @@ export async function processAnalysisZip(
 
       if (fErr || !analysisFile) throw fErr;
 
-      // TODO: Reutilizar motor de OCR real do zip-import.ts (Regra 12, 13)
-      // Por enquanto, preenchemos via extractReceiptFacts do nome como fallback
-      const facts = extractReceiptFacts(name);
+      // Extração de conteúdo real (PDF/Imagem) usando o motor compartilhado (Regra 12, 13, 14, 15, 18)
+      console.log(`[ANALYZE] Iniciando extração real para: ${name}`);
+      const extraction = await extractStoredReceiptContent({
+        storagePath,
+        extension: ext,
+        mimeType: mime,
+        runOcr: true
+      });
+
+      const facts = extraction.facts;
       
+      // Atualizar com dados reais extraídos do documento
       await (supabase as any).from("receipt_analysis_files").update({
-        amount: facts.amount,
-        payment_date: facts.date,
-        recipient_name: facts.payee,
-        auth_code: facts.auth_code,
-        transaction_id: facts.transaction_id
+        extracted_text: extraction.extractedText,
+        ocr_data: extraction.facts,
+        amount: facts.amount ?? null,
+        payment_date: facts.date ?? null,
+        recipient_name: facts.payee ?? null,
+        recipient_tax_id: facts.cnpj?.[0] ?? facts.cpf?.[0] ?? null,
+        bank_name: facts.bank_to ?? facts.bank_from ?? facts.banks?.[0] ?? null,
+        payment_method: facts.payment_method ?? null,
+        auth_code: facts.auth_code ?? null,
+        transaction_id: facts.transaction_id ?? null
       }).eq("id", analysisFile.id);
 
       // Executar motor de localização (Regra 11, 38)
