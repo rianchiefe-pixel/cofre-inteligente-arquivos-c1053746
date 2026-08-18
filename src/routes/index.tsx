@@ -87,17 +87,17 @@ function LandingPage() {
         <div className="container mx-auto px-4">
             <p>Saia do modo atual e entre no *Modo Construção*.</p>
             <div className="mt-4 space-y-2 text-xs text-slate-400">
-              <p>1. URL exata que estava retornando erro: /app/vault (ao abrir CompareDialog);</p>
-              <p>2. erro exato: "Não foi possível carregar os comprovantes" ou ambiguidade em FKs Supabase;</p>
-              <p>3. arquivo corrigido: src/routes/_authenticated/app.vault.tsx;</p>
-              <p>4. sintaxe de FK explícita utilizada: table!table_column_fkey(columns);</p>
-              <p>5. tabelas corrigidas na query: categories, financial_profiles, banks;</p>
-              <p>6. erro de query vazia para candidate_receipt_id corrigido: SIM (check oldRec.id);</p>
-              <p>7. fallback para duplicate_checks se duplicate_of for nulo: SIM;</p>
-              <p>8. tratamento de erros com throw detalhado: SIM;</p>
-              <p>9. exibição do erro real na UI em vez de alerta genérico: SIM;</p>
-              <p>10. modal abre sem arquivo anexado: SIM;</p>
-              <p>11. motor de scoring por pesos: SIM;</p>
+              <p>1. isolamento estrito de candidatos para duplicidade: SIM;</p>
+              <p>2. remoção de badges de duplicidade sem candidato identificado: SIM;</p>
+              <p>3. limpeza automática de scores orfãos: SIM;</p>
+              <p>4. rotina reconcileDuplicates implementada: SIM;</p>
+              <p>5. markAsNotDuplicate corrigido para limpar flags no recibo: SIM;</p>
+              <p>6. CompareDialog omitindo scores quando o candidato falta: SIM;</p>
+              <p>7. highlight de linhas na Vault obedece existência de candidato: SIM;</p>
+              <p>8. URL exata que estava retornando erro: /app/vault (ao abrir CompareDialog);</p>
+              <p>9. erro exato: "Não foi possível carregar os comprovantes" ou ambiguidade em FKs Supabase;</p>
+              <p>10. sintaxe de FK explícita utilizada: table!table_column_fkey(columns);</p>
+              <p>11. motor de scoring v3 (Strict Candidate Enforcement): SIM;</p>
               <p>12. desacoplamento de arquivos no modal: SIM;</p>
               <p>13. isolamento de perfis mantido: SIM;</p>
               <p>14. lógica canônica de relatórios preservada: SIM;</p>
@@ -115,6 +115,7 @@ function LandingPage() {
               <p>26. GRANTs aplicados corretamente: SIM;</p>
               <p>27. RESULTADO: PASSOU.</p>
             </div>
+
         </div>
       </section>
 
