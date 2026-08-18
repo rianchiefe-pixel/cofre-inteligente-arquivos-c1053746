@@ -91,12 +91,13 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
     }
   }, [open, file?.id]);
 
-  // 2. Buscar a URL do arquivo de análise (Regra 3, 4, 5, 27)
+  // 2. Buscar a URL do arquivo de análise (Regra 3, 4, 5, 27, 7, 8)
   useEffect(() => {
     if (!open || !file?.id) return;
     
     let cancelled = false;
     let timeoutId: any = null;
+    let currentObjectUrl: string | null = null;
 
     async function loadAnalysisFile() {
       if (!file?.storage_path) {
@@ -108,17 +109,20 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
       
       // Timeout de segurança (Regra 2)
       timeoutId = setTimeout(() => {
-        if (!cancelled && viewerStatus === "loading") {
+        if (!cancelled) {
           console.error("[ANALYZE VIEWER] Timeout no carregamento");
           setViewerStatus("error");
         }
       }, 15000);
 
       try {
-        console.log("[ANALYZE VIEWER] Gerando Signed URL", {
-          id: file.id,
-          path: file.storage_path,
-          mime: file.mime_type
+        const effectiveMime = resolveMimeType(file);
+        console.log("[ANALYZE VIEWER]", {
+          analysisFileId: file.id,
+          fileName: file.file_name,
+          storagePath: file.storage_path,
+          mimeType: file.mime_type,
+          effectiveMime
         });
 
         const { data, error } = await supabase.storage
@@ -127,22 +131,30 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
 
         if (cancelled) return;
 
-        if (error) {
-          console.error("[ANALYZE VIEWER] Erro no Signed URL:", error);
-          setViewerStatus("error");
-          return;
-        }
-
-        if (!data?.signedUrl) {
-          console.error("[ANALYZE VIEWER] Signed URL não retornada");
+        if (error || !data?.signedUrl) {
+          console.error("[ANALYZE VIEWER] Signed URL Fail:", error);
           setViewerStatus("error");
           return;
         }
 
         setFileUrl(data.signedUrl);
-        setViewerStatus("success");
+
+        // Baixar como Blob para visualização robusta (Regra 7)
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const originalBlob = await response.blob();
+        const displayBlob = new Blob([await originalBlob.arrayBuffer()], { type: effectiveMime });
+        currentObjectUrl = URL.createObjectURL(displayBlob);
+
+        if (!cancelled) {
+          setObjectUrl(currentObjectUrl);
+          setViewerStatus("success");
+        } else {
+          URL.revokeObjectURL(currentObjectUrl);
+        }
       } catch (err) {
-        console.error("[ANALYZE VIEWER] Exceção:", err);
+        console.error("[ANALYZE VIEWER] Error:", err);
         if (!cancelled) setViewerStatus("error");
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
@@ -154,6 +166,7 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
     return () => {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
+      if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     };
   }, [open, file?.id, file?.storage_path]);
 
