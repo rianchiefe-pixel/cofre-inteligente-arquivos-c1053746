@@ -486,22 +486,24 @@ function ReportsPage() {
                 </div>
               )}
 
-              {/* Hidden MultiSelects triggered by Select */}
               <div className="hidden">
                 <MultiSelect
-                  id="btn-add-recipient"
+                  open={openAddRecipient}
+                  onOpenChange={setOpenAddRecipient}
                   options={recipients.data ?? []}
                   selected={extraIncludes.recipients}
                   onChange={(vals) => setExtraIncludes(prev => ({ ...prev, recipients: vals }))}
                 />
                 <MultiSelect
-                  id="btn-add-property"
+                  open={openAddProperty}
+                  onOpenChange={setOpenAddProperty}
                   options={(properties.data ?? []).map(p => ({ label: p.name, value: p.id }))}
                   selected={extraIncludes.propertyIds}
                   onChange={(vals) => setExtraIncludes(prev => ({ ...prev, propertyIds: vals }))}
                 />
                 <MultiSelect
-                  id="btn-add-category"
+                  open={openAddCategory}
+                  onOpenChange={setOpenAddCategory}
                   options={(categories.data ?? []).map(c => ({ label: c.name, value: c.id }))}
                   selected={extraIncludes.categoryIds}
                   onChange={(vals) => setExtraIncludes(prev => ({ ...prev, categoryIds: vals }))}
