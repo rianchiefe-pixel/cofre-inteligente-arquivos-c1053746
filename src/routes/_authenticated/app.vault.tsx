@@ -376,6 +376,7 @@ function VaultPage() {
   const [profileId, setProfileId] = useState<string>("all");
   const [bankId, setBankId] = useState<string>("all");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [propertyId, setPropertyId] = useState<string>("all");
   const [incompleteOnly, setIncompleteOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [original, setOriginal] = useState<any | null>(null);
@@ -433,7 +434,7 @@ function VaultPage() {
   }, [q]);
 
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType],
+    queryKey: ["receipts", quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
@@ -473,6 +474,10 @@ function VaultPage() {
       }
 
       if (bankId !== "all") qb = qb.eq("bank_id", bankId);
+      
+      if (propertyId !== "all") {
+        qb = qb.eq("property_id", propertyId);
+      }
       
       if (selectedCategoryIds.length > 0) {
         const hasNone = selectedCategoryIds.includes("__none__");
@@ -600,7 +605,7 @@ function VaultPage() {
   useEffect(() => {
     setSelectedIds(new Set());
     setPage(0);
-  }, [quick, profileId, bankId, selectedCategoryIds, debouncedQ, incompleteOnly]);
+  }, [quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly]);
 
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   const filtered = receipts.data?.rows ?? [];
@@ -1102,7 +1107,7 @@ function VaultPage() {
             </Select>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
             <div className="space-y-1">
               <Label className="text-[10px] uppercase text-muted-foreground">Categoria</Label>
               <MultiSelect
@@ -1188,6 +1193,22 @@ function VaultPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-muted-foreground">Imóvel</Label>
+              <Select value={propertyId} onValueChange={setPropertyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os imóveis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os imóveis</SelectItem>
+                  {(properties.data ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
           <div className="flex flex-col md:flex-row items-center gap-3">
@@ -1223,7 +1244,7 @@ function VaultPage() {
                 <span className="hidden sm:inline">Incompletos</span>
               </Button>
               
-              {(q || profileId !== "all" || bankId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly || search.from || search.to || search.expenseBehavior || search.transactionType) && (
+              {(q || profileId !== "all" || bankId !== "all" || propertyId !== "all" || selectedCategoryIds.length > 0 || incompleteOnly || search.from || search.to || search.expenseBehavior || search.transactionType) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1232,6 +1253,7 @@ function VaultPage() {
                     setQ("");
                     setProfileId("all");
                     setBankId("all");
+                    setPropertyId("all");
                     setSelectedCategoryIds([]);
                     setIncompleteOnly(false);
                     navigate({ search: { receipt: search.receipt }, replace: true });
