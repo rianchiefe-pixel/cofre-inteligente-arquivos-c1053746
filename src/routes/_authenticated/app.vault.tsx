@@ -1861,9 +1861,20 @@ function CompareDialog({
           <div className="grid h-64 place-items-center">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
+        ) : query.isError ? (
+          <div className="rounded-lg border border-destructive/30 p-4">
+            <p className="font-medium text-destructive">
+              Erro ao carregar comparação
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {query.error instanceof Error
+                ? query.error.message
+                : "Erro desconhecido"}
+            </p>
+          </div>
         ) : !data ? (
           <p className="text-sm text-muted-foreground">
-            Não foi possível carregar os comprovantes.
+            O lançamento solicitado não foi encontrado.
           </p>
         ) : (
           <>
