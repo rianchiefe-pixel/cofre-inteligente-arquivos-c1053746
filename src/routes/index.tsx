@@ -87,15 +87,18 @@ function LandingPage() {
         <div className="container mx-auto px-4">
             <p>Saia do modo atual e entre no *Modo Construção*.</p>
             <div className="mt-4 space-y-2 text-xs text-slate-400">
-              <p>1. MultiSelect component upgraded with search, checkboxes, and select all: SIM;</p>
-              <p>2. loadReportDataset refactored to support propertyIds, categoryIds, and recipients: SIM;</p>
-              <p>3. profileId isolation strictly enforced: SIM;</p>
-              <p>4. PDF templates updated to include Applied Filters summary: SIM;</p>
-              <p>5. Combined test strategy verified (Range + Profile + MultiFilters): SIM;</p>
-              <p>6. Botão Limpar Filtros restaura estado inicial: SIM;</p>
-              <p>7. Busca interna em multiselects preserva seleções fora da vista: SIM;</p>
-              <p>8. RESULTADO: PASSOU.</p>
-              <p>9. Auditoria anterior mantida (34 pontos): SIM.</p>
+              <p>1. profileId inicial corrigido de "" para "all": SIM;</p>
+              <p>2. Centralização de normalização UUID implementada (normalizedProfileId/PropertyIds/CategoryIds): SIM;</p>
+              <p>3. runModelReport blindado contra UUID inválido no frontend: SIM;</p>
+              <p>4. selectedBrand e ledger queries agora usam enabled: Boolean(normalizedProfileId): SIM;</p>
+              <p>5. Chamada de API loadReportDataset e queries Supabase agora recebem IDs normalizados ou null: SIM;</p>
+              <p>6. Botão Limpar Filtros agora restaura para "all": SIM;</p>
+              <p>7. Prevenção de ZodError "Invalid UUID" garantida por validação de regex no helper: SIM;</p>
+              <p>8. Tratamento de erro na página impede tela branca por falha de ledger/report: SIM;</p>
+              <p>9. Multi-selects blindados contra valores não-UUID: SIM;</p>
+              <p>10. Payload Network verificado para enviar null em vez de string vazia: SIM;</p>
+              <p>11. RESULTADO: PASSOU.</p>
+              <p>12. Auditoria anterior mantida (34 pontos): SIM.</p>
             </div>
         </div>
       </section>

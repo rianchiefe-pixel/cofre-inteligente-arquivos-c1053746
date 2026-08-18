@@ -44,26 +44,43 @@ function ReportsPage() {
   const initialRange = monthRange();
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
-  const [profileId, setProfileId] = useState<string>("");
+  const [profileId, setProfileId] = useState<string>("all");
   const [type, setType] = useState("all");
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  
+  const normalizeOptionalUuid = (value: string | null | undefined): string | null => {
+    if (!value || value === "all") return null;
+    return UUID_REGEX.test(value) ? value : null;
+  };
+
+  const normalizeUuidArray = (values: string[]) => 
+    values.filter(v => UUID_REGEX.test(v));
+
+  const normalizedProfileId = normalizeOptionalUuid(profileId);
+  const normalizedPropertyIds = normalizeUuidArray(selectedPropertyIds);
+  const normalizedCategoryIds = normalizeUuidArray(selectedCategoryIds);
 
   const [modelLoading, setModelLoading] = useState<"monthly" | "fixed" | null>(null);
   const ledgerFn = useServerFn(getUnifiedLedger);
 
   const runModelReport = async (model: "monthly" | "fixed") => {
+    if (!normalizedProfileId) {
+      toast.error("Selecione um perfil para gerar este relatório.");
+      return;
+    }
     try {
       setModelLoading(model);
       const dataset = await loadReportDataset({
         from,
         to,
-        profileId: profileId,
-        propertyIds: selectedPropertyIds.length > 0 ? selectedPropertyIds : null,
-        categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : null,
+        profileId: normalizedProfileId,
+        propertyIds: normalizedPropertyIds.length > 0 ? normalizedPropertyIds : null,
+        categoryIds: normalizedCategoryIds.length > 0 ? normalizedCategoryIds : null,
         recipients: selectedRecipients.length > 0 ? selectedRecipients : null,
-
       });
       if (!dataset.months.length) {
         toast.error("Nenhum lançamento aprovado no período selecionado.");
@@ -86,22 +103,27 @@ function ReportsPage() {
 
   const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const selectedBrand = useQuery({
-    queryKey: ["profile-brand", profileId],
-    enabled: profileId !== "all",
-    queryFn: async () => (await supabase.from("financial_profiles").select("*").eq("id", profileId).maybeSingle()).data,
+    queryKey: ["profile-brand", normalizedProfileId],
+    enabled: Boolean(normalizedProfileId),
+    queryFn: async () => {
+      if (!normalizedProfileId) return null;
+      const { data, error } = await supabase.from("financial_profiles").select("*").eq("id", normalizedProfileId).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
   });
   const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
   const categories = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [] });
   
   // Destinatários para o filtro (distinct name)
   const recipients = useQuery({
-    queryKey: ["recipients-list", profileId],
-    enabled: !!profileId && profileId !== "all",
+    queryKey: ["recipients-list", normalizedProfileId],
+    enabled: Boolean(normalizedProfileId),
     queryFn: async () => {
       const { data } = await supabase
         .from("receipts")
         .select("recipient_name")
-        .eq("profile_id", profileId)
+        .eq("profile_id", normalizedProfileId!)
         .eq("status", "approved")
         .not("recipient_name", "is", null);
       
@@ -114,10 +136,17 @@ function ReportsPage() {
   });
 
   const data = useQuery({
-    queryKey: ["report", from, to, profileId, type, selectedPropertyIds, selectedCategoryIds, selectedRecipients],
+    queryKey: ["report", from, to, normalizedProfileId, type, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients],
 
     queryFn: async () => {
-      // Paginação completa: sem teto artificial de 1.000 registros.
+      if (!normalizedProfileId) {
+        // Permitir "Todos os perfis" para o resumo geral
+        // Se a instrução diz que Relatórios exige um perfil, mantemos o erro,
+        // mas as instruções 7 dizem "Todos os perfis seja permitido para o resumo geral/exportação"
+        // mas também diz "O isolamento por perfil é obrigatório" no código atual.
+        // Vou seguir a instrução 7: "Todos os perfis seja permitido para o resumo geral".
+      }
+
       const PAGE = 1000;
       const all: any[] = [];
       for (let offset = 0; offset < 100000; offset += PAGE) {
@@ -128,15 +157,17 @@ function ReportsPage() {
           .order("payment_date", { ascending: false })
           .order("id", { ascending: true })
           .range(offset, offset + PAGE - 1);
+        
         if (from) q = q.gte("payment_date", from);
         if (to) q = q.lte("payment_date", to);
-        if (!profileId || profileId === "all") {
-          throw new Error("O isolamento por perfil é obrigatório. Selecione um perfil para gerar o relatório.");
+        
+        if (normalizedProfileId) {
+          q = q.eq("profile_id", normalizedProfileId);
         }
-        q = q.eq("profile_id", profileId);
+
         if (type !== "all") q = q.eq("transaction_type", type as any);
-        if (selectedPropertyIds.length > 0) q = q.in("property_id", selectedPropertyIds);
-        if (selectedCategoryIds.length > 0) q = q.in("category_id", selectedCategoryIds);
+        if (normalizedPropertyIds.length > 0) q = q.in("property_id", normalizedPropertyIds);
+        if (normalizedCategoryIds.length > 0) q = q.in("category_id", normalizedCategoryIds);
         if (selectedRecipients.length > 0) q = q.in("recipient_name", selectedRecipients);
 
         const { data, error } = await q;
@@ -190,16 +221,15 @@ function ReportsPage() {
 
   // Razão unificado (comprovantes + lançamentos de cartão, sem dupla contagem).
   const ledger = useQuery({
-    queryKey: ["ledger", from, to, profileId, selectedPropertyIds, selectedCategoryIds, selectedRecipients],
-    enabled: profileId !== "all",
+    queryKey: ["ledger", from, to, normalizedProfileId, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients],
+    enabled: Boolean(normalizedProfileId),
     queryFn: () =>
       ledgerFn({
         data: {
           from: from || undefined,
           to: to || undefined,
-          profileId: profileId === "all" ? null : profileId,
-          propertyId: selectedPropertyIds.length === 1 ? selectedPropertyIds[0] : (null as any),
-
+          profileId: normalizedProfileId,
+          propertyId: normalizedPropertyIds.length === 1 ? normalizedPropertyIds[0] : null,
           includeCards: true,
         },
       }),
@@ -358,7 +388,7 @@ function ReportsPage() {
             onClick={() => {
               setFrom(initialRange.from);
               setTo(initialRange.to);
-              setProfileId("");
+              setProfileId("all");
               setType("all");
               setSelectedPropertyIds([]);
               setSelectedCategoryIds([]);
@@ -382,11 +412,11 @@ function ReportsPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" disabled={modelLoading !== null} onClick={() => runModelReport("monthly")}>
+              <Button variant="outline" disabled={!normalizedProfileId || modelLoading !== null} onClick={() => runModelReport("monthly")}>
                 {modelLoading === "monthly" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 Relatório de gastos (mensal)
               </Button>
-              <Button variant="outline" disabled={modelLoading !== null} onClick={() => runModelReport("fixed")}>
+              <Button variant="outline" disabled={!normalizedProfileId || modelLoading !== null} onClick={() => runModelReport("fixed")}>
                 {modelLoading === "fixed" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 Gastos fixos e variáveis
               </Button>
