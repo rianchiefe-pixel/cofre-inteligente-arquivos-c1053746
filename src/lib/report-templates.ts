@@ -182,6 +182,8 @@ export async function generateFixedVariableReport(data: ReportDataset) {
   const reportTitle = isPessoal ? "RELATÓRIO FINANCEIRO — PESSOA FÍSICA" : "RELATÓRIO FINANCEIRO — HOLDING";
   drawReportHeader(doc, reportTitle, `Perfil: ${profileLabel} | Período: ${data.periodLabel}`, pw, margin);
 
+  let currentY = 110;
+
   // Bloco informativo de filtros (Regra 19)
   const filters = data.meta.filters;
   const filterSummary: string[] = [];
@@ -203,10 +205,11 @@ export async function generateFixedVariableReport(data: ReportDataset) {
     const filterText = `Filtros Aplicados: ${filterSummary.join(" | ")}`;
     const splitText = doc.splitTextToSize(filterText, contentW);
     doc.text(splitText, margin, 95);
-    curY = 130;
+    currentY = 130;
   }
 
-  let y = curY || 110;
+  let y = currentY;
+
 
   
   const cardW = (contentW - 20) / 3;
