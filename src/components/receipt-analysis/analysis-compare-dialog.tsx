@@ -156,11 +156,26 @@ export function AnalysisCompareDialog({ file, open, onOpenChange }: AnalysisComp
             <div className="flex-1 overflow-hidden flex flex-col">
               <div className="h-2/3 border-b bg-black/5 flex items-center justify-center p-4 relative">
                 {fileUrl ? (
-                  <iframe src={fileUrl} className="w-full h-full border-none rounded shadow-sm" />
+                  <div className="w-full h-full p-2 overflow-auto">
+                    {file.mime_type?.includes("pdf") ? (
+                      <iframe src={fileUrl} className="w-full h-full border-none rounded shadow-sm" />
+                    ) : (
+                      <img src={fileUrl} className="max-w-full h-auto mx-auto rounded shadow-sm" />
+                    )}
+                  </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <p className="text-xs">Carregando visualização...</p>
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground p-8">
+                    {file.storage_path ? (
+                      <>
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <p className="text-xs">Carregando visualização...</p>
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="h-8 w-8 text-yellow-500" />
+                        <p className="text-xs">Sem arquivo vinculado</p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
