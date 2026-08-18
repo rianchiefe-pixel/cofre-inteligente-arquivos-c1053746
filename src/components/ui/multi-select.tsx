@@ -28,6 +28,8 @@ interface MultiSelectProps {
   className?: string;
   onSelectAll?: () => void;
   onClearSelection?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function MultiSelect({
