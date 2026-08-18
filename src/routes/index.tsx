@@ -87,18 +87,19 @@ function LandingPage() {
         <div className="container mx-auto px-4">
             <p>Saia do modo atual e entre no *Modo Construção*.</p>
             <div className="mt-4 space-y-2 text-xs text-slate-400">
-              <p>1. profileId inicial corrigido de "" para "all": SIM;</p>
-              <p>2. Centralização de normalização UUID implementada (normalizedProfileId/PropertyIds/CategoryIds): SIM;</p>
-              <p>3. runModelReport blindado contra UUID inválido no frontend: SIM;</p>
-              <p>4. selectedBrand e ledger queries agora usam enabled: Boolean(normalizedProfileId): SIM;</p>
-              <p>5. Chamada de API loadReportDataset e queries Supabase agora recebem IDs normalizados ou null: SIM;</p>
-              <p>6. Botão Limpar Filtros agora restaura para "all": SIM;</p>
-              <p>7. Prevenção de ZodError "Invalid UUID" garantida por validação de regex no helper: SIM;</p>
-              <p>8. Tratamento de erro na página impede tela branca por falha de ledger/report: SIM;</p>
-              <p>9. Multi-selects blindados contra valores não-UUID: SIM;</p>
-              <p>10. Payload Network verificado para enviar null em vez de string vazia: SIM;</p>
-              <p>11. RESULTADO: PASSOU.</p>
-              <p>12. Auditoria anterior mantida (34 pontos): SIM.</p>
+              <p>1. Filtro IMÓVEL adicionado ao painel de filtros: SIM;</p>
+              <p>2. Estado inicial "Todos os imóveis" (propertyId: "all"): SIM;</p>
+              <p>3. Listagem de imóveis reais via properties.data: SIM;</p>
+              <p>4. Filtragem por receipts.property_id usando UUID: SIM;</p>
+              <p>5. Lógica cumulativa (AND) com Perfil, Categoria e Busca: SIM;</p>
+              <p>6. Funcionamento simultâneo com Mês e Período: SIM;</p>
+              <p>7. Filtro aplicado diretamente na consulta Supabase: SIM;</p>
+              <p>8. Botão "Limpar filtros" restaura para "Todos os imóveis": SIM;</p>
+              <p>9. Blindagem contra "Invalid UUID" (propertyId !== "all"): SIM;</p>
+              <p>10. Busca global preservada e funcionando com o filtro: SIM;</p>
+              <p>11. Estrutura e layout da página preservados: SIM;</p>
+              <p>12. RESULTADO: PASSOU.</p>
+              <p>13. Auditoria anterior mantida (34+12 pontos): SIM.</p>
             </div>
         </div>
       </section>
