@@ -658,6 +658,103 @@ const ConferencePatchSchema = z.object({
   account_id: z.string().uuid().nullable().optional(),
 }).strict();
 
+export const mergeReceipts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    sourceId: z.string().uuid(),
+    targetId: z.string().uuid(),
+    selections: z.record(z.string(), z.enum(["source", "target"])).optional(),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Load both receipts
+    const { data: source } = await supabase.from("receipts").select("*").eq("id", data.sourceId).single();
+    const { data: target } = await supabase.from("receipts").select("*").eq("id", data.targetId).single();
+
+    if (!source || !target) throw new Error("Um ou ambos os comprovantes não foram encontrados.");
+    if (source.user_id !== userId || target.user_id !== userId) throw new Error("Sem permissão para mesclar estes comprovantes.");
+
+    // Smart merge logic
+    const merged: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+      user_confirmed_at: new Date().toISOString(),
+      status: "approved",
+    };
+
+    const fieldsToMerge = [
+      "payment_date", "amount", "recipient_name", "recipient_tax_id", 
+      "bank_name", "auth_code", "payment_method", "transaction_type", 
+      "expense_behavior", "category_id", "description", "notes", 
+      "profile_id", "property_id", "bank_id", "account_id", "file_path", 
+      "file_name", "file_mime", "file_size", "file_hash", "ocr_data"
+    ];
+
+    for (const field of fieldsToMerge) {
+      const selection = data.selections?.[field];
+      if (selection === "source") {
+        merged[field] = source[field];
+      } else if (selection === "target") {
+        merged[field] = target[field];
+      } else {
+        // Default: use non-null value, prioritize target (existing) if both exist
+        merged[field] = target[field] ?? source[field];
+      }
+    }
+
+    // Update target and delete source
+    const { error: upErr } = await supabase.from("receipts").update(merged).eq("id", data.targetId);
+    if (upErr) throw new Error(`Erro ao atualizar registro: ${upErr.message}`);
+
+    const { error: delErr } = await supabase.from("receipts").delete().eq("id", data.sourceId);
+    if (delErr) {
+      console.error("Erro ao deletar origem após mesclagem:", delErr);
+      // Not fatal but should be logged
+    }
+
+    // Mark duplicate check as merged
+    await supabase.from("duplicate_checks")
+      .update({ status: "merged", reviewed_at: new Date().toISOString(), reviewed_by: userId })
+      .or(`new_receipt_id.eq.${data.sourceId},candidate_receipt_id.eq.${data.sourceId}`);
+
+    await logAudit(supabase, userId, {
+      action: "receipt_merged",
+      entity: "receipt",
+      entity_id: data.targetId,
+      profile_id: merged.profile_id,
+      note: `Lançamento ${data.sourceId} mesclado em ${data.targetId}`
+    });
+
+    return { ok: true, targetId: data.targetId };
+  });
+
+export const markAsNotDuplicate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    receiptId: z.string().uuid(),
+    candidateId: z.string().uuid(),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    await supabase.from("duplicate_checks")
+      .update({ 
+        status: "not_duplicate", 
+        reviewed_at: new Date().toISOString(), 
+        reviewed_by: userId 
+      })
+      .eq("new_receipt_id", data.receiptId)
+      .eq("candidate_receipt_id", data.candidateId);
+
+    // Also clear the simple duplicate_of reference in the receipt itself if it matches
+    await supabase.from("receipts")
+      .update({ duplicate_of: null, status: "pending", duplicate_score: 0 })
+      .eq("id", data.receiptId)
+      .eq("duplicate_of", data.candidateId);
+
+    return { ok: true };
+  });
+
 export const updateReceiptConference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({
