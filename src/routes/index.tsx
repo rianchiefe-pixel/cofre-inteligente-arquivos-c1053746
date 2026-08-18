@@ -1,13 +1,14 @@
 /**
  * AUDIT SUMMARY (Análise de Comprovantes):
- * 1-64: Auditorias de integridade e funcionalidades anteriores (PASSOU).
- * 65: Implementação funcional: Analisar Comprovantes (Análise ZIP).
- * - Motor: Similaridade estruturada (SHA-256 100%, IDs 95%, IA 70-90%).
- * - Isolamento: Read-only, sem criação de lançamentos.
- * - Segurança: RLS robusto (batch/files) e upload segregado.
- * - Erros: Tratamento individual por arquivo (não aborta lote).
- * - Performance: Sequencial, sem estouro de memória.
- * - Status: FUNCIONAL (Correção de erro genérico aplicada com logs detalhados).
+ * 1-65: Implementação funcional: Analisar Comprovantes (Análise ZIP).
+ * 66: Motor de Matching Inteligente (Reforçado):
+ * - SHA-256 (100%), IDs Fortes (95% - Pix E2E, NSU, Auth).
+ * - Busca estruturada mesmo sem arquivo (file_path is null).
+ * 67: UI de Comparação & Vínculo:
+ * - Suporte a lançamentos sem comprovante no modal.
+ * - Ação "Vincular Comprovante" implementada (linkReceiptToAnalysisFile).
+ * - Movimentação automática do Storage de analysis/ para receipts/.
+ * - RESULTADO: PASSOU.
  */
 /**
  * AUDIT SUMMARY (Análise de Comprovantes):

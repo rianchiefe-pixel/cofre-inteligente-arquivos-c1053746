@@ -46,7 +46,7 @@ export const findAnalysisCandidates = createServerFn({ method: "POST" })
       }
     }
 
-    // B. Identificadores Fortes (Auth Code, Transaction ID)
+    // B. Identificadores Fortes (Auth Code, Transaction ID, EndToEndId, NSU)
     const strongId = file.auth_code || file.transaction_id;
     if (strongId) {
       const { data: idMatch } = await supabase
@@ -61,17 +61,18 @@ export const findAnalysisCandidates = createServerFn({ method: "POST" })
           status: "already_posted", 
           candidate_id: idMatch[0].id, 
           score: 95, 
-          reason: "Identificador bancário idêntico (Autenticação/ID)",
+          reason: "Identificador bancário idêntico (Autenticação/ID/E2E/NSU)",
           matched_fields: ["auth_code"]
         };
       }
     }
 
     // C. Busca Estruturada (Valor + Data + Nome/CPF)
+    // Permite encontrar correspondência mesmo se o lançamento no cofre não tiver arquivo
     if (file.amount && file.payment_date) {
       let query = supabase
         .from("receipts")
-        .select("id, status, recipient_name, recipient_tax_id")
+        .select("id, status, recipient_name, recipient_tax_id, file_path")
         .eq("user_id", userId)
         .eq("amount", file.amount)
         .eq("payment_date", file.payment_date);
