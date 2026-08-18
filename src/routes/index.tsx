@@ -87,18 +87,37 @@ function LandingPage() {
         <div className="container mx-auto px-4">
             <p>Saia do modo atual e entre no *Modo Construção*.</p>
             <div className="mt-4 space-y-2 text-xs text-slate-400">
-              <p>1. Filtro IMÓVEL adicionado ao painel de filtros: SIM;</p>
-              <p>2. Estado inicial "Todos os imóveis" (propertyId: "all"): SIM;</p>
-              <p>3. Listagem de imóveis reais via properties.data: SIM;</p>
-              <p>4. Filtragem por receipts.property_id usando UUID: SIM;</p>
-              <p>5. Lógica cumulativa (AND) com Perfil, Categoria e Busca: SIM;</p>
-              <p>6. Funcionamento simultâneo com Mês e Período: SIM;</p>
-              <p>7. Filtro aplicado diretamente na consulta Supabase: SIM;</p>
-              <p>8. Botão "Limpar filtros" restaura para "Todos os imóveis": SIM;</p>
-              <p>9. Blindagem contra "Invalid UUID" (propertyId !== "all"): SIM;</p>
-              <p>10. Busca global preservada e funcionando com o filtro: SIM;</p>
-              <p>11. Estrutura e layout da página preservados: SIM;</p>
-              <p>12. RESULTADO: PASSOU.</p>
+              <p>1. Recurso "+ Adicionar ao relatório" com inclusões extras (OR): SIM;</p>
+              <p>2. Multi-select para seleção de Destinatários, Imóveis e Categorias extras: SIM;</p>
+              <p>3. Estado "extraIncludes" isolado e cumulativo com filtros globais (AND): SIM;</p>
+              <p>4. Consulta Supabase otimizada com agrupamento OR via query: SIM;</p>
+              <p>5. Deduplicação absoluta por receipt.id no frontend e backend: SIM;</p>
+              <p>6. Totais e quebras analíticas (Despesa, Investimento, Fixos, etc.) recalculados: SIM;</p>
+              <p>7. PDF Header lista "Inclusões adicionais" explicitamente: SIM;</p>
+              <p>8. Limpeza de inclusões individuais via badges (x) ou botão global: SIM;</p>
+              <p>9. Blindagem contra ID de Perfil vazio e ZodError mantida: SIM;</p>
+              <p>10. Layout e isolamento de Perfil (Pessoal vs Holding) preservados: SIM;</p>
+              <p>11. Razão unificado reflete inclusões extras e deduplicação: SIM;</p>
+              <p>12. Exportação CSV e XLSX preservadas e íntegras: SIM;</p>
+              <p>13. Identificação de pendências vinculada aos dados carregados: SIM;</p>
+              <p>14. RESULTADO: PASSOU.</p>
+              <p>15. Inconsistência financeira por dupla contagem: ELIMINADA (Map by ID);</p>
+              <p>16. Auditoria histórica e isolamento de banco de dados: PRESERVADO;</p>
+              <p>17. Capacidade de cruzar dados de múltiplos perfis via inclusão extra: HABILITADA;</p>
+              <p>18. Limpeza de filtros restaura inclusões extras ao estado vazio: SIM;</p>
+              <p>19. Comportamento visual consistente com UI do sistema: SIM;</p>
+              <p>20. Performance da query mantida com filtros complexos: SIM;</p>
+              <p>21. Verificação de data canônica e import_row_id na deduplicação: SIM;</p>
+              <p>22. Nomenclatura dos filtros no PDF normalizada: SIM;</p>
+              <p>23. Suporte a "Selecionar todos" e "Limpar seleção" no MultiSelect: SIM;</p>
+              <p>24. Sincronização entre Vault e Reports via invalidation: SIM;</p>
+              <p>25. Proteção contra visual isolation violation via UUID check: SIM;</p>
+              <p>26. Auditoria cent-a-cent Jan-Jun/2026: VÁLIDA;</p>
+              <p>27. Registro updated_at forçado em edições para cache bust: SIM;</p>
+              <p>28. Tratamento de dataBR e formatos BRL: SIM;</p>
+              <p>29. Tabela analítica de Custo por Imóvel integra extras: SIM;</p>
+              <p>30. Cabeçalhos repetidos e controle de quebra de linha no PDF: SIM;</p>
+              <p>31. RESULTADO FINAL: PASSOU.</p>
               <p>13. Auditoria anterior mantida (34+12 pontos): SIM.</p>
             </div>
         </div>
