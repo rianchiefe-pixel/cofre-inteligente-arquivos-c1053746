@@ -320,13 +320,13 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Duplicate detection engine v2
+    // Duplicate detection engine v3 (Strict Candidate Enforcement)
     let duplicate_of: string | null = null;
     let score = 0;
     const matchedFields: string[] = [];
     const differentFields: string[] = [];
 
-    // Exact file hash (100%)
+    // 1. Exact file hash (100%)
     if (rec.file_hash) {
       const { data: sameHash } = await supabase
         .from("receipts")
@@ -341,7 +341,7 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Strong Identifiers (Auth Code, Pix E2E, NSU)
+    // 2. Strong Identifiers (Auth Code, Pix E2E, NSU)
     if (!duplicate_of && extracted.auth_code) {
       const { data: sameAuth } = await supabase
         .from("receipts")
@@ -356,18 +356,18 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
       }
     }
 
-    // Multi-factor detection (Amount + Date + Payee/Bank)
+    // 3. Multi-factor detection (Amount + Date + Payee/Bank)
     if (!duplicate_of && extracted.amount && extracted.payment_date) {
+      // Searching all receipts, with or without files
       const { data: candidates } = await supabase
         .from("receipts")
         .select("id, amount, payment_date, recipient_name, bank_name, auth_code, recipient_tax_id")
         .eq("amount", extracted.amount)
         .eq("payment_date", extracted.payment_date)
         .neq("id", rec.id)
-        .limit(5);
+        .limit(10);
 
       if (candidates?.length) {
-        // Evaluate each candidate to find the best match
         for (const cand of candidates) {
           let candScore = 40; // Base for same Amount + Date
           const candMatched: string[] = ["amount", "payment_date"];
@@ -375,14 +375,14 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
 
           const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().trim();
           
-          if (norm(extracted.recipient_name) === norm(cand.recipient_name)) {
+          if (extracted.recipient_name && cand.recipient_name && norm(extracted.recipient_name) === norm(cand.recipient_name)) {
             candScore += 25;
             candMatched.push("recipient_name");
           } else if (extracted.recipient_name && cand.recipient_name) {
             candDifferent.push("recipient_name");
           }
 
-          if (norm(extracted.bank_name) === norm(cand.bank_name)) {
+          if (extracted.bank_name && cand.bank_name && norm(extracted.bank_name) === norm(cand.bank_name)) {
             candScore += 15;
             candMatched.push("bank_name");
           } else if (extracted.bank_name && cand.bank_name) {
@@ -394,7 +394,8 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
             candMatched.push("recipient_tax_id");
           }
 
-          if (candScore >= 65) {
+          // Strict threshold for automatic flag
+          if (candScore >= 60) {
             duplicate_of = cand.id;
             score = Math.min(candScore, 90);
             matchedFields.push(...candMatched);
@@ -404,6 +405,12 @@ export const analyzeReceipt = createServerFn({ method: "POST" })
         }
       }
     }
+
+    // Score Integrity: If no candidate identified, score MUST be 0
+    if (!duplicate_of) {
+      score = 0;
+    }
+
 
     // Persist detailed duplicate check
     if (duplicate_of) {
@@ -735,28 +742,77 @@ export const markAsNotDuplicate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({
     receiptId: z.string().uuid(),
-    candidateId: z.string().uuid(),
+    candidateId: z.string().uuid().optional(),
   }).parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    await supabase.from("duplicate_checks")
-      .update({ 
-        status: "not_duplicate", 
-        reviewed_at: new Date().toISOString(), 
-        reviewed_by: userId 
-      })
-      .eq("new_receipt_id", data.receiptId)
-      .eq("candidate_receipt_id", data.candidateId);
+    if (data.candidateId) {
+      await supabase.from("duplicate_checks")
+        .update({ 
+          status: "not_duplicate", 
+          reviewed_at: new Date().toISOString(), 
+          reviewed_by: userId 
+        })
+        .eq("new_receipt_id", data.receiptId)
+        .eq("candidate_receipt_id", data.candidateId);
+    }
 
-    // Also clear the simple duplicate_of reference in the receipt itself if it matches
+    // Clear duplicate flags in the receipt
     await supabase.from("receipts")
-      .update({ duplicate_of: null, status: "pending", duplicate_score: 0 })
+      .update({ 
+        duplicate_of: null, 
+        duplicate_score: 0,
+        status: "pending" 
+      })
       .eq("id", data.receiptId)
-      .eq("duplicate_of", data.candidateId);
+      .eq("user_id", userId);
 
     return { ok: true };
   });
+
+export const reconcileDuplicates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    // Find inconsistent receipts: has score but no candidate
+    const { data: inconsistent } = await supabase
+      .from("receipts")
+      .select("id, duplicate_score, duplicate_of")
+      .eq("user_id", userId)
+      .gt("duplicate_score", 0)
+      .is("duplicate_of", null);
+
+    let fixedCount = 0;
+    if (inconsistent?.length) {
+      for (const rec of inconsistent) {
+        // Check if there's a record in duplicate_checks we can recover
+        const { data: check } = await supabase
+          .from("duplicate_checks")
+          .select("candidate_receipt_id")
+          .eq("new_receipt_id", rec.id)
+          .order("similarity_score", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (check?.candidate_receipt_id) {
+          await supabase.from("receipts")
+            .update({ duplicate_of: check.candidate_receipt_id })
+            .eq("id", rec.id);
+        } else {
+          // No recovery possible, clear flags
+          await supabase.from("receipts")
+            .update({ duplicate_score: 0, status: "pending" })
+            .eq("id", rec.id);
+          fixedCount++;
+        }
+      }
+    }
+
+    return { ok: true, reconciled: inconsistent?.length ?? 0, cleared: fixedCount };
+  });
+
 
 export const updateReceiptConference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

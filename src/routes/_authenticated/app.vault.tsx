@@ -327,22 +327,27 @@ function statusBadge(s: string) {
   return <Badge className="bg-yellow-500 text-white hover:bg-yellow-500">Pendente</Badge>;
 }
 
-function dupScoreBadge(score: number | null | undefined) {
-  const s = Number(score ?? 0);
-  if (s >= 80)
+function dupScoreBadge(receipt: any) {
+  const score = Number(receipt.duplicate_score ?? 0);
+  const hasCandidate = Boolean(receipt.duplicate_of);
+  
+  // Rule: Score is only shown if there is an identified candidate
+  if (score < 50 || !hasCandidate) return <span className="text-xs text-muted-foreground">—</span>;
+  
+  if (score >= 80)
     return (
       <Badge className="gap-1 bg-destructive text-destructive-foreground hover:bg-destructive">
-        <AlertTriangle className="h-3 w-3" /> Alta {s}
+        <AlertTriangle className="h-3 w-3" /> Alta {score}
       </Badge>
     );
-  if (s >= 50)
-    return (
-      <Badge className="gap-1 bg-yellow-500 text-white hover:bg-yellow-500">
-        <AlertTriangle className="h-3 w-3" /> Possível {s}
-      </Badge>
-    );
-  return <span className="text-xs text-muted-foreground">—</span>;
+  
+  return (
+    <Badge className="gap-1 bg-yellow-500 text-white hover:bg-yellow-500">
+      <AlertTriangle className="h-3 w-3" /> Possível {score}
+    </Badge>
+  );
 }
+
 
 function VaultPage() {
   const PAGE_SIZE = 50;
@@ -1223,12 +1228,14 @@ function VaultPage() {
                 <TableBody>
                   {filtered.map((r: any) => {
                     const checked = selectedIds.has(r.id);
+                    const hasCandidate = Boolean(r.duplicate_of);
                     const highlight =
-                      r.duplicate_score >= 80
+                      hasCandidate && r.duplicate_score >= 80
                         ? "bg-destructive/5"
-                        : r.duplicate_score >= 50
+                        : hasCandidate && r.duplicate_score >= 50
                           ? "bg-yellow-500/5"
                           : "";
+
                     return (
                       <TableRow
                         key={r.id}
@@ -1262,7 +1269,7 @@ function VaultPage() {
                               ]
                             : "—"}
                         </TableCell>
-                        <TableCell>{dupScoreBadge(r.duplicate_score)}</TableCell>
+                        <TableCell>{dupScoreBadge(r)}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {dateBR(r.created_at)}
                         </TableCell>
@@ -1295,12 +1302,14 @@ function VaultPage() {
           <div className="space-y-2 md:hidden">
             {filtered.map((r: any) => {
               const checked = selectedIds.has(r.id);
+              const hasCandidate = Boolean(r.duplicate_of);
               const highlight =
-                r.duplicate_score >= 80
+                hasCandidate && r.duplicate_score >= 80
                   ? "border-destructive/50"
-                  : r.duplicate_score >= 50
+                  : hasCandidate && r.duplicate_score >= 50
                     ? "border-yellow-500/50"
                     : "";
+
               return (
                 <Card key={r.id} className={`p-3 ${highlight}`}>
                   <div className="flex items-start gap-3">
@@ -1315,7 +1324,7 @@ function VaultPage() {
                           {r.recipient_name || r.description || "Comprovante"}
                         </p>
                         {statusBadge(r.status)}
-                        {dupScoreBadge(r.duplicate_score)}
+                        {dupScoreBadge(r)}
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
                         {dateBR(r.payment_date)} • {banks.data?.find((b: any) => b.id === r.bank_id)?.name ?? r.bank_name ?? "—"} •{" "}
@@ -1826,11 +1835,16 @@ function CompareDialog({
   }, [data]);
 
   const scoreLabel = useMemo(() => {
+    // Score Integrity: Only show score if candidate exists
+    if (!data?.oldRec) return { label: "", color: "", score: 0 };
+    
     const s = data?.check?.similarity_score ?? data?.newRec?.duplicate_score ?? 0;
     if (s >= 90) return { label: "Alta chance de duplicidade", color: "text-destructive", score: s };
     if (s >= 70) return { label: "Média chance de duplicidade", color: "text-yellow-600", score: s };
-    return { label: "Baixa chance de duplicidade", color: "text-muted-foreground", score: s };
+    if (s > 0) return { label: "Baixa chance de duplicidade", color: "text-muted-foreground", score: s };
+    return { label: "", color: "", score: 0 };
   }, [data]);
+
 
   const run = async (fn: () => Promise<any>, msg: string) => {
     try {
@@ -1903,14 +1917,17 @@ function CompareDialog({
                 </div>
               )}
 
-              <div className="flex items-center justify-center gap-4 py-2">
-                <div className="h-px flex-1 bg-border" />
-                <div className="text-center">
-                  <p className={`text-sm font-bold ${scoreLabel.color}`}>{scoreLabel.label}</p>
-                  <p className="text-xs text-muted-foreground">Similaridade: {scoreLabel.score}/100</p>
+              {scoreLabel.label && (
+                <div className="flex items-center justify-center gap-4 py-2">
+                  <div className="h-px flex-1 bg-border" />
+                  <div className="text-center">
+                    <p className={`text-sm font-bold ${scoreLabel.color}`}>{scoreLabel.label}</p>
+                    <p className="text-xs text-muted-foreground">Similaridade: {scoreLabel.score}/100</p>
+                  </div>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
-                <div className="h-px flex-1 bg-border" />
-              </div>
+              )}
+
 
               <div className="grid gap-4 md:grid-cols-2">
                 <ReceiptPanel
