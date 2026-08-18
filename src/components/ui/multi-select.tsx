@@ -26,6 +26,8 @@ interface MultiSelectProps {
   placeholder?: string;
   emptyText?: string;
   className?: string;
+  onSelectAll?: () => void;
+  onClearSelection?: () => void;
 }
 
 export function MultiSelect({
@@ -35,6 +37,8 @@ export function MultiSelect({
   placeholder = "Selecionar...",
   emptyText = "Nenhum resultado encontrado.",
   className,
+  onSelectAll,
+  onClearSelection,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -58,7 +62,7 @@ export function MultiSelect({
             {selected.length === 0 && (
               <span className="text-muted-foreground">{placeholder}</span>
             )}
-            {selected.length > 0 && selected.length <= 2 && (
+            {selected.length > 0 && selected.length <= 1 && (
               selected.map((value) => (
                 <Badge
                   key={value}
@@ -84,7 +88,7 @@ export function MultiSelect({
                 </Badge>
               ))
             )}
-            {selected.length > 2 && (
+            {selected.length > 1 && (
               <Badge variant="secondary" className="mr-1 mb-1">
                 {selected.length} selecionados
               </Badge>
@@ -96,8 +100,35 @@ export function MultiSelect({
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
           <CommandInput placeholder="Buscar..." />
-          <CommandList>
+          <CommandList className="max-h-[300px] overflow-y-auto">
             <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandGroup>
+              <div className="flex items-center justify-between p-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 text-xs px-2"
+                  onClick={() => {
+                    if (onSelectAll) onSelectAll();
+                    else onChange(options.map(o => o.value));
+                  }}
+                >
+                  Selecionar todos
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 text-xs px-2"
+                  onClick={() => {
+                    if (onClearSelection) onClearSelection();
+                    else onChange([]);
+                  }}
+                >
+                  Limpar seleção
+                </Button>
+              </div>
+              <Separator className="my-1" />
+            </CommandGroup>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selected.includes(option.value);
@@ -127,19 +158,6 @@ export function MultiSelect({
                 );
               })}
             </CommandGroup>
-            {selected.length > 0 && (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={() => onChange([])}
-                    className="justify-center text-center"
-                  >
-                    Limpar filtros
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            )}
           </CommandList>
         </Command>
       </PopoverContent>

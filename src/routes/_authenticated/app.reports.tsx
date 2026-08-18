@@ -13,6 +13,8 @@ import { currencyBRL, dateBR, paymentMethodLabel, transactionTypeLabel } from "@
 import { monthRange } from "@/lib/date-range";
 import { useCan } from "@/lib/permissions";
 import { ExportMenu } from "@/components/export-menu";
+import { MultiSelect } from "@/components/ui/multi-select";
+
 import type { ReportPayload } from "@/lib/exports";
 import { loadReportDataset, normalizeFinancialClassification } from "@/lib/report-data";
 import { generateFixedVariableReport, generateMonthlyExpenseReport } from "@/lib/report-templates";
@@ -44,7 +46,10 @@ function ReportsPage() {
   const [to, setTo] = useState(initialRange.to);
   const [profileId, setProfileId] = useState<string>("");
   const [type, setType] = useState("all");
-  const [propertyId, setPropertyId] = useState("all");
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+
   const [modelLoading, setModelLoading] = useState<"monthly" | "fixed" | null>(null);
   const ledgerFn = useServerFn(getUnifiedLedger);
 
@@ -55,7 +60,10 @@ function ReportsPage() {
         from,
         to,
         profileId: profileId,
-        propertyId: propertyId === "all" ? null : propertyId,
+        propertyIds: selectedPropertyIds.length > 0 ? selectedPropertyIds : null,
+        categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : null,
+        recipients: selectedRecipients.length > 0 ? selectedRecipients : null,
+
       });
       if (!dataset.months.length) {
         toast.error("Nenhum lançamento aprovado no período selecionado.");
@@ -83,9 +91,31 @@ function ReportsPage() {
     queryFn: async () => (await supabase.from("financial_profiles").select("*").eq("id", profileId).maybeSingle()).data,
   });
   const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name").order("name")).data ?? [] });
+  const categories = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [] });
+  
+  // Destinatários para o filtro (distinct name)
+  const recipients = useQuery({
+    queryKey: ["recipients-list", profileId],
+    enabled: !!profileId && profileId !== "all",
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("receipts")
+        .select("recipient_name")
+        .eq("profile_id", profileId)
+        .eq("status", "approved")
+        .not("recipient_name", "is", null);
+      
+      const names = [...new Set((data ?? []).map(r => r.recipient_name?.trim()))]
+        .filter(Boolean)
+        .sort((a, b) => a!.localeCompare(b!, "pt-BR"));
+      
+      return names.map(name => ({ label: name!, value: name! }));
+    }
+  });
 
   const data = useQuery({
-    queryKey: ["report", from, to, profileId, type, propertyId],
+    queryKey: ["report", from, to, profileId, type, selectedPropertyIds, selectedCategoryIds, selectedRecipients],
+
     queryFn: async () => {
       // Paginação completa: sem teto artificial de 1.000 registros.
       const PAGE = 1000;
@@ -105,7 +135,10 @@ function ReportsPage() {
         }
         q = q.eq("profile_id", profileId);
         if (type !== "all") q = q.eq("transaction_type", type as any);
-        if (propertyId !== "all") q = q.eq("property_id", propertyId);
+        if (selectedPropertyIds.length > 0) q = q.in("property_id", selectedPropertyIds);
+        if (selectedCategoryIds.length > 0) q = q.in("category_id", selectedCategoryIds);
+        if (selectedRecipients.length > 0) q = q.in("recipient_name", selectedRecipients);
+
         const { data, error } = await q;
         if (error) throw error;
         const page = data ?? [];
@@ -157,7 +190,7 @@ function ReportsPage() {
 
   // Razão unificado (comprovantes + lançamentos de cartão, sem dupla contagem).
   const ledger = useQuery({
-    queryKey: ["ledger", from, to, profileId, propertyId],
+    queryKey: ["ledger", from, to, profileId, selectedPropertyIds, selectedCategoryIds, selectedRecipients],
     enabled: profileId !== "all",
     queryFn: () =>
       ledgerFn({
@@ -165,7 +198,8 @@ function ReportsPage() {
           from: from || undefined,
           to: to || undefined,
           profileId: profileId === "all" ? null : profileId,
-          propertyId: propertyId === "all" ? null : propertyId,
+          propertyId: selectedPropertyIds.length === 1 ? selectedPropertyIds[0] : (null as any),
+
           includeCards: true,
         },
       }),
@@ -200,7 +234,7 @@ function ReportsPage() {
       title: "Relatório Financeiro",
       subtitle: profileId !== "all" ? (profiles.data ?? []).find((p) => p.id === profileId)?.name : "Consolidado",
       period: { from, to },
-      filters: { from, to, profileId, type, propertyId },
+      filters: { from, to, profileId, type, propertyIds: selectedPropertyIds, categoryIds: selectedCategoryIds, recipients: selectedRecipients } as any,
       brand,
       summary: [
         { label: "Total geral", value: currencyBRL(total) },
@@ -261,26 +295,15 @@ function ReportsPage() {
       </div>
 
       <Card className="p-5">
-        <div className="grid gap-3 md:grid-cols-6 md:items-end">
+        <div className="grid gap-4 md:grid-cols-4 md:items-end">
           <div className="space-y-2"><Label>De</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div className="space-y-2"><Label>Até</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
           <div className="space-y-2">
             <Label>Perfil</Label>
             <Select value={profileId} onValueChange={setProfileId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Selecione um perfil" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
                 {(profiles.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Imóvel</Label>
-            <Select value={propertyId} onValueChange={setPropertyId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -289,13 +312,64 @@ function ReportsPage() {
             <Select value={type} onValueChange={setType}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="all">Todos os tipos</SelectItem>
                 {Object.entries(transactionTypeLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3 md:items-end">
+          <div className="space-y-2">
+            <Label>Imóveis</Label>
+            <MultiSelect
+              placeholder="Todos os imóveis"
+              options={(properties.data ?? []).map(p => ({ label: p.name, value: p.id }))}
+              selected={selectedPropertyIds}
+              onChange={setSelectedPropertyIds}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Categorias</Label>
+            <MultiSelect
+              placeholder="Todas as categorias"
+              options={(categories.data ?? []).map(c => ({ label: c.name, value: c.id }))}
+              selected={selectedCategoryIds}
+              onChange={setSelectedCategoryIds}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Destinatários</Label>
+            <MultiSelect
+              placeholder="Todos os destinatários"
+              options={recipients.data ?? []}
+              selected={selectedRecipients}
+              onChange={setSelectedRecipients}
+              emptyText="Nenhum destinatário encontrado."
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between border-t pt-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-xs text-muted-foreground"
+            onClick={() => {
+              setFrom(initialRange.from);
+              setTo(initialRange.to);
+              setProfileId("");
+              setType("all");
+              setSelectedPropertyIds([]);
+              setSelectedCategoryIds([]);
+              setSelectedRecipients([]);
+            }}
+          >
+            Limpar filtros
+          </Button>
           {canExport && <ExportMenu build={buildPayload} disabled={rows.length === 0} />}
         </div>
+
       </Card>
 
       {canExport && (
