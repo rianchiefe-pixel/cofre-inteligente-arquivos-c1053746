@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { supabase } from "@/integrations/supabase/client";
-import { extractReceiptFacts, storageSafeName } from "./zip-import";
+import { extractReceiptFacts, storageSafeName, guessMime } from "./zip-import";
 import { findAnalysisCandidates } from "./receipt-analysis.functions";
 
 /**
