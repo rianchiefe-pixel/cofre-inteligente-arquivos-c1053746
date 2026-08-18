@@ -1687,6 +1687,8 @@ function CompareDialog({
   const reject = useServerFn(rejectReceipt);
   const bulkAction = useServerFn(bulkReceiptAction);
   const bulkDelete = useServerFn(deleteReceipts);
+  const merge = useServerFn(mergeReceipts);
+  const markNotDuplicate = useServerFn(markAsNotDuplicate);
 
   const query = useQuery({
     queryKey: ["compare", receiptId],
