@@ -136,10 +136,17 @@ function ReportsPage() {
   });
 
   const data = useQuery({
-    queryKey: ["report", from, to, profileId, type, selectedPropertyIds, selectedCategoryIds, selectedRecipients],
+    queryKey: ["report", from, to, normalizedProfileId, type, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients],
 
     queryFn: async () => {
-      // Paginação completa: sem teto artificial de 1.000 registros.
+      if (!normalizedProfileId) {
+        // Permitir "Todos os perfis" para o resumo geral
+        // Se a instrução diz que Relatórios exige um perfil, mantemos o erro,
+        // mas as instruções 7 dizem "Todos os perfis seja permitido para o resumo geral/exportação"
+        // mas também diz "O isolamento por perfil é obrigatório" no código atual.
+        // Vou seguir a instrução 7: "Todos os perfis seja permitido para o resumo geral".
+      }
+
       const PAGE = 1000;
       const all: any[] = [];
       for (let offset = 0; offset < 100000; offset += PAGE) {
@@ -150,15 +157,17 @@ function ReportsPage() {
           .order("payment_date", { ascending: false })
           .order("id", { ascending: true })
           .range(offset, offset + PAGE - 1);
+        
         if (from) q = q.gte("payment_date", from);
         if (to) q = q.lte("payment_date", to);
-        if (!profileId || profileId === "all") {
-          throw new Error("O isolamento por perfil é obrigatório. Selecione um perfil para gerar o relatório.");
+        
+        if (normalizedProfileId) {
+          q = q.eq("profile_id", normalizedProfileId);
         }
-        q = q.eq("profile_id", profileId);
+
         if (type !== "all") q = q.eq("transaction_type", type as any);
-        if (selectedPropertyIds.length > 0) q = q.in("property_id", selectedPropertyIds);
-        if (selectedCategoryIds.length > 0) q = q.in("category_id", selectedCategoryIds);
+        if (normalizedPropertyIds.length > 0) q = q.in("property_id", normalizedPropertyIds);
+        if (normalizedCategoryIds.length > 0) q = q.in("category_id", normalizedCategoryIds);
         if (selectedRecipients.length > 0) q = q.in("recipient_name", selectedRecipients);
 
         const { data, error } = await q;
