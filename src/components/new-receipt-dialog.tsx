@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [formData, setFormData] = useState({
@@ -52,36 +53,36 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
+      <DialogContent className="max-w-3xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Novo Lançamento</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh] px-1">
-          <div className="space-y-6 p-1">
+        <ScrollArea className="max-h-[70vh] p-1">
+          <div className="space-y-6 p-4">
             <section className="space-y-4">
-              <h3 className="font-semibold text-sm text-muted-foreground">Dados do lançamento</h3>
+              <h3 className="font-semibold text-sm text-muted-foreground border-b pb-2">Dados do lançamento</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Data</Label>
                   <Input type="date" value={formData.payment_date} onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Valor</Label>
+                  <Label>Valor (R$)</Label>
                   <Input type="text" value={formData.amount} placeholder="0,00" onChange={(e) => setFormData({ ...formData, amount: e.target.value })} />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label>Destinatário</Label>
                 <Input value={formData.recipient} onChange={(e) => setFormData({ ...formData, recipient: e.target.value })} />
               </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+              </div>
             </section>
 
             <section className="space-y-4">
-              <h3 className="font-semibold text-sm text-muted-foreground">Pagamento</h3>
+              <h3 className="font-semibold text-sm text-muted-foreground border-b pb-2">Pagamento</h3>
               <div className="space-y-2">
                 <Label>Forma de Pagamento</Label>
                 <Select value={formData.payment_method} onValueChange={(v) => setFormData({ ...formData, payment_method: v })}>
@@ -112,6 +113,43 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
                   </div>
                 </div>
               )}
+            </section>
+            
+            <section className="space-y-4">
+              <h3 className="font-semibold text-sm text-muted-foreground border-b pb-2">Classificação & Vínculos</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Natureza</Label>
+                  <Select value={formData.nature} onValueChange={(v) => setFormData({ ...formData, nature: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="despesa">Despesa</SelectItem>
+                      <SelectItem value="receita">Receita</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Perfil</Label>
+                  <Select value={formData.profile_id} onValueChange={(v) => setFormData({ ...formData, profile_id: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pessoal">Pessoal</SelectItem>
+                      <SelectItem value="holding">Holding</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </section>
+            
+            <section className="space-y-4 border rounded p-4 bg-muted/20">
+              <h3 className="font-semibold text-sm text-muted-foreground">Comprovante (opcional)</h3>
+              <div className="border-2 border-dashed rounded p-4 text-center cursor-pointer hover:border-primary">
+                Arraste ou clique para anexar PDF/Imagem
+              </div>
             </section>
           </div>
         </ScrollArea>
