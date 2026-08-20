@@ -419,6 +419,7 @@ const PAYMENT_METHOD_MAP: Record<string, string> = {
   boleto: "boleto",
   dinheiro: "dinheiro",
   especie: "dinheiro",
+  especie: "dinheiro",
   outro: "outro",
 };
 
