@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,8 +26,8 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
         description: formData.description,
         amount: parseFloat(formData.amount),
         payment_date: formData.payment_date,
-        transaction_type: formData.transaction_type,
-        payment_method: formData.payment_method,
+        transaction_type: formData.transaction_type as any,
+        payment_method: formData.payment_method as any,
         status: "approved",
       });
       if (error) throw error;
