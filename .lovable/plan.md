@@ -5,10 +5,10 @@ Transformação da área de Imóveis em uma central administrativa completa com 
 ## Mudanças no Banco de Dados
 
 ### Novas Tabelas e Estruturas
-- **`property_credential_links`**: Tabela de relacionamento N:N entre `property_credentials` e `properties`.
+- **property_credential_links**: Tabela de relacionamento N:N entre `property_credentials` e `properties`.
   - Campos: `id`, `credential_id`, `property_id`, `created_at`.
   - Permite que um único acesso (Neoenergia, IPTU, etc.) seja visualizado por múltiplos imóveis.
-- **Extensão de `property_obligations`**:
+- **Extensão de property_obligations**:
   - Adição de campos para metadados específicos: `installation_number`, `consumer_unit`, `registration_number`, `client_number`, `contract_number`, `real_estate_tax_id` (inscrição imobiliária).
   - Adição de `credential_id` para vincular a obrigação ao acesso correspondente.
 
@@ -19,7 +19,7 @@ Transformação da área de Imóveis em uma central administrativa completa com 
 
 ## Alterações na Interface (Frontend)
 
-### Nova Navegação Interna (`src/routes/_authenticated/app.properties.$id.tsx`)
+### Nova Navegação Interna (src/routes/_authenticated/app.properties.$id.tsx)
 - Substituição das abas atuais por uma estrutura mais completa:
   - **Visão Geral**: Dashboard resumido com próximos vencimentos e tarefas pendentes.
   - **Contas e Obrigações**: Lista detalhada de taxas e tributos.
@@ -28,7 +28,7 @@ Transformação da área de Imóveis em uma central administrativa completa com 
   - **Documentos**: Gestão de anexos vinculados.
   - **Despesas**: Lançamentos financeiros filtrados por este imóvel.
 
-### Componentes de Formulário (`src/components/property-tabs.tsx`)
+### Componentes de Formulário (src/components/property-tabs.tsx)
 - **Novo Formulário de Obrigações**:
   - Seleção de tipo com campos condicionais (ex: Inscrição Imobiliária só para IPTU).
   - Configuração de recorrência flexível (Mensal, Anual, Parcelada, etc.).
