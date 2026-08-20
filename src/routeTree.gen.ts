@@ -19,6 +19,7 @@ import { Route as AuthenticatedAppVaultRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAppUploadRouteImport } from './routes/_authenticated/app.upload'
 import { Route as AuthenticatedAppTasksRouteImport } from './routes/_authenticated/app.tasks'
 import { Route as AuthenticatedAppReportsRouteImport } from './routes/_authenticated/app.reports'
+import { Route as AuthenticatedAppReceiptsNoReceiptRouteImport } from './routes/_authenticated/app.receipts-no-receipt'
 import { Route as AuthenticatedAppProfilesRouteImport } from './routes/_authenticated/app.profiles'
 import { Route as AuthenticatedAppImportRouteImport } from './routes/_authenticated/app.import'
 import { Route as AuthenticatedAppHoldingAdvocaciaRouteImport } from './routes/_authenticated/app.holding-advocacia'
@@ -84,6 +85,12 @@ const AuthenticatedAppReportsRoute = AuthenticatedAppReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppReceiptsNoReceiptRoute =
+  AuthenticatedAppReceiptsNoReceiptRouteImport.update({
+    id: '/receipts-no-receipt',
+    path: '/receipts-no-receipt',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppProfilesRoute =
   AuthenticatedAppProfilesRouteImport.update({
     id: '/profiles',
@@ -177,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
+  '/app/receipts-no-receipt': typeof AuthenticatedAppReceiptsNoReceiptRoute
   '/app/reports': typeof AuthenticatedAppReportsRoute
   '/app/tasks': typeof AuthenticatedAppTasksRoute
   '/app/upload': typeof AuthenticatedAppUploadRoute
@@ -200,6 +208,7 @@ export interface FileRoutesByTo {
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
+  '/app/receipts-no-receipt': typeof AuthenticatedAppReceiptsNoReceiptRoute
   '/app/reports': typeof AuthenticatedAppReportsRoute
   '/app/tasks': typeof AuthenticatedAppTasksRoute
   '/app/upload': typeof AuthenticatedAppUploadRoute
@@ -227,6 +236,7 @@ export interface FileRoutesById {
   '/_authenticated/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/_authenticated/app/import': typeof AuthenticatedAppImportRoute
   '/_authenticated/app/profiles': typeof AuthenticatedAppProfilesRoute
+  '/_authenticated/app/receipts-no-receipt': typeof AuthenticatedAppReceiptsNoReceiptRoute
   '/_authenticated/app/reports': typeof AuthenticatedAppReportsRoute
   '/_authenticated/app/tasks': typeof AuthenticatedAppTasksRoute
   '/_authenticated/app/upload': typeof AuthenticatedAppUploadRoute
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/app/holding-advocacia'
     | '/app/import'
     | '/app/profiles'
+    | '/app/receipts-no-receipt'
     | '/app/reports'
     | '/app/tasks'
     | '/app/upload'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/app/holding-advocacia'
     | '/app/import'
     | '/app/profiles'
+    | '/app/receipts-no-receipt'
     | '/app/reports'
     | '/app/tasks'
     | '/app/upload'
@@ -303,6 +315,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/holding-advocacia'
     | '/_authenticated/app/import'
     | '/_authenticated/app/profiles'
+    | '/_authenticated/app/receipts-no-receipt'
     | '/_authenticated/app/reports'
     | '/_authenticated/app/tasks'
     | '/_authenticated/app/upload'
@@ -393,6 +406,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/app/reports'
       preLoaderRoute: typeof AuthenticatedAppReportsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/receipts-no-receipt': {
+      id: '/_authenticated/app/receipts-no-receipt'
+      path: '/receipts-no-receipt'
+      fullPath: '/app/receipts-no-receipt'
+      preLoaderRoute: typeof AuthenticatedAppReceiptsNoReceiptRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/profiles': {
@@ -536,6 +556,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppHoldingAdvocaciaRoute: typeof AuthenticatedAppHoldingAdvocaciaRoute
   AuthenticatedAppImportRoute: typeof AuthenticatedAppImportRoute
   AuthenticatedAppProfilesRoute: typeof AuthenticatedAppProfilesRoute
+  AuthenticatedAppReceiptsNoReceiptRoute: typeof AuthenticatedAppReceiptsNoReceiptRoute
   AuthenticatedAppReportsRoute: typeof AuthenticatedAppReportsRoute
   AuthenticatedAppTasksRoute: typeof AuthenticatedAppTasksRoute
   AuthenticatedAppUploadRoute: typeof AuthenticatedAppUploadRoute
@@ -555,6 +576,8 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppHoldingAdvocaciaRoute: AuthenticatedAppHoldingAdvocaciaRoute,
   AuthenticatedAppImportRoute: AuthenticatedAppImportRoute,
   AuthenticatedAppProfilesRoute: AuthenticatedAppProfilesRoute,
+  AuthenticatedAppReceiptsNoReceiptRoute:
+    AuthenticatedAppReceiptsNoReceiptRoute,
   AuthenticatedAppReportsRoute: AuthenticatedAppReportsRoute,
   AuthenticatedAppTasksRoute: AuthenticatedAppTasksRoute,
   AuthenticatedAppUploadRoute: AuthenticatedAppUploadRoute,
