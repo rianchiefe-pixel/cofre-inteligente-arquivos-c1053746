@@ -30,7 +30,7 @@ export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: st
     },
   });
 
-  const save = useMutation({
+  const saveMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error("Selecione um arquivo");
       const path = `${userId}/${Date.now()}-${file.name}`;
@@ -38,15 +38,17 @@ export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: st
       if (uploadError) throw uploadError;
 
       await savePropertyDocument({
-        title: form.title,
-        category: form.category,
-        file_path: path,
-        file_type: file.type,
-        file_size: file.size,
-        notes: form.notes,
-        property_id: propertyId,
-        profile_id: profileId,
-        user_id: userId,
+        data: {
+          title: form.title,
+          category: form.category,
+          file_path: path,
+          file_type: file.type,
+          file_size: file.size,
+          notes: form.notes,
+          property_id: propertyId,
+          profile_id: profileId,
+          user_id: userId,
+        }
       });
     },
     onSuccess: () => {
@@ -123,6 +125,11 @@ export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: st
             </div>
           </div>
         ))}
+        {list.data?.length === 0 && (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            Nenhum documento anexado a este imóvel.
+          </div>
+        )}
       </div>
     </Card>
   );
