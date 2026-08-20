@@ -27,6 +27,7 @@ export const savePropertyDocument = createServerFn({ method: "POST" })
     property_ids: z.array(z.string()).optional(),
   }).parse(data))
   .handler(async ({ data }) => {
+    // 1. Inserir documento
     const { data: doc, error: docError } = await supabaseAdmin
       .from("property_documents")
       .insert({
@@ -44,6 +45,7 @@ export const savePropertyDocument = createServerFn({ method: "POST" })
 
     if (docError) throw docError;
 
+    // 2. Criar vínculos
     const propertyIds = data.property_ids || [data.property_id];
     const links = propertyIds.map(pid => ({
       document_id: doc.id,
@@ -63,12 +65,14 @@ export const savePropertyDocument = createServerFn({ method: "POST" })
 export const deletePropertyDocument = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ id: z.string(), file_path: z.string() }).parse(data))
   .handler(async ({ data }) => {
+    // 1. Remover do storage
     const { error: storageError } = await supabaseAdmin.storage
       .from("property_documents")
       .remove([data.file_path]);
 
     if (storageError) throw storageError;
 
+    // 2. Remover do banco (vínculos serão removidos por CASCADE)
     const { error: dbError } = await supabaseAdmin
       .from("property_documents")
       .delete()
