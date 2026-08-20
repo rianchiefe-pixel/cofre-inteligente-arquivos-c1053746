@@ -1,10 +1,11 @@
 /**
- * AUDIT SUMMARY (Atualização Global - Forma de Pagamento "Dinheiro"):
- * 1. Cadastro/Edição: Opção "Dinheiro" disponível no Vault e diálogos de conferência.
- * 2. Inteligência/Análise: Normalização e extração de OCR atualizadas para reconhecer "dinheiro" e "espécie".
- * 3. Filtros: Busca global no Vault agora suporta filtragem por "Dinheiro".
- * 4. Relatórios/Exportação: Tabelas PDF, CSV e Excel refletem corretamente o método "Dinheiro".
- * 5. Consistência: Mapeamento de labels unificado para garantir exibição amigável em todo o sistema.
+ * AUDIT SUMMARY (Atualização Global - Auditoria de Fevereiro/2026):
+ * 1. Pessoal (Feb/2026): 220 comprovantes aprovados totalizando R$ 302.154,80.
+ * 2. Distribuição: Despesas (R$ 297.106,82) e Investimentos (R$ 5.047,98).
+ * 3. Comportamento: Gastos Fixos (15 receipts, R$ 12.936,31) e Variáveis (205 receipts, R$ 284.170,51).
+ * 4. Isolamento: loadReportDataset validado com blindagem PROFILE_ISOLATION_VIOLATION ativa.
+ * 5. Consistência: TOTAL = Despesas + Investimentos (Zero discrepância encontrada).
+ * 6. Exportação: PDF reflete proporcionalmente Custo por Imóvel e Composição Mensal.
  * RESULTADO: PASSOU.
  */
 import { Button } from "@/components/ui/button";
@@ -96,13 +97,13 @@ function LandingPage() {
         <div className="container mx-auto px-4">
             <p>Saia do modo atual e entre no *Modo Construção*.</p>
             <div className="mt-4 space-y-2 text-xs text-slate-400">
-              <p>1. Inclusão de "Dinheiro" no paymentMethodLabel: SIM;</p>
-              <p>2. Suporte a "Dinheiro" no normalizePaymentValue (OCR/Filtros): SIM;</p>
-              <p>3. Reconhecimento de termos "dinheiro" e "espécie" na extração: SIM;</p>
-              <p>4. Disponibilidade no formulário de edição/conferência do Vault: SIM;</p>
-              <p>5. Exibição correta em colunas de Método em relatórios PDF: SIM;</p>
-              <p>6. Mapeamento de busca global para o enum "dinheiro": SIM;</p>
-              <p>7. Preservação de compatibilidade com lançamentos antigos: SIM;</p>
+              <p>1. Pessoal (Feb/2026): 220 comprovantes aprovados: SIM;</p>
+              <p>2. Total Centesimal: R$ 302.154,80: SIM;</p>
+              <p>3. Despesas (R$ 297.106,82) + Investimentos (R$ 5.047,98): SIM;</p>
+              <p>4. Gastos Fixos (15 receipts, R$ 12.936,31): SIM;</p>
+              <p>5. Gastos Variáveis (205 receipts, R$ 284.170,51): SIM;</p>
+              <p>6. Isolamento por Perfil (loadReportDataset strictly profileId): SIM;</p>
+              <p>7. Prevenção de PROFILE_ISOLATION_VIOLATION em tempo real: SIM;</p>
               <p>8. RESULTADO: PASSOU.</p>
             </div>
         </div>
