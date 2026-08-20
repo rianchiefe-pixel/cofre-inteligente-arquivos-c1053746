@@ -35,7 +35,7 @@ export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: st
       if (!file) throw new Error("Selecione um arquivo");
       const extension = file.name.includes(".") ? file.name.split(".").pop() ?? "" : "";
       const storageName = `${crypto.randomUUID()}${extension ? `.${extension}` : ""}`;
-      const path = `${propertyId}/${storageName}`;
+      const path = `${userId}/${storageName}`;
       const { error: uploadError } = await supabase.storage.from("property_documents").upload(path, file);
       if (uploadError) throw uploadError;
 
