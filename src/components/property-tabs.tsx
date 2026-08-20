@@ -659,7 +659,7 @@ export function CredentialsTab({ propertyId }: { propertyId: string; userId?: st
         <EmptyState title="Nenhum acesso cadastrado" description="As senhas ficam criptografadas na sua conta e ocultas por padrão." />
        ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {list.data!.map((c) => (
+          {list.data!.map((c: any) => (
             <div key={c.id} className="rounded-xl border border-border/60 bg-muted/30 p-4">
               <div className="mb-2 flex items-start justify-between gap-2">
                 <div className="min-w-0">
