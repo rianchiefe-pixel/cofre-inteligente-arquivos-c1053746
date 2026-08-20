@@ -22,7 +22,11 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
   const handleSave = async () => {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
       const { error } = await supabase.from("receipts").insert({
+        user_id: user.id,
         description: formData.description,
         amount: parseFloat(formData.amount),
         payment_date: formData.payment_date,
