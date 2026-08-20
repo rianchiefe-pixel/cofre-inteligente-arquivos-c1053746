@@ -1500,6 +1500,95 @@ export type Database = {
           },
         ]
       }
+      property_document_links: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          property_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_document_links_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "property_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_document_links_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_documents: {
+        Row: {
+          category: string
+          created_at: string
+          file_path: string
+          file_size: number | null
+          file_type: string
+          id: string
+          notes: string | null
+          profile_id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          notes?: string | null
+          profile_id: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          notes?: string | null
+          profile_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_documents_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_leases: {
         Row: {
           contract_end: string | null
