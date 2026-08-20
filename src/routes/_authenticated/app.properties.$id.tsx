@@ -199,8 +199,10 @@ function PropertyDetail() {
           <TabsTrigger value="overview"><Landmark className="mr-1.5 h-4 w-4" /> Visão geral</TabsTrigger>
           {p.status === "alugado" && <TabsTrigger value="lease"><Users className="mr-1.5 h-4 w-4" /> Locação</TabsTrigger>}
           <TabsTrigger value="obligations"><Receipt className="mr-1.5 h-4 w-4" /> Obrigações</TabsTrigger>
-          <TabsTrigger value="credentials"><KeyRound className="mr-1.5 h-4 w-4" /> Acessos</TabsTrigger>
+          <TabsTrigger value="accesses"><KeyRound className="mr-1.5 h-4 w-4" /> Acessos</TabsTrigger>
           <TabsTrigger value="tasks"><ListTodo className="mr-1.5 h-4 w-4" /> Tarefas</TabsTrigger>
+          <TabsTrigger value="documents"><FileText className="mr-1.5 h-4 w-4" /> Documentos</TabsTrigger>
+          <TabsTrigger value="expenses"><Wallet className="mr-1.5 h-4 w-4" /> Despesas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -321,8 +323,31 @@ function PropertyDetail() {
           <TabsContent value="lease"><LeaseTab propertyId={id} userId={userId} /></TabsContent>
         )}
         {userId && <TabsContent value="obligations"><ObligationsTab propertyId={id} userId={userId} /></TabsContent>}
-        {userId && <TabsContent value="credentials"><CredentialsTab propertyId={id} userId={userId} /></TabsContent>}
+        {userId && <TabsContent value="accesses"><CredentialsTab propertyId={id} userId={userId} /></TabsContent>}
         {userId && <TabsContent value="tasks"><PropertyTasksTab propertyId={id} userId={userId} /></TabsContent>}
+        {userId && <TabsContent value="documents"><Card><CardContent className="p-8 text-center text-muted-foreground">Gestão de documentos em desenvolvimento.</CardContent></Card></TabsContent>}
+        {userId && (
+          <TabsContent value="expenses" className="space-y-6">
+            <Card className="p-5">
+              <h2 className="mb-4 text-sm font-semibold">Despesas Vinculadas</h2>
+              {rows.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma despesa aprovada vinculada.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {rows.map((r: any) => (
+                    <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{categories.data?.find((c: any) => c.id === r.category_id)?.name ?? "Sem categoria"}</p>
+                        <p className="truncate text-xs text-muted-foreground">{dateBR(r.payment_date)} • {r.bank_name ?? "—"}</p>
+                      </div>
+                      <p className="text-sm font-semibold text-foreground">{currencyBRL(Number(r.amount ?? 0))}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
