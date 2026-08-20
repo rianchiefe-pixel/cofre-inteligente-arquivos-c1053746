@@ -184,7 +184,6 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
         
         <ScrollArea className="flex-1">
           <div className="p-6 space-y-8 pb-12">
-            {/* Seção 1: Dados do lançamento */}
             <section className="space-y-4">
               <h3 className="font-semibold text-sm text-muted-foreground border-b pb-2 uppercase tracking-wider">Dados do lançamento</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -211,7 +210,6 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
               </div>
             </section>
 
-            {/* Seção 2: Pagamento */}
             <section className="space-y-4">
               <h3 className="font-semibold text-sm text-muted-foreground border-b pb-2 uppercase tracking-wider">Pagamento</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -253,12 +251,10 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
               </div>
             </section>
             
-            {/* Seção 3: Classificação & Vínculos */}
             <section className="space-y-4">
               <h3 className="font-semibold text-sm text-muted-foreground border-b pb-2 uppercase tracking-wider">Classificação & Vínculos</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* Perfil Financeiro */}
                 <div className="space-y-2">
                   <Label>Perfil financeiro *</Label>
                   <Select value={formData.profile_id} onValueChange={handleProfileChange}>
@@ -273,7 +269,6 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
                   </Select>
                 </div>
 
-                {/* Tipo de Gasto */}
                 <div className="space-y-2">
                   <Label>Tipo de gasto *</Label>
                   <Select value={formData.transaction_type} onValueChange={(v) => setFormData({ ...formData, transaction_type: v })}>
@@ -288,7 +283,6 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
                   </Select>
                 </div>
 
-                {/* Categoria */}
                 <div className="space-y-2">
                   <Label>Categoria *</Label>
                   <div className="flex gap-2">
@@ -349,7 +343,6 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
                   </div>
                 </div>
 
-                {/* Imóvel Vinculado */}
                 <div className="space-y-2">
                   <Label>Imóvel vinculado (Opcional)</Label>
                   <Select value={formData.property_id} onValueChange={(v) => setFormData({ ...formData, property_id: v })}>
@@ -369,7 +362,6 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
                   </Select>
                 </div>
 
-                {/* Natureza */}
                 <div className="space-y-2">
                   <Label>Natureza</Label>
                   <div className="h-10 px-3 py-2 border rounded-md bg-muted/30 text-sm flex items-center">
@@ -379,7 +371,6 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
               </div>
             </section>
 
-            {/* Seção 4: Comprovante */}
             <section className="space-y-4">
               <h3 className="font-semibold text-sm text-muted-foreground border-b pb-2 uppercase tracking-wider">Comprovante (opcional)</h3>
               <div className="border-2 border-dashed rounded-xl p-8 text-center bg-muted/10 hover:bg-muted/20 transition-colors cursor-pointer border-muted-foreground/20">
@@ -393,7 +384,6 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
               </div>
             </section>
 
-            {/* Observações */}
             <section className="space-y-2">
               <Label>Observações (Opcional)</Label>
               <Input value={formData.notes} placeholder="Notas adicionais sobre o lançamento" onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
