@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid, LineChart, Line,
 } from "recharts";
 import { LeaseTab, ObligationsTab, CredentialsTab, PropertyTasksTab } from "@/components/property-tabs";
+import { DocumentsTab } from "@/components/documents-tab";
 
 export const Route = createFileRoute("/_authenticated/app/properties/$id")({
   head: () => ({ meta: [{ title: "Imóvel — Meu Cofre" }] }),
@@ -325,7 +326,7 @@ function PropertyDetail() {
         {userId && <TabsContent value="obligations"><ObligationsTab propertyId={id} userId={userId} /></TabsContent>}
         {userId && <TabsContent value="accesses"><CredentialsTab propertyId={id} userId={userId} /></TabsContent>}
         {userId && <TabsContent value="tasks"><PropertyTasksTab propertyId={id} userId={userId} /></TabsContent>}
-        {userId && <TabsContent value="documents"><Card><CardContent className="p-8 text-center text-muted-foreground">Gestão de documentos em desenvolvimento.</CardContent></Card></TabsContent>}
+        {userId && <TabsContent value="documents"><DocumentsTab propertyId={id} userId={userId} profileId={p.profile_id ?? ""} /></TabsContent>}
         {userId && (
           <TabsContent value="expenses" className="space-y-6">
             <Card className="p-5">
