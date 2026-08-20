@@ -380,7 +380,7 @@ const NOTE_KEY_MAP: Array<{ keys: string[]; field: keyof ParsedNotes }> = [
 
 const PAYMENT_METHODS = [
   "pix", "boleto", "ted", "doc", "debito", "débito", "credito", "crédito",
-  "dinheiro", "transferencia", "transferência", "cartao", "cartão",
+  "dinheiro", "especie", "espécie", "transferencia", "transferência", "cartao", "cartão",
 ];
 
 const BANK_HINTS = [
