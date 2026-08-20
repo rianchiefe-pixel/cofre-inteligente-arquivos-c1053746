@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,10 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { currencyBRL, parseBrlAmount, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
 import { revealPropertyCredential, savePropertyCredential } from "@/lib/credentials.functions";
-import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock } from "lucide-react";
+import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock, Search, Globe, Mail, User, Lock, Info } from "lucide-react";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 const sb = supabase as any;
@@ -128,16 +130,30 @@ export function LeaseTab({ propertyId, userId }: { propertyId: string; userId: s
 type ObligationForm = {
   id?: string; kind: string; label: string; supplier: string; periodicity: string;
   due_date: string; amount: string; status: string; document_url: string; notes: string;
+  installation_number: string; consumer_unit: string; registration_number: string;
+  client_number: string; contract_number: string; real_estate_tax_id: string;
+  credential_id: string; create_task: boolean;
 };
 const emptyOblig: ObligationForm = {
   kind: "iptu", label: "", supplier: "", periodicity: "mensal",
   due_date: "", amount: "", status: "em_dia", document_url: "", notes: "",
+  installation_number: "", consumer_unit: "", registration_number: "",
+  client_number: "", contract_number: "", real_estate_tax_id: "",
+  credential_id: "none", create_task: false,
 };
 
 export function ObligationsTab({ propertyId, userId }: { propertyId: string; userId: string }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ObligationForm>(emptyOblig);
+
+  const credentials = useQuery({
+    queryKey: ["credentials-lookup", propertyId],
+    queryFn: async () => {
+      const { data } = await sb.from("property_credentials").select("id, service").eq("property_id", propertyId);
+      return data || [];
+    },
+  });
 
   const list = useQuery({
     queryKey: ["obligations", propertyId],
@@ -157,16 +173,47 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
         due_date: form.due_date || null,
         amount: form.amount ? Number(form.amount.replace(",", ".")) : null,
         status: form.status, document_url: form.document_url || null, notes: form.notes || null,
+        installation_number: form.installation_number || null,
+        consumer_unit: form.consumer_unit || null,
+        registration_number: form.registration_number || null,
+        client_number: form.client_number || null,
+        contract_number: form.contract_number || null,
+        real_estate_tax_id: form.real_estate_tax_id || null,
+        credential_id: form.credential_id === "none" ? null : form.credential_id,
       };
+      
+      let obligationId = form.id;
       if (form.id) {
         const { error } = await sb.from("property_obligations").update(payload).eq("id", form.id);
         if (error) throw error;
       } else {
-        const { error } = await sb.from("property_obligations").insert(payload);
+        const { data, error } = await sb.from("property_obligations").insert(payload).select("id").single();
         if (error) throw error;
+        obligationId = data.id;
+      }
+
+      // Lógica de Lembrete Automático
+      if (form.create_task && obligationId) {
+        const taskPayload = {
+          user_id: userId,
+          property_id: propertyId,
+          title: `Vencimento: ${form.label || obligationKindLabel[form.kind]}`,
+          description: `Obrigação vinculada: ${form.supplier || ""}`,
+          due_date: form.due_date || null,
+          priority: "media",
+          status: "pendente",
+        };
+        await sb.from("property_tasks").insert(taskPayload);
       }
     },
-    onSuccess: () => { toast.success("Obrigação salva"); setOpen(false); setForm(emptyOblig); qc.invalidateQueries({ queryKey: ["obligations", propertyId] }); },
+    onSuccess: () => { 
+      toast.success("Obrigação salva"); 
+      setOpen(false); 
+      setForm(emptyOblig); 
+      qc.invalidateQueries({ queryKey: ["obligations", propertyId] }); 
+      qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+      qc.invalidateQueries({ queryKey: ["tasks-all"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -184,6 +231,14 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
       periodicity: o.periodicity ?? "mensal", due_date: o.due_date ?? "",
       amount: o.amount != null ? String(o.amount) : "", status: o.status ?? "em_dia",
       document_url: o.document_url ?? "", notes: o.notes ?? "",
+      installation_number: o.installation_number ?? "",
+      consumer_unit: o.consumer_unit ?? "",
+      registration_number: o.registration_number ?? "",
+      client_number: o.client_number ?? "",
+      contract_number: o.contract_number ?? "",
+      real_estate_tax_id: o.real_estate_tax_id ?? "",
+      credential_id: o.credential_id ?? "none",
+      create_task: false,
     });
     setOpen(true);
   };
@@ -203,20 +258,58 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
             <DialogHeader><DialogTitle>{form.id ? "Editar obrigação" : "Nova obrigação"}</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); if (save.isPending) return; save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Tipo</Label>
+                <Label>Tipo da obrigação *</Label>
                 <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{Object.entries(obligationKindLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Rótulo (opcional)</Label>
+                <Label>Rótulo (identificação)</Label>
                 <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Ex.: Condomínio bloco A" />
               </div>
               <div className="space-y-2">
-                <Label>Fornecedor</Label>
-                <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
+                <Label>Concessionária / Órgão</Label>
+                <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Ex: Neoenergia" />
               </div>
+              
+              <div className="space-y-2">
+                <Label>Vínculo com Acesso</Label>
+                <Select value={form.credential_id} onValueChange={(v) => setForm({ ...form, credential_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar credencial" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum acesso</SelectItem>
+                    {credentials.data?.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.service}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Campos Condicionais baseados no Tipo */}
+              {(form.kind === "energia" || form.kind === "agua" || form.kind === "gas") && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Número da Instalação</Label>
+                    <Input value={form.installation_number} onChange={(e) => setForm({ ...form, installation_number: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unidade Consumidora</Label>
+                    <Input value={form.consumer_unit} onChange={(e) => setForm({ ...form, consumer_unit: e.target.value })} />
+                  </div>
+                </>
+              )}
+              {form.kind === "iptu" && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Inscrição Imobiliária</Label>
+                  <Input value={form.real_estate_tax_id} onChange={(e) => setForm({ ...form, real_estate_tax_id: e.target.value })} />
+                </div>
+              )}
+              {form.kind === "condominio" && (
+                <div className="space-y-2">
+                  <Label>Matrícula / Unidade</Label>
+                  <Input value={form.registration_number} onChange={(e) => setForm({ ...form, registration_number: e.target.value })} />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Periodicidade</Label>
                 <Select value={form.periodicity} onValueChange={(v) => setForm({ ...form, periodicity: v })}>
@@ -229,25 +322,33 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
                 <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Valor (R$)</Label>
+                <Label>Valor estimado (R$)</Label>
                 <Input inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0,00" />
               </div>
               <div className="space-y-2">
-                <Label>Situação</Label>
+                <Label>Situação atual</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{Object.entries(obligationStatusLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+
+              {!form.id && (
+                <div className="sm:col-span-2 flex items-center space-x-2 py-2">
+                  <Checkbox id="create_task" checked={form.create_task} onCheckedChange={(c) => setForm({ ...form, create_task: !!c })} />
+                  <Label htmlFor="create_task" className="text-sm cursor-pointer">Criar lembrete automático na área global de tarefas</Label>
+                </div>
+              )}
+
               <div className="space-y-2 sm:col-span-2">
-                <Label>URL do documento</Label>
+                <Label>URL / Link do Documento</Label>
                 <Input value={form.document_url} onChange={(e) => setForm({ ...form, document_url: e.target.value })} placeholder="https://…" />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Observação</Label>
+                <Label>Observações Internas</Label>
                 <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
-              <div className="sm:col-span-2 flex justify-end gap-2">
+              <div className="sm:col-span-2 flex justify-end gap-2 pt-2 border-t">
                 <Button type="button" variant="ghost" disabled={save.isPending} onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit" variant="premium" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
               </div>
