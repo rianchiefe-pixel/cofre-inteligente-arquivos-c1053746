@@ -52,6 +52,7 @@ const CredentialInput = z
   .object({
     id: z.string().uuid().nullable().optional(),
     property_id: z.string().uuid(),
+    property_ids: z.array(z.string().uuid()).optional(),
     service: z.string().min(1),
     website: z.string().nullable(),
     access_link: z.string().nullable(),
@@ -89,6 +90,16 @@ export const savePropertyCredential = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const row = Array.isArray(result) ? result[0] : result;
     if (!row?.credential_id) throw new Error("Credencial não persistida");
+
+    // Sincroniza os vínculos com múltiplos imóveis se fornecido
+    if (data.property_ids && data.property_ids.length > 0) {
+      const { error: syncError } = await supabase.rpc("sync_property_credential_links", {
+        p_credential_id: row.credential_id,
+        p_property_ids: data.property_ids,
+      });
+      if (syncError) throw new Error(syncError.message);
+    }
+
     return { id: row.credential_id as string, passwordChanged };
   });
 
