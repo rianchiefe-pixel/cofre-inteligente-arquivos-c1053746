@@ -5,12 +5,16 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { useState } from "react";
+import { NewReceiptDialog } from "@/components/new-receipt-dialog";
 
 export const Route = createFileRoute("/_authenticated/app/receipts-no-receipt")({
   component: NoReceiptsPage,
 });
 
 function NoReceiptsPage() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const { data: receipts, isLoading } = useQuery({
     queryKey: ["receipts", "no-receipt"],
     queryFn: async () => {
@@ -28,7 +32,7 @@ function NoReceiptsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Lançamentos sem comprovante</h1>
-        <Button>
+        <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Novo lançamento
         </Button>
       </div>
@@ -67,6 +71,8 @@ function NoReceiptsPage() {
           </TableBody>
         </Table>
       </Card>
+      
+      <NewReceiptDialog isOpen={isDialogOpen} onClose={() => setIsDialogOpen(false)} />
     </div>
   );
 }
