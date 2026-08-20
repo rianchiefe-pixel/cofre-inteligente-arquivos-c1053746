@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { currencyBRL, parseBrlAmount, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
 import { revealPropertyCredential, savePropertyCredential } from "@/lib/credentials.functions";
-import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock, Search, Globe, Mail, User, Lock, Info } from "lucide-react";
+import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock, Search, Globe, Mail, User, Lock, Info, Landmark, KeyRound, Repeat } from "lucide-react";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 const sb = supabase as any;
