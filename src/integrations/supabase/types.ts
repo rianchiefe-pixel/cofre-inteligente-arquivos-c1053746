@@ -1548,6 +1548,7 @@ export type Database = {
           file_type: string
           id: string
           notes: string | null
+          original_filename: string | null
           profile_id: string
           title: string
           updated_at: string
@@ -1561,6 +1562,7 @@ export type Database = {
           file_type: string
           id?: string
           notes?: string | null
+          original_filename?: string | null
           profile_id: string
           title: string
           updated_at?: string
@@ -1574,6 +1576,7 @@ export type Database = {
           file_type?: string
           id?: string
           notes?: string | null
+          original_filename?: string | null
           profile_id?: string
           title?: string
           updated_at?: string

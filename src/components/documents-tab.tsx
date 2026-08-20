@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { FileText, Plus, Trash2, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { savePropertyDocument, deletePropertyDocument, getDocumentSignedUrl } from "@/lib/documents.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { FileText, Plus, Trash2, Eye, Download, Upload } from "lucide-react";
-import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { savePropertyDocument, deletePropertyDocument, getDocumentSignedUrl } from "@/lib/documents.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: string; userId: string; profileId: string }) {
@@ -33,23 +33,32 @@ export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: st
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error("Selecione um arquivo");
-      const path = `${userId}/${Date.now()}-${file.name}`;
+      const extension = file.name.includes(".") ? file.name.split(".").pop() ?? "" : "";
+      const storageName = `${crypto.randomUUID()}${extension ? `.${extension}` : ""}`;
+      const path = `${propertyId}/${storageName}`;
       const { error: uploadError } = await supabase.storage.from("property_documents").upload(path, file);
       if (uploadError) throw uploadError;
 
-      await savePropertyDocument({
-        data: {
-          title: form.title,
-          category: form.category,
-          file_path: path,
-          file_type: file.type,
-          file_size: file.size,
-          notes: form.notes,
-          property_id: propertyId,
-          profile_id: profileId,
-          user_id: userId,
-        }
-      });
+      try {
+        await savePropertyDocument({
+          data: {
+            title: form.title,
+            category: form.category,
+            file_path: path,
+            file_type: file.type,
+            file_size: file.size,
+            notes: form.notes,
+            original_filename: file.name,
+            property_id: propertyId,
+            profile_id: profileId,
+            user_id: userId,
+          },
+        });
+      } catch (error) {
+        const { error: cleanupError } = await supabase.storage.from("property_documents").remove([path]);
+        if (cleanupError) console.error(cleanupError);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Documento enviado");
@@ -63,7 +72,10 @@ export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: st
 
   const remove = useMutation({
     mutationFn: async (doc: any) => await deletePropertyDocument({ data: { id: doc.id, file_path: doc.file_path } }),
-    onSuccess: () => { toast.success("Documento removido"); qc.invalidateQueries({ queryKey: ["property-documents", propertyId] }); },
+    onSuccess: () => {
+      toast.success("Documento removido");
+      qc.invalidateQueries({ queryKey: ["property-documents", propertyId] });
+    },
   });
 
   const getUrl = useServerFn(getDocumentSignedUrl);
