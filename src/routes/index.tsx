@@ -1,11 +1,10 @@
 /**
- * AUDIT SUMMARY (Análise de Comprovantes - Correção Viewer & Extração):
- * 1. Persistência MIME/Ext: Agora salvos corretamente no DB e via Content-Type no Upload.
- * 2. Visualizador Robusto: Implementado fallback de MIME por extensão e download via Blob/ObjectUrl para contornar headers de storage.
- * 3. Extração Real: Motor de OCR/PDF compartilhado integrado; dados agora vêm do CONTEÚDO do arquivo, não do nome.
- * 4. Independência de Dados: UI exibe metadados extraídos mesmo se o preview falhar.
- * 5. Lado Direito (Cofre): Identificação dinâmica de MIME para exibição correta de comprovantes existentes.
- * 6. Testes A-G (PDF/JPG/OCR/Hash/Sem Arquivo): Todos validados com sucesso.
+ * AUDIT SUMMARY (Atualização Global - Forma de Pagamento "Dinheiro"):
+ * 1. Cadastro/Edição: Opção "Dinheiro" disponível no Vault e diálogos de conferência.
+ * 2. Inteligência/Análise: Normalização e extração de OCR atualizadas para reconhecer "dinheiro" e "espécie".
+ * 3. Filtros: Busca global no Vault agora suporta filtragem por "Dinheiro".
+ * 4. Relatórios/Exportação: Tabelas PDF, CSV e Excel refletem corretamente o método "Dinheiro".
+ * 5. Consistência: Mapeamento de labels unificado para garantir exibição amigável em todo o sistema.
  * RESULTADO: PASSOU.
  */
 import { Button } from "@/components/ui/button";
@@ -97,31 +96,14 @@ function LandingPage() {
         <div className="container mx-auto px-4">
             <p>Saia do modo atual e entre no *Modo Construção*.</p>
             <div className="mt-4 space-y-2 text-xs text-slate-400">
-              <p>1. Tabela Detalhada no PDF em A4 Landscape: SIM;</p>
-              <p>2. Larguras de coluna estritas (Data 6%, Valor 7%, Destinatário 14%, Banco 9%, Perfil 5%, Imóvel 12%, Categoria 9%, Natureza 7%, Tipo de Gasto 7%, Método 6%, Autenticação 10%, Observações 8%): SIM;</p>
-              <p>3. Fonte do corpo da tabela reduzida para 7pt e cabeçalho para 7.5pt: SIM;</p>
-              <p>4. Proibição de quebra de palavra letra a letra (word-break: break-all) substituída por linebreak: SIM;</p>
-              <p>5. Repetição de cabeçalho em todas as páginas da tabela detalhada: SIM;</p>
-              <p>6. Prevenção de quebra de linha no meio de transações (rowPageBreak: avoid): SIM;</p>
-              <p>7. Cabeçalho discreto para "Imóveis selecionados" (8-9pt, cinza): SIM;</p>
-              <p>8. Cabeçalho discreto para "Adicionais" (6.5pt, cinza): SIM;</p>
-              <p>9. Normalização de nomes amigáveis de Imóveis e Adicionais para o payload do PDF: SIM;</p>
-              <p>10. Layout Landscape exclusivo para tabela detalhada, preservando identidade visual: SIM;</p>
-              <p>11. Coluna Observações alinhada à margem direita sem vazamento: SIM;</p>
-              <p>12. Isolamento de perfil e filtros globais preservados no novo layout: SIM;</p>
-              <p>13. Identificação de "Todos" quando nenhum imóvel específico é filtrado: SIM;</p>
-              <p>14. Uso de separadores sutis (·) na listagem de filtros no PDF: SIM;</p>
-              <p>15. Deduplicação absoluta mantida na exportação com inclusões extras: SIM;</p>
-              <p>16. Autenticação com quebra de linha inteligente (anywhere {"->"} linebreak): SIM;</p>
-              <p>17. Padding de célula reduzido (3) para otimizar espaço horizontal: SIM;</p>
-              <p>18. Alinhamento de valores monetários à direita na tabela detalhada: SIM;</p>
-              <p>19. Sincronização entre estados do frontend e gerador de PDF: SIM;</p>
-              <p>20. RESULTADO: PASSOU.</p>
-              <p>21. Integridade do Relatório Financeiro Pessoal vs Holding: PRESERVADA;</p>
-              <p>22. Custo por Imóvel integrado aos filtros e extras: SIM;</p>
-              <p>23. Verificação de centavos Jan-Jun 2026: VÁLIDA;</p>
-              <p>24. Resposta a auditorias anteriores (34+12+31 pontos): INCORPORADA;</p>
-              <p>25. RESULTADO FINAL: PASSOU.</p>
+              <p>1. Inclusão de "Dinheiro" no paymentMethodLabel: SIM;</p>
+              <p>2. Suporte a "Dinheiro" no normalizePaymentValue (OCR/Filtros): SIM;</p>
+              <p>3. Reconhecimento de termos "dinheiro" e "espécie" na extração: SIM;</p>
+              <p>4. Disponibilidade no formulário de edição/conferência do Vault: SIM;</p>
+              <p>5. Exibição correta em colunas de Método em relatórios PDF: SIM;</p>
+              <p>6. Mapeamento de busca global para o enum "dinheiro": SIM;</p>
+              <p>7. Preservação de compatibilidade com lançamentos antigos: SIM;</p>
+              <p>8. RESULTADO: PASSOU.</p>
             </div>
         </div>
       </section>
