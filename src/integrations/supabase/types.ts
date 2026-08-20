@@ -1405,6 +1405,42 @@ export type Database = {
           },
         ]
       }
+      property_credential_links: {
+        Row: {
+          created_at: string
+          credential_id: string
+          id: string
+          property_id: string
+        }
+        Insert: {
+          created_at?: string
+          credential_id: string
+          id?: string
+          property_id: string
+        }
+        Update: {
+          created_at?: string
+          credential_id?: string
+          id?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_credential_links_credential_id_fkey"
+            columns: ["credential_id"]
+            isOneToOne: false
+            referencedRelation: "property_credentials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_credential_links_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_credentials: {
         Row: {
           access_link: string | null
@@ -1523,15 +1559,22 @@ export type Database = {
       property_obligations: {
         Row: {
           amount: number | null
+          client_number: string | null
+          consumer_unit: string | null
+          contract_number: string | null
           created_at: string
+          credential_id: string | null
           document_url: string | null
           due_date: string | null
           id: string
+          installation_number: string | null
           kind: string
           label: string | null
           notes: string | null
           periodicity: string | null
           property_id: string
+          real_estate_tax_id: string | null
+          registration_number: string | null
           status: string
           supplier: string | null
           updated_at: string
@@ -1539,15 +1582,22 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          client_number?: string | null
+          consumer_unit?: string | null
+          contract_number?: string | null
           created_at?: string
+          credential_id?: string | null
           document_url?: string | null
           due_date?: string | null
           id?: string
+          installation_number?: string | null
           kind: string
           label?: string | null
           notes?: string | null
           periodicity?: string | null
           property_id: string
+          real_estate_tax_id?: string | null
+          registration_number?: string | null
           status?: string
           supplier?: string | null
           updated_at?: string
@@ -1555,21 +1605,35 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          client_number?: string | null
+          consumer_unit?: string | null
+          contract_number?: string | null
           created_at?: string
+          credential_id?: string | null
           document_url?: string | null
           due_date?: string | null
           id?: string
+          installation_number?: string | null
           kind?: string
           label?: string | null
           notes?: string | null
           periodicity?: string | null
           property_id?: string
+          real_estate_tax_id?: string | null
+          registration_number?: string | null
           status?: string
           supplier?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "property_obligations_credential_id_fkey"
+            columns: ["credential_id"]
+            isOneToOne: false
+            referencedRelation: "property_credentials"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "property_obligations_property_id_fkey"
             columns: ["property_id"]
@@ -2399,6 +2463,10 @@ export type Database = {
           is_primary: boolean
           link_id: string
         }[]
+      }
+      sync_property_credential_links: {
+        Args: { p_credential_id: string; p_property_ids: string[] }
+        Returns: undefined
       }
       undo_holding_organization_rpc: {
         Args: { p_run_id: string }

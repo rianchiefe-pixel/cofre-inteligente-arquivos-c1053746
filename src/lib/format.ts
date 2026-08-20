@@ -254,14 +254,23 @@ export const taskPriorityLabel: Record<string, string> = {
 
 export const obligationKindLabel: Record<string, string> = {
   iptu: "IPTU",
+  itbi: "ITBI",
   lixo: "Taxa de lixo",
   condominio: "Condomínio",
-  agua: "Água e esgoto",
-  energia: "Energia",
-  internet: "Internet",
-  limpeza: "Limpeza",
+  agua: "Água",
+  energia: "Energia elétrica",
   gas: "Gás",
-  outro: "Outra",
+  seguro: "Seguro do imóvel",
+  aluguel: "Aluguel",
+  financiamento: "Financiamento",
+  associacao: "Taxa de associação",
+  internet: "Internet",
+  telefone: "Telefone",
+  manutencao: "Manutenção recorrente",
+  taxa_municipal: "Taxa municipal",
+  taxa_estadual: "Taxa estadual",
+  taxa_federal: "Taxa federal",
+  outro: "Outra obrigação",
 };
 
 export const obligationStatusLabel: Record<string, string> = {
@@ -278,6 +287,8 @@ export const periodicityLabel: Record<string, string> = {
   trimestral: "Trimestral",
   semestral: "Semestral",
   anual: "Anual",
-  unica: "Única",
+  unica: "Parcela única",
+  personalizada: "Personalizada",
+  sem_recorrencia: "Sem recorrência definida",
   outro: "Outro",
 };
