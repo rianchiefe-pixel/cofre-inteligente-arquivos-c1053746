@@ -326,7 +326,7 @@ function PropertyDetail() {
         {userId && <TabsContent value="obligations"><ObligationsTab propertyId={id} userId={userId} /></TabsContent>}
         {userId && <TabsContent value="accesses"><CredentialsTab propertyId={id} userId={userId} /></TabsContent>}
         {userId && <TabsContent value="tasks"><PropertyTasksTab propertyId={id} userId={userId} /></TabsContent>}
-        {userId && <TabsContent value="documents"><DocumentsTab propertyId={id} userId={userId} profileId={p.profile_id} /></TabsContent>}
+        {userId && <TabsContent value="documents"><DocumentsTab propertyId={id} userId={userId} profileId={p.profile_id ?? ""} /></TabsContent>}
         {userId && (
           <TabsContent value="expenses" className="space-y-6">
             <Card className="p-5">

@@ -60,14 +60,14 @@ export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: st
   });
 
   const remove = useMutation({
-    mutationFn: async (doc: any) => await deletePropertyDocument({ id: doc.id, file_path: doc.file_path }),
+    mutationFn: async (doc: any) => await deletePropertyDocument({ data: { id: doc.id, file_path: doc.file_path } }),
     onSuccess: () => { toast.success("Documento removido"); qc.invalidateQueries({ queryKey: ["property-documents", propertyId] }); },
   });
 
   const getUrl = useServerFn(getDocumentSignedUrl);
 
   const openDoc = async (path: string) => {
-    const url = await getUrl({ path });
+    const url = await getUrl({ data: { path } });
     window.open(url, "_blank");
   };
 
@@ -101,7 +101,7 @@ export function DocumentsTab({ propertyId, userId, profileId }: { propertyId: st
                 <Label>Notas</Label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
-              <Button onClick={() => save.mutate()} disabled={save.isPending}>Enviar</Button>
+              <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>Enviar</Button>
             </div>
           </DialogContent>
         </Dialog>
