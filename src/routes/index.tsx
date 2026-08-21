@@ -17,112 +17,206 @@
  *
  * 6. Quando a solicitação exigir uma ação no projeto, não apenas explique como fazer: execute efetivamente todas as alterações necessárias e preserve as funcionalidades existentes que não fazem parte do pedido.
  *
- * Prioridade: interpretar corretamente a intenção antes de agir, executando integralmente quando houver pedido de alteração e não modificar o projeto quando houver apenas uma pergunta.
+ * Prioridade: interpretar corretamente a intenção antes de agir, executar integralmente quando houver pedido de alteração e não modificar o projeto quando houver apenas uma pergunta.
  *
  * Faça o seguinte:
  *
- * MODO CONSTRUÇÃO — CORREÇÃO DEFINITIVA DO SCROLL
+ * MODO CONSTRUÇÃO — IMPLEMENTE DIRETAMENTE
  *
- * O problema AINDA NÃO FOI CORRIGIDO.
+ * Crie uma nova área no sistema chamada “Obrigações PF”, onde PF = Pessoa Física.
  *
- * No modal “Novo acesso às credenciais”, a seção Imóveis Vinculados continua cortada e NÃO rola com mouse/touchpad.
+ * Adicione “Obrigações PF” na barra lateral, seguindo exatamente o padrão visual atual do Meu Cofre.
  *
- * Não faça outra alteração superficial de overflow. Inspecione a estrutura real do modal e corrija o container responsável.
+ * Não crie apenas uma tela visual. A funcionalidade deve ficar integrada ao banco, às Tarefas e ao sistema já existente.
  *
- * ESTRUTURA OBRIGATÓRIA
+ * 1. REAPROVEITE O QUE JÁ EXISTE
  *
- * O DialogContent deve funcionar como:
+ * O sistema já possui lógica de obrigações relacionadas aos imóveis e geração de tarefas.
  *
- * display: flex;
- * flex-direction: column;
- * max-height: calc(100dvh - 32px);
- * overflow: hidden;
+ * Antes de criar qualquer estrutura nova:
  *
+ * localize essa implementação;
  *
+ * reutilize componentes, banco, vencimentos, tarefas e lógica de comprovantes sempre que possível;
  *
- * Dentro dele deve existir:
+ * não duplique funcionalidades que já existem.
  *
- * 1. Header
+ * A nova área será uma versão organizada dessas obrigações voltada para Pessoa Física.
  *
- * flex-shrink: 0
+ * 2. TELA “OBRIGAÇÕES PF”
  *
- * 2. Área central
+ * Criar uma tela limpa e organizada contendo:
  *
- * flex: 1
+ * busca;
  *
- * min-height: 0 ← OBRIGATÓRIO
+ * filtro por categoria;
  *
- * overflow-y: auto
+ * filtro por vencimento/status;
  *
- * overflow-x: hidden
+ * cards ou lista das obrigações;
  *
- * 3. Footer
+ * botão “+ Nova obrigação”.
  *
- * flex-shrink: 0
+ * Cada obrigação deve mostrar de forma clara:
  *
- * PONTO CRÍTICO
+ * Nome da obrigação
+ * Categoria(s)
+ * Próximo vencimento
+ * Acesso
+ * Status
  *
- * Verifique toda a cadeia de elementos pais da área rolável.
+ * Ações rápidas:
  *
- * Se algum pai estiver impedindo o scroll por causa de:
+ * Abrir | Editar | Excluir
  *
- * overflow-hidden;
+ * 3. NOVA OBRIGAÇÃO
  *
- * altura fixa incompatível;
+ * Ao clicar em “+ Nova obrigação”, permitir cadastrar:
  *
- * max-height incorreto;
+ * Dados da obrigação
  *
- * h-full sem pai com altura definida;
+ * Nome da obrigação*
+ * Ex.: Imposto de Renda, ITR, Certificado Digital, INSS etc.
  *
- * ausência de min-h-0 em elementos flex;
+ * Categorias*
+ * Campo de múltipla seleção.
  *
- * interceptação do evento wheel;
+ * O usuário deve conseguir:
  *
- * corrija no elemento correto.
+ * pesquisar uma categoria digitando;
  *
- * Não adianta colocar overflow-y-auto em um elemento sem altura limitada.
+ * selecionar várias categorias;
  *
- * IMÓVEIS VINCULADOS
+ * remover categorias selecionadas facilmente.
  *
- * Remova a altura/rolagem própria da lista de imóveis, se existir.
+ * Não crie categorias duplicadas. Utilize as categorias já existentes no sistema sempre que forem compatíveis.
  *
- * Quero UM ÚNICO SCROLL na área central do modal.
+ * Vencimento
  *
- * Ao rolar o mouse sobre “Imóveis Vinculados”, a tela central deve continuar descendo normalmente até mostrar:
+ * Data de vencimento
  *
- * todos os imóveis;
+ * Se o sistema atual de obrigações possuir periodicidade/recorrência, reutilize essa lógica, permitindo obrigações mensais, anuais ou outras periodicidades já suportadas.
  *
- * o último imóvel cadastrado;
+ * Acesso ao serviço
  *
- * qualquer conteúdo abaixo da lista.
+ * Link de acesso / URL
+ * E-mail de acesso
+ * Usuário / Login
+ * Senha
  *
- * O rodapé com Cancelar / Salvar Acesso deve permanecer fixo e visível.
+ * Aplicar o mesmo padrão seguro que já existe na tela Acessos:
  *
- * TESTE OBRIGATÓRIO ANTES DE CONCLUIR
+ * senha mascarada;
  *
- * Não diga apenas que foi corrigido.
+ * botão de visualizar;
  *
- * Abra o modal com a lista atual de imóveis e teste realmente:
+ * botão de copiar;
  *
- * Posicione o mouse sobre a lista Imóveis Vinculados.
+ * botão de copiar login/e-mail.
  *
- * Role a roda do mouse para baixo.
+ * Criar botão principal:
  *
- * Confirme que os imóveis começam a subir.
+ * ABRIR
  *
- * Continue até visualizar o último imóvel da lista.
+ * Ao clicar, abrir o site correspondente em nova aba.
  *
- * Volte para cima.
+ * O objetivo é permitir que a pessoa entre na obrigação com o mínimo de trabalho possível: abrir o site e copiar rapidamente login, e-mail ou senha.
  *
- * Confirme que Cancelar / Salvar Acesso continuam visíveis.
+ * 4. VÍNCULO COM IMÓVEL — OPCIONAL
  *
- * Teste também pelo touchpad.
+ * Uma obrigação PF também poderá estar relacionada a um imóvel.
  *
- * Se não for possível visualizar o último imóvel, a tarefa NÃO está concluída.
+ * Adicionar:
  *
- * Não alterere banco de dados, campos, layout, vínculos ou outras telas.
+ * Imóvel vinculado (opcional)
  *
- * Corrija somente a estrutura de altura e scroll desse modal e implemente diretamente no código existente.
+ * Utilizar os imóveis já cadastrados no sistema.
+ *
+ * IMPORTANTE: deve aceitar normalmente imóveis rurais.
+ *
+ * Não limitar esse campo apenas a casas, apartamentos ou imóveis urbanos.
+ *
+ * 5. INTEGRAÇÃO AUTOMÁTICA COM “TAREFAS”
+ *
+ * Esta parte é OBRIGATÓRIA.
+ *
+ * Uma obrigação PF com vencimento deve gerar automaticamente o controle correspondente na área Tarefas, utilizando a lógica que já existe no sistema.
+ *
+ * Exemplo:
+ *
+ * Se existe uma obrigação chamada:
+ *
+ * ITR Fazenda Boa Vista
+ *
+ * Quando chegar o período configurado, em Tarefas deve aparecer algo semelhante a:
+ *
+ * Hoje é dia de ITR Fazenda Boa Vista — PF
+ *
+ * ou, conforme a antecedência:
+ *
+ * ITR Fazenda Boa Vista vence em breve.
+ *
+ * Não crie um segundo sistema de tarefas.
+ *
+ * Integre com o módulo Tarefas existente.
+ *
+ * 6. COMPROVANTE
+ *
+ * Quando a obrigação chegar ao vencimento, a tarefa deve disponibilizar a ação:
+ *
+ * Enviar comprovante
+ *
+ * O usuário poderá anexar o comprovante diretamente pela tarefa.
+ *
+ * Depois do envio:
+ *
+ * vincular o comprovante à obrigação;
+ *
+ * vincular ao imóvel, caso exista imóvel relacionado;
+ *
+ * registrar a conclusão daquela ocorrência;
+ *
+ * manter o histórico para consultas futuras.
+ *
+ * Se a obrigação for recorrente, não excluir a obrigação após concluir uma ocorrência. Apenas registrar aquela competência como concluída e gerar o próximo vencimento conforme a periodicidade.
+ *
+ * 7. EXPERIÊNCIA DE USO
+ *
+ * Quero uma área extremamente simples de operar.
+ *
+ * A pessoa deve conseguir:
+ *
+ * ver obrigação → abrir site → copiar acesso → realizar obrigação → voltar ao Meu Cofre → enviar comprovante → concluir tarefa.
+ *
+ * Evite excesso de cliques e telas.
+ *
+ * Mantenha o mesmo design premium, espaçamentos, cores, cards, botões e tipografia utilizados atualmente no Meu Cofre.
+ *
+ * NÃO FAZER
+ *
+ * Não alterar a tela atual de Acessos.
+ *
+ * Não alterar Gastos Fixos.
+ *
+ * Não remover funcionalidades existentes.
+ *
+ * Não criar categorias duplicadas.
+ *
+ * Não criar outra tabela/lógica de tarefas se puder reutilizar a atual.
+ *
+ * Não quebrar as obrigações dos imóveis já existentes.
+ *
+ * Não fazer redesign geral da aplicação.
+ *
+ * Não criar somente o front-end.
+ *
+ * RESULTADO ESPERADO
+ *
+ * Implementar completamente:
+ *
+ * Barra lateral → Obrigações PF → Nova obrigação → categorias múltiplas → vencimento → credenciais → acesso rápido → vínculo opcional com imóvel/rural → integração automática com Tarefas → envio e histórico de comprovantes.
+ *
+ * Implemente diretamente no código e banco existentes. Não responda apenas explicando o que será feito.
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
