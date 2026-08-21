@@ -17,103 +17,112 @@
  *
  * 6. Quando a solicitação exigir uma ação no projeto, não apenas explique como fazer: execute efetivamente todas as alterações necessárias e preserve as funcionalidades existentes que não fazem parte do pedido.
  *
- * Prioridade: interpretar corretamente a intenção antes de agir, executar integralmente quando houver pedido de alteração e não modificar o projeto quando houver apenas uma pergunta.
+ * Prioridade: interpretar corretamente a intenção antes de agir, executando integralmente quando houver pedido de alteração e não modificar o projeto quando houver apenas uma pergunta.
  *
  * Faça o seguinte:
  *
- * MODO CONSTRUÇÃO — CORREÇÃO CIRÚRGICA
+ * MODO CONSTRUÇÃO — CORREÇÃO DEFINITIVA DO SCROLL
  *
- * Corrija somente o modal “Novo acesso às credenciais”.
+ * O problema AINDA NÃO FOI CORRIGIDO.
  *
- * PROBLEMA ATUAL
+ * No modal “Novo acesso às credenciais”, a seção Imóveis Vinculados continua cortada e NÃO rola com mouse/touchpad.
  *
- * O rodapé com Cancelar / Salvar Acesso agora está visível, porém a seção “Imóveis Vinculados” ficou cortada e não permite rolar para visualizar e selecionar todos os imóveis.
+ * Não faça outra alteração superficial de overflow. Inspecione a estrutura real do modal e corrija o container responsável.
  *
- * CORRIJA ASSIM
+ * ESTRUTURA OBRIGATÓRIA
  *
- * Estruture o modal em 3 áreas:
+ * O DialogContent deve funcionar como:
  *
- * Cabeçalho fixo
+ * display: flex;
+ * flex-direction: column;
+ * max-height: calc(100dvh - 32px);
+ * overflow: hidden;
  *
- * “Novo acesso às credenciais”
  *
- * botão X
  *
- * Conteúdo central rolável
+ * Dentro dele deve existir:
  *
- * Todos os campos
+ * 1. Header
  *
- * seção Imóveis Vinculados
+ * flex-shrink: 0
  *
- * deve usar o espaço disponível entre cabeçalho e rodapé
+ * 2. Área central
+ *
+ * flex: 1
+ *
+ * min-height: 0 ← OBRIGATÓRIO
  *
  * overflow-y: auto
  *
- * precisa rolar normalmente com mouse, touchpad e touch
+ * overflow-x: hidden
  *
- * Rodapé fixo/sticky
+ * 3. Footer
  *
- * Cancelar
+ * flex-shrink: 0
  *
- * Salvar Acesso
+ * PONTO CRÍTICO
  *
- * sempre visível
+ * Verifique toda a cadeia de elementos pais da área rolável.
  *
- * IMÓVEIS VINCULADOS — OBRIGATÓRIO
+ * Se algum pai estiver impedindo o scroll por causa de:
  *
- * A lista de imóveis não pode ficar escondida atrás do rodapé.
+ * overflow-hidden;
  *
- * Ela deve:
+ * altura fixa incompatível;
  *
- * exibir vários imóveis;
+ * max-height incorreto;
  *
- * permitir rolar até o último imóvel cadastrado;
+ * h-full sem pai com altura definida;
  *
- * permitir marcar/desmarcar qualquer imóvel;
+ * ausência de min-h-0 em elementos flex;
  *
- * preservar as duas colunas atuais no desktop;
+ * interceptação do evento wheel;
  *
- * adaptar para uma coluna em telas pequenas;
+ * corrija no elemento correto.
  *
- * nunca ficar cortada pelo footer.
+ * Não adianta colocar overflow-y-auto em um elemento sem altura limitada.
  *
- * Se existir overflow: hidden, altura fixa ou max-height incorreto em algum container pai que esteja impedindo o scroll, corrija isso.
+ * IMÓVEIS VINCULADOS
  *
- * IMPORTANTE SOBRE SCROLL ANINHADO
+ * Remova a altura/rolagem própria da lista de imóveis, se existir.
  *
- * Evite conflito entre dois scrolls.
+ * Quero UM ÚNICO SCROLL na área central do modal.
  *
- * Preferencialmente, faça todo o conteúdo central do modal rolar, incluindo a lista de imóveis.
+ * Ao rolar o mouse sobre “Imóveis Vinculados”, a tela central deve continuar descendo normalmente até mostrar:
  *
- * Se mantiver scroll próprio na lista de imóveis, garanta que:
+ * todos os imóveis;
  *
- * ele funcione de verdade;
+ * o último imóvel cadastrado;
  *
- * tenha altura suficiente;
+ * qualquer conteúdo abaixo da lista.
  *
- * o scroll não seja bloqueado pelo container pai;
+ * O rodapé com Cancelar / Salvar Acesso deve permanecer fixo e visível.
  *
- * seja possível chegar ao último item.
+ * TESTE OBRIGATÓRIO ANTES DE CONCLUIR
  *
- * NÃO ALTERAR
+ * Não diga apenas que foi corrigido.
  *
- * Não mude:
+ * Abra o modal com a lista atual de imóveis e teste realmente:
  *
- * layout visual;
+ * Posicione o mouse sobre a lista Imóveis Vinculados.
  *
- * campos;
+ * Role a roda do mouse para baixo.
  *
- * banco de dados;
+ * Confirme que os imóveis começam a subir.
  *
- * lógica de salvamento;
+ * Continue até visualizar o último imóvel da lista.
  *
- * vínculos;
+ * Volte para cima.
  *
- * outras telas.
+ * Confirme que Cancelar / Salvar Acesso continuam visíveis.
  *
- * Teste obrigatório: abra o modal com muitos imóveis cadastrados e confirme que é possível rolar até o último imóvel, selecioná-lo e depois clicar em Salvar Acesso sem nenhum conteúdo ficar oculto.
+ * Teste também pelo touchpad.
  *
- * Implemente diretamente. Não explique apenas a solução.
+ * Se não for possível visualizar o último imóvel, a tarefa NÃO está concluída.
+ *
+ * Não alterere banco de dados, campos, layout, vínculos ou outras telas.
+ *
+ * Corrija somente a estrutura de altura e scroll desse modal e implemente diretamente no código existente.
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
