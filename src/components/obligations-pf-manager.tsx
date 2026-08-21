@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase as sb } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { savePropertyCredential, revealPropertyCredential } from "@/lib/credentials.functions";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
