@@ -714,6 +714,7 @@ function VaultPage() {
       });
       return;
     }
+    // Paraleliza chamadas de storage para maior velocidade
     const [{ data, error }, downloadResult, downloaded] = await Promise.all([
       supabase.storage.from("receipts").createSignedUrl(path, 60 * 10),
       (supabase.storage.from("receipts") as any).createSignedUrl(path, 60 * 10, {
@@ -721,6 +722,7 @@ function VaultPage() {
       }),
       supabase.storage.from("receipts").download(path),
     ]);
+
     if (downloaded.error || !downloaded.data) {
       setPreview({
         loading: false,
@@ -731,6 +733,7 @@ function VaultPage() {
       });
       return;
     }
+
     const objectUrl = URL.createObjectURL(downloaded.data);
     if (error || !data?.signedUrl) {
       setPreview({
