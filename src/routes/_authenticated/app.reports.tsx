@@ -180,13 +180,14 @@ function ReportsPage() {
           // Mas o tipo (type) é tratado como um AND global se não for "all"
           if (type !== "all" && r.transaction_type !== type) return false;
 
-          const matchesProperty = normalizedPropertyIds.length === 0 || normalizedPropertyIds.includes(r.property_id);
-          const matchesCategory = normalizedCategoryIds.length === 0 || normalizedCategoryIds.includes(r.category_id);
+          const matchesProperty = normalizedPropertyIds.length === 0 || (r.property_id && normalizedPropertyIds.includes(r.property_id));
+          const matchesCategory = normalizedCategoryIds.length === 0 || (r.category_id && normalizedCategoryIds.includes(r.category_id));
           const matchesRecipient = selectedRecipients.length === 0 || (r.recipient_name && selectedRecipients.includes(r.recipient_name.trim()));
 
-          const matchesExtraProperty = extraIncludes.propertyIds.length > 0 && extraIncludes.propertyIds.includes(r.property_id);
-          const matchesExtraCategory = extraIncludes.categoryIds.length > 0 && extraIncludes.categoryIds.includes(r.category_id);
+          const matchesExtraProperty = extraIncludes.propertyIds.length > 0 && r.property_id && extraIncludes.propertyIds.includes(r.property_id);
+          const matchesExtraCategory = extraIncludes.categoryIds.length > 0 && r.category_id && extraIncludes.categoryIds.includes(r.category_id);
           const matchesExtraRecipient = extraIncludes.recipients.length > 0 && r.recipient_name && extraIncludes.recipients.includes(r.recipient_name.trim());
+
 
           return matchesProperty || matchesCategory || matchesRecipient || matchesExtraProperty || matchesExtraCategory || matchesExtraRecipient;
         });

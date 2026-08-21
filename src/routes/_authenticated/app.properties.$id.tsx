@@ -54,6 +54,7 @@ function PropertyDetail() {
 
   const property = useQuery({
     queryKey: ["property", id],
+    staleTime: 1000 * 60 * 15, // Detalhes do imóvel mudam pouco
     queryFn: async () => {
       const { data, error } = await supabase.from("properties").select("*, profile:financial_profiles!properties_profile_id_fkey(*)").eq("id", id).single();
       if (error) throw error;
@@ -61,13 +62,16 @@ function PropertyDetail() {
     },
   });
 
+
   const categories = useQuery({
     queryKey: ["categories-all"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => (await supabase.from("categories").select("id, name")).data ?? [],
   });
 
   const receipts = useQuery({
     queryKey: ["property-receipts", id],
+    staleTime: 1000 * 60 * 5,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("receipts")
@@ -80,6 +84,7 @@ function PropertyDetail() {
       return data;
     },
   });
+
 
   const rows = receipts.data ?? [];
   const totalSpent = rows.filter((r: any) => r.transaction_type !== "investimento").reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
