@@ -98,6 +98,7 @@ export function AccessesManager() {
 
   const list = useQuery({
     queryKey: ["credentials-all"],
+    staleTime: 1000 * 60 * 5,
     queryFn: async () => {
       // Busca todas as credenciais do usuário
       const { data, error } = await sb
@@ -121,11 +122,13 @@ export function AccessesManager() {
 
   const allProperties = useQuery({
     queryKey: ["all-properties-lookup"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => {
       const { data } = await sb.from("properties").select("id, name");
       return data || [];
     },
   });
+
 
   const save = useMutation({
     mutationFn: async () => {

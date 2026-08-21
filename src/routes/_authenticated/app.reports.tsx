@@ -153,59 +153,50 @@ function ReportsPage() {
         // Vou seguir a instrução 7: "Todos os perfis seja permitido para o resumo geral".
       }
 
-      const PAGE = 1000;
-      const all: any[] = [];
-      for (let offset = 0; offset < 100000; offset += PAGE) {
-        let q = supabase
-          .from("receipts")
-          .select("*, category:categories!receipts_category_id_fkey(name), properties(name)")
-          .eq("status", "approved")
-          .order("payment_date", { ascending: false })
-          .order("id", { ascending: true })
-          .range(offset, offset + PAGE - 1);
-        
-        if (from) q = q.gte("payment_date", from);
-        if (to) q = q.lte("payment_date", to);
-        if (normalizedProfileId) q = q.eq("profile_id", normalizedProfileId);
-
-        const hasNormalFilters = (type !== "all") || (normalizedPropertyIds.length > 0) || (normalizedCategoryIds.length > 0) || (selectedRecipients.length > 0);
-        const hasExtraIncludes = (extraIncludes.propertyIds.length > 0) || (extraIncludes.categoryIds.length > 0) || (extraIncludes.recipients.length > 0);
-
-        if (hasNormalFilters || hasExtraIncludes) {
-          const orParts: string[] = [];
-          
-          // Filtros normais (OR entre eles para composição do set de entrada)
-          if (type !== "all") {
-             // transaction_type não funciona bem no OR do PostgREST se quisermos AND type AND (outros).
-             // Mas o usuário quer: (Imóvel A OU Imóvel B OU Destinatário X) respeitando o tipo global se selecionado.
-             // Então o tipo continua sendo um AND global se não for "all".
-          }
-
-          if (normalizedPropertyIds.length > 0) orParts.push(`property_id.in.(${normalizedPropertyIds.join(",")})`);
-          if (normalizedCategoryIds.length > 0) orParts.push(`category_id.in.(${normalizedCategoryIds.join(",")})`);
-          if (selectedRecipients.length > 0) orParts.push(`recipient_name.in.(${selectedRecipients.map(r => `"${r}"`).join(",")})`);
-
-          // Inclusões extras (OR)
-          if (extraIncludes.propertyIds.length > 0) orParts.push(`property_id.in.(${extraIncludes.propertyIds.join(",")})`);
-          if (extraIncludes.categoryIds.length > 0) orParts.push(`category_id.in.(${extraIncludes.categoryIds.join(",")})`);
-          if (extraIncludes.recipients.length > 0) orParts.push(`recipient_name.in.(${extraIncludes.recipients.map(r => `"${r}"`).join(",")})`);
-
-          if (orParts.length > 0) {
-            q = q.or(orParts.join(","));
-          }
-        }
-        
-        if (type !== "all") q = q.eq("transaction_type", type as any);
-
-        const { data, error } = await q;
-        if (error) throw error;
-        const page = data ?? [];
-        all.push(...page);
-        if (page.length < PAGE) break;
+      const { data, error } = await supabase
+        .from("receipts")
+        .select("*, category:categories!receipts_category_id_fkey(name), properties(name)")
+        .eq("status", "approved")
+        .gte("payment_date", from || "1970-01-01")
+        .lte("payment_date", to || "2100-12-31")
+        .order("payment_date", { ascending: false })
+        .order("id", { ascending: true });
+      
+      if (error) throw error;
+      
+      let all = data ?? [];
+      
+      // Filtragem em memória para performance (evita OR complexo do PostgREST que pode ser lento)
+      if (normalizedProfileId) {
+        all = all.filter(r => r.profile_id === normalizedProfileId);
       }
+
+      const hasNormalFilters = (type !== "all") || (normalizedPropertyIds.length > 0) || (normalizedCategoryIds.length > 0) || (selectedRecipients.length > 0);
+      const hasExtraIncludes = (extraIncludes.propertyIds.length > 0) || (extraIncludes.categoryIds.length > 0) || (extraIncludes.recipients.length > 0);
+
+      if (hasNormalFilters || hasExtraIncludes) {
+        all = all.filter(r => {
+          // Se houver filtros normais, o registro deve satisfazer ao menos um (OR)
+          // Mas o tipo (type) é tratado como um AND global se não for "all"
+          if (type !== "all" && r.transaction_type !== type) return false;
+
+          const matchesProperty = normalizedPropertyIds.length === 0 || (r.property_id && normalizedPropertyIds.includes(r.property_id));
+          const matchesCategory = normalizedCategoryIds.length === 0 || (r.category_id && normalizedCategoryIds.includes(r.category_id));
+          const matchesRecipient = selectedRecipients.length === 0 || (r.recipient_name && selectedRecipients.includes(r.recipient_name.trim()));
+
+          const matchesExtraProperty = extraIncludes.propertyIds.length > 0 && r.property_id && extraIncludes.propertyIds.includes(r.property_id);
+          const matchesExtraCategory = extraIncludes.categoryIds.length > 0 && r.category_id && extraIncludes.categoryIds.includes(r.category_id);
+          const matchesExtraRecipient = extraIncludes.recipients.length > 0 && r.recipient_name && extraIncludes.recipients.includes(r.recipient_name.trim());
+
+
+          return matchesProperty || matchesCategory || matchesRecipient || matchesExtraProperty || matchesExtraCategory || matchesExtraRecipient;
+        });
+      }
+
       return all;
     },
   });
+
 
   // Deduplicação rigorosa por ID para evitar somar o mesmo valor duas vezes (Regra 9, 20)
   const rows = useMemo(() => {
@@ -265,17 +256,19 @@ function ReportsPage() {
   const ledger = useQuery({
     queryKey: ["ledger", from, to, normalizedProfileId, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients, extraIncludes],
     enabled: Boolean(normalizedProfileId),
+    staleTime: 1000 * 60 * 5,
     queryFn: () =>
       ledgerFn({
         data: {
           from: from || undefined,
           to: to || undefined,
-          profileId: normalizedProfileId,
+          profileId: normalizedProfileId!,
           propertyId: normalizedPropertyIds.length === 1 ? normalizedPropertyIds[0] : null,
           includeCards: true,
         },
       }),
   });
+
 
   const buildPayload = (): ReportPayload => {
     const b = selectedBrand.data as any;

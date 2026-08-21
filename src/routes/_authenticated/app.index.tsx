@@ -59,37 +59,38 @@ function Dashboard() {
   const periodLabel =
     period === "current" ? "mês atual" : period === "3m" ? "últimos 3 meses" : period === "12m" ? "últimos 12 meses" : "todo o período";
 
-  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name, status").order("name")).data ?? [] });
-  const profilesList = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+  const properties = useQuery({ queryKey: ["properties"], staleTime: 1000 * 60 * 30, queryFn: async () => (await supabase.from("properties").select("id, name, status").order("name")).data ?? [] });
+  const profilesList = useQuery({ queryKey: ["profiles"], staleTime: 1000 * 60 * 30, queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+
 
   const dashboard = useQuery({
     queryKey: ["dashboard", propertyId, profileId, period],
+    staleTime: 1000 * 60 * 5, // Cache de 5 minutos
     queryFn: async () => {
-      // Período escolhido, calculado em data local — sem deslocamento de UTC.
       const range =
         period === "current" ? monthRange() : period === "3m" ? monthsBackRange(3) : period === "12m" ? monthsBackRange(12) : allTimeRange();
-      const PAGE = 1000;
-      const receipts: any[] = [];
-      for (let offset = 0; offset < 100000; offset += PAGE) {
-        let rq = supabase
-          .from("receipts")
-          .select(
-            "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, category:categories!receipts_category_id_fkey(name), profile_id, property_id, properties(name)",
-          )
-          .order("payment_date", { ascending: false })
-          .order("id", { ascending: true })
-          .range(offset, offset + PAGE - 1);
-        if (propertyId !== "all") rq = rq.eq("property_id", propertyId);
-        if (profileId !== "all") rq = rq.eq("profile_id", profileId);
-        const { data, error } = await rq;
-        if (error) throw new Error(error.message);
-        const page = data ?? [];
-        receipts.push(...page);
-        if (page.length < PAGE) break;
-      }
-      return { receipts, range };
+      
+      let rq = supabase
+        .from("receipts")
+        .select(
+          "id, amount, status, transaction_type, payment_date, bank_name, category_id, created_at, recipient_name, description, category:categories!receipts_category_id_fkey(name), profile_id, property_id, properties(name)",
+        )
+        .order("payment_date", { ascending: false })
+        .order("id", { ascending: true });
+
+      if (propertyId !== "all") rq = rq.eq("property_id", propertyId);
+      if (profileId !== "all") rq = rq.eq("profile_id", profileId);
+      
+      // Otimização: Limitar volume de dados para dashboard se o período for grande
+      if (period === "all") rq = rq.limit(5000);
+
+      const { data, error } = await rq;
+      if (error) throw new Error(error.message);
+      
+      return { receipts: data ?? [], range };
     },
   });
+
 
   const receipts = (dashboard.data?.receipts ?? []) as any[];
   const range = dashboard.data?.range ?? monthsBackRange(12);

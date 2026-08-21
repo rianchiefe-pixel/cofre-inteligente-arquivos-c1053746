@@ -88,16 +88,18 @@ function PropertiesPage() {
   const [fType, setFType] = useState("all");
   const [fCity, setFCity] = useState("all");
 
-  const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+  const profiles = useQuery({ queryKey: ["profiles"], staleTime: 1000 * 60 * 30, queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
 
   const list = useQuery({
     queryKey: ["properties"],
+    staleTime: 1000 * 60 * 10, // Cache de 10 min
     queryFn: async () => {
       const { data, error } = await supabase
         .from("properties")
         .select("*, profile:financial_profiles!properties_profile_id_fkey(name, color)")
         .order("created_at", { ascending: false });
       if (error) throw error;
+
       return data;
     },
   });

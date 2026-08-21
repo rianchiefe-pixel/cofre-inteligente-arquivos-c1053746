@@ -35,12 +35,14 @@ function TasksPage() {
 
   const properties = useQuery({
     queryKey: ["properties-min"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => {
       const { data, error } = await supabase.from("properties").select("id, name").order("name");
       if (error) throw error;
       return data ?? [];
     },
   });
+
 
   const list = useQuery({
     queryKey: ["tasks-all"],

@@ -38,12 +38,14 @@ function ProfilesPage() {
 
   const profilesQuery = useQuery({
     queryKey: ["profiles"],
+    staleTime: 1000 * 60 * 30, // Perfis raramente mudam
     queryFn: async () => {
       const { data, error } = await supabase.from("financial_profiles").select("*").order("created_at");
       if (error) throw new Error(error.message);
       return data ?? [];
     },
   });
+
   const { data, isLoading } = profilesQuery;
 
   const create = useMutation({

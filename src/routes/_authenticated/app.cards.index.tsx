@@ -50,6 +50,7 @@ function CardsIndexPage() {
 
   const profiles = useQuery({
     queryKey: ["profiles"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => {
       const { data, error } = await supabase.from("financial_profiles").select("id, name").order("name");
       if (error) throw new Error(error.message);
@@ -59,12 +60,14 @@ function CardsIndexPage() {
 
   const banks = useQuery({
     queryKey: ["banks"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => {
       const { data, error } = await supabase.from("banks").select("id, name, profile_id");
       if (error) throw new Error(error.message);
       return data ?? [];
     },
   });
+
 
   const cardsQuery = useQuery({
     queryKey: ["cards-stats", activeProfileId],
