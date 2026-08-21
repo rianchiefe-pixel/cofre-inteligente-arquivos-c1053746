@@ -359,6 +359,14 @@ export function ObligationsPage() {
       property_id: o.property_id ?? "none",
       category_ids: (o.categories ?? []).map((c: any) => c.category_id),
       create_task: false,
+      credential_id: o.credential_id || null,
+      access_mode: o.credential_id ? "existing" : "none",
+      cred_service: "",
+      cred_website: "",
+      cred_login: "",
+      cred_password: "",
+      cred_recovery_email: "",
+      cred_reusable: true,
     });
     setOpen(true);
   };
