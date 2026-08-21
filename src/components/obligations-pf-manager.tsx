@@ -846,19 +846,22 @@ export function ObligationsPage() {
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground">Acesso:</span>
+                      <span className="text-muted-foreground">Login:</span>
                       <div className="flex items-center gap-1.5 font-mono text-slate-700">
-                        <span className="truncate max-w-[120px]">{o.credential_id}</span>
+                        <span className="truncate max-w-[120px]">
+                          {o.property_credentials?.login || o.property_credentials?.recovery_email || "—"}
+                        </span>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-5 w-5 hover:bg-slate-200"
-                          onClick={() => {
-                            // Encontrar a credencial para pegar o login real (precisaríamos buscar no list ou ter um join)
-                            // Por ora vamos mostrar apenas os botões se tivermos o ID
-                          }}
+                          onClick={() => copy(o.id + "_l", o.property_credentials?.login || o.property_credentials?.recovery_email || "")}
                         >
-                          <Copy className="h-3 w-3" />
+                          {copied === o.id + "_l" ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
                         </Button>
                       </div>
                     </div>
