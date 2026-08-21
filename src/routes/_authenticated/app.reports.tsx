@@ -256,17 +256,19 @@ function ReportsPage() {
   const ledger = useQuery({
     queryKey: ["ledger", from, to, normalizedProfileId, normalizedPropertyIds, normalizedCategoryIds, selectedRecipients, extraIncludes],
     enabled: Boolean(normalizedProfileId),
+    staleTime: 1000 * 60 * 5,
     queryFn: () =>
       ledgerFn({
         data: {
           from: from || undefined,
           to: to || undefined,
-          profileId: normalizedProfileId,
+          profileId: normalizedProfileId!,
           propertyId: normalizedPropertyIds.length === 1 ? normalizedPropertyIds[0] : null,
           includeCards: true,
         },
       }),
   });
+
 
   const buildPayload = (): ReportPayload => {
     const b = selectedBrand.data as any;
