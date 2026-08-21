@@ -616,6 +616,152 @@ export function ObligationsPage() {
                     placeholder="https://…"
                   />
                 </div>
+
+                <div className="sm:col-span-2 mt-4 space-y-4 rounded-lg border bg-primary/5 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lock className="h-4 w-4 text-primary" />
+                    <Label className="text-base font-semibold">Dados de Acesso</Label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div
+                      className={`flex flex-col gap-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        form.access_mode === "existing"
+                          ? "bg-primary/10 border-primary"
+                          : "bg-white hover:bg-slate-50"
+                      }`}
+                      onClick={() => setForm({ ...form, access_mode: "existing" })}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Search className="h-4 w-4" />
+                        <span className="text-sm font-medium">Usar acesso existente</span>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`flex flex-col gap-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                        form.access_mode === "new"
+                          ? "bg-primary/10 border-primary"
+                          : "bg-white hover:bg-slate-50"
+                      }`}
+                      onClick={() => setForm({ ...form, access_mode: "new" })}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        <span className="text-sm font-medium">Cadastrar novo acesso</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {form.access_mode === "existing" && (
+                    <div className="space-y-2 pt-2">
+                      <Label>Selecionar acesso já cadastrado</Label>
+                      <Select
+                        value={form.credential_id || ""}
+                        onValueChange={(v) => {
+                          const cred = credentials.data?.find((c) => c.id === v);
+                          setForm({
+                            ...form,
+                            credential_id: v,
+                            document_url: cred?.access_link || cred?.website || form.document_url,
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pesquisar por nome, e-mail ou login..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {credentials.data?.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.service} ({c.login || c.recovery_email || "Sem login"})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {form.access_mode === "new" && (
+                    <div className="space-y-4 pt-2 grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>E-mail de acesso</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={form.cred_recovery_email}
+                            onChange={(e) => setForm({ ...form, cred_recovery_email: e.target.value })}
+                            placeholder="exemplo@email.com"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => copy("new_email", form.cred_recovery_email)}
+                          >
+                            {copied === "new_email" ? <Check className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Usuário / Login</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={form.cred_login}
+                            onChange={(e) => setForm({ ...form, cred_login: e.target.value })}
+                            placeholder="usuario123"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => copy("new_login", form.cred_login)}
+                          >
+                            {copied === "new_login" ? <Check className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Senha</Label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              type={revealed["new_pass"] ? "text" : "password"}
+                              value={form.cred_password}
+                              onChange={(e) => setForm({ ...form, cred_password: e.target.value })}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-0 top-0 h-full px-3"
+                              onClick={() => setRevealed((v) => ({ ...v, new_pass: !v.new_pass }))}
+                            >
+                              {revealed["new_pass"] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => copy("new_pass_copy", form.cred_password)}
+                          >
+                            {copied === "new_pass_copy" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 sm:col-span-2">
+                        <Checkbox
+                          id="cred_reusable"
+                          checked={form.cred_reusable}
+                          onCheckedChange={(c) => setForm({ ...form, cred_reusable: !!c })}
+                        />
+                        <Label htmlFor="cred_reusable" className="cursor-pointer text-sm">
+                          Permitir usar este acesso em outras Obrigações PF
+                        </Label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Observações</Label>
                   <Textarea
