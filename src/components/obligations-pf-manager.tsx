@@ -253,7 +253,7 @@ export function ObligationsPage() {
       if (form.access_mode === "new" && form.cred_password) {
         const credRes = await saveCredential({
           data: {
-            service: form.cred_service || form.label || obligationKindLabel[form.kind] || "Obrigação PF",
+            service: form.cred_service || form.label || (obligationKindLabel[form.kind] ? `Acesso ${obligationKindLabel[form.kind]}` : "Acesso Obrigação PF"),
             website: form.cred_website || null,
             login: form.cred_login || null,
             recovery_email: form.cred_recovery_email || null,
