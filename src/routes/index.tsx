@@ -23,72 +23,97 @@
  *
  * MODO CONSTRUÇÃO — CORREÇÃO CIRÚRGICA
  *
- * Corrija somente o modal “Novo acesso às credenciais” mostrado na tela de Acessos.
+ * Corrija somente o modal “Novo acesso às credenciais”.
  *
  * PROBLEMA ATUAL
  *
- * Em telas menores ou quando existem muitos imóveis em “Imóveis Vinculados”, o modal ultrapassa a altura da tela e não permite rolar até o final, impedindo o usuário de acessar os botões de conclusão/salvamento.
+ * O rodapé com Cancelar / Salvar Acesso agora está visível, porém a seção “Imóveis Vinculados” ficou cortada e não permite rolar para visualizar e selecionar todos os imóveis.
  *
- * CORREÇÃO OBRIGATÓRIA
+ * CORRIJA ASSIM
  *
- * Faça o modal funcionar corretamente em qualquer resolução:
+ * Estruture o modal em 3 áreas:
  *
- * Limite a altura total do modal à altura disponível da viewport.
+ * Cabeçalho fixo
  *
- * O modal deve ficar totalmente contido dentro da tela.
+ * “Novo acesso às credenciais”
  *
- * Crie rolagem vertical no conteúdo interno do modal quando necessário.
+ * botão X
  *
- * O scroll deve funcionar com:
+ * Conteúdo central rolável
  *
- * mouse;
+ * Todos os campos
  *
- * touchpad;
+ * seção Imóveis Vinculados
  *
- * roda do mouse;
+ * deve usar o espaço disponível entre cabeçalho e rodapé
  *
- * dispositivos touch.
+ * overflow-y: auto
  *
- * MUITO IMPORTANTE
+ * precisa rolar normalmente com mouse, touchpad e touch
  *
- * O cabeçalho do modal com “Novo acesso às credenciais” deve permanecer visível.
+ * Rodapé fixo/sticky
  *
- * Os botões inferiores, como Cancelar / Salvar acesso, devem permanecer sempre acessíveis, preferencialmente em um rodapé fixo/sticky dentro do modal.
+ * Cancelar
  *
- * Somente a região central dos campos deve rolar.
+ * Salvar Acesso
  *
- * “IMÓVEIS VINCULADOS”
+ * sempre visível
  *
- * A lista de imóveis pode continuar tendo sua própria rolagem interna, mas ela não pode bloquear a rolagem do modal principal.
+ * IMÓVEIS VINCULADOS — OBRIGATÓRIO
  *
- * O usuário precisa conseguir chegar normalmente aos campos e aos botões finais.
+ * A lista de imóveis não pode ficar escondida atrás do rodapé.
  *
- * RESPONSIVIDADE
+ * Ela deve:
  *
- * Garanta funcionamento correto em:
+ * exibir vários imóveis;
  *
- * desktop;
+ * permitir rolar até o último imóvel cadastrado;
  *
- * notebook com altura de tela menor;
+ * permitir marcar/desmarcar qualquer imóvel;
  *
- * tablet;
+ * preservar as duas colunas atuais no desktop;
  *
- * celular.
+ * adaptar para uma coluna em telas pequenas;
  *
- * Não deixe o modal encostar ou ultrapassar as bordas da viewport.
+ * nunca ficar cortada pelo footer.
+ *
+ * Se existir overflow: hidden, altura fixa ou max-height incorreto em algum container pai que esteja impedindo o scroll, corrija isso.
+ *
+ * IMPORTANTE SOBRE SCROLL ANINHADO
+ *
+ * Evite conflito entre dois scrolls.
+ *
+ * Preferencialmente, faça todo o conteúdo central do modal rolar, incluindo a lista de imóveis.
+ *
+ * Se mantiver scroll próprio na lista de imóveis, garanta que:
+ *
+ * ele funcione de verdade;
+ *
+ * tenha altura suficiente;
+ *
+ * o scroll não seja bloqueado pelo container pai;
+ *
+ * seja possível chegar ao último item.
  *
  * NÃO ALTERAR
  *
- * Não redesenhe a página.
- * Não altere campos.
- * Não altere banco de dados.
- * Não altere regras dos acessos.
- * Não altere a lógica de imóveis vinculados.
- * Não mexa em outras telas.
+ * Não mude:
  *
- * Apenas corrija o comportamento de altura, overflow e rolagem desse modal e teste se é possível chegar ao final e clicar em Salvar.
+ * layout visual;
  *
- * Implemente diretamente. Não apenas explique a solução.
+ * campos;
+ *
+ * banco de dados;
+ *
+ * lógica de salvamento;
+ *
+ * vínculos;
+ *
+ * outras telas.
+ *
+ * Teste obrigatório: abra o modal com muitos imóveis cadastrados e confirme que é possível rolar até o último imóvel, selecioná-lo e depois clicar em Salvar Acesso sem nenhum conteúdo ficar oculto.
+ *
+ * Implemente diretamente. Não explique apenas a solução.
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
