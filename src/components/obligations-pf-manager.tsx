@@ -625,31 +625,31 @@ export function ObligationsPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div
-                      className={`flex flex-col gap-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                      className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
                         form.access_mode === "existing"
-                          ? "bg-primary/10 border-primary"
+                          ? "bg-primary/10 border-primary shadow-sm"
                           : "bg-white hover:bg-slate-50"
                       }`}
                       onClick={() => setForm({ ...form, access_mode: "existing" })}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-full ${form.access_mode === "existing" ? "bg-primary text-white" : "bg-slate-100 text-slate-500"}`}>
                         <Search className="h-4 w-4" />
-                        <span className="text-sm font-medium">Usar acesso existente</span>
                       </div>
+                      <span className="text-sm font-semibold">Usar acesso existente</span>
                     </div>
 
                     <div
-                      className={`flex flex-col gap-2 p-3 rounded-md border cursor-pointer transition-colors ${
+                      className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
                         form.access_mode === "new"
-                          ? "bg-primary/10 border-primary"
+                          ? "bg-primary/10 border-primary shadow-sm"
                           : "bg-white hover:bg-slate-50"
                       }`}
                       onClick={() => setForm({ ...form, access_mode: "new" })}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-full ${form.access_mode === "new" ? "bg-primary text-white" : "bg-slate-100 text-slate-500"}`}>
                         <Plus className="h-4 w-4" />
-                        <span className="text-sm font-medium">Cadastrar novo acesso</span>
                       </div>
+                      <span className="text-sm font-semibold">Cadastrar novo acesso</span>
                     </div>
                   </div>
 
