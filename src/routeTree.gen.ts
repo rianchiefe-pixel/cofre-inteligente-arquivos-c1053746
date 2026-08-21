@@ -21,6 +21,7 @@ import { Route as AuthenticatedAppTasksRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAppReportsRouteImport } from './routes/_authenticated/app.reports'
 import { Route as AuthenticatedAppReceiptsNoReceiptRouteImport } from './routes/_authenticated/app.receipts-no-receipt'
 import { Route as AuthenticatedAppProfilesRouteImport } from './routes/_authenticated/app.profiles'
+import { Route as AuthenticatedAppPersonalObligationsRouteImport } from './routes/_authenticated/app.personal-obligations'
 import { Route as AuthenticatedAppImportRouteImport } from './routes/_authenticated/app.import'
 import { Route as AuthenticatedAppHoldingAdvocaciaRouteImport } from './routes/_authenticated/app.holding-advocacia'
 import { Route as AuthenticatedAppFixedExpensesRouteImport } from './routes/_authenticated/app.fixed-expenses'
@@ -96,6 +97,12 @@ const AuthenticatedAppProfilesRoute =
   AuthenticatedAppProfilesRouteImport.update({
     id: '/profiles',
     path: '/profiles',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppPersonalObligationsRoute =
+  AuthenticatedAppPersonalObligationsRouteImport.update({
+    id: '/personal-obligations',
+    path: '/personal-obligations',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppImportRoute = AuthenticatedAppImportRouteImport.update({
@@ -191,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
+  '/app/personal-obligations': typeof AuthenticatedAppPersonalObligationsRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
   '/app/receipts-no-receipt': typeof AuthenticatedAppReceiptsNoReceiptRoute
   '/app/reports': typeof AuthenticatedAppReportsRoute
@@ -216,6 +224,7 @@ export interface FileRoutesByTo {
   '/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
+  '/app/personal-obligations': typeof AuthenticatedAppPersonalObligationsRoute
   '/app/profiles': typeof AuthenticatedAppProfilesRoute
   '/app/receipts-no-receipt': typeof AuthenticatedAppReceiptsNoReceiptRoute
   '/app/reports': typeof AuthenticatedAppReportsRoute
@@ -245,6 +254,7 @@ export interface FileRoutesById {
   '/_authenticated/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
   '/_authenticated/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/_authenticated/app/import': typeof AuthenticatedAppImportRoute
+  '/_authenticated/app/personal-obligations': typeof AuthenticatedAppPersonalObligationsRoute
   '/_authenticated/app/profiles': typeof AuthenticatedAppProfilesRoute
   '/_authenticated/app/receipts-no-receipt': typeof AuthenticatedAppReceiptsNoReceiptRoute
   '/_authenticated/app/reports': typeof AuthenticatedAppReportsRoute
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/app/fixed-expenses'
     | '/app/holding-advocacia'
     | '/app/import'
+    | '/app/personal-obligations'
     | '/app/profiles'
     | '/app/receipts-no-receipt'
     | '/app/reports'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/app/fixed-expenses'
     | '/app/holding-advocacia'
     | '/app/import'
+    | '/app/personal-obligations'
     | '/app/profiles'
     | '/app/receipts-no-receipt'
     | '/app/reports'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/fixed-expenses'
     | '/_authenticated/app/holding-advocacia'
     | '/_authenticated/app/import'
+    | '/_authenticated/app/personal-obligations'
     | '/_authenticated/app/profiles'
     | '/_authenticated/app/receipts-no-receipt'
     | '/_authenticated/app/reports'
@@ -433,6 +446,13 @@ declare module '@tanstack/react-router' {
       path: '/profiles'
       fullPath: '/app/profiles'
       preLoaderRoute: typeof AuthenticatedAppProfilesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/personal-obligations': {
+      id: '/_authenticated/app/personal-obligations'
+      path: '/personal-obligations'
+      fullPath: '/app/personal-obligations'
+      preLoaderRoute: typeof AuthenticatedAppPersonalObligationsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/import': {
@@ -576,6 +596,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppFixedExpensesRoute: typeof AuthenticatedAppFixedExpensesRoute
   AuthenticatedAppHoldingAdvocaciaRoute: typeof AuthenticatedAppHoldingAdvocaciaRoute
   AuthenticatedAppImportRoute: typeof AuthenticatedAppImportRoute
+  AuthenticatedAppPersonalObligationsRoute: typeof AuthenticatedAppPersonalObligationsRoute
   AuthenticatedAppProfilesRoute: typeof AuthenticatedAppProfilesRoute
   AuthenticatedAppReceiptsNoReceiptRoute: typeof AuthenticatedAppReceiptsNoReceiptRoute
   AuthenticatedAppReportsRoute: typeof AuthenticatedAppReportsRoute
@@ -597,6 +618,8 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppFixedExpensesRoute: AuthenticatedAppFixedExpensesRoute,
   AuthenticatedAppHoldingAdvocaciaRoute: AuthenticatedAppHoldingAdvocaciaRoute,
   AuthenticatedAppImportRoute: AuthenticatedAppImportRoute,
+  AuthenticatedAppPersonalObligationsRoute:
+    AuthenticatedAppPersonalObligationsRoute,
   AuthenticatedAppProfilesRoute: AuthenticatedAppProfilesRoute,
   AuthenticatedAppReceiptsNoReceiptRoute:
     AuthenticatedAppReceiptsNoReceiptRoute,

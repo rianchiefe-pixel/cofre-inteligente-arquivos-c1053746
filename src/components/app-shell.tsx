@@ -34,6 +34,7 @@ const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Per
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/profiles", label: "Perfis", icon: Users, perm: "manageEntities" },
   { to: "/app/properties", label: "Imóveis", icon: Home, perm: "manageEntities" },
+  { to: "/app/personal-obligations", label: "Obrigações PF", icon: KeyRound },
   { to: "/app/accesses", label: "Acessos", icon: KeyRound },
   { to: "/app/tasks", label: "Tarefas", icon: ListTodo },
   { to: "/app/banks", label: "Bancos e contas", icon: Landmark, perm: "manageEntities" },

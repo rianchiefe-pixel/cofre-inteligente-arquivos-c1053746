@@ -1648,6 +1648,42 @@ export type Database = {
           },
         ]
       }
+      property_obligation_categories: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          id: string
+          obligation_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          id?: string
+          obligation_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          obligation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_obligation_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_obligation_categories_obligation_id_fkey"
+            columns: ["obligation_id"]
+            isOneToOne: false
+            referencedRelation: "property_obligations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_obligations: {
         Row: {
           amount: number | null
@@ -1660,11 +1696,12 @@ export type Database = {
           due_date: string | null
           id: string
           installation_number: string | null
+          is_personal: boolean | null
           kind: string
           label: string | null
           notes: string | null
           periodicity: string | null
-          property_id: string
+          property_id: string | null
           real_estate_tax_id: string | null
           registration_number: string | null
           status: string
@@ -1683,11 +1720,12 @@ export type Database = {
           due_date?: string | null
           id?: string
           installation_number?: string | null
+          is_personal?: boolean | null
           kind: string
           label?: string | null
           notes?: string | null
           periodicity?: string | null
-          property_id: string
+          property_id?: string | null
           real_estate_tax_id?: string | null
           registration_number?: string | null
           status?: string
@@ -1706,11 +1744,12 @@ export type Database = {
           due_date?: string | null
           id?: string
           installation_number?: string | null
+          is_personal?: boolean | null
           kind?: string
           label?: string | null
           notes?: string | null
           periodicity?: string | null
-          property_id?: string
+          property_id?: string | null
           real_estate_tax_id?: string | null
           registration_number?: string | null
           status?: string
