@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { centsToNumber, currencyBRL, parseBrlAmountToCents, propertyPurposeLabel, propertyStatusLabel, propertyTypeLabel } from "@/lib/format";
-import { Home, Plus, Pencil, Trash2, MapPin, ChevronRight, Archive, Search } from "lucide-react";
+import { Home, Plus, Pencil, Trash2, MapPin, ChevronRight, Archive, Search, LayoutGrid, List } from "lucide-react";
 import { useCan } from "@/lib/permissions";
 import { RestrictedArea } from "@/components/role-gate";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
