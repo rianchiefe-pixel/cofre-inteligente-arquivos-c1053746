@@ -438,7 +438,22 @@ export function AccessesManager() {
                 </form>
               </div>
             </div>
-            <div className="flex justify-end gap-2 p-6 border-t bg-background">
+                <div className="flex justify-end gap-2 pt-4 border-t bg-background pb-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={save.isPending}
+                    onClick={() => setOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" variant="premium" disabled={save.isPending}>
+                    {save.isPending ? "Salvando..." : "Salvar Acesso"}
+                  </Button>
+                </div>
+              </form>
+            </div>
+            <div className="flex justify-end gap-2 p-6 border-t bg-background flex-shrink-0">
               <Button
                 type="button"
                 variant="ghost"
