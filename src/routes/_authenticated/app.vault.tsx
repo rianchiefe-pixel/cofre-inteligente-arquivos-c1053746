@@ -1585,6 +1585,15 @@ function VaultPage() {
                   disabled={busy}
                 />
               )}
+              {canBulk && (
+                <BulkFieldSelect
+                  label="Imóvel"
+                  placeholder="Vincular imóvel"
+                  options={(properties.data ?? []).map((p) => ({ value: p.id, label: p.name }))}
+                  onPick={(v) => doBulkPatch({ property_id: v }, "Imóvel")}
+                  disabled={busy}
+                />
+              )}
             </div>
           </div>
         </div>
