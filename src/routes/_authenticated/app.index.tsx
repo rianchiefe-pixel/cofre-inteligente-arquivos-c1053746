@@ -59,8 +59,9 @@ function Dashboard() {
   const periodLabel =
     period === "current" ? "mês atual" : period === "3m" ? "últimos 3 meses" : period === "12m" ? "últimos 12 meses" : "todo o período";
 
-  const properties = useQuery({ queryKey: ["properties"], queryFn: async () => (await supabase.from("properties").select("id, name, status").order("name")).data ?? [] });
-  const profilesList = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+  const properties = useQuery({ queryKey: ["properties"], staleTime: 1000 * 60 * 30, queryFn: async () => (await supabase.from("properties").select("id, name, status").order("name")).data ?? [] });
+  const profilesList = useQuery({ queryKey: ["profiles"], staleTime: 1000 * 60 * 30, queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+
 
   const dashboard = useQuery({
     queryKey: ["dashboard", propertyId, profileId, period],
