@@ -21,202 +21,145 @@
  *
  * Faça o seguinte:
  *
- * MODO CONSTRUÇÃO — IMPLEMENTE DIRETAMENTE
+ * ATENÇÃO — MODO CONSTRUÇÃO
  *
- * Crie uma nova área no sistema chamada “Obrigações PF”, onde PF = Pessoa Física.
+ * Entre em MODO CONSTRUÇÃO.
+ * NÃO use Fast Visual Edit.
+ * NÃO altere src/routes/index.tsx.
+ * Implemente a funcionalidade real no formulário de Nova obrigação PF, banco e componentes existentes.
  *
- * Adicione “Obrigações PF” na barra lateral, seguindo exatamente o padrão visual atual do Meu Cofre.
+ * CORREÇÃO NECESSÁRIA
  *
- * Não crie apenas uma tela visual. A funcionalidade deve ficar integrada ao banco, às Tarefas e ao sistema já existente.
+ * No formulário “Nova obrigação PF”, faltaram os dados de acesso.
  *
- * 1. REAPROVEITE O QUE JÁ EXISTE
+ * Logo após URL / Link do documento, adicione:
  *
- * O sistema já possui lógica de obrigações relacionadas aos imóveis e geração de tarefas.
- *
- * Antes de criar qualquer estrutura nova:
- *
- * localize essa implementação;
- *
- * reutilize componentes, banco, vencimentos, tarefas e lógica de comprovantes sempre que possível;
- *
- * não duplique funcionalidades que já existem.
- *
- * A nova área será uma versão organizada dessas obrigações voltada para Pessoa Física.
- *
- * 2. TELA “OBRIGAÇÕES PF”
- *
- * Criar uma tela limpa e organizada contendo:
- *
- * busca;
- *
- * filtro por categoria;
- *
- * filtro por vencimento/status;
- *
- * cards ou lista das obrigações;
- *
- * botão “+ Nova obrigação”.
- *
- * Cada obrigação deve mostrar de forma clara:
- *
- * Nome da obrigação
- * Categoria(s)
- * Próximo vencimento
- * Acesso
- * Status
- *
- * Ações rápidas:
- *
- * Abrir | Editar | Excluir
- *
- * 3. NOVA OBRIGAÇÃO
- *
- * Ao clicar em “+ Nova obrigação”, permitir cadastrar:
- *
- * Dados da obrigação
- *
- * Nome da obrigação*
- * Ex.: Imposto de Renda, ITR, Certificado Digital, INSS etc.
- *
- * Categorias*
- * Campo de múltipla seleção.
- *
- * O usuário deve conseguir:
- *
- * pesquisar uma categoria digitando;
- *
- * selecionar várias categorias;
- *
- * remover categorias selecionadas facilmente.
- *
- * Não crie categorias duplicadas. Utilize as categorias já existentes no sistema sempre que forem compatíveis.
- *
- * Vencimento
- *
- * Data de vencimento
- *
- * Se o sistema atual de obrigações possuir periodicidade/recorrência, reutilize essa lógica, permitindo obrigações mensais, anuais ou outras periodicidades já suportadas.
- *
- * Acesso ao serviço
- *
- * Link de acesso / URL
  * E-mail de acesso
+ *
  * Usuário / Login
+ *
  * Senha
  *
- * Aplicar o mesmo padrão seguro que já existe na tela Acessos:
+ * A senha deve ter:
  *
- * senha mascarada;
+ * mostrar/ocultar;
  *
- * botão de visualizar;
+ * copiar;
  *
- * botão de copiar;
+ * armazenamento seguro seguindo o mesmo padrão da área Acessos.
  *
- * botão de copiar login/e-mail.
+ * E-mail e usuário também devem possuir botão de copiar.
  *
- * Criar botão principal:
+ * ACESSO REUTILIZÁVEL
  *
- * ABRIR
+ * Adicionar uma opção:
  *
- * Ao clicar, abrir o site correspondente em nova aba.
+ * ☐ Permitir usar este acesso em outras Obrigações PF
  *
- * O objetivo é permitir que a pessoa entre na obrigação com o mínimo de trabalho possível: abrir o site e copiar rapidamente login, e-mail ou senha.
+ * Quando marcada, essas credenciais devem ficar disponíveis para serem reutilizadas em outras obrigações PF.
  *
- * 4. VÍNCULO COM IMÓVEL — OPCIONAL
+ * Não duplique os dados de acesso.
+ * Crie/reutilize uma estrutura central de credenciais e faça as obrigações referenciarem esse acesso.
  *
- * Uma obrigação PF também poderá estar relacionada a um imóvel.
+ * AO CADASTRAR UMA NOVA OBRIGAÇÃO
  *
- * Adicionar:
+ * Na área de credenciais, oferecer duas opções claras:
  *
- * Imóvel vinculado (opcional)
+ * 1. Usar acesso existente
  *
- * Utilizar os imóveis já cadastrados no sistema.
+ * Campo pesquisável:
  *
- * IMPORTANTE: deve aceitar normalmente imóveis rurais.
+ * Selecionar acesso já cadastrado
  *
- * Não limitar esse campo apenas a casas, apartamentos ou imóveis urbanos.
+ * Permitir pesquisar por:
  *
- * 5. INTEGRAÇÃO AUTOMÁTICA COM “TAREFAS”
+ * nome/serviço;
  *
- * Esta parte é OBRIGATÓRIA.
+ * e-mail;
  *
- * Uma obrigação PF com vencimento deve gerar automaticamente o controle correspondente na área Tarefas, utilizando a lógica que já existe no sistema.
+ * usuário/login.
+ *
+ * Ao selecionar um acesso existente, preencher/vincular automaticamente:
+ *
+ * URL;
+ *
+ * e-mail;
+ *
+ * usuário/login;
+ *
+ * senha.
+ *
+ * A obrigação deve ficar vinculada ao mesmo acesso, sem criar cópia.
+ *
+ * 2. Cadastrar novo acesso
+ *
+ * Se não quiser usar um existente, permitir preencher normalmente:
+ *
+ * URL;
+ *
+ * e-mail;
+ *
+ * usuário/login;
+ *
+ * senha;
+ *
+ * checkbox “Permitir usar este acesso em outras Obrigações PF”.
+ *
+ * REGRA IMPORTANTE
+ *
+ * Um mesmo acesso pode servir para várias Obrigações PF.
  *
  * Exemplo:
  *
- * Se existe uma obrigação chamada:
+ * Acesso Gov.br
+ * → Imposto de Renda
+ * → INSS
+ * → Receita Federal
+ * → outras obrigações
  *
- * ITR Fazenda Boa Vista
+ * Se a senha/login desse acesso for alterada posteriormente, todas as Obrigações PF vinculadas devem usar automaticamente a informação atualizada.
  *
- * Quando chegar o período configurado, em Tarefas deve aparecer algo semelhante a:
+ * Não quero várias cópias da mesma senha espalhadas pelo banco.
  *
- * Hoje é dia de ITR Fazenda Boa Vista — PF
+ * EXPERIÊNCIA VISUAL
  *
- * ou, conforme a antecedência:
+ * Deixe a escolha simples:
  *
- * ITR Fazenda Boa Vista vence em breve.
+ * Acesso da obrigação
  *
- * Não crie um segundo sistema de tarefas.
+ * ○ Usar acesso existente
  *
- * Integre com o módulo Tarefas existente.
+ * ○ Cadastrar novo acesso
  *
- * 6. COMPROVANTE
+ * Se escolher Usar acesso existente, exiba o seletor pesquisável.
  *
- * Quando a obrigação chegar ao vencimento, a tarefa deve disponibilizar a ação:
+ * Se escolher Cadastrar novo acesso, exiba os campos de credencial.
  *
- * Enviar comprovante
+ * Mantenha o visual atual do modal.
  *
- * O usuário poderá anexar o comprovante diretamente pela tarefa.
+ * NÃO ALTERAR
  *
- * Depois do envio:
+ * Não mexer na lógica de categorias.
  *
- * vincular o comprovante à obrigação;
+ * Não mexer em vencimentos.
  *
- * vincular ao imóvel, caso exista imóvel relacionado;
+ * Não mexer nas Tarefas.
  *
- * registrar a conclusão daquela ocorrência;
+ * Não remover campos existentes.
  *
- * manter o histórico para consultas futuras.
+ * Não alterar outras páginas.
  *
- * Se a obrigação for recorrente, não excluir a obrigação após concluir uma ocorrência. Apenas registrar aquela competência como concluída e gerar o próximo vencimento conforme a periodicidade.
+ * Não usar Fast Visual Edit.
  *
- * 7. EXPERIÊNCIA DE USO
+ * Não editar src/routes/index.tsx.
  *
- * Quero uma área extremamente simples de operar.
+ * TESTE ANTES DE CONCLUIR
  *
- * A pessoa deve conseguir:
+ * Teste este fluxo:
  *
- * ver obrigação → abrir site → copiar acesso → realizar obrigação → voltar ao Meu Cofre → enviar comprovante → concluir tarefa.
+ * Nova obrigação PF → escolher “Cadastrar novo acesso” → preencher URL/e-mail/login/senha → marcar “Permitir usar em outras Obrigações PF” → salvar → criar outra obrigação PF → escolher “Usar acesso existente” → pesquisar e selecionar o acesso anterior → salvar sem redigitar as credenciais.
  *
- * Evite excesso de cliques e telas.
- *
- * Mantenha o mesmo design premium, espaçamentos, cores, cards, botões e tipografia utilizados atualmente no Meu Cofre.
- *
- * NÃO FAZER
- *
- * Não alterar a tela atual de Acessos.
- *
- * Não alterar Gastos Fixos.
- *
- * Não remover funcionalidades existentes.
- *
- * Não criar categorias duplicadas.
- *
- * Não criar outra tabela/lógica de tarefas se puder reutilizar a atual.
- *
- * Não quebrar as obrigações dos imóveis já existentes.
- *
- * Não fazer redesign geral da aplicação.
- *
- * Não criar somente o front-end.
- *
- * RESULTADO ESPERADO
- *
- * Implementar completamente:
- *
- * Barra lateral → Obrigações PF → Nova obrigação → categorias múltiplas → vencimento → credenciais → acesso rápido → vínculo opcional com imóvel/rural → integração automática com Tarefas → envio e histórico de comprovantes.
- *
- * Implemente diretamente no código e banco existentes. Não responda apenas explicando o que será feito.
+ * Implemente diretamente. Não apenas descreva a alteração.
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
