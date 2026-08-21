@@ -437,7 +437,7 @@ export function AccessesManager() {
                   </div>
                 </form>
               </div>
-            </ScrollArea>
+            </div>
             <div className="flex justify-end gap-2 p-6 border-t bg-background">
               <Button
                 type="button"
