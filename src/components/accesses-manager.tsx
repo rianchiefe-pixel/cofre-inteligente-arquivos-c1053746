@@ -301,151 +301,158 @@ export function AccessesManager() {
                 {form.id ? "Editar acesso" : "Novo acesso às credenciais"}
               </DialogTitle>
             </DialogHeader>
-            <ScrollArea className="flex-1 p-6">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (save.isPending) return;
-                  save.mutate();
-                }}
-                className="space-y-6"
-              >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label>Serviço ou fornecedor *</Label>
-                    <div className="relative">
-                      <Landmark className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <ScrollArea className="flex-1">
+              <div className="p-6">
+                <form
+                  id="credential-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (save.isPending) return;
+                    save.mutate();
+                  }}
+                  className="space-y-6"
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Serviço ou fornecedor *</Label>
+                      <div className="relative">
+                        <Landmark className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          required
+                          className="pl-9"
+                          value={form.service}
+                          onChange={(e) => setForm({ ...form, service: e.target.value })}
+                          placeholder="Ex.: Neoenergia, Embasa, Prefeitura"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Link de acesso (URL)</Label>
+                      <div className="relative">
+                        <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          value={form.access_link}
+                          onChange={(e) => setForm({ ...form, access_link: e.target.value })}
+                          placeholder="https://..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Site principal</Label>
                       <Input
-                        required
-                        className="pl-9"
-                        value={form.service}
-                        onChange={(e) => setForm({ ...form, service: e.target.value })}
-                        placeholder="Ex.: Neoenergia, Embasa, Prefeitura"
+                        value={form.website}
+                        onChange={(e) => setForm({ ...form, website: e.target.value })}
+                        placeholder="exemplo.com.br"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Usuário / Login</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          value={form.login}
+                          onChange={(e) => setForm({ ...form, login: e.target.value })}
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Senha</Label>
+                      <div className="relative">
+                        <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          className="pl-9"
+                          value={form.password}
+                          onChange={(e) => setForm({ ...form, password: e.target.value })}
+                          autoComplete="new-password"
+                          placeholder={form.id ? "•••••••• (deixe vazio p/ manter)" : ""}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>E-mail de recuperação</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          type="email"
+                          value={form.recovery_email}
+                          onChange={(e) => setForm({ ...form, recovery_email: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2 p-4 border rounded-lg bg-muted/20">
+                      <Label className="flex items-center gap-2 mb-3">
+                        <Repeat className="h-4 w-4 text-primary" />
+                        Imóveis Vinculados
+                      </Label>
+                      <p className="text-xs text-muted-foreground mb-4">
+                        Selecione quais imóveis utilizam esta mesma credencial.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
+                        {allProperties.data?.map((p) => (
+                          <div key={p.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`prop-${p.id}`}
+                              checked={form.property_ids.includes(p.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setForm({ ...form, property_ids: [...form.property_ids, p.id] });
+                                } else {
+                                  setForm({
+                                    ...form,
+                                    property_ids: form.property_ids.filter((id) => id !== p.id),
+                                  });
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`prop-${p.id}`} className="text-xs truncate cursor-pointer">
+                              {p.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Observações sobre o acesso</Label>
+                      <Textarea
+                        rows={2}
+                        value={form.notes}
+                        onChange={(e) => setForm({ ...form, notes: e.target.value })}
                       />
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label>Link de acesso (URL)</Label>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-9"
-                        value={form.access_link}
-                        onChange={(e) => setForm({ ...form, access_link: e.target.value })}
-                        placeholder="https://..."
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Site principal</Label>
-                    <Input
-                      value={form.website}
-                      onChange={(e) => setForm({ ...form, website: e.target.value })}
-                      placeholder="exemplo.com.br"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Usuário / Login</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-9"
-                        value={form.login}
-                        onChange={(e) => setForm({ ...form, login: e.target.value })}
-                        autoComplete="off"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Senha</Label>
-                    <div className="relative">
-                      <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="password"
-                        className="pl-9"
-                        value={form.password}
-                        onChange={(e) => setForm({ ...form, password: e.target.value })}
-                        autoComplete="new-password"
-                        placeholder={form.id ? "•••••••• (deixe vazio p/ manter)" : ""}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label>E-mail de recuperação</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-9"
-                        type="email"
-                        value={form.recovery_email}
-                        onChange={(e) => setForm({ ...form, recovery_email: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 sm:col-span-2 p-4 border rounded-lg bg-muted/20">
-                    <Label className="flex items-center gap-2 mb-3">
-                      <Repeat className="h-4 w-4 text-primary" />
-                      Imóveis Vinculados
-                    </Label>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      Selecione quais imóveis utilizam esta mesma credencial.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
-                      {allProperties.data?.map((p) => (
-                        <div key={p.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`prop-${p.id}`}
-                            checked={form.property_ids.includes(p.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setForm({ ...form, property_ids: [...form.property_ids, p.id] });
-                              } else {
-                                setForm({
-                                  ...form,
-                                  property_ids: form.property_ids.filter((id) => id !== p.id),
-                                });
-                              }
-                            }}
-                          />
-                          <Label htmlFor={`prop-${p.id}`} className="text-xs truncate cursor-pointer">
-                            {p.name}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label>Observações sobre o acesso</Label>
-                    <Textarea
-                      rows={2}
-                      value={form.notes}
-                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4 border-t sticky bottom-0 bg-background pb-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={save.isPending}
-                    onClick={() => setOpen(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button type="submit" variant="premium" disabled={save.isPending}>
-                    {save.isPending ? "Salvando..." : "Salvar Acesso"}
-                  </Button>
-                </div>
-              </form>
+                </form>
+              </div>
             </ScrollArea>
+            <div className="flex justify-end gap-2 p-6 border-t bg-background">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={save.isPending}
+                onClick={() => setOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                form="credential-form"
+                type="submit" 
+                variant="premium" 
+                disabled={save.isPending}
+              >
+                {save.isPending ? "Salvando..." : "Salvar Acesso"}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
