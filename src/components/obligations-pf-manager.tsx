@@ -131,6 +131,7 @@ export function ObligationsPage() {
 
   const credentials = useQuery({
     queryKey: ["credentials-lookup"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => {
       const { data, error } = await sb
         .from("property_credentials")
@@ -140,6 +141,7 @@ export function ObligationsPage() {
       return data ?? [];
     },
   });
+
 
   const toggleReveal = async (id: string) => {
     if (revealed[id]) {
@@ -223,6 +225,7 @@ export function ObligationsPage() {
 
   const properties = useQuery({
     queryKey: ["all-properties-lookup"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => {
       const { data } = await sb.from("properties").select("id, name").order("name");
       return data ?? [];
@@ -231,6 +234,7 @@ export function ObligationsPage() {
 
   const categories = useQuery({
     queryKey: ["categories-lookup"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => {
       const { data } = await sb
         .from("categories")
@@ -240,6 +244,7 @@ export function ObligationsPage() {
       return data ?? [];
     },
   });
+
 
   const save = useMutation({
     mutationFn: async () => {
