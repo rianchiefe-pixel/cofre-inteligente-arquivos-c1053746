@@ -733,7 +733,7 @@ export function ObligationsPage() {
                               variant="ghost"
                               size="icon"
                               className="absolute right-0 top-0 h-full px-3"
-                              onClick={() => setRevealed((v) => ({ ...v, new_pass: !v.new_pass }))}
+                              onClick={() => setRevealed((v) => ({ ...v, new_pass: v.new_pass ? "" : "true" }))}
                             >
                               {revealed["new_pass"] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </Button>
