@@ -451,7 +451,10 @@ export function ObligationsPage() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[calc(100dvh-32px)] flex flex-col p-0 overflow-hidden">
             <DialogHeader className="flex-shrink-0 border-b p-6">
-              <DialogTitle>{form.id ? "Editar obrigação PF" : "Nova obrigação PF"}</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                {form.id ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                {form.id ? "Editar obrigação PF" : "Nova obrigação PF"}
+              </DialogTitle>
             </DialogHeader>
             <div className="min-h-0 flex-1 overflow-y-auto p-6">
               <form
