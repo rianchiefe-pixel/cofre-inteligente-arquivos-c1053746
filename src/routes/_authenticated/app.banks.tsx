@@ -42,9 +42,10 @@ function BanksPage() {
   const [removeAcc, setRemoveAcc] = useState<any | null>(null);
   const [reassign, setReassign] = useState("");
 
-  const profiles = useQuery({ queryKey: ["profiles"], queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
+  const profiles = useQuery({ queryKey: ["profiles"], staleTime: 1000 * 60 * 30, queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
   const banks = useQuery({
     queryKey: ["banks"],
+    staleTime: 1000 * 60 * 5,
     queryFn: async () => {
       const { data, error } = await supabase.from("banks").select("*, financial_profiles(name)").order("created_at");
       if (error) throw error;
@@ -53,12 +54,14 @@ function BanksPage() {
   });
   const accounts = useQuery({
     queryKey: ["accounts"],
+    staleTime: 1000 * 60 * 5,
     queryFn: async () => {
       const { data, error } = await supabase.from("accounts").select("*, banks(name), financial_profiles(name)").order("created_at");
       if (error) throw error;
       return data ?? [];
     },
   });
+
 
   const saveBank = useMutation({
     mutationFn: async () => {
