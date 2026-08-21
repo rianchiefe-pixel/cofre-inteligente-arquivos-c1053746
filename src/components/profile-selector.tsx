@@ -10,12 +10,14 @@ export function ProfileSelector() {
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["profiles"],
+    staleTime: 1000 * 60 * 30,
     queryFn: async () => {
       const { data, error } = await supabase.from("financial_profiles").select("id, name").order("name");
       if (error) throw error;
       return data || [];
     },
   });
+
 
   useEffect(() => {
     if (!activeProfileId && profiles && profiles.length > 0) {
