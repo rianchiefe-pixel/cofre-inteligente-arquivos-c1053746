@@ -21,168 +21,93 @@
  *
  * Faça o seguinte:
  *
- * NÃO ALTERE TEXTO DA HOME. NÃO MEXA EM src/routes/index.tsx A MENOS QUE ELE REALMENTE CONTENHA A LÓGICA DE UPLOAD.CORRIJA APENAS O ERRO FUNCIONAL DE RLS NO UPLOAD DE DOCUMENTOS. NÃO ALTERE O LAYOUT E NÃO DESATIVE A SEGURANÇA.
+ * MODO CONSTRUÇÃO — IMPLEMENTE DIRETAMENTE
  *
- * Ao enviar um documento em:
+ * Não explique o que pretende fazer, não crie apenas texto ou mockup e não altere funcionalidades fora do escopo abaixo. Faça as alterações no sistema existente.
  *
- * Imóveis → imóvel → Documentos → Novo documento
+ * OBJETIVO
  *
- * o sistema agora retorna:
+ * Criar na barra lateral uma nova opção chamada “Acessos”.
  *
- * new row violates row-level security policy
+ * Ao clicar em Acessos, abrir uma página centralizada para gerenciar todos os acessos relacionados aos imóveis, como:
  *
- * Isso significa que o upload ou o INSERT no banco está sendo bloqueado pelas políticas RLS.
+ * Energia elétrica
  *
- * FAÇA PRIMEIRO O DIAGNÓSTICO
+ * Água
  *
- * Localize exatamente qual operação está falhando:
+ * Internet
  *
- * upload no storage.objects;
+ * Condomínio
  *
- * INSERT na tabela de documentos;
+ * Gás
  *
- * INSERT na tabela de vínculo documento ↔ imóvel;
+ * IPTU
  *
- * ou outra tabela envolvida.
+ * Outros serviços/acessos
  *
- * Não faça alterações aleatórias.
+ * REGRA PRINCIPAL
  *
- * Inspecione a função de upload e identifique qual tabela/bucket gera o erro.
+ * O sistema já possui a funcionalidade de cadastrar acessos dentro de cada imóvel.
  *
- * CORREÇÃO OBRIGATÓRIA
+ * Não recrie essa lógica do zero. Localize o componente, campos, banco de dados e funcionamento já existentes e reutilize exatamente essa estrutura na nova página “Acessos”.
  *
- * O usuário autenticado deve poder:
+ * NOVA TELA “ACESSOS”
  *
- * enviar documentos;
+ * Criar uma tela bonita, organizada e seguindo exatamente o padrão visual atual do Meu Cofre.
  *
- * criar o registro do documento;
+ * Deve permitir:
  *
- * vinculá-lo ao imóvel;
+ * Visualizar todos os acessos cadastrados.
  *
- * visualizar;
+ * Buscar acessos.
  *
- * baixar;
+ * Filtrar por imóvel e tipo de acesso.
  *
- * editar;
+ * Criar novo acesso.
  *
- * excluir;
+ * Editar.
  *
- * somente quando tiver acesso ao perfil/imóvel correspondente.
+ * Excluir.
  *
- * A política precisa utilizar corretamente auth.uid() e os relacionamentos já existentes no Meu Cofre.
+ * Visualizar os dados do acesso.
  *
- * MUITO IMPORTANTE
+ * Ao cadastrar ou editar um acesso, incluir o campo:
  *
- * Verifique se o INSERT está enviando corretamente os campos necessários, como:
+ * “Imóveis vinculados”
  *
- * user_id / owner_id, se existentes;
+ * Permitir selecionar um ou vários imóveis.
  *
- * profile_id;
+ * SINCRONIZAÇÃO OBRIGATÓRIA
  *
- * property_id;
+ * Um acesso criado pela nova tela e vinculado a determinado imóvel deve aparecer automaticamente na área de Acessos daquele imóvel.
  *
- * created_by;
+ * Da mesma forma, um acesso criado diretamente dentro de um imóvel deve aparecer automaticamente na página geral “Acessos”.
  *
- * demais campos utilizados pelas policies atuais.
+ * É o mesmo registro, apenas visualizado em dois lugares.
  *
- * Pode estar acontecendo de a policy exigir um desses campos e o frontend estar enviando null ou um ID incorreto.
+ * Não criar registros duplicados.
  *
- * Não corrija apenas a policy sem conferir o payload do INSERT.
- *
- * STORAGE
- *
- * Se o erro estiver no Supabase Storage, verifique as policies do bucket utilizado pelos documentos.
- *
- * A política de INSERT deve permitir upload para usuário autenticado quando o arquivo estiver relacionado a um imóvel/perfil que ele pode acessar.
- *
- * O novo caminho já deve permanecer seguro, por exemplo:
- *
- * {propertyId}/{uuid}.pdf
- *
- * Não volte a usar o nome original do arquivo na key.
- *
- * BANCO DE DADOS
- *
- * Se o erro estiver na tabela de documentos, ajuste a policy de INSERT para validar o acesso ao imóvel/perfil.
- *
- * A lógica deve ser equivalente a:
- *
- * permitir INSERT se auth.uid() possuir acesso ao profile_id/property_id informado no novo registro.
- *
- * Utilize os relacionamentos reais já existentes no projeto.
- *
- * Não invente uma estrutura paralela.
- *
- * NÃO FAÇA
- *
- * NÃO:
- *
- * desative RLS;
- *
- * use USING (true) ou WITH CHECK (true) indiscriminadamente;
- *
- * torne o bucket público para resolver o problema;
- *
- * use service role key no frontend;
- *
- * remova autenticação;
- *
- * altere o design da página;
- *
- * crie dados mockados.
- *
- * A solução deve continuar segura.
- *
- * TRATE O FLUXO COMPLETO
- *
- * O fluxo correto deve ser:
- *
- * usuário autenticado
- * → imóvel autorizado
- * → upload no storage
- * → INSERT do documento
- * → vínculo com imóvel
- * → documento aparece na lista
- *
- * Se qualquer etapa posterior falhar depois do upload, faça rollback/cleanup para não deixar arquivo órfão no Storage.
- *
- * TESTE OBRIGATÓRIO
- *
- * Use um usuário autenticado e teste no mesmo imóvel:
- *
- * abrir Documentos;
- *
- * clicar em Novo documento;
- *
- * selecionar PDF;
- *
- * preencher título;
- *
- * enviar;
- *
- * não ocorrer mais new row violates row-level security policy;
- *
- * documento aparecer imediatamente;
- *
- * atualizar a página;
- *
- * documento continuar aparecendo;
- *
- * visualizar;
- *
- * baixar;
- *
- * adicionar um segundo documento;
- *
- * excluir um documento.
- *
- * Também confirme que um usuário sem acesso ao imóvel NÃO consegue acessar seus documentos.
+ * Se o acesso for editado em qualquer uma das telas, a alteração deve aparecer imediatamente na outra.
  *
  * IMPORTANTE
  *
- * Não me responda apenas dizendo que alterou uma policy. Identifique primeiro qual operação está sendo bloqueada e corrija o RLS + payload do INSERT de forma compatível com a estrutura atual do Meu Cofre.
+ * Preserve todos os acessos já cadastrados.
  *
- * Não considere concluído até realizar um upload real com sucesso.
+ * Reutilize os campos e regras que já existem no sistema.
+ *
+ * Mantenha senhas/dados sensíveis protegidos ou mascarados conforme já funciona atualmente.
+ *
+ * Não altere a tela Gastos Fixos.
+ *
+ * Não altere a tela Imóveis, exceto o necessário para manter a sincronização dos acessos.
+ *
+ * Não mexa em outras funcionalidades.
+ *
+ * Não faça redesign geral.
+ *
+ * Não remova nada existente.
+ *
+ * Entregue a funcionalidade completa e operacional, não apenas a interface.
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
