@@ -294,14 +294,14 @@ export function AccessesManager() {
               <Plus className="mr-2 h-4 w-4" /> Novo acesso
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
-            <DialogHeader className="p-6 pb-0">
+          <DialogContent className="max-w-2xl max-h-[calc(100dvh-32px)] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="p-6 pb-0 flex-shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5 text-primary" />
                 {form.id ? "Editar acesso" : "Novo acesso às credenciais"}
               </DialogTitle>
             </DialogHeader>
-            <ScrollArea className="flex-1">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
               <div className="p-6">
                 <form
                   id="credential-form"
