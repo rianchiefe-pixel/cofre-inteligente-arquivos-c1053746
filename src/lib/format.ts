@@ -270,6 +270,13 @@ export const obligationKindLabel: Record<string, string> = {
   taxa_municipal: "Taxa municipal",
   taxa_estadual: "Taxa estadual",
   taxa_federal: "Taxa federal",
+  irpf: "Imposto de Renda (IRPF)",
+  itr: "ITR (Imposto Territorial Rural)",
+  inss: "INSS",
+  certificado_digital: "Certificado Digital",
+  taxa: "Taxa",
+  servico: "Serviço",
+  outro_pf: "Obrigação Pessoal",
   outro: "Outra obrigação",
 };
 
