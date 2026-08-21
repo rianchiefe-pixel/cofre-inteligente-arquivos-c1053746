@@ -247,6 +247,25 @@ export function ObligationsPage() {
       const userId = userData.user?.id;
       if (!userId) throw new Error("Não autenticado");
 
+      let finalCredentialId = form.credential_id;
+
+      // Handle New Credential creation
+      if (form.access_mode === "new" && form.cred_password) {
+        const credRes = await saveCredential({
+          data: {
+            service: form.cred_service || form.label || obligationKindLabel[form.kind] || "Obrigação PF",
+            website: form.cred_website || null,
+            login: form.cred_login || null,
+            recovery_email: form.cred_recovery_email || null,
+            password: form.cred_password,
+            property_id: form.property_id === "none" ? "00000000-0000-0000-0000-000000000000" : form.property_id,
+            property_ids: form.property_id === "none" ? [] : [form.property_id],
+            notes: `Criado via Obrigação PF: ${form.label || form.kind}`,
+          },
+        });
+        finalCredentialId = credRes.id;
+      }
+
       const payload: any = {
         user_id: userId,
         is_personal: true,
@@ -260,6 +279,7 @@ export function ObligationsPage() {
         status: form.status,
         document_url: form.document_url || null,
         notes: form.notes || null,
+        credential_id: finalCredentialId,
       };
 
       let obligationId = form.id;
