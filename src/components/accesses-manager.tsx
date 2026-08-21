@@ -95,6 +95,15 @@ export function AccessesManager() {
   const [copied, setCopied] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [propertyFilter, setPropertyFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    return (localStorage.getItem("accesses-view-mode") as "grid" | "list") || "grid";
+  });
+
+  const toggleViewMode = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("accesses-view-mode", mode);
+  };
+
 
   const saveCredential = useServerFn(savePropertyCredential);
   const revealCredential = useServerFn(revealPropertyCredential);
