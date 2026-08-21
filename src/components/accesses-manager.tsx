@@ -30,7 +30,10 @@ import {
   Mail,
   Repeat,
   Filter,
+  LayoutGrid,
+  List,
 } from "lucide-react";
+
 import {
   Dialog,
   DialogContent,
