@@ -390,38 +390,41 @@ export function AccessesManager() {
                       </div>
                     </div>
 
-                    <div className="space-y-2 sm:col-span-2 p-4 border rounded-lg bg-muted/20">
-                      <Label className="flex items-center gap-2 mb-3">
-                        <Repeat className="h-4 w-4 text-primary" />
-                        Imóveis Vinculados
-                      </Label>
-                      <p className="text-xs text-muted-foreground mb-4">
-                        Selecione quais imóveis utilizam esta mesma credencial.
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
-                        {allProperties.data?.map((p) => (
-                          <div key={p.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`prop-${p.id}`}
-                              checked={form.property_ids.includes(p.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setForm({ ...form, property_ids: [...form.property_ids, p.id] });
-                                } else {
-                                  setForm({
-                                    ...form,
-                                    property_ids: form.property_ids.filter((id) => id !== p.id),
-                                  });
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`prop-${p.id}`} className="text-xs truncate cursor-pointer">
-                              {p.name}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="space-y-2 sm:col-span-2 p-4 border rounded-lg bg-muted/20">
+                    <Label className="flex items-center gap-2 mb-3">
+                      <Repeat className="h-4 w-4 text-primary" />
+                      Imóveis Vinculados
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Selecione quais imóveis utilizam esta mesma credencial.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {allProperties.data?.map((p) => (
+                        <div key={p.id} className="flex items-center space-x-2 py-1">
+                          <Checkbox
+                            id={`prop-${p.id}`}
+                            checked={form.property_ids.includes(p.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setForm({ ...form, property_ids: [...form.property_ids, p.id] });
+                              } else {
+                                setForm({
+                                  ...form,
+                                  property_ids: form.property_ids.filter((id) => id !== p.id),
+                                });
+                              }
+                            }}
+                          />
+                          <Label 
+                            htmlFor={`prop-${p.id}`} 
+                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {p.name}
+                          </Label>
+                        </div>
+                      ))}
                     </div>
+                  </div>
 
                     <div className="space-y-2 sm:col-span-2">
                       <Label>Observações sobre o acesso</Label>
