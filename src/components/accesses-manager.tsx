@@ -56,9 +56,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LoadingState } from "@/components/loading-state";
-import { ErrorState } from "@/components/error-state";
-import { EmptyState } from "@/components/empty-state";
+import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 
 type CredForm = {
   id?: string;
