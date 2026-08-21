@@ -683,6 +683,22 @@ export function ObligationsPage() {
 
                   {form.access_mode === "new" && (
                     <div className="space-y-4 pt-2 grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Serviço / Nome do Acesso</Label>
+                        <Input
+                          value={form.cred_service}
+                          onChange={(e) => setForm({ ...form, cred_service: e.target.value })}
+                          placeholder="Ex: Gov.br, Netflix, etc"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>URL / Link do site</Label>
+                        <Input
+                          value={form.cred_website}
+                          onChange={(e) => setForm({ ...form, cred_website: e.target.value })}
+                          placeholder="https://..."
+                        />
+                      </div>
                       <div className="space-y-2 sm:col-span-2">
                         <Label>E-mail de acesso</Label>
                         <div className="flex gap-2">
