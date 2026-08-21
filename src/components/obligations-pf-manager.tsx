@@ -198,7 +198,7 @@ export function ObligationsPage() {
     queryFn: async () => {
       const { data, error } = await sb
         .from("property_obligations")
-        .select("*")
+        .select("*, property_credentials(login, recovery_email, service)")
         .eq("is_personal", true)
         .order("due_date", { ascending: true, nullsFirst: false });
       if (error) throw error;
