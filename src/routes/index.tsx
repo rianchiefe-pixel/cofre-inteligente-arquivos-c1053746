@@ -21,145 +21,129 @@
  *
  * Faça o seguinte:
  *
- * ATENÇÃO — MODO CONSTRUÇÃO
+ * MODO CONSTRUÇÃO — IMPLEMENTE NO SISTEMA REAL
  *
- * Entre em MODO CONSTRUÇÃO.
  * NÃO use Fast Visual Edit.
  * NÃO altere src/routes/index.tsx.
- * Implemente a funcionalidade real no formulário de Nova obrigação PF, banco e componentes existentes.
+ * Não faça apenas mudança visual ou de texto. Implemente a funcionalidade real no código e no banco já existentes.
  *
- * CORREÇÃO NECESSÁRIA
+ * CORREÇÃO NA TELA “COFRE DE COMPROVANTES”
  *
- * No formulário “Nova obrigação PF”, faltaram os dados de acesso.
+ * Na barra de ações em lote que aparece quando vários comprovantes estão selecionados, atualmente existem ações como:
  *
- * Logo após URL / Link do documento, adicione:
+ * Aprovar
  *
- * E-mail de acesso
+ * Rejeitar
  *
- * Usuário / Login
+ * Marcar duplicado
  *
- * Senha
+ * Arquivar
  *
- * A senha deve ter:
+ * Excluir
  *
- * mostrar/ocultar;
+ * Alterar categoria
  *
- * copiar;
+ * Alterar perfil
  *
- * armazenamento seguro seguindo o mesmo padrão da área Acessos.
+ * Alterar banco
  *
- * E-mail e usuário também devem possuir botão de copiar.
+ * Alterar tipo
  *
- * ACESSO REUTILIZÁVEL
+ * Está faltando a ação:
  *
- * Adicionar uma opção:
+ * Vincular imóvel
  *
- * ☐ Permitir usar este acesso em outras Obrigações PF
+ * Adicione essa nova opção no mesmo padrão visual dos demais controles.
  *
- * Quando marcada, essas credenciais devem ficar disponíveis para serem reutilizadas em outras obrigações PF.
+ * FUNCIONAMENTO
  *
- * Não duplique os dados de acesso.
- * Crie/reutilize uma estrutura central de credenciais e faça as obrigações referenciarem esse acesso.
+ * Quando houver um ou vários comprovantes selecionados e o usuário clicar em Vincular imóvel:
  *
- * AO CADASTRAR UMA NOVA OBRIGAÇÃO
+ * Abrir um seletor com os imóveis já cadastrados no sistema.
  *
- * Na área de credenciais, oferecer duas opções claras:
+ * O campo deve permitir pesquisar o imóvel pelo nome.
  *
- * 1. Usar acesso existente
+ * Selecionar o imóvel desejado.
  *
- * Campo pesquisável:
+ * Confirmar a alteração.
  *
- * Selecionar acesso já cadastrado
- *
- * Permitir pesquisar por:
- *
- * nome/serviço;
- *
- * e-mail;
- *
- * usuário/login.
- *
- * Ao selecionar um acesso existente, preencher/vincular automaticamente:
- *
- * URL;
- *
- * e-mail;
- *
- * usuário/login;
- *
- * senha.
- *
- * A obrigação deve ficar vinculada ao mesmo acesso, sem criar cópia.
- *
- * 2. Cadastrar novo acesso
- *
- * Se não quiser usar um existente, permitir preencher normalmente:
- *
- * URL;
- *
- * e-mail;
- *
- * usuário/login;
- *
- * senha;
- *
- * checkbox “Permitir usar este acesso em outras Obrigações PF”.
- *
- * REGRA IMPORTANTE
- *
- * Um mesmo acesso pode servir para várias Obrigações PF.
+ * Vincular todos os comprovantes selecionados ao imóvel escolhido de uma única vez.
  *
  * Exemplo:
  *
- * Acesso Gov.br
- * → Imposto de Renda
- * → INSS
- * → Receita Federal
- * → outras obrigações
+ * 45 comprovantes selecionados → Vincular imóvel → Sala Comercial Leila → Confirmar
  *
- * Se a senha/login desse acesso for alterada posteriormente, todas as Obrigações PF vinculadas devem usar automaticamente a informação atualizada.
+ * Resultado: os 45 registros passam a ficar vinculados ao imóvel Sala Comercial Leila.
  *
- * Não quero várias cópias da mesma senha espalhadas pelo banco.
+ * REGRAS IMPORTANTES
  *
- * EXPERIÊNCIA VISUAL
+ * Reutilize exatamente o mesmo campo/relação de imóvel já usado na edição individual do comprovante.
  *
- * Deixe a escolha simples:
+ * Não crie uma segunda informação de imóvel.
  *
- * Acesso da obrigação
+ * A alteração deve refletir imediatamente:
  *
- * ○ Usar acesso existente
+ * na coluna Imóvel desta tela;
  *
- * ○ Cadastrar novo acesso
+ * nos filtros por imóvel;
  *
- * Se escolher Usar acesso existente, exiba o seletor pesquisável.
+ * nos relatórios;
  *
- * Se escolher Cadastrar novo acesso, exiba os campos de credencial.
+ * na área do respectivo imóvel;
  *
- * Mantenha o visual atual do modal.
+ * em qualquer outro local que já utilize o vínculo existente.
  *
- * NÃO ALTERAR
+ * Deve funcionar para qualquer quantidade de itens selecionados.
  *
- * Não mexer na lógica de categorias.
+ * Não alterar categoria, perfil, banco, tipo ou qualquer outro dado dos comprovantes.
  *
- * Não mexer em vencimentos.
+ * Se algum registro já possuir outro imóvel, o novo imóvel selecionado deve substituir o vínculo anterior somente após confirmação.
  *
- * Não mexer nas Tarefas.
+ * CONFIRMAÇÃO
  *
- * Não remover campos existentes.
+ * Antes de executar, mostrar algo como:
  *
- * Não alterar outras páginas.
+ * “Vincular 45 comprovantes ao imóvel ‘Sala Comercial Leila’?”
+ *
+ * Botões:
+ *
+ * Cancelar | Confirmar vínculo
+ *
+ * Após concluir, mostrar feedback:
+ *
+ * “45 comprovantes vinculados ao imóvel com sucesso.”
+ *
+ * POSIÇÃO NA INTERFACE
+ *
+ * Adicionar Vincular imóvel junto aos controles:
+ *
+ * Alterar categoria | Alterar perfil | Alterar banco | Alterar tipo | Vincular imóvel
+ *
+ * Mantenha o padrão visual atual e garanta responsividade, sem estourar a largura da tela.
+ *
+ * NÃO FAZER
  *
  * Não usar Fast Visual Edit.
  *
- * Não editar src/routes/index.tsx.
+ * Não alterar src/routes/index.tsx.
  *
- * TESTE ANTES DE CONCLUIR
+ * Não criar nova tela.
  *
- * Teste este fluxo:
+ * Não redesenhar o Cofre.
  *
- * Nova obrigação PF → escolher “Cadastrar novo acesso” → preencher URL/e-mail/login/senha → marcar “Permitir usar em outras Obrigações PF” → salvar → criar outra obrigação PF → escolher “Usar acesso existente” → pesquisar e selecionar o acesso anterior → salvar sem redigitar as credenciais.
+ * Não criar nova estrutura de imóveis.
  *
- * Implemente diretamente. Não apenas descreva a alteração.
+ * Não modificar os comprovantes que não estiverem selecionados.
+ *
+ * Não quebrar as ações em lote existentes.
+ *
+ * TESTE OBRIGATÓRIO
+ *
+ * Antes de concluir, teste:
+ *
+ * selecionar vários comprovantes → Vincular imóvel → pesquisar imóvel → selecionar → confirmar → verificar se todos os registros receberam o imóvel e se a coluna/filtro foram atualizados.
+ *
+ * Implemente diretamente em MODO CONSTRUÇÃO.
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
