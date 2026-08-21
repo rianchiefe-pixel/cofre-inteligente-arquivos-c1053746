@@ -803,30 +803,33 @@ export function ObligationsPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((o: any) => (
             <Card key={o.id} className="flex flex-col gap-3 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">
-                    {o.label || obligationKindLabel[o.kind] || o.kind}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
+              <div className="flex items-start justify-between gap-2 border-b border-border/50 pb-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-bold text-slate-900">
+                      {o.label || obligationKindLabel[o.kind] || o.kind}
+                    </p>
+                  </div>
+                  <p className="truncate text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
                     {obligationKindLabel[o.kind] ?? o.kind}
                     {o.supplier ? ` · ${o.supplier}` : ""}
                   </p>
                 </div>
-                <div className="flex shrink-0 gap-1">
+                <div className="flex shrink-0 items-center">
                   {o.document_url && (
                     <a href={o.document_url} target="_blank" rel="noreferrer">
-                      <Button variant="ghost" size="icon">
-                        <ExternalLink className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <ExternalLink className="h-4 w-4 text-slate-600" />
                       </Button>
                     </a>
                   )}
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(o)}>
-                    <Pencil className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(o)}>
+                    <Pencil className="h-4 w-4 text-slate-600" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="h-8 w-8"
                     onClick={() => remove.mutate(o.id)}
                     disabled={remove.isPending}
                   >
@@ -834,6 +837,67 @@ export function ObligationsPage() {
                   </Button>
                 </div>
               </div>
+
+              {o.credential_id && (
+                <div className="rounded-md bg-slate-50 p-2.5 border border-slate-100">
+                  <div className="flex items-center gap-2 mb-2 text-primary">
+                    <Lock className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-tight">Dados de Acesso</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Acesso:</span>
+                      <div className="flex items-center gap-1.5 font-mono text-slate-700">
+                        <span className="truncate max-w-[120px]">{o.credential_id}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 hover:bg-slate-200"
+                          onClick={() => {
+                            // Encontrar a credencial para pegar o login real (precisaríamos buscar no list ou ter um join)
+                            // Por ora vamos mostrar apenas os botões se tivermos o ID
+                          }}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Senha:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-slate-700">
+                          {revealed[o.credential_id] ?? "••••••••"}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 hover:bg-slate-200"
+                          disabled={revealing === o.credential_id}
+                          onClick={() => toggleReveal(o.credential_id)}
+                        >
+                          {revealed[o.credential_id] ? (
+                            <EyeOff className="h-3 w-3" />
+                          ) : (
+                            <Eye className="h-3 w-3" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 hover:bg-slate-200"
+                          onClick={() => copyPassword(o.credential_id)}
+                        >
+                          {copied === o.credential_id + "_p" ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="secondary">
