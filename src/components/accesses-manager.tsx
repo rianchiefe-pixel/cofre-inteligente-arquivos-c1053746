@@ -501,7 +501,7 @@ export function AccessesManager() {
           title="Nenhum acesso encontrado"
           description="Experimente ajustar os filtros ou cadastrar um novo acesso."
         />
-      ) : (
+      ) : viewMode === "grid" ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredData.map((c: any) => (
             <div key={c.id} className="rounded-xl border border-border/60 bg-muted/30 p-4 flex flex-col">
@@ -603,7 +603,107 @@ export function AccessesManager() {
             </div>
           ))}
         </div>
+      ) : (
+        <div className="rounded-xl border border-border/60 bg-muted/10 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b">
+                <tr>
+                  <th className="px-4 py-3">Serviço</th>
+                  <th className="px-4 py-3">Login</th>
+                  <th className="px-4 py-3">Senha</th>
+                  <th className="px-4 py-3">Imóveis</th>
+                  <th className="px-4 py-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredData.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{c.service}</p>
+                        {c.website && <p className="text-[10px] text-muted-foreground truncate">{c.website}</p>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <span className="truncate font-mono text-xs">{c.login || "-"}</span>
+                        {c.login && (
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copy(c.id + "_l", c.login)}>
+                            {copied === c.id + "_l" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <span className="truncate font-mono text-xs">{revealed[c.id] ?? "••••••••"}</span>
+                        <div className="flex items-center">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            disabled={revealing === c.id}
+                            onClick={() => toggleReveal(c.id)}
+                          >
+                            {revealed[c.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyPassword(c.id)}>
+                            {copied === c.id + "_p" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {c.links?.map((l: any) => (
+                          <Badge key={l.property_id} variant="secondary" className="text-[9px] py-0 px-1 whitespace-nowrap">
+                            {l.properties?.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {c.access_link && (
+                          <a href={c.access_link} target="_blank" rel="noreferrer" className="p-2 text-muted-foreground hover:text-foreground">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(c)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir acesso?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Essa ação excluirá a credencial e todos os seus vínculos. Não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => remove.mutate(c.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
+
     </div>
   );
 }
