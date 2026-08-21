@@ -21,130 +21,289 @@
  *
  * Faça o seguinte:
  *
- * MODO CONSTRUÇÃO — IMPLEMENTE NO SISTEMA REAL
+ * MODO CONSTRUÇÃO — OTIMIZAÇÃO DE PERFORMANCE
  *
+ * Entre em MODO CONSTRUÇÃO.
  * NÃO use Fast Visual Edit.
- * NÃO altere src/routes/index.tsx.
- * Não faça apenas mudança visual ou de texto. Implemente a funcionalidade real no código e no banco já existentes.
+ * NÃO altere src/routes/index.tsx apenas para simular a correção.
  *
- * CORREÇÃO NA TELA “COFRE DE COMPROVANTES”
+ * Quero somente melhorar a velocidade e a fluidez do sistema existente.
  *
- * Na barra de ações em lote que aparece quando vários comprovantes estão selecionados, atualmente existem ações como:
+ * REGRA ABSOLUTA
  *
- * Aprovar
+ * NÃO APAGUE, NÃO EXCLUA E NÃO ALTERE NENHUM DADO EXISTENTE.
  *
- * Rejeitar
+ * Não excluir:
  *
- * Marcar duplicado
+ * comprovantes;
  *
- * Arquivar
+ * despesas;
  *
- * Excluir
+ * categorias;
  *
- * Alterar categoria
+ * imóveis;
  *
- * Alterar perfil
+ * acessos;
  *
- * Alterar banco
+ * usuários;
  *
- * Alterar tipo
+ * perfis;
  *
- * Está faltando a ação:
+ * documentos;
  *
- * Vincular imóvel
+ * tarefas;
  *
- * Adicione essa nova opção no mesmo padrão visual dos demais controles.
+ * obrigações;
  *
- * FUNCIONAMENTO
+ * registros históricos;
  *
- * Quando houver um ou vários comprovantes selecionados e o usuário clicar em Vincular imóvel:
+ * arquivos;
  *
- * Abrir um seletor com os imóveis já cadastrados no sistema.
+ * relacionamentos existentes.
  *
- * O campo deve permitir pesquisar o imóvel pelo nome.
+ * Não faça reset, limpeza, truncate, recriação de tabelas ou migração destrutiva.
  *
- * Selecionar o imóvel desejado.
+ * Faça backup lógico/garanta migrations seguras antes de qualquer alteração estrutural.
  *
- * Confirmar a alteração.
+ * PROBLEMA ATUAL
  *
- * Vincular todos os comprovantes selecionados ao imóvel escolhido de uma única vez.
+ * Ao clicar nas opções da barra lateral, como:
  *
- * Exemplo:
+ * Dashboard, Perfis, Imóveis, Obrigações PF, Acessos, Tarefas, Bancos e contas, Cartões, Cofre etc.
  *
- * 45 comprovantes selecionados → Vincular imóvel → Sala Comercial Leila → Confirmar
+ * a página demora alguns segundos para abrir.
  *
- * Resultado: os 45 registros passam a ficar vinculados ao imóvel Sala Comercial Leila.
+ * Quero que a navegação fique muito mais rápida, preferencialmente com sensação quase imediata.
  *
- * REGRAS IMPORTANTES
+ * FAÇA UMA AUDITORIA DE PERFORMANCE
  *
- * Reutilize exatamente o mesmo campo/relação de imóvel já usado na edição individual do comprovante.
+ * Antes de alterar, identifique exatamente o que está causando a lentidão.
  *
- * Não crie uma segunda informação de imóvel.
+ * Verifique principalmente:
  *
- * A alteração deve refletir imediatamente:
+ * consultas ao banco executadas ao trocar de página;
  *
- * na coluna Imóvel desta tela;
+ * consultas repetidas/desnecessárias;
  *
- * nos filtros por imóvel;
+ * componentes sendo renderizados várias vezes;
  *
- * nos relatórios;
+ * carregamento de grandes volumes de registros sem necessidade;
  *
- * na área do respectivo imóvel;
+ * chamadas sequenciais que poderiam ocorrer em paralelo;
  *
- * em qualquer outro local que já utilize o vínculo existente.
+ * filtros que consultam tabelas inteiras;
  *
- * Deve funcionar para qualquer quantidade de itens selecionados.
+ * ausência de cache;
  *
- * Não alterar categoria, perfil, banco, tipo ou qualquer outro dado dos comprovantes.
+ * ausência de índices no banco;
  *
- * Se algum registro já possuir outro imóvel, o novo imóvel selecionado deve substituir o vínculo anterior somente após confirmação.
+ * componentes pesados carregados antes de serem necessários;
  *
- * CONFIRMAÇÃO
+ * requisições duplicadas;
  *
- * Antes de executar, mostrar algo como:
+ * imagens/arquivos carregados desnecessariamente;
  *
- * “Vincular 45 comprovantes ao imóvel ‘Sala Comercial Leila’?”
+ * subscriptions/listeners duplicados;
  *
- * Botões:
+ * dependências pesadas no carregamento inicial.
  *
- * Cancelar | Confirmar vínculo
+ * Não adivinhe o problema. Identifique primeiro o gargalo real.
  *
- * Após concluir, mostrar feedback:
+ * OTIMIZAÇÕES PERMITIDAS
  *
- * “45 comprovantes vinculados ao imóvel com sucesso.”
+ * Implemente, quando tecnicamente adequado:
  *
- * POSIÇÃO NA INTERFACE
+ * 1. Cache de dados
  *
- * Adicionar Vincular imóvel junto aos controles:
+ * Use cache para informações que não precisam ser buscadas novamente toda vez que o usuário troca de aba.
  *
- * Alterar categoria | Alterar perfil | Alterar banco | Alterar tipo | Vincular imóvel
+ * Exemplos:
  *
- * Mantenha o padrão visual atual e garanta responsividade, sem estourar a largura da tela.
+ * imóveis;
+ *
+ * categorias;
+ *
+ * perfis;
+ *
+ * bancos;
+ *
+ * informações auxiliares.
+ *
+ * 2. Prefetch
+ *
+ * Quando possível, faça prefetch das principais rotas/dados para que a próxima tela já esteja preparada quando o usuário clicar.
+ *
+ * 3. Lazy loading
+ *
+ * Não carregue módulos pesados antes de serem necessários.
+ *
+ * Use carregamento sob demanda para:
+ *
+ * páginas;
+ *
+ * modais;
+ *
+ * relatórios;
+ *
+ * visualizadores;
+ *
+ * componentes pesados.
+ *
+ * 4. Consultas ao banco
+ *
+ * Otimize queries para buscar somente os campos e registros necessários.
+ *
+ * Evite:
+ *
+ * select * desnecessário;
+ *
+ * carregar milhares de registros para depois filtrar no frontend;
+ *
+ * consultas repetidas para os mesmos dados.
+ *
+ * 5. Paginação
+ *
+ * Telas com muitos comprovantes, despesas ou registros devem utilizar paginação ou carregamento progressivo corretamente.
+ *
+ * Não carregar toda a base de dados ao abrir uma página.
+ *
+ * 6. Índices
+ *
+ * Analise as consultas mais frequentes e, se necessário, crie índices seguros e não destrutivos no banco para campos utilizados em:
+ *
+ * profile_id;
+ *
+ * property_id;
+ *
+ * datas;
+ *
+ * status;
+ *
+ * categorias;
+ *
+ * banco;
+ *
+ * usuário;
+ *
+ * campos frequentemente usados em filtros e relacionamentos.
+ *
+ * Nunca remover dados para criar índices.
+ *
+ * 7. React
+ *
+ * Verifique:
+ *
+ * renders desnecessários;
+ *
+ * dependências incorretas em useEffect;
+ *
+ * chamadas duplicadas;
+ *
+ * queries disparando várias vezes;
+ *
+ * componentes que poderiam usar memoização;
+ *
+ * estado global provocando renderização da aplicação inteira.
+ *
+ * Corrija apenas onde houver benefício real.
+ *
+ * EXPERIÊNCIA DE NAVEGAÇÃO
+ *
+ * Ao clicar em uma opção da barra lateral:
+ *
+ * a troca de rota deve acontecer imediatamente;
+ *
+ * o layout deve aparecer rapidamente;
+ *
+ * dados que ainda estiverem carregando podem usar skeleton discreto;
+ *
+ * não deixe a tela inteira travada aguardando uma única consulta;
+ *
+ * dados independentes devem carregar em paralelo.
+ *
+ * A barra lateral deve continuar responsiva durante o carregamento.
+ *
+ * MUITO IMPORTANTE
+ *
+ * Performance não pode ser conseguida removendo funcionalidades ou dados.
+ *
+ * Tudo que existe hoje deve continuar funcionando exatamente como antes:
+ *
+ * filtros;
+ *
+ * pesquisas;
+ *
+ * edição;
+ *
+ * exclusão manual feita pelo usuário;
+ *
+ * comprovantes;
+ *
+ * vínculos;
+ *
+ * relatórios;
+ *
+ * imóveis;
+ *
+ * categorias;
+ *
+ * tarefas;
+ *
+ * acessos;
+ *
+ * Obrigações PF.
+ *
+ * Apenas faça o sistema trabalhar de maneira mais eficiente.
+ *
+ * TESTE OBRIGATÓRIO
+ *
+ * Compare ANTES e DEPOIS o tempo de abertura das principais áreas:
+ *
+ * Dashboard
+ *
+ * Perfis
+ *
+ * Imóveis
+ *
+ * Obrigações PF
+ *
+ * Acessos
+ *
+ * Tarefas
+ *
+ * Bancos e contas
+ *
+ * Cartões
+ *
+ * Cofre
+ *
+ * Identifique quais estavam lentas e confirme que houve redução real no tempo de carregamento.
+ *
+ * Também teste várias trocas consecutivas entre as telas para verificar se o sistema reaproveita dados já carregados em vez de refazer todas as consultas.
  *
  * NÃO FAZER
  *
  * Não usar Fast Visual Edit.
  *
- * Não alterar src/routes/index.tsx.
+ * Não fazer redesign.
  *
- * Não criar nova tela.
+ * Não apagar dados.
  *
- * Não redesenhar o Cofre.
+ * Não limpar tabelas.
  *
- * Não criar nova estrutura de imóveis.
+ * Não resetar banco.
  *
- * Não modificar os comprovantes que não estiverem selecionados.
+ * Não remover funcionalidades.
  *
- * Não quebrar as ações em lote existentes.
+ * Não alterar conteúdo apenas para parecer mais rápido.
  *
- * TESTE OBRIGATÓRIO
+ * Não modificar regras financeiras existentes.
  *
- * Antes de concluir, teste:
+ * Não recriar o projeto do zero.
  *
- * selecionar vários comprovantes → Vincular imóvel → pesquisar imóvel → selecionar → confirmar → verificar se todos os registros receberam o imóvel e se a coluna/filtro foram atualizados.
- *
- * Implemente diretamente em MODO CONSTRUÇÃO.
+ * Otimize o sistema atual de forma segura, preservando 100% dos dados e funcionalidades. Implemente diretamente no código real.
  */
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link, createFileRoute } from "@tanstack/react-router";
