@@ -87,6 +87,15 @@ function PropertiesPage() {
   const [fStatus, setFStatus] = useState("all");
   const [fType, setFType] = useState("all");
   const [fCity, setFCity] = useState("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    return (localStorage.getItem("properties-view-mode") as "grid" | "list") || "grid";
+  });
+
+  const toggleViewMode = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("properties-view-mode", mode);
+  };
+
 
   const profiles = useQuery({ queryKey: ["profiles"], staleTime: 1000 * 60 * 30, queryFn: async () => (await supabase.from("financial_profiles").select("id, name").order("name")).data ?? [] });
 
@@ -379,8 +388,29 @@ function PropertiesPage() {
               </SelectContent>
             </Select>
           )}
+          <div className="flex items-center gap-1 rounded-lg border bg-background p-1 md:col-start-5">
+            <Button
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => toggleViewMode("grid")}
+              title="Visualização em Grade"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => toggleViewMode("list")}
+              title="Visualização em Lista"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </Card>
+
 
       {list.isLoading ? (
         <LoadingState label="Carregando imóveis…" />
@@ -397,80 +427,162 @@ function PropertiesPage() {
           description="Cadastre um imóvel para acompanhar despesas, reformas, locações e investimentos."
         />
       ) : filtered.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((p: any) => {
-            const t = totals.data?.get(p.id) ?? { spent: 0, invested: 0 };
-            return (
-              <Card key={p.id} className="overflow-hidden">
-                {p.cover_url ? (
-                  <div className="h-32 w-full bg-muted" style={{ backgroundImage: `url(${p.cover_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                ) : (
-                  <div className="h-2" style={{ background: p.financial_profiles?.color ?? "#1e3a8a" }} />
-                )}
-                <div className="p-5">
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground">
-                        <Home className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-foreground">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">{propertyTypeLabel[p.type] ?? p.type}</p>
-                      </div>
-                    </div>
-                    <Badge className={`shrink-0 ${STATUS_TONE[p.status] ?? "bg-secondary text-secondary-foreground"}`}>{propertyStatusLabel[p.status] ?? p.status}</Badge>
-                  </div>
-                  {(p.address || p.city) && (
-                    <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
-                      <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-                      <span className="min-w-0 truncate">{[p.address, p.city, p.state].filter(Boolean).join(", ")}</span>
-                    </p>
+        viewMode === "grid" ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((p: any) => {
+              const t = totals.data?.get(p.id) ?? { spent: 0, invested: 0 };
+              return (
+                <Card key={p.id} className="overflow-hidden">
+                  {p.cover_url ? (
+                    <div className="h-32 w-full bg-muted" style={{ backgroundImage: `url(${p.cover_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                  ) : (
+                    <div className="h-2" style={{ background: p.financial_profiles?.color ?? "#1e3a8a" }} />
                   )}
-                  {p.financial_profiles?.name && <p className="mt-1 text-xs text-muted-foreground">Perfil: {p.financial_profiles.name}</p>}
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-lg bg-muted/40 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Gasto</p>
-                      <p className="text-sm font-semibold">{currencyBRL(t.spent)}</p>
+                  <div className="p-5">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground">
+                          <Home className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-foreground">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">{propertyTypeLabel[p.type] ?? p.type}</p>
+                        </div>
+                      </div>
+                      <Badge className={`shrink-0 ${STATUS_TONE[p.status] ?? "bg-secondary text-secondary-foreground"}`}>{propertyStatusLabel[p.status] ?? p.status}</Badge>
                     </div>
-                    <div className="rounded-lg bg-muted/40 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Investido</p>
-                      <p className="text-sm font-semibold">{currencyBRL(t.invested)}</p>
+                    {(p.address || p.city) && (
+                      <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+                        <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span className="min-w-0 truncate">{[p.address, p.city, p.state].filter(Boolean).join(", ")}</span>
+                      </p>
+                    )}
+                    {p.financial_profiles?.name && <p className="mt-1 text-xs text-muted-foreground">Perfil: {p.financial_profiles.name}</p>}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-muted/40 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Gasto</p>
+                        <p className="text-sm font-semibold">{currencyBRL(t.spent)}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/40 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Investido</p>
+                        <p className="text-sm font-semibold">{currencyBRL(t.invested)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                      <Button asChild size="sm" variant="premium" className="min-w-0">
+                        <Link to="/app/properties/$id" params={{ id: p.id }}>
+                          <span>Ver detalhes</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <div className="flex flex-wrap gap-1">
+                        {canManage && <Button size="sm" variant="ghost" disabled={busy} onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>}
+                        {canManage && p.status !== "arquivado" && (
+                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => { if (busy) return; archive.mutate(p); }} title="Arquivar"><Archive className="h-4 w-4" /></Button>
+                        )}
+                        {canDelete && <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" disabled={busy} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir "{p.name}"?</AlertDialogTitle>
+                              <AlertDialogDescription>Os comprovantes vinculados perdem apenas o vínculo com o imóvel — não são excluídos.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel disabled={remove.isPending}>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction disabled={remove.isPending} onClick={(e) => { e.preventDefault(); if (busy) return; remove.mutate(p); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>}
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                    <Button asChild size="sm" variant="premium" className="min-w-0">
-                      <Link to="/app/properties/$id" params={{ id: p.id }}>
-                        <span>Ver detalhes</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <div className="flex flex-wrap gap-1">
-                      {canManage && <Button size="sm" variant="ghost" disabled={busy} onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>}
-                      {canManage && p.status !== "arquivado" && (
-                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => { if (busy) return; archive.mutate(p); }} title="Arquivar"><Archive className="h-4 w-4" /></Button>
-                      )}
-                      {canDelete && <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost" disabled={busy} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir "{p.name}"?</AlertDialogTitle>
-                            <AlertDialogDescription>Os comprovantes vinculados perdem apenas o vínculo com o imóvel — não são excluídos.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel disabled={remove.isPending}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction disabled={remove.isPending} onClick={(e) => { e.preventDefault(); if (busy) return; remove.mutate(p); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border/60 bg-muted/10 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b">
+                  <tr>
+                    <th className="px-4 py-3">Imóvel</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Gasto</th>
+                    <th className="px-4 py-3">Investido</th>
+                    <th className="px-4 py-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {filtered.map((p: any) => {
+                    const t = totals.data?.get(p.id) ?? { spent: 0, invested: 0 };
+                    return (
+                      <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 shrink-0 rounded bg-muted grid place-items-center">
+                              <Home className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{p.name}</p>
+                              {p.city && <p className="text-[10px] text-muted-foreground truncate">{p.city}, {p.state}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {propertyTypeLabel[p.type] ?? p.type}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge className={`text-[10px] py-0 px-2 whitespace-nowrap ${STATUS_TONE[p.status] ?? "bg-secondary text-secondary-foreground"}`}>
+                            {propertyStatusLabel[p.status] ?? p.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-xs">
+                          {currencyBRL(t.spent)}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-xs">
+                          {currencyBRL(t.invested)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button asChild size="icon" variant="ghost" className="h-8 w-8">
+                              <Link to="/app/properties/$id" params={{ id: p.id }}>
+                                <ChevronRight className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            {canManage && <Button size="icon" variant="ghost" className="h-8 w-8" disabled={busy} onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>}
+                            {canManage && p.status !== "arquivado" && (
+                              <Button size="icon" variant="ghost" className="h-8 w-8" disabled={busy} onClick={() => archive.mutate(p)} title="Arquivar"><Archive className="h-4 w-4" /></Button>
+                            )}
+                            {canDelete && <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" disabled={busy}><Trash2 className="h-4 w-4" /></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir "{p.name}"?</AlertDialogTitle>
+                                  <AlertDialogDescription>Esta ação é permanente.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => remove.mutate(p)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+
       ) : (
         <Card className="p-10 text-center">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-secondary-foreground">
