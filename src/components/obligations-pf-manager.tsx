@@ -297,6 +297,7 @@ export function ObligationsPage() {
       }
 
       if (obligationId) {
+        qc.invalidateQueries({ queryKey: ["credentials-lookup"] });
         await sb.from("property_obligation_categories").delete().eq("obligation_id", obligationId);
         if (form.category_ids.length) {
           const { error } = await sb.from("property_obligation_categories").insert(
