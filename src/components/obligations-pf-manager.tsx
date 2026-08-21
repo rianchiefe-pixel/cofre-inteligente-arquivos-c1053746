@@ -25,7 +25,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Search, Pencil, Trash2, CalendarClock, ExternalLink } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  CalendarClock,
+  ExternalLink,
+  Lock,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  User,
+  Mail,
+  Globe,
+  KeyRound,
+} from "lucide-react";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
 import {
   currencyBRL,
