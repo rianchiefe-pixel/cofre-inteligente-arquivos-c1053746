@@ -80,6 +80,15 @@ type PfForm = {
   property_id: string;
   category_ids: string[];
   create_task: boolean;
+  credential_id: string | null;
+  // Credential sub-form
+  access_mode: "none" | "existing" | "new";
+  cred_service: string;
+  cred_website: string;
+  cred_login: string;
+  cred_password: string;
+  cred_recovery_email: string;
+  cred_reusable: boolean;
 };
 
 const emptyForm: PfForm = {
@@ -95,6 +104,14 @@ const emptyForm: PfForm = {
   property_id: "none",
   category_ids: [],
   create_task: false,
+  credential_id: null,
+  access_mode: "none",
+  cred_service: "",
+  cred_website: "",
+  cred_login: "",
+  cred_password: "",
+  cred_recovery_email: "",
+  cred_reusable: true,
 };
 
 export function ObligationsPage() {
