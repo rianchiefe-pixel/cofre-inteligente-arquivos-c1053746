@@ -301,7 +301,28 @@ export function AccessesManager() {
               </SelectContent>
             </Select>
           </div>
+          <div className="flex items-center gap-1 rounded-lg border bg-background p-1">
+            <Button
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => toggleViewMode("grid")}
+              title="Visualização em Grade"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => toggleViewMode("list")}
+              title="Visualização em Lista"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+
 
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setForm(emptyCred); }}>
           <DialogTrigger asChild>
