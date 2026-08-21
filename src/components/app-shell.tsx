@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, memo, Suspense, lazy } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +28,11 @@ import { useRoles, hasPermission, highestRole, ROLE_LABEL, type Permission } fro
 import { Badge } from "@/components/ui/badge";
 import { seedDemoData, resetDemoData } from "@/lib/demo.functions";
 import { isDemoEmail } from "@/lib/demo";
-import { ProfileSelector } from "@/components/profile-selector";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Lazy loading do seletor de perfil para reduzir bundle inicial
+const ProfileSelector = lazy(() => import("@/components/profile-selector").then(m => ({ default: m.ProfileSelector })));
+
 
 const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Permission }[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
@@ -171,30 +175,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
           <div className="px-3 py-4 border-b border-sidebar-border/40 mb-2">
-            <ProfileSelector />
+            <Suspense fallback={<Skeleton className="h-10 w-full rounded-lg" />}>
+              <ProfileSelector />
+            </Suspense>
           </div>
+
           <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto scrollbar-hide">
-            {visibleNav.map(({ to, label, icon: Icon }) => {
-              const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
-              return (
-                <Link
-                  key={to}
-                  to={to}
-                  className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-300 ${
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--sidebar-primary)_35%,transparent)]"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground hover:translate-x-0.5"
-                  }`}
-                >
-                  {active && (
-                    <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
-                  )}
-                  <Icon className={`h-4 w-4 transition-colors ${active ? "text-accent" : "text-sidebar-foreground/60 group-hover:text-accent"}`} />
-                  <span className="font-medium">{label}</span>
-                </Link>
-              );
-            })}
+            {visibleNav.map((item) => (
+              <NavItem key={item.to} item={item} pathname={pathname} />
+            ))}
           </nav>
+
           <div className="mt-auto border-t border-sidebar-border/60 p-3">
             <div className="mb-2 flex items-center justify-between gap-2 px-3 py-2">
               <span className="truncate text-xs text-sidebar-foreground/55">{email}</span>
@@ -216,3 +207,27 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+const NavItem = memo(({ item, pathname }: { item: any, pathname: string }) => {
+  const { to, label, icon: Icon } = item;
+  const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
+  
+  return (
+    <Link
+      to={to}
+      className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-300 ${
+        active
+          ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--sidebar-primary)_35%,transparent)]"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground hover:translate-x-0.5"
+      }`}
+    >
+      {active && (
+        <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
+      )}
+      <Icon className={`h-4 w-4 transition-colors ${active ? "text-accent" : "text-sidebar-foreground/60 group-hover:text-accent"}`} />
+      <span className="font-medium">{label}</span>
+    </Link>
+  );
+});
+
+NavItem.displayName = "NavItem";
