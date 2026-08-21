@@ -20,6 +20,7 @@ import {
   ListTodo,
   Scale,
   ScanSearch,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Per
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/profiles", label: "Perfis", icon: Users, perm: "manageEntities" },
   { to: "/app/properties", label: "Imóveis", icon: Home, perm: "manageEntities" },
+  { to: "/app/accesses", label: "Acessos", icon: KeyRound },
   { to: "/app/tasks", label: "Tarefas", icon: ListTodo },
   { to: "/app/banks", label: "Bancos e contas", icon: Landmark, perm: "manageEntities" },
   { to: "/app/cards", label: "Cartões", icon: CreditCard, perm: "manageEntities" },

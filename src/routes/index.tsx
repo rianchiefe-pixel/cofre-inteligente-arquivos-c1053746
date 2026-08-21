@@ -21,85 +21,103 @@
  *
  * Faça o seguinte:
  *
+ * Saia do modo atual e entre no Modo Construção.
+ *
  * MODO CONSTRUÇÃO — IMPLEMENTE DIRETAMENTE
  *
  * Não explique o que pretende fazer, não crie apenas texto ou mockup e não altere funcionalidades fora do escopo abaixo. Faça as alterações no sistema existente.
  *
+ * TAREFA
+ *
+ * Centralizar a gestão de obrigações (contas a pagar recorrentes dos imóveis) em uma nova tela no menu lateral.
+ *
  * OBJETIVO
  *
- * Criar na barra lateral uma nova opção chamada “Acessos”.
+ * Criar na barra lateral uma nova opção chamada “Obrigações”.
  *
- * Ao clicar em Acessos, abrir uma página centralizada para gerenciar todos os acessos relacionados aos imóveis, como:
- *
- * Energia elétrica
- *
- * Água
- *
- * Internet
- *
- * Condomínio
- *
- * Gás
+ * Ao clicar em Obrigações, abrir uma página centralizada para gerenciar todas as obrigações relacionadas aos imóveis, como:
  *
  * IPTU
  *
- * Outros serviços/acessos
+ * ITBI
+ *
+ * Condomínio
+ *
+ * Água
+ *
+ * Energia elétrica
+ *
+ * Gás
+ *
+ * Seguro do imóvel
+ *
+ * Aluguel
+ *
+ * Financiamento
+ *
+ * Taxa de associação
+ *
+ * Internet
+ *
+ * Telefone
+ *
+ * Manutenção recorrente
+ *
+ * Taxas municipais/estaduais/federais
  *
  * REGRA PRINCIPAL
  *
- * O sistema já possui a funcionalidade de cadastrar acessos dentro de cada imóvel.
+ * O sistema já possui a funcionalidade de cadastrar obrigações dentro de cada imóvel.
  *
- * Não recrie essa lógica do zero. Localize o componente, campos, banco de dados e funcionamento já existentes e reutilize exatamente essa estrutura na nova página “Acessos”.
+ * Não recrie essa lógica do zero. Localize o componente, campos, banco de dados e funcionamento já existentes e reutilize exatamente essa estrutura na nova página “Obrigações”.
  *
- * NOVA TELA “ACESSOS”
+ * NOVA TELA “OBRIGAÇÕES”
  *
  * Criar uma tela bonita, organizada e seguindo exatamente o padrão visual atual do Meu Cofre.
  *
  * Deve permitir:
  *
- * Visualizar todos os acessos cadastrados.
+ * Visualizar todas as obrigações cadastradas de todos os imóveis.
  *
- * Buscar acessos.
+ * Buscar obrigações.
  *
- * Filtrar por imóvel e tipo de acesso.
+ * Filtrar por imóvel, tipo de obrigação (kind) e status (em dia, atrasado, pago).
  *
- * Criar novo acesso.
+ * Criar nova obrigação.
  *
  * Editar.
  *
  * Excluir.
  *
- * Visualizar os dados do acesso.
+ * Visualizar os dados da obrigação.
  *
- * Ao cadastrar ou editar um acesso, incluir o campo:
+ * Ao cadastrar ou editar uma obrigação, incluir o campo:
  *
- * “Imóveis vinculados”
+ * “Imóvel vinculado”
  *
- * Permitir selecionar um ou vários imóveis.
+ * Permitir selecionar o imóvel ao qual aquela obrigação pertence.
  *
  * SINCRONIZAÇÃO OBRIGATÓRIA
  *
- * Um acesso criado pela nova tela e vinculado a determinado imóvel deve aparecer automaticamente na área de Acessos daquele imóvel.
+ * Uma obrigação criada pela nova tela e vinculada a determinado imóvel deve aparecer automaticamente na área de Obrigações daquele imóvel.
  *
- * Da mesma forma, um acesso criado diretamente dentro de um imóvel deve aparecer automaticamente na página geral “Acessos”.
+ * Da mesma forma, uma obrigação criada diretamente dentro de um imóvel deve aparecer automaticamente na página geral “Obrigações”.
  *
  * É o mesmo registro, apenas visualizado em dois lugares.
  *
  * Não criar registros duplicados.
  *
- * Se o acesso for editado em qualquer uma das telas, a alteração deve aparecer imediatamente na outra.
+ * Se a obrigação for editada em qualquer uma das telas, a alteração deve aparecer imediatamente na outra.
  *
  * IMPORTANTE
  *
- * Preserve todos os acessos já cadastrados.
+ * Preserve todas as obrigações já cadastradas.
  *
- * Reutilize os campos e regras que já existem no sistema.
- *
- * Mantenha senhas/dados sensíveis protegidos ou mascarados conforme já funciona atualmente.
+ * Reutilize os campos e regras que já existem no sistema (como a geração automática de tarefas para obrigações pendentes, se houver).
  *
  * Não altere a tela Gastos Fixos.
  *
- * Não altere a tela Imóveis, exceto o necessário para manter a sincronização dos acessos.
+ * Não altere a tela Imóveis, exceto o necessário para manter a sincronização das obrigações.
  *
  * Não mexa em outras funcionalidades.
  *
@@ -108,6 +126,8 @@
  * Não remova nada existente.
  *
  * Entregue a funcionalidade completa e operacional, não apenas a interface.
+ *
+ * resultado: PASSOU/FALHOU.
  */
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
