@@ -122,6 +122,77 @@ export function ObligationsPage() {
   const [kindFilter, setKindFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [revealing, setRevealing] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const saveCredential = useServerFn(savePropertyCredential);
+  const revealCredential = useServerFn(revealPropertyCredential);
+
+  const credentials = useQuery({
+    queryKey: ["credentials-lookup"],
+    queryFn: async () => {
+      const { data, error } = await sb
+        .from("property_credentials")
+        .select("id, service, login, recovery_email, website, access_link")
+        .order("service");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const toggleReveal = async (id: string) => {
+    if (revealed[id]) {
+      setRevealed((v) => {
+        const next = { ...v };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
+    setRevealing(id);
+    try {
+      const res = await revealCredential({ data: { id } });
+      if (!res.password) {
+        toast.error("Senha não cadastrada");
+        return;
+      }
+      setRevealed((v) => ({ ...v, [id]: res.password! }));
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao revelar senha");
+    } finally {
+      setRevealing(null);
+    }
+  };
+
+  const copy = async (id: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(id);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      toast.error("Falha ao copiar");
+    }
+  };
+
+  const copyPassword = async (id: string) => {
+    let value = revealed[id];
+    if (!value) {
+      try {
+        const res = await revealCredential({ data: { id } });
+        if (!res.password) {
+          toast.error("Senha não cadastrada");
+          return;
+        }
+        value = res.password;
+      } catch (e: any) {
+        toast.error(e?.message ?? "Falha ao copiar senha");
+        return;
+      }
+    }
+    await copy(id + "_p", value);
+  };
+
   const list = useQuery({
     queryKey: ["obligations-pf"],
     queryFn: async () => {
