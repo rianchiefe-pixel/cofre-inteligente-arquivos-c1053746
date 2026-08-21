@@ -29,6 +29,7 @@ import { Route as AuthenticatedAppCardsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAppBanksRouteImport } from './routes/_authenticated/app.banks'
 import { Route as AuthenticatedAppAuditRouteImport } from './routes/_authenticated/app.audit'
 import { Route as AuthenticatedAppAnalyzeReceiptsRouteImport } from './routes/_authenticated/app.analyze-receipts'
+import { Route as AuthenticatedAppAccessesRouteImport } from './routes/_authenticated/app.accesses'
 import { Route as AuthenticatedAppPropertiesIndexRouteImport } from './routes/_authenticated/app.properties.index'
 import { Route as AuthenticatedAppCardsIndexRouteImport } from './routes/_authenticated/app.cards.index'
 import { Route as AuthenticatedAppPropertiesIdRouteImport } from './routes/_authenticated/app.properties.$id'
@@ -141,6 +142,12 @@ const AuthenticatedAppAnalyzeReceiptsRoute =
     path: '/analyze-receipts',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppAccessesRoute =
+  AuthenticatedAppAccessesRouteImport.update({
+    id: '/accesses',
+    path: '/accesses',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppPropertiesIndexRoute =
   AuthenticatedAppPropertiesIndexRouteImport.update({
     id: '/properties/',
@@ -175,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/app/accesses': typeof AuthenticatedAppAccessesRoute
   '/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
@@ -200,6 +208,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/app/accesses': typeof AuthenticatedAppAccessesRoute
   '/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
@@ -227,6 +236,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/app/accesses': typeof AuthenticatedAppAccessesRoute
   '/_authenticated/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
   '/_authenticated/app/audit': typeof AuthenticatedAppAuditRoute
   '/_authenticated/app/banks': typeof AuthenticatedAppBanksRoute
@@ -255,6 +265,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/app'
+    | '/app/accesses'
     | '/app/analyze-receipts'
     | '/app/audit'
     | '/app/banks'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/app/accesses'
     | '/app/analyze-receipts'
     | '/app/audit'
     | '/app/banks'
@@ -306,6 +318,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/app'
+    | '/_authenticated/app/accesses'
     | '/_authenticated/app/analyze-receipts'
     | '/_authenticated/app/audit'
     | '/_authenticated/app/banks'
@@ -478,6 +491,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAnalyzeReceiptsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/accesses': {
+      id: '/_authenticated/app/accesses'
+      path: '/accesses'
+      fullPath: '/app/accesses'
+      preLoaderRoute: typeof AuthenticatedAppAccessesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/properties/': {
       id: '/_authenticated/app/properties/'
       path: '/properties'
@@ -547,6 +567,7 @@ const AuthenticatedAppCategoriesRouteWithChildren =
   )
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAccessesRoute: typeof AuthenticatedAppAccessesRoute
   AuthenticatedAppAnalyzeReceiptsRoute: typeof AuthenticatedAppAnalyzeReceiptsRoute
   AuthenticatedAppAuditRoute: typeof AuthenticatedAppAuditRoute
   AuthenticatedAppBanksRoute: typeof AuthenticatedAppBanksRoute
@@ -567,6 +588,7 @@ interface AuthenticatedAppRouteChildren {
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAccessesRoute: AuthenticatedAppAccessesRoute,
   AuthenticatedAppAnalyzeReceiptsRoute: AuthenticatedAppAnalyzeReceiptsRoute,
   AuthenticatedAppAuditRoute: AuthenticatedAppAuditRoute,
   AuthenticatedAppBanksRoute: AuthenticatedAppBanksRoute,
