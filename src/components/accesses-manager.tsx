@@ -150,7 +150,7 @@ export function AccessesManager() {
       return await saveCredential({
         data: {
           id: form.id ?? null,
-          property_id: form.property_ids[0] || "00000000-0000-0000-0000-000000000000", // Fallback se não tiver imóvel
+          property_id: form.property_ids[0] || null,
           property_ids: form.property_ids,
           service: form.service,
           website: form.website || null,
