@@ -16,7 +16,7 @@ import { ExportMenu } from "@/components/export-menu";
 import { MultiSelect } from "@/components/ui/multi-select";
 
 import type { ReportPayload } from "@/lib/exports";
-import { loadReportDataset, normalizeFinancialClassification } from "@/lib/report-data";
+import { canonicalizeReportRows, loadReportDataset, matchesReportSelection, normalizeFinancialClassification } from "@/lib/report-data";
 import { generateFixedVariableReport, generateMonthlyExpenseReport } from "@/lib/report-templates";
 import { toast } from "sonner";
 import { FileText, Loader2, RefreshCw, ArrowRight } from "lucide-react";
@@ -86,6 +86,7 @@ function ReportsPage() {
         categoryIds: normalizedCategoryIds.length > 0 ? normalizedCategoryIds : null,
         recipients: selectedRecipients.length > 0 ? selectedRecipients : null,
         extraIncludes: extraIncludes,
+        sourceRows: rows,
       });
       if (!dataset.months.length) {
         toast.error("Nenhum lançamento aprovado no período selecionado.");
@@ -171,27 +172,16 @@ function ReportsPage() {
         all = all.filter(r => r.profile_id === normalizedProfileId);
       }
 
-      const hasNormalFilters = (type !== "all") || (normalizedPropertyIds.length > 0) || (normalizedCategoryIds.length > 0) || (selectedRecipients.length > 0);
-      const hasExtraIncludes = (extraIncludes.propertyIds.length > 0) || (extraIncludes.categoryIds.length > 0) || (extraIncludes.recipients.length > 0);
-
-      if (hasNormalFilters || hasExtraIncludes) {
-        all = all.filter(r => {
-          // Se houver filtros normais, o registro deve satisfazer ao menos um (OR)
-          // Mas o tipo (type) é tratado como um AND global se não for "all"
+      all = all.filter(r => {
+          // Período, status, perfil e tipo são globais; seletores usam a regra canônica abaixo.
           if (type !== "all" && r.transaction_type !== type) return false;
 
-          const matchesProperty = normalizedPropertyIds.length === 0 || (r.property_id && normalizedPropertyIds.includes(r.property_id));
-          const matchesCategory = normalizedCategoryIds.length === 0 || (r.category_id && normalizedCategoryIds.includes(r.category_id));
-          const matchesRecipient = selectedRecipients.length === 0 || (r.recipient_name && selectedRecipients.includes(r.recipient_name.trim()));
-
-          const matchesExtraProperty = extraIncludes.propertyIds.length > 0 && r.property_id && extraIncludes.propertyIds.includes(r.property_id);
-          const matchesExtraCategory = extraIncludes.categoryIds.length > 0 && r.category_id && extraIncludes.categoryIds.includes(r.category_id);
-          const matchesExtraRecipient = extraIncludes.recipients.length > 0 && r.recipient_name && extraIncludes.recipients.includes(r.recipient_name.trim());
-
-
-          return matchesProperty || matchesCategory || matchesRecipient || matchesExtraProperty || matchesExtraCategory || matchesExtraRecipient;
-        });
-      }
+          return matchesReportSelection(
+            r,
+            { propertyIds: normalizedPropertyIds, categoryIds: normalizedCategoryIds, recipients: selectedRecipients },
+            extraIncludes,
+          );
+      });
 
       return all;
     },
@@ -201,18 +191,7 @@ function ReportsPage() {
   // Deduplicação rigorosa por ID para evitar somar o mesmo valor duas vezes (Regra 9, 20)
   const rows = useMemo(() => {
     const raw = data.data ?? [];
-    const uniqueMap = new Map();
-    for (const r of raw) {
-      if (!uniqueMap.has(r.id)) {
-        uniqueMap.set(r.id, r);
-      }
-    }
-    return Array.from(uniqueMap.values()).filter((r: any) => 
-      r.transaction_type === 'despesa' || 
-      r.transaction_type === 'investimento' || 
-      r.transaction_type === 'gasto_fixo' || 
-      r.transaction_type === 'gasto_variavel'
-    );
+    return canonicalizeReportRows(raw);
   }, [data.data]);
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   
