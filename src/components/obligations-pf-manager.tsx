@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase as sb } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
@@ -156,7 +156,7 @@ export function ObligationsPage() {
     try {
       const res = await revealCredential({ data: { id } });
       if (!res.password) {
-        toast.error("Senha nÃ£o cadastrada");
+        toast.error("Senha não cadastrada");
         return;
       }
       setRevealed((v) => ({ ...v, [id]: res.password! }));
@@ -183,7 +183,7 @@ export function ObligationsPage() {
       try {
         const res = await revealCredential({ data: { id } });
         if (!res.password) {
-          toast.error("Senha nÃ£o cadastrada");
+          toast.error("Senha não cadastrada");
           return;
         }
         value = res.password;
@@ -250,7 +250,7 @@ export function ObligationsPage() {
     mutationFn: async () => {
       const { data: userData } = await sb.auth.getUser();
       const userId = userData.user?.id;
-      if (!userId) throw new Error("NÃ£o autenticado");
+      if (!userId) throw new Error("Não autenticado");
 
       let finalCredentialId = form.credential_id;
 
@@ -258,15 +258,15 @@ export function ObligationsPage() {
       if (form.access_mode === "new" && form.cred_password) {
         const credRes = await saveCredential({
           data: {
-            service: form.cred_service || form.label || (obligationKindLabel[form.kind] ? `Acesso ${obligationKindLabel[form.kind]}` : "Acesso ObrigaÃ§Ã£o PF"),
+            service: form.cred_service || form.label || (obligationKindLabel[form.kind] ? `Acesso ${obligationKindLabel[form.kind]}` : "Acesso Obrigação PF"),
             website: form.cred_website || null,
             access_link: form.cred_website || null,
             login: form.cred_login || null,
             recovery_email: form.cred_recovery_email || null,
             password: form.cred_password,
-            property_id: form.property_id === "none" ? "00000000-0000-0000-0000-000000000000" : form.property_id,
+            property_id: form.property_id === "none" ? null : form.property_id,
             property_ids: form.property_id === "none" ? [] : [form.property_id],
-            notes: `Criado via ObrigaÃ§Ã£o PF: ${form.label || form.kind}`,
+            notes: `Criado via Obrigação PF: ${form.label || form.kind}`,
           },
         });
         finalCredentialId = credRes.id;
@@ -321,8 +321,8 @@ export function ObligationsPage() {
         const { error } = await sb.from("property_tasks").insert({
           user_id: userId,
           property_id: form.property_id === "none" ? null : form.property_id,
-          title: `Vencimento: ${form.label || obligationKindLabel[form.kind] || "ObrigaÃ§Ã£o PF"}`,
-          description: form.supplier ? `Ã“rgÃ£o/Fornecedor: ${form.supplier}` : null,
+          title: `Vencimento: ${form.label || obligationKindLabel[form.kind] || "Obrigação PF"}`,
+          description: form.supplier ? `Órgão/Fornecedor: ${form.supplier}` : null,
           due_date: form.due_date || null,
           priority: "media",
           status: "pendente",
@@ -331,7 +331,7 @@ export function ObligationsPage() {
       }
     },
     onSuccess: async () => {
-      toast.success("ObrigaÃ§Ã£o salva");
+      toast.success("Obrigação salva");
       setOpen(false);
       setForm(emptyForm);
       await Promise.all([
@@ -339,7 +339,7 @@ export function ObligationsPage() {
         qc.invalidateQueries({ queryKey: ["tasks-all"] }),
       ]);
     },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao salvar obrigaÃ§Ã£o"),
+    onError: (e: any) => toast.error(e.message ?? "Erro ao salvar obrigação"),
   });
 
   const remove = useMutation({
@@ -348,7 +348,7 @@ export function ObligationsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("ObrigaÃ§Ã£o excluÃ­da");
+      toast.success("Obrigação excluída");
       qc.invalidateQueries({ queryKey: ["obligations-pf"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao excluir"),
@@ -396,15 +396,15 @@ export function ObligationsPage() {
     });
   }, [list.data, search, kindFilter, statusFilter]);
 
-  if (list.isLoading) return <LoadingState label="Carregando obrigaÃ§Ãµes pessoaisâ€¦" />;
+  if (list.isLoading) return <LoadingState label="Carregando obrigações pessoais…" />;
   if (list.isError) return <ErrorState error={list.error} />;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">ObrigaÃ§Ãµes PF</h1>
+        <h1 className="text-2xl font-bold">Obrigações PF</h1>
         <p className="text-sm text-muted-foreground">
-          Centralize IRPF, ITR, INSS, certificados e demais obrigaÃ§Ãµes pessoais.
+          Centralize IRPF, ITR, INSS, certificados e demais obrigações pessoais.
         </p>
       </div>
 
@@ -414,7 +414,7 @@ export function ObligationsPage() {
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Buscar por rÃ³tulo, Ã³rgÃ£o ou notasâ€¦"
+              placeholder="Buscar por rótulo, órgão ou notas…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -434,10 +434,10 @@ export function ObligationsPage() {
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Todas as situaÃ§Ãµes" />
+              <SelectValue placeholder="Todas as situações" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as situaÃ§Ãµes</SelectItem>
+              <SelectItem value="all">Todas as situações</SelectItem>
               {Object.entries(obligationStatusLabel).map(([v, l]) => (
                 <SelectItem key={v} value={v}>
                   {l}
@@ -456,14 +456,14 @@ export function ObligationsPage() {
         >
           <DialogTrigger asChild>
             <Button variant="premium">
-              <Plus className="mr-2 h-4 w-4" /> Nova obrigaÃ§Ã£o PF
+              <Plus className="mr-2 h-4 w-4" /> Nova obrigação PF
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[calc(100dvh-32px)] flex flex-col p-0 overflow-hidden">
             <DialogHeader className="flex-shrink-0 border-b p-6">
               <DialogTitle className="flex items-center gap-2">
                 {form.id ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-                {form.id ? "Editar obrigaÃ§Ã£o PF" : "Nova obrigaÃ§Ã£o PF"}
+                {form.id ? "Editar obrigação PF" : "Nova obrigação PF"}
               </DialogTitle>
             </DialogHeader>
             <div className="min-h-0 flex-1 overflow-y-auto p-6">
@@ -477,7 +477,7 @@ export function ObligationsPage() {
                 className="grid gap-4 sm:grid-cols-2"
               >
                 <div className="space-y-2">
-                  <Label>Tipo da obrigaÃ§Ã£o *</Label>
+                  <Label>Tipo da obrigação *</Label>
                   <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v })}>
                     <SelectTrigger>
                       <SelectValue />
@@ -492,7 +492,7 @@ export function ObligationsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>RÃ³tulo (identificaÃ§Ã£o)</Label>
+                  <Label>Rótulo (identificação)</Label>
                   <Input
                     value={form.label}
                     onChange={(e) => setForm({ ...form, label: e.target.value })}
@@ -500,7 +500,7 @@ export function ObligationsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Ã“rgÃ£o / Fornecedor</Label>
+                  <Label>Órgão / Fornecedor</Label>
                   <Input
                     value={form.supplier}
                     onChange={(e) => setForm({ ...form, supplier: e.target.value })}
@@ -508,7 +508,7 @@ export function ObligationsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>ImÃ³vel vinculado (opcional)</Label>
+                  <Label>Imóvel vinculado (opcional)</Label>
                   <Select
                     value={form.property_id}
                     onValueChange={(v) => setForm({ ...form, property_id: v })}
@@ -562,7 +562,7 @@ export function ObligationsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>SituaÃ§Ã£o atual</Label>
+                  <Label>Situação atual</Label>
                   <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                     <SelectTrigger>
                       <SelectValue />
@@ -580,7 +580,7 @@ export function ObligationsPage() {
                 <div className="space-y-3 rounded-lg border bg-muted/20 p-4 sm:col-span-2">
                   <Label>Categorias financeiras</Label>
                   <p className="text-xs text-muted-foreground">
-                    Selecione uma ou mais categorias para classificar esta obrigaÃ§Ã£o.
+                    Selecione uma ou mais categorias para classificar esta obrigação.
                   </p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {categories.data?.map((c: any) => (
@@ -613,7 +613,7 @@ export function ObligationsPage() {
                       onCheckedChange={(c) => setForm({ ...form, create_task: !!c })}
                     />
                     <Label htmlFor="pf_create_task" className="cursor-pointer text-sm">
-                      Criar lembrete automÃ¡tico na Ã¡rea global de tarefas
+                      Criar lembrete automático na área global de tarefas
                     </Label>
                   </div>
                 )}
@@ -623,7 +623,7 @@ export function ObligationsPage() {
                   <Input
                     value={form.document_url}
                     onChange={(e) => setForm({ ...form, document_url: e.target.value })}
-                    placeholder="https://â€¦"
+                    placeholder="https://…"
                   />
                 </div>
 
@@ -665,7 +665,7 @@ export function ObligationsPage() {
 
                   {form.access_mode === "existing" && (
                     <div className="space-y-2 pt-2">
-                      <Label>Selecionar acesso jÃ¡ cadastrado</Label>
+                      <Label>Selecionar acesso já cadastrado</Label>
                       <Select
                         value={form.credential_id || ""}
                         onValueChange={(v) => {
@@ -694,7 +694,7 @@ export function ObligationsPage() {
                   {form.access_mode === "new" && (
                     <div className="space-y-4 pt-2 grid sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>ServiÃ§o / Nome do Acesso</Label>
+                        <Label>Serviço / Nome do Acesso</Label>
                         <Input
                           value={form.cred_service}
                           onChange={(e) => setForm({ ...form, cred_service: e.target.value })}
@@ -728,7 +728,7 @@ export function ObligationsPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>UsuÃ¡rio / Login</Label>
+                        <Label>Usuário / Login</Label>
                         <div className="flex gap-2">
                           <Input
                             value={form.cred_login}
@@ -781,7 +781,7 @@ export function ObligationsPage() {
                           onCheckedChange={(c) => setForm({ ...form, cred_reusable: !!c })}
                         />
                         <Label htmlFor="cred_reusable" className="cursor-pointer text-sm">
-                          Permitir usar este acesso em outras ObrigaÃ§Ãµes PF
+                          Permitir usar este acesso em outras Obrigações PF
                         </Label>
                       </div>
                     </div>
@@ -789,7 +789,7 @@ export function ObligationsPage() {
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>ObservaÃ§Ãµes</Label>
+                  <Label>Observações</Label>
                   <Textarea
                     rows={2}
                     value={form.notes}
@@ -813,7 +813,7 @@ export function ObligationsPage() {
                 variant="premium"
                 disabled={save.isPending}
               >
-                {save.isPending ? "Salvandoâ€¦" : "Salvar"}
+                {save.isPending ? "Salvando…" : "Salvar"}
               </Button>
             </div>
           </DialogContent>
@@ -822,8 +822,8 @@ export function ObligationsPage() {
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="Nenhuma obrigaÃ§Ã£o pessoal encontrada"
-          description="Cadastre suas obrigaÃ§Ãµes de pessoa fÃ­sica para acompanhar prazos e valores."
+          title="Nenhuma obrigação pessoal encontrada"
+          description="Cadastre suas obrigações de pessoa física para acompanhar prazos e valores."
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -838,7 +838,7 @@ export function ObligationsPage() {
                   </div>
                   <p className="truncate text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
                     {obligationKindLabel[o.kind] ?? o.kind}
-                    {o.supplier ? ` Â· ${o.supplier}` : ""}
+                    {o.supplier ? ` · ${o.supplier}` : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center">
@@ -875,7 +875,7 @@ export function ObligationsPage() {
                       <span className="text-muted-foreground">Login:</span>
                       <div className="flex items-center gap-1.5 font-mono text-slate-700">
                         <span className="truncate max-w-[120px]">
-                          {o.property_credentials?.login || o.property_credentials?.recovery_email || "â€”"}
+                          {o.property_credentials?.login || o.property_credentials?.recovery_email || "—"}
                         </span>
                         <Button
                           variant="ghost"
@@ -895,7 +895,7 @@ export function ObligationsPage() {
                       <span className="text-muted-foreground">Senha:</span>
                       <div className="flex items-center gap-1">
                         <span className="font-mono text-slate-700">
-                          {revealed[o.credential_id] ?? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"}
+                          {revealed[o.credential_id] ?? "••••••••"}
                         </span>
                         <Button
                           variant="ghost"
@@ -930,7 +930,7 @@ export function ObligationsPage() {
 
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="secondary">
-                  {obligationStatusLabel[o.status] ?? o.status ?? "â€”"}
+                  {obligationStatusLabel[o.status] ?? o.status ?? "—"}
                 </Badge>
                 {o.periodicity && (
                   <Badge variant="outline">{periodicityLabel[o.periodicity] ?? o.periodicity}</Badge>
@@ -950,7 +950,7 @@ export function ObligationsPage() {
                     : "Sem vencimento"}
                 </span>
                 <span className="font-semibold">
-                  {o.amount != null ? currencyBRL(Number(o.amount)) : "â€”"}
+                  {o.amount != null ? currencyBRL(Number(o.amount)) : "—"}
                 </span>
               </div>
 

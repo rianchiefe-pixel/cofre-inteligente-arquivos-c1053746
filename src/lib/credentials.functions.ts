@@ -51,7 +51,7 @@ async function decryptPassword(payload: string): Promise<string> {
 const CredentialInput = z
   .object({
     id: z.string().uuid().nullable().optional(),
-    property_id: z.string().uuid(),
+    property_id: z.string().uuid().nullable(),
     property_ids: z.array(z.string().uuid()).optional(),
     service: z.string().min(1),
     website: z.string().nullable(),
@@ -75,7 +75,7 @@ export const savePropertyCredential = createServerFn({ method: "POST" })
 
     const { data: result, error } = await supabase.rpc("upsert_property_credential_rpc", {
       p_id: (data.id ?? null) as unknown as string,
-      p_property_id: data.property_id,
+      p_property_id: data.property_id as unknown as string,
       p_credential: {
         service: data.service,
         website: data.website,
@@ -92,7 +92,7 @@ export const savePropertyCredential = createServerFn({ method: "POST" })
     if (!row?.credential_id) throw new Error("Credencial não persistida");
 
     // Sincroniza os vínculos com múltiplos imóveis se fornecido
-    if (data.property_ids && data.property_ids.length > 0) {
+    if (data.property_ids) {
       const { error: syncError } = await supabase.rpc("sync_property_credential_links", {
         p_credential_id: row.credential_id,
         p_property_ids: data.property_ids,
