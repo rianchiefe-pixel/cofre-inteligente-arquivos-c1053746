@@ -230,9 +230,18 @@ export function ImportConference({
   });
 
   const categoriesQ = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => (await supabase.from("categories").select("id, name").order("name")).data ?? [],
+    queryKey: ["categories", "active"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("categories").select("id, name").eq("archived", false).order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
   });
+  const categoryIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const category of categoriesQ.data ?? []) map.set(category.name.trim().toLocaleLowerCase("pt-BR"), category.id);
+    return map;
+  }, [categoriesQ.data]);
 
   const profilesQ = useQuery({
     queryKey: ["profiles"],
@@ -347,7 +356,7 @@ export function ImportConference({
       // Filtro de categorias: múltiplo + "Sem categoria"
       if (selectedCategories.length > 0) {
         const hasNone = selectedCategories.includes("__none__");
-        const categoryId = r.category_id;
+        const categoryId = r.category_id ?? categoryIdByName.get((r.category ?? "").trim().toLocaleLowerCase("pt-BR"));
         
         const matches = (categoryId && selectedCategories.includes(categoryId)) || (hasNone && !categoryId);
         if (!matches) return false;
@@ -379,6 +388,7 @@ export function ImportConference({
     textFilter,
     bankFilter,
     selectedCategories,
+    categoryIdByName,
     selectedProfiles,
     cardFilter,
     dateFrom,
@@ -396,13 +406,13 @@ export function ImportConference({
   // Re-hydrate editor state whenever the active row changes.
   useEffect(() => {
     if (activeRow) {
-      setValues(hydrateValues(activeRow));
+      setValues(hydrateValues(activeRow, categoriesQ.data ?? []));
       setReason("");
     } else {
       setValues({});
       setReason("");
     }
-  }, [activeRow?.id]);
+  }, [activeRow?.id, categoriesQ.data]);
 
   function collectOverrides(): Record<string, unknown> {
     const overrides: Record<string, unknown> = {};
@@ -429,6 +439,7 @@ export function ImportConference({
       overrides.property_id = values.property_id;
       overrides.general_account = false;
     }
+    if (values.category_id !== undefined) overrides.category_id = values.category_id || null;
     return overrides;
   }
 
@@ -858,6 +869,9 @@ export function ImportConference({
                 showRaw={showRaw}
                 setShowRaw={setShowRaw}
                 properties={propertiesQ.data ?? []}
+                categories={categoriesQ.data ?? []}
+                categoriesLoading={categoriesQ.isLoading}
+                categoriesError={categoriesQ.isError ? (categoriesQ.error as Error).message : null}
                 propertyById={propertyById}
                 batchScope={batchQ.data?.scope_kind ?? "profile"}
                 onChanged={invalidate}
@@ -966,6 +980,9 @@ function RowEditor({
   showRaw,
   setShowRaw,
   properties,
+  categories,
+  categoriesLoading,
+  categoriesError,
   propertyById,
   batchScope,
   onChanged,
@@ -980,6 +997,9 @@ function RowEditor({
   showRaw: boolean;
   setShowRaw: React.Dispatch<React.SetStateAction<boolean>>;
   properties: Array<{ id: string; name: string }>;
+  categories: Array<{ id: string; name: string }>;
+  categoriesLoading: boolean;
+  categoriesError: string | null;
   propertyById: Map<string, any>;
   batchScope: string;
   onChanged: () => void;
@@ -1003,6 +1023,12 @@ function RowEditor({
   const propertyValue =
     values.property_id ??
     (row.property_id ? row.property_id : row.general_account ? "__general__" : "__none__");
+  const [categoryOpen, setCategoryOpen] = useState(false);
+
+  const selectCategoryName = (name: string | null) => {
+    const category = categories.find((item) => item.name.localeCompare(name ?? "", "pt-BR", { sensitivity: "base" }) === 0);
+    setValues((state) => ({ ...state, category: name ?? "", category_id: category?.id ?? null }));
+  };
 
   // Groupings
   const HIGHLIGHT_KEYS = ["transaction_date", "amount", "transaction_type"];
@@ -1048,7 +1074,37 @@ function RowEditor({
             </span>
           )}
         </div>
-        {f.type === "textarea" ? (
+        {f.key === "category" ? (
+          <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="ghost" className="mt-1 h-8 w-full justify-between border-0 bg-transparent px-0 text-sm font-semibold shadow-none">
+                <span className="truncate">{v || "Selecionar categoria"}</span>
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[320px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Pesquisar categoria..." />
+                <CommandList>
+                  <CommandEmpty>
+                    {categoriesLoading ? "Carregando categorias..." : categoriesError ? `Falha ao carregar categorias: ${categoriesError}` : "Nenhuma categoria encontrada."}
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {categories.map((category) => (
+                      <CommandItem key={category.id} value={category.name} onSelect={() => {
+                        setValues((state) => ({ ...state, category: category.name, category_id: category.id }));
+                        setCategoryOpen(false);
+                      }}>
+                        <Check className={cn("mr-2 h-4 w-4", values.category_id === category.id ? "opacity-100" : "opacity-0")} />
+                        {category.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        ) : f.type === "textarea" ? (
           <Textarea
             rows={2}
             className="mt-1.5 min-h-[56px] resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
@@ -1164,9 +1220,7 @@ function RowEditor({
                 size="sm"
                 variant="ghost"
                 className="mt-2 h-7 rounded-full px-2 text-[11px]"
-                onClick={() =>
-                  setValues((s) => ({ ...s, category: originalCategory ?? "" }))
-                }
+                onClick={() => selectCategoryName(originalCategory)}
                 disabled={!originalCategory}
               >
                 Manter original
@@ -1205,9 +1259,7 @@ function RowEditor({
                 size="sm"
                 variant="ghost"
                 className="mt-2 h-7 rounded-full px-2 text-[11px]"
-                onClick={() =>
-                  setValues((s) => ({ ...s, category: aiSuggestedCategory ?? "" }))
-                }
+                onClick={() => selectCategoryName(aiSuggestedCategory)}
                 disabled={!aiSuggestedCategory}
               >
                 Usar sugestão
@@ -1430,7 +1482,7 @@ function RowEditor({
   );
 }
 
-function hydrateValues(row: any): Record<string, any> {
+function hydrateValues(row: any, categories: Array<{ id: string; name: string }>): Record<string, any> {
   const out: Record<string, any> = {};
   for (const f of FIELDS) {
     if (f.key === "amount") {
@@ -1444,6 +1496,9 @@ function hydrateValues(row: any): Record<string, any> {
     : row.general_account
       ? "__general__"
       : "__none__";
+  out.category_id = row.category_id ?? categories.find(
+    (category) => category.name.localeCompare(row.category ?? "", "pt-BR", { sensitivity: "base" }) === 0,
+  )?.id ?? null;
   return out;
 }
 

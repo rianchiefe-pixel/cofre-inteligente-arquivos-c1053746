@@ -144,6 +144,65 @@ const EXPENSE_TYPES = new Set(["despesa", "gasto_fixo", "gasto_variavel"]);
 export const centsToNumber = (cents: number) => Math.round(cents) / 100;
 export const toCents = (value: unknown) => Math.round(Math.abs(Number(value ?? 0)) * 100);
 
+type ReportSelection = {
+  propertyIds: string[];
+  categoryIds: string[];
+  recipients: string[];
+};
+
+/** Normal filters use AND; explicit additional items are unioned with that subset. */
+export function matchesReportSelection(
+  receipt: { property_id?: string | null; category_id?: string | null; recipient_name?: string | null },
+  filters: ReportSelection,
+  extraIncludes: ReportSelection,
+): boolean {
+  const recipient = receipt.recipient_name?.trim() ?? "";
+  const hasNormalFilters =
+    filters.propertyIds.length > 0 || filters.categoryIds.length > 0 || filters.recipients.length > 0;
+  const matchesNormal =
+    (!filters.propertyIds.length || (!!receipt.property_id && filters.propertyIds.includes(receipt.property_id))) &&
+    (!filters.categoryIds.length || (!!receipt.category_id && filters.categoryIds.includes(receipt.category_id))) &&
+    (!filters.recipients.length || filters.recipients.includes(recipient));
+  const matchesExtra =
+    (!!receipt.property_id && extraIncludes.propertyIds.includes(receipt.property_id)) ||
+    (!!receipt.category_id && extraIncludes.categoryIds.includes(receipt.category_id)) ||
+    extraIncludes.recipients.includes(recipient);
+
+  if (!hasNormalFilters) return true;
+  return matchesNormal || matchesExtra;
+}
+
+/** Every final receipt is displayed and summed at most once. */
+export function canonicalizeReportRows<T extends {
+  id: string;
+  payment_date?: string | null;
+  amount?: unknown;
+  transaction_type?: string | null;
+  expense_behavior?: string | null;
+  file_hash?: string | null;
+  import_row_id?: string | null;
+}>(rows: T[]): T[] {
+  const usable: T[] = [];
+  const seenIds = new Set<string>();
+  const seenCanonical = new Set<string>();
+
+  for (const row of rows) {
+    if (!row.payment_date || seenIds.has(row.id)) continue;
+    if (normalizeFinancialClassification({
+      transaction_type: row.transaction_type ?? null,
+      expense_behavior: row.expense_behavior ?? null,
+    }).nature === "unclassified") continue;
+    const canonical = row.file_hash
+      ? `h:${row.file_hash}|${row.payment_date}|${toCents(row.amount)}`
+      : row.import_row_id ? `i:${row.import_row_id}` : null;
+    if (canonical && seenCanonical.has(canonical)) continue;
+    seenIds.add(row.id);
+    if (canonical) seenCanonical.add(canonical);
+    usable.push(row);
+  }
+  return usable;
+}
+
 function pct(part: number, whole: number) {
   return whole > 0 ? (part / whole) * 100 : 0;
 }
@@ -255,6 +314,8 @@ export async function loadReportDataset(f: {
     categoryIds: string[];
     recipients: string[];
   } | null;
+  /** Rows already filtered by the report screen. */
+  sourceRows?: any[];
 }): Promise<ReportDataset> {
 
   if (!f.profileId || f.profileId === "all") {
@@ -268,9 +329,9 @@ export async function loadReportDataset(f: {
   if (propsError) throw new Error(`Falha ao carregar imóveis: ${propsError.message}`);
   const propById = new Map((props ?? []).map((p) => [p.id, p]));
 
-  const rows: any[] = [];
+  const rows: any[] = f.sourceRows ? [...f.sourceRows] : [];
   const PAGE = 1000;
-  for (let offset = 0; offset < 100000; offset += PAGE) {
+  for (let offset = 0; !f.sourceRows && offset < 100000; offset += PAGE) {
     let q = supabase
       .from("receipts")
       .select("id, payment_date, amount, transaction_type, expense_behavior, category_id, recipient_name, bank_name, description, notes, payment_method, profile_id, property_id, file_hash, import_row_id, updated_at")
@@ -282,9 +343,8 @@ export async function loadReportDataset(f: {
     if (f.to) q = q.lte("payment_date", f.to);
     if (f.profileId) q = q.eq("profile_id", f.profileId);
     const hasNormalFilters = (f.propertyIds && f.propertyIds.length > 0) || (f.categoryIds && f.categoryIds.length > 0) || (f.recipients && f.recipients.length > 0);
-    const hasExtraIncludes = f.extraIncludes && (f.extraIncludes.propertyIds.length > 0 || f.extraIncludes.categoryIds.length > 0 || f.extraIncludes.recipients.length > 0);
 
-    if (hasNormalFilters || hasExtraIncludes) {
+    if (hasNormalFilters) {
       const orParts: string[] = [];
       
       // Filtros normais (AND entre si se existirem, mas aqui estamos montando o set de "o que entra")
@@ -331,23 +391,12 @@ export async function loadReportDataset(f: {
   console.log('REPORT_FETCH_FINISHED', { rowsFetched: rows.length });
 
   // Deduplicação absoluta por receipt.id (Regra 9, 20, 21)
-  const usable: any[] = [];
-  const seenIds = new Set<string>();
-  const seenCanonical = new Set<string>();
-  
-  for (const r of rows) {
-    if (!r.payment_date) continue;
-    if (seenIds.has(r.id)) continue;
-    
-    const canonical = r.file_hash ? `h:${r.file_hash}|${r.payment_date}|${toCents(r.amount)}` : (r.import_row_id ? `i:${r.import_row_id}` : null);
-    if (canonical) {
-      if (seenCanonical.has(canonical)) continue;
-      seenCanonical.add(canonical);
-    }
-    
-    seenIds.add(r.id);
-    usable.push(r);
-  }
+  const selectedRows = f.sourceRows ? rows : rows.filter((row) => matchesReportSelection(
+    row,
+    { propertyIds: f.propertyIds ?? [], categoryIds: f.categoryIds ?? [], recipients: f.recipients ?? [] },
+    f.extraIncludes ?? { propertyIds: [], categoryIds: [], recipients: [] },
+  ));
+  const usable = canonicalizeReportRows(selectedRows);
 
   const entries: LedgerEntry[] = usable.map((r) => {
     // Blindagem de Profile ID na normalização (Regra 9)

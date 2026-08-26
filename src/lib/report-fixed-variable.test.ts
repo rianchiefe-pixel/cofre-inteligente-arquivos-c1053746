@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { resolveReportType, type LedgerEntry, toCents, centsToNumber, loadReportDataset } from "./report-data";
+import { canonicalizeReportRows, resolveReportType, type LedgerEntry, toCents, centsToNumber, matchesReportSelection } from "./report-data";
 
 describe("Modelo Financeiro do Relatório (Regras Reais)", () => {
   it("despesa deve ser um tipo próprio vindo do lançamento", () => {
@@ -42,6 +42,28 @@ describe("Cálculos e Integridade", () => {
 
   it("centsToNumber deve retornar decimal correto", () => {
     assert.strictEqual(centsToNumber(1050), 10.5);
+  });
+});
+
+describe("Filtros canônicos do relatório", () => {
+  const none = { propertyIds: [], categoryIds: [], recipients: [] };
+  const receipt = { property_id: "property-a", category_id: "category-a", recipient_name: "Fornecedor A" };
+
+  it("combina filtros normais de dimensões diferentes com AND", () => {
+    assert.equal(matchesReportSelection(receipt, { propertyIds: ["property-a"], categoryIds: ["category-b"], recipients: [] }, none), false);
+  });
+
+  it("inclui explicitamente um destinatário adicional", () => {
+    assert.equal(matchesReportSelection(receipt, { propertyIds: ["property-b"], categoryIds: [], recipients: [] }, { propertyIds: [], categoryIds: [], recipients: ["Fornecedor A"] }), true);
+  });
+
+  it("inclusões adicionais não restringem o universo quando não há filtros normais", () => {
+    assert.equal(matchesReportSelection(receipt, none, { propertyIds: [], categoryIds: ["category-b"], recipients: [] }), true);
+  });
+
+  it("deduplica o mesmo lançamento canônico antes de listar e totalizar", () => {
+    const base = { payment_date: "2026-08-15", amount: 125.5, transaction_type: "despesa", expense_behavior: "variable", file_hash: "same-file", import_row_id: null };
+    assert.equal(canonicalizeReportRows([{ ...base, id: "receipt-1" }, { ...base, id: "receipt-2" }]).length, 1);
   });
 });
 

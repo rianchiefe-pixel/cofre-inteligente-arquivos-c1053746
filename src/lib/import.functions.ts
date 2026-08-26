@@ -377,6 +377,7 @@ const RowOverrides = z
   .object({
     transaction_type: z.enum(["DESPESA", "INVESTIMENTO"]).optional(),
     category: z.string().nullable().optional(),
+    category_id: z.string().uuid().nullable().optional(),
     category_original: z.string().nullable().optional(),
     subcategory: z.string().nullable().optional(),
     bank: z.string().nullable().optional(),
@@ -438,6 +439,8 @@ async function persistRowOverrides(
   const patch: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(overrides)) {
     if (v === undefined) continue;
+    // import_rows stores the review label; the real category_id goes directly to the approval RPC.
+    if (k === "category_id") continue;
     if (k === "transaction_type") {
       patch[k] = typeof v === "string" ? v.toUpperCase() : v;
       continue;
@@ -471,9 +474,20 @@ export const approveImportRow = createServerFn({ method: "POST" })
     await persistRowOverrides(supabase, data.rowId, data.overrides);
 
     // 3. Resolve categoria pelo nome, sempre no escopo do usuário autenticado
-    let categoryId: string | null = null;
-    const catName = (data.overrides.category ?? row.category) as string | null;
-    if (catName && catName.trim()) {
+    let categoryId: string | null = data.overrides.category_id ?? null;
+    let catName = (data.overrides.category ?? row.category) as string | null;
+    if (categoryId) {
+      const { data: selectedCategory, error: selectedCategoryError } = await supabase
+        .from("categories")
+        .select("id, name")
+        .eq("id", categoryId)
+        .eq("user_id", userId)
+        .eq("archived", false)
+        .maybeSingle();
+      if (selectedCategoryError) throw new Error(selectedCategoryError.message);
+      if (!selectedCategory) throw new Error("Categoria selecionada não é válida para este usuário.");
+      catName = selectedCategory.name;
+    } else if (catName && catName.trim()) {
       const { data: cats, error: catErr } = await supabase
         .from("categories")
         .select("id")
@@ -509,7 +523,7 @@ export const approveImportRow = createServerFn({ method: "POST" })
     }
     const method = normalizePaymentMethod(o.payment_method ?? row.payment_method);
     if (method) rpcOverrides.payment_method = method;
-    if (categoryId) rpcOverrides.category_id = categoryId;
+    if (categoryId || data.overrides.category_id === null) rpcOverrides.category_id = categoryId;
 
     const { data: rpcRows, error: rpcErr } = await supabase.rpc("approve_import_row_rpc", {
       p_row_id: data.rowId,

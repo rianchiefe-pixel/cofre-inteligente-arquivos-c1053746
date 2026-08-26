@@ -48,6 +48,11 @@ export function validateReportDataset(data: ReportDataset): ValidationResult {
     errors.push(`Total geral do período diverge da soma dos grupos (${brl(sumT)} vs ${brl(t.totalCents)}).`);
   }
 
+  const entriesSum = data.entries.reduce((sum, entry) => sum + entry.cents, 0);
+  if (Math.abs(entriesSum - t.totalCents) > 1) {
+    errors.push(`Total geral (${brl(t.totalCents)}) diverge da soma dos lançamentos filtrados (${brl(entriesSum)}).`);
+  }
+
   // Validação extra de integridade do dataset consolidado
   const totalMonthsFixed = data.months.reduce((s, m) => s + m.fixedCents, 0);
   if (Math.abs(totalMonthsFixed - t.fixedCents) > 1) {

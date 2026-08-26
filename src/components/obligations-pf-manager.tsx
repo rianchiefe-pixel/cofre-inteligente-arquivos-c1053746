@@ -303,7 +303,8 @@ export function ObligationsPage() {
 
       if (obligationId) {
         qc.invalidateQueries({ queryKey: ["credentials-lookup"] });
-        await sb.from("property_obligation_categories").delete().eq("obligation_id", obligationId);
+        const { error: unlinkError } = await sb.from("property_obligation_categories").delete().eq("obligation_id", obligationId);
+        if (unlinkError) throw unlinkError;
         if (form.category_ids.length) {
           const { error } = await sb.from("property_obligation_categories").insert(
             form.category_ids.map((category_id) => ({
@@ -328,12 +329,14 @@ export function ObligationsPage() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Obrigação salva");
       setOpen(false);
       setForm(emptyForm);
-      qc.invalidateQueries({ queryKey: ["obligations-pf"] });
-      qc.invalidateQueries({ queryKey: ["tasks-all"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["obligations-pf"] }),
+        qc.invalidateQueries({ queryKey: ["tasks-all"] }),
+      ]);
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar obrigação"),
   });
