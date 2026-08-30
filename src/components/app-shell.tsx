@@ -65,6 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: roles } = useRoles();
   const top = highestRole(roles);
   const visibleNav = nav.filter((item) => !item.perm || hasPermission(roles, item.perm));
+  const { counts: deadlineCounts } = useDeadlines();
   const isDemo = isDemoEmail(email);
   const [resetting, setResetting] = useState(false);
 
