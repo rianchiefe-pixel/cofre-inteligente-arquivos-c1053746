@@ -406,6 +406,9 @@ function VaultPage() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [propertyId, setPropertyId] = useState<string>("all");
   const [incompleteOnly, setIncompleteOnly] = useState(false);
+  const [showCardsInApproved, setShowCardsInApproved] = useState(false);
+  const [cardMonth, setCardMonth] = useState<string>("all");
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [original, setOriginal] = useState<any | null>(null);
   const [draft, setDraft] = useState<any | null>(null);
