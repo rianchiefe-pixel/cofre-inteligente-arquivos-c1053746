@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { seedDemoData, resetDemoData } from "@/lib/demo.functions";
 import { isDemoEmail } from "@/lib/demo";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDeadlines } from "@/hooks/use-deadlines";
 
 // Lazy loading do seletor de perfil para reduzir bundle inicial
 const ProfileSelector = lazy(() => import("@/components/profile-selector").then(m => ({ default: m.ProfileSelector })));
