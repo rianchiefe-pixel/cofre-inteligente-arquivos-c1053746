@@ -666,6 +666,19 @@ function VaultPage() {
   const total = receipts.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Meses disponíveis para o filtro da aba Cartão de Crédito (últimos 36 meses).
+  const cardMonthOptions = useMemo(() => {
+    const now = new Date();
+    const out: { value: string; label: string }[] = [];
+    for (let i = 0; i < 36; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      out.push({ value, label: `${MONTH_NAMES[d.getMonth()]} / ${d.getFullYear()}` });
+    }
+    return out;
+  }, []);
+
+
   const allSelected = filtered.length > 0 && filtered.every((r: any) => selectedIds.has(r.id));
   const toggleAll = () => {
     if (allSelected) setSelectedIds(new Set());
