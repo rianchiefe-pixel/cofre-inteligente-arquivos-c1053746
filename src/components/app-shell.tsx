@@ -213,7 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-const NavItem = memo(({ item, pathname }: { item: any, pathname: string }) => {
+const NavItem = memo(({ item, pathname, badge = 0 }: { item: any, pathname: string, badge?: number }) => {
   const { to, label, icon: Icon } = item;
   const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
   
