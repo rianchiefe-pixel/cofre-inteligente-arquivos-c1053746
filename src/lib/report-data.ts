@@ -150,27 +150,40 @@ type ReportSelection = {
   recipients: string[];
 };
 
-/** Normal filters use AND; explicit additional items are unioned with that subset. */
+const normalizeRecipient = (value?: string | null) =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+/**
+ * "Adicionar ao relatório" = INCLUIR mais lançamentos.
+ * Grupos (imóveis / categorias / destinatários), tanto os principais quanto os
+ * adicionais, são unidos por OU. Dentro de cada grupo também vale OU (IN).
+ * Se nenhum grupo tiver seleção, nada é restringido.
+ */
 export function matchesReportSelection(
   receipt: { property_id?: string | null; category_id?: string | null; recipient_name?: string | null },
   filters: ReportSelection,
   extraIncludes: ReportSelection,
 ): boolean {
-  const recipient = receipt.recipient_name?.trim() ?? "";
-  const hasNormalFilters =
-    filters.propertyIds.length > 0 || filters.categoryIds.length > 0 || filters.recipients.length > 0;
-  const matchesNormal =
-    (!filters.propertyIds.length || (!!receipt.property_id && filters.propertyIds.includes(receipt.property_id))) &&
-    (!filters.categoryIds.length || (!!receipt.category_id && filters.categoryIds.includes(receipt.category_id))) &&
-    (!filters.recipients.length || filters.recipients.includes(recipient));
-  const matchesExtra =
-    (!!receipt.property_id && extraIncludes.propertyIds.includes(receipt.property_id)) ||
-    (!!receipt.category_id && extraIncludes.categoryIds.includes(receipt.category_id)) ||
-    extraIncludes.recipients.includes(recipient);
+  const propertyIds = [...filters.propertyIds, ...extraIncludes.propertyIds];
+  const categoryIds = [...filters.categoryIds, ...extraIncludes.categoryIds];
+  const recipientKeys = new Set(
+    [...filters.recipients, ...extraIncludes.recipients].map(normalizeRecipient).filter(Boolean),
+  );
 
-  if (!hasNormalFilters) return true;
-  return matchesNormal || matchesExtra;
+  if (!propertyIds.length && !categoryIds.length && !recipientKeys.size) return true;
+
+  return (
+    (!!receipt.property_id && propertyIds.includes(receipt.property_id)) ||
+    (!!receipt.category_id && categoryIds.includes(receipt.category_id)) ||
+    recipientKeys.has(normalizeRecipient(receipt.recipient_name))
+  );
 }
+
 
 /** Every final receipt is displayed and summed at most once. */
 export function canonicalizeReportRows<T extends {
