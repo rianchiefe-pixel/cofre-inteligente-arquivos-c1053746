@@ -111,8 +111,36 @@ type QuickFilter =
   | "suspected"
   | "high_dup"
   | "approved"
+  | "credit_card"
   | "rejected"
   | "archived";
+
+// ---------------------------------------------------------------------------
+// Identificação de lançamentos de cartão de crédito (somente leitura).
+// Fonte da verdade: campos já existentes em `receipts`.
+//   1) card_id preenchido (estrutura de cartões);
+//   2) payment_method estruturado (crédito à vista / parcelado);
+//   3) fallback histórico: bloco "Forma: ..." gravado em notes pelas
+//      importações antigas de fatura.
+// Nenhum dado é alterado — trata-se apenas de consulta/visualização.
+// ---------------------------------------------------------------------------
+const CARD_INCLUDE_OR = [
+  "card_id.not.is.null",
+  "payment_method.in.(credito_vista,credito_parcelado)",
+  "notes.ilike.%cartão de crédito%",
+  "notes.ilike.%cartão crédito%",
+].join(",");
+
+/** Aplica a exclusão dos lançamentos de cartão (cada .or() é combinado com AND). */
+function excludeCards(qb: any) {
+  return qb
+    .is("card_id", null)
+    .or("payment_method.is.null,payment_method.not.in.(credito_vista,credito_parcelado)")
+    .or(
+      "notes.is.null,and(notes.not.ilike.%cartão de crédito%,notes.not.ilike.%cartão crédito%)",
+    );
+}
+
 
 type PreviewState = {
   loading: boolean;
