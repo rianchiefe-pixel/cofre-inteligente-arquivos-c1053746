@@ -67,6 +67,8 @@ import {
   Sparkles,
   AlertCircle,
   FileWarning,
+  CreditCard,
+
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -111,8 +113,36 @@ type QuickFilter =
   | "suspected"
   | "high_dup"
   | "approved"
+  | "credit_card"
   | "rejected"
   | "archived";
+
+// ---------------------------------------------------------------------------
+// Identificação de lançamentos de cartão de crédito (somente leitura).
+// Fonte da verdade: campos já existentes em `receipts`.
+//   1) card_id preenchido (estrutura de cartões);
+//   2) payment_method estruturado (crédito à vista / parcelado);
+//   3) fallback histórico: bloco "Forma: ..." gravado em notes pelas
+//      importações antigas de fatura.
+// Nenhum dado é alterado — trata-se apenas de consulta/visualização.
+// ---------------------------------------------------------------------------
+const CARD_INCLUDE_OR = [
+  "card_id.not.is.null",
+  "payment_method.in.(credito_vista,credito_parcelado)",
+  "notes.ilike.%cartão de crédito%",
+  "notes.ilike.%cartão crédito%",
+].join(",");
+
+/** Aplica a exclusão dos lançamentos de cartão (cada .or() é combinado com AND). */
+function excludeCards(qb: any) {
+  return qb
+    .is("card_id", null)
+    .or("payment_method.is.null,payment_method.not.in.(credito_vista,credito_parcelado)")
+    .or(
+      "notes.is.null,and(notes.not.ilike.%cartão de crédito%,notes.not.ilike.%cartão crédito%)",
+    );
+}
+
 
 type PreviewState = {
   loading: boolean;
@@ -378,6 +408,9 @@ function VaultPage() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [propertyId, setPropertyId] = useState<string>("all");
   const [incompleteOnly, setIncompleteOnly] = useState(false);
+  const [showCardsInApproved, setShowCardsInApproved] = useState(false);
+  const [cardMonth, setCardMonth] = useState<string>("all");
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [original, setOriginal] = useState<any | null>(null);
   const [draft, setDraft] = useState<any | null>(null);
@@ -440,7 +473,7 @@ function VaultPage() {
   }, [q]);
 
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType],
+    queryKey: ["receipts", quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, showCardsInApproved, cardMonth, page, search.from, search.to, search.expenseBehavior, search.transactionType],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
@@ -449,11 +482,26 @@ function VaultPage() {
         .order("id", { ascending: true });
       
       if (quick === "pending") qb = qb.in("status", ["pending", "duplicate"]).or(`ocr_status.eq.failed,status.eq.pending`);
-      else if (quick === "approved") qb = qb.eq("status", "approved");
+      else if (quick === "approved") {
+        qb = qb.eq("status", "approved");
+        // Status e forma de pagamento são conceitos distintos: por padrão os
+        // lançamentos de cartão ficam ocultos aqui, sem alterar nada no banco.
+        if (!showCardsInApproved) qb = excludeCards(qb);
+      }
+      else if (quick === "credit_card") {
+        qb = qb.or(CARD_INCLUDE_OR);
+        if (cardMonth !== "all") {
+          const [yy, mm] = cardMonth.split("-").map(Number);
+          const start = `${cardMonth}-01`;
+          const end = new Date(Date.UTC(yy, mm, 0)).toISOString().slice(0, 10);
+          qb = qb.gte("payment_date", start).lte("payment_date", end);
+        }
+      }
       else if (quick === "rejected") qb = qb.eq("status", "rejected");
       else if (quick === "archived") qb = qb.eq("status", "archived");
       else if (quick === "suspected") qb = qb.gte("duplicate_score", 50);
       else if (quick === "high_dup") qb = qb.gte("duplicate_score", 80);
+
 
       // Filtro de informações incompletas (Aprovados sem categoria ou sem perfil)
       if (incompleteOnly) {
@@ -611,12 +659,25 @@ function VaultPage() {
   useEffect(() => {
     setSelectedIds(new Set());
     setPage(0);
-  }, [quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly]);
+  }, [quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, showCardsInApproved, cardMonth]);
 
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   const filtered = receipts.data?.rows ?? [];
   const total = receipts.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Meses disponíveis para o filtro da aba Cartão de Crédito (últimos 36 meses).
+  const cardMonthOptions = useMemo(() => {
+    const now = new Date();
+    const out: { value: string; label: string }[] = [];
+    for (let i = 0; i < 36; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      out.push({ value, label: `${MONTH_NAMES[d.getMonth()]} / ${d.getFullYear()}` });
+    }
+    return out;
+  }, []);
+
 
   const allSelected = filtered.length > 0 && filtered.every((r: any) => selectedIds.has(r.id));
   const toggleAll = () => {
@@ -1020,10 +1081,35 @@ function VaultPage() {
           <TabsTrigger value="suspected">Possíveis duplicados</TabsTrigger>
           <TabsTrigger value="high_dup">Alta chance</TabsTrigger>
           <TabsTrigger value="approved">Aprovados</TabsTrigger>
+          <TabsTrigger value="credit_card" className="gap-1">
+            <CreditCard className="h-3.5 w-3.5" /> Cartão de Crédito
+          </TabsTrigger>
           <TabsTrigger value="rejected">Rejeitados</TabsTrigger>
           <TabsTrigger value="archived">Arquivados</TabsTrigger>
           <TabsTrigger value="all">Todos</TabsTrigger>
         </TabsList>
+
+        {quick === "credit_card" && (
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Mês de referência</Label>
+              <Select value={cardMonth} onValueChange={setCardMonth}>
+                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os meses</SelectItem>
+                  {cardMonthOptions.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="pb-2 text-xs text-muted-foreground">
+              {total} lançamento(s) de cartão encontrados com os filtros ativos.
+            </p>
+          </div>
+        )}
+
+
         
         {quick === "approved" && (
           <div className="flex flex-wrap gap-2 mt-4">
@@ -1071,6 +1157,14 @@ function VaultPage() {
             >
               Aprovados incompletos
             </Button>
+            <label className="ml-2 flex cursor-pointer items-center gap-2 rounded-md border border-border/60 px-3 py-1.5 text-sm">
+              <Checkbox
+                checked={showCardsInApproved}
+                onCheckedChange={(v) => setShowCardsInApproved(v === true)}
+              />
+              Mostrar Cartão de Crédito
+            </label>
+
           </div>
         )}
       </Tabs>
