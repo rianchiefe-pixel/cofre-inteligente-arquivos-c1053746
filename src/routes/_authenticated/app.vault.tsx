@@ -1068,10 +1068,35 @@ function VaultPage() {
           <TabsTrigger value="suspected">Possíveis duplicados</TabsTrigger>
           <TabsTrigger value="high_dup">Alta chance</TabsTrigger>
           <TabsTrigger value="approved">Aprovados</TabsTrigger>
+          <TabsTrigger value="credit_card" className="gap-1">
+            <CreditCard className="h-3.5 w-3.5" /> Cartão de Crédito
+          </TabsTrigger>
           <TabsTrigger value="rejected">Rejeitados</TabsTrigger>
           <TabsTrigger value="archived">Arquivados</TabsTrigger>
           <TabsTrigger value="all">Todos</TabsTrigger>
         </TabsList>
+
+        {quick === "credit_card" && (
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Mês de referência</Label>
+              <Select value={cardMonth} onValueChange={setCardMonth}>
+                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os meses</SelectItem>
+                  {cardMonthOptions.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="pb-2 text-xs text-muted-foreground">
+              {total} lançamento(s) de cartão encontrados com os filtros ativos.
+            </p>
+          </div>
+        )}
+
+
         
         {quick === "approved" && (
           <div className="flex flex-wrap gap-2 mt-4">
