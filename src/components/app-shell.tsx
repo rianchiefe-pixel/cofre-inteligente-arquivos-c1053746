@@ -182,7 +182,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto scrollbar-hide">
             {visibleNav.map((item) => (
-              <NavItem key={item.to} item={item} pathname={pathname} />
+              <NavItem
+                key={item.to}
+                item={item}
+                pathname={pathname}
+                badge={item.to === "/app/tasks" ? deadlineCounts.alert : 0}
+              />
             ))}
           </nav>
 
