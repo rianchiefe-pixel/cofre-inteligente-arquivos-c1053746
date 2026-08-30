@@ -471,7 +471,7 @@ function VaultPage() {
   }, [q]);
 
   const receipts = useQuery({
-    queryKey: ["receipts", quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, page, search.from, search.to, search.expenseBehavior, search.transactionType],
+    queryKey: ["receipts", quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, showCardsInApproved, cardMonth, page, search.from, search.to, search.expenseBehavior, search.transactionType],
     queryFn: async () => {
       let qb = supabase
         .from("receipts")
@@ -480,11 +480,26 @@ function VaultPage() {
         .order("id", { ascending: true });
       
       if (quick === "pending") qb = qb.in("status", ["pending", "duplicate"]).or(`ocr_status.eq.failed,status.eq.pending`);
-      else if (quick === "approved") qb = qb.eq("status", "approved");
+      else if (quick === "approved") {
+        qb = qb.eq("status", "approved");
+        // Status e forma de pagamento são conceitos distintos: por padrão os
+        // lançamentos de cartão ficam ocultos aqui, sem alterar nada no banco.
+        if (!showCardsInApproved) qb = excludeCards(qb);
+      }
+      else if (quick === "credit_card") {
+        qb = qb.or(CARD_INCLUDE_OR);
+        if (cardMonth !== "all") {
+          const [yy, mm] = cardMonth.split("-").map(Number);
+          const start = `${cardMonth}-01`;
+          const end = new Date(Date.UTC(yy, mm, 0)).toISOString().slice(0, 10);
+          qb = qb.gte("payment_date", start).lte("payment_date", end);
+        }
+      }
       else if (quick === "rejected") qb = qb.eq("status", "rejected");
       else if (quick === "archived") qb = qb.eq("status", "archived");
       else if (quick === "suspected") qb = qb.gte("duplicate_score", 50);
       else if (quick === "high_dup") qb = qb.gte("duplicate_score", 80);
+
 
       // Filtro de informações incompletas (Aprovados sem categoria ou sem perfil)
       if (incompleteOnly) {
