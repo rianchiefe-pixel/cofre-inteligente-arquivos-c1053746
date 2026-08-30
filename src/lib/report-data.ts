@@ -371,8 +371,9 @@ export async function loadReportDataset(f: {
     }
     for (const name of Array.from(new Set(allRecipients))) {
       // ilike garante compatibilidade com registros históricos (caixa/espaços).
-      orParts.push(`recipient_name.ilike.${name.replace(/[,()]/g, "")}`);
+      orParts.push(`recipient_name.ilike."${name.replace(/"/g, "")}"`);
     }
+
 
     if (orParts.length > 0) {
       q = q.or(orParts.join(","));
