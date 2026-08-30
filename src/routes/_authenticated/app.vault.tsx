@@ -1144,6 +1144,14 @@ function VaultPage() {
             >
               Aprovados incompletos
             </Button>
+            <label className="ml-2 flex cursor-pointer items-center gap-2 rounded-md border border-border/60 px-3 py-1.5 text-sm">
+              <Checkbox
+                checked={showCardsInApproved}
+                onCheckedChange={(v) => setShowCardsInApproved(v === true)}
+              />
+              Mostrar Cartão de Crédito
+            </label>
+
           </div>
         )}
       </Tabs>
