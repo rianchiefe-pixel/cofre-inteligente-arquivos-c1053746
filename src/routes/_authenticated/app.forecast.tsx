@@ -212,7 +212,7 @@ function ForecastPage() {
           .lte("due_date", endDate),
         sb
           .from("receipts")
-          .select("*, category:categories(name)")
+          .select("*, category:categories!receipts_category_id_fkey(name)")
           .gte("payment_date", startDate)
           .lte("payment_date", endDate)
           .in("status", ["approved", "pending"]),
