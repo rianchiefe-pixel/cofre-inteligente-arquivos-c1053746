@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { seedDemoData, resetDemoData } from "@/lib/demo.functions";
 import { isDemoEmail } from "@/lib/demo";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDeadlines } from "@/hooks/use-deadlines";
 
 // Lazy loading do seletor de perfil para reduzir bundle inicial
 const ProfileSelector = lazy(() =>
@@ -81,6 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: roles } = useRoles();
   const top = highestRole(roles);
   const visibleNav = nav.filter((item) => !item.perm || hasPermission(roles, item.perm));
+  const { counts: deadlineCounts } = useDeadlines();
   const isDemo = isDemoEmail(email);
   const [resetting, setResetting] = useState(false);
 
@@ -217,7 +219,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto scrollbar-hide">
             {visibleNav.map((item) => (
-              <NavItem key={item.to} item={item} pathname={pathname} />
+              <NavItem
+                key={item.to}
+                item={item}
+                pathname={pathname}
+                badge={item.to === "/app/tasks" ? deadlineCounts.alert : 0}
+              />
             ))}
           </nav>
 
@@ -252,28 +259,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-const NavItem = memo(({ item, pathname }: { item: NavItemData; pathname: string }) => {
-  const { to, label, icon: Icon } = item;
-  const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
+const NavItem = memo(
+  ({ item, pathname, badge = 0 }: { item: NavItemData; pathname: string; badge?: number }) => {
+    const { to, label, icon: Icon } = item;
+    const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
 
-  return (
-    <Link
-      to={to}
-      className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-300 ${
-        active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--sidebar-primary)_35%,transparent)]"
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground hover:translate-x-0.5"
-      }`}
-    >
-      {active && (
-        <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
-      )}
-      <Icon
-        className={`h-4 w-4 transition-colors ${active ? "text-accent" : "text-sidebar-foreground/60 group-hover:text-accent"}`}
-      />
-      <span className="font-medium">{label}</span>
-    </Link>
-  );
-});
+    return (
+      <Link
+        to={to}
+        className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-300 ${
+          active
+            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--sidebar-primary)_35%,transparent)]"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground hover:translate-x-0.5"
+        }`}
+      >
+        {active && (
+          <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
+        )}
+        <Icon
+          className={`h-4 w-4 transition-colors ${active ? "text-accent" : "text-sidebar-foreground/60 group-hover:text-accent"}`}
+        />
+        <span className="font-medium">{label}</span>
+        {badge > 0 && (
+          <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </Link>
+    );
+  },
+);
 
 NavItem.displayName = "NavItem";

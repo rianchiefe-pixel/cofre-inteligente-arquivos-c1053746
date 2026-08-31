@@ -150,27 +150,40 @@ type ReportSelection = {
   recipients: string[];
 };
 
-/** Normal filters use AND; explicit additional items are unioned with that subset. */
+const normalizeRecipient = (value?: string | null) =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+/**
+ * "Adicionar ao relatório" = INCLUIR mais lançamentos.
+ * Grupos (imóveis / categorias / destinatários), tanto os principais quanto os
+ * adicionais, são unidos por OU. Dentro de cada grupo também vale OU (IN).
+ * Se nenhum grupo tiver seleção, nada é restringido.
+ */
 export function matchesReportSelection(
   receipt: { property_id?: string | null; category_id?: string | null; recipient_name?: string | null },
   filters: ReportSelection,
   extraIncludes: ReportSelection,
 ): boolean {
-  const recipient = receipt.recipient_name?.trim() ?? "";
-  const hasNormalFilters =
-    filters.propertyIds.length > 0 || filters.categoryIds.length > 0 || filters.recipients.length > 0;
-  const matchesNormal =
-    (!filters.propertyIds.length || (!!receipt.property_id && filters.propertyIds.includes(receipt.property_id))) &&
-    (!filters.categoryIds.length || (!!receipt.category_id && filters.categoryIds.includes(receipt.category_id))) &&
-    (!filters.recipients.length || filters.recipients.includes(recipient));
-  const matchesExtra =
-    (!!receipt.property_id && extraIncludes.propertyIds.includes(receipt.property_id)) ||
-    (!!receipt.category_id && extraIncludes.categoryIds.includes(receipt.category_id)) ||
-    extraIncludes.recipients.includes(recipient);
+  const propertyIds = [...filters.propertyIds, ...extraIncludes.propertyIds];
+  const categoryIds = [...filters.categoryIds, ...extraIncludes.categoryIds];
+  const recipientKeys = new Set(
+    [...filters.recipients, ...extraIncludes.recipients].map(normalizeRecipient).filter(Boolean),
+  );
 
-  if (!hasNormalFilters) return true;
-  return matchesNormal || matchesExtra;
+  if (!propertyIds.length && !categoryIds.length && !recipientKeys.size) return true;
+
+  return (
+    (!!receipt.property_id && propertyIds.includes(receipt.property_id)) ||
+    (!!receipt.category_id && categoryIds.includes(receipt.category_id)) ||
+    recipientKeys.has(normalizeRecipient(receipt.recipient_name))
+  );
 }
+
 
 /** Every final receipt is displayed and summed at most once. */
 export function canonicalizeReportRows<T extends {
@@ -342,42 +355,30 @@ export async function loadReportDataset(f: {
     if (f.from) q = q.gte("payment_date", f.from);
     if (f.to) q = q.lte("payment_date", f.to);
     if (f.profileId) q = q.eq("profile_id", f.profileId);
-    const hasNormalFilters = (f.propertyIds && f.propertyIds.length > 0) || (f.categoryIds && f.categoryIds.length > 0) || (f.recipients && f.recipients.length > 0);
+    // União de todos os conjuntos (principais + adicionados ao relatório).
+    const allPropertyIds = [...(f.propertyIds ?? []), ...(f.extraIncludes?.propertyIds ?? [])];
+    const allCategoryIds = [...(f.categoryIds ?? []), ...(f.extraIncludes?.categoryIds ?? [])];
+    const allRecipients = [...(f.recipients ?? []), ...(f.extraIncludes?.recipients ?? [])]
+      .map((r) => (r ?? "").trim())
+      .filter(Boolean);
 
-    if (hasNormalFilters) {
-      const orParts: string[] = [];
-      
-      // Filtros normais (AND entre si se existirem, mas aqui estamos montando o set de "o que entra")
-      // Na verdade, o usuário quer: (Imóvel A OU Imóvel B OU Destinatário X)
-      // Então todos os critérios de "o que entra" são OR.
-      
-      if (f.propertyIds && f.propertyIds.length > 0) {
-        orParts.push(`property_id.in.(${f.propertyIds.join(",")})`);
-      }
-      if (f.categoryIds && f.categoryIds.length > 0) {
-        orParts.push(`category_id.in.(${f.categoryIds.join(",")})`);
-      }
-      if (f.recipients && f.recipients.length > 0) {
-        orParts.push(`recipient_name.in.(${f.recipients.map(r => `"${r}"`).join(",")})`);
-      }
-
-      // Inclusões extras
-      if (f.extraIncludes) {
-        if (f.extraIncludes.propertyIds.length > 0) {
-          orParts.push(`property_id.in.(${f.extraIncludes.propertyIds.join(",")})`);
-        }
-        if (f.extraIncludes.categoryIds.length > 0) {
-          orParts.push(`category_id.in.(${f.extraIncludes.categoryIds.join(",")})`);
-        }
-        if (f.extraIncludes.recipients.length > 0) {
-          orParts.push(`recipient_name.in.(${f.extraIncludes.recipients.map(r => `"${r}"`).join(",")})`);
-        }
-      }
-
-      if (orParts.length > 0) {
-        q = q.or(orParts.join(","));
-      }
+    const orParts: string[] = [];
+    if (allPropertyIds.length > 0) {
+      orParts.push(`property_id.in.(${Array.from(new Set(allPropertyIds)).join(",")})`);
     }
+    if (allCategoryIds.length > 0) {
+      orParts.push(`category_id.in.(${Array.from(new Set(allCategoryIds)).join(",")})`);
+    }
+    for (const name of Array.from(new Set(allRecipients))) {
+      // ilike garante compatibilidade com registros históricos (caixa/espaços).
+      orParts.push(`recipient_name.ilike."${name.replace(/"/g, "")}"`);
+    }
+
+
+    if (orParts.length > 0) {
+      q = q.or(orParts.join(","));
+    }
+
 
     const { data, error } = await q;
     if (error) throw new Error(`Falha ao carregar lançamentos: ${error.message}`);
