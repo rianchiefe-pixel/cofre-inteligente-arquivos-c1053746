@@ -227,6 +227,8 @@ export type Database = {
           import_file_id: string | null
           minimum_payment: number | null
           pages_total: number | null
+          paid_at: string | null
+          payment_status: string
           period_end: string | null
           period_start: string | null
           progress_pct: number | null
@@ -253,6 +255,8 @@ export type Database = {
           import_file_id?: string | null
           minimum_payment?: number | null
           pages_total?: number | null
+          paid_at?: string | null
+          payment_status?: string
           period_end?: string | null
           period_start?: string | null
           progress_pct?: number | null
@@ -279,6 +283,8 @@ export type Database = {
           import_file_id?: string | null
           minimum_payment?: number | null
           pages_total?: number | null
+          paid_at?: string | null
+          payment_status?: string
           period_end?: string | null
           period_start?: string | null
           progress_pct?: number | null
@@ -723,6 +729,121 @@ export type Database = {
           {
             foreignKeyName: "duplicate_checks_new_receipt_id_fkey"
             columns: ["new_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_forecasts: {
+        Row: {
+          account_id: string | null
+          amount: number
+          card_id: string | null
+          category_id: string | null
+          created_at: string
+          description: string
+          end_date: string | null
+          id: string
+          kind: string
+          notes: string | null
+          occurrence_count: number | null
+          payment_method: string | null
+          profile_id: string | null
+          property_id: string | null
+          realized_receipt_id: string | null
+          recipient_name: string | null
+          recurrence: string
+          start_date: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          card_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          description: string
+          end_date?: string | null
+          id?: string
+          kind: string
+          notes?: string | null
+          occurrence_count?: number | null
+          payment_method?: string | null
+          profile_id?: string | null
+          property_id?: string | null
+          realized_receipt_id?: string | null
+          recipient_name?: string | null
+          recurrence?: string
+          start_date: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          card_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          end_date?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          occurrence_count?: number | null
+          payment_method?: string | null
+          profile_id?: string | null
+          property_id?: string | null
+          realized_receipt_id?: string | null
+          recipient_name?: string | null
+          recurrence?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_forecasts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_forecasts_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_forecasts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_forecasts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "financial_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_forecasts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_forecasts_realized_receipt_id_fkey"
+            columns: ["realized_receipt_id"]
             isOneToOne: false
             referencedRelation: "receipts"
             referencedColumns: ["id"]
