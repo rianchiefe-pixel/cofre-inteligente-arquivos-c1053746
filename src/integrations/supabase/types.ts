@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
@@ -1996,7 +2002,9 @@ export type Database = {
       receipt_analysis_files: {
         Row: {
           analysis_reason: string | null
-          analysis_status: Database["public"]["Enums"]["receipt_analysis_status"] | null
+          analysis_status:
+            | Database["public"]["Enums"]["receipt_analysis_status"]
+            | null
           batch_id: string
           candidate_receipt_id: string | null
           content_hash: string
@@ -2012,7 +2020,9 @@ export type Database = {
         }
         Insert: {
           analysis_reason?: string | null
-          analysis_status?: Database["public"]["Enums"]["receipt_analysis_status"] | null
+          analysis_status?:
+            | Database["public"]["Enums"]["receipt_analysis_status"]
+            | null
           batch_id: string
           candidate_receipt_id?: string | null
           content_hash: string
@@ -2028,7 +2038,9 @@ export type Database = {
         }
         Update: {
           analysis_reason?: string | null
-          analysis_status?: Database["public"]["Enums"]["receipt_analysis_status"] | null
+          analysis_status?:
+            | Database["public"]["Enums"]["receipt_analysis_status"]
+            | null
           batch_id?: string
           candidate_receipt_id?: string | null
           content_hash?: string
@@ -2097,7 +2109,9 @@ export type Database = {
           recipient_name: string | null
           recipient_tax_id: string | null
           status: Database["public"]["Enums"]["receipt_status"]
-          transaction_type: Database["public"]["Enums"]["transaction_type"] | null
+          transaction_type:
+            | Database["public"]["Enums"]["transaction_type"]
+            | null
           updated_at: string
           user_confirmed_at: string | null
           user_id: string
@@ -2146,7 +2160,9 @@ export type Database = {
           recipient_name?: string | null
           recipient_tax_id?: string | null
           status?: Database["public"]["Enums"]["receipt_status"]
-          transaction_type?: Database["public"]["Enums"]["transaction_type"] | null
+          transaction_type?:
+            | Database["public"]["Enums"]["transaction_type"]
+            | null
           updated_at?: string
           user_confirmed_at?: string | null
           user_id: string
@@ -2195,7 +2211,9 @@ export type Database = {
           recipient_name?: string | null
           recipient_tax_id?: string | null
           status?: Database["public"]["Enums"]["receipt_status"]
-          transaction_type?: Database["public"]["Enums"]["transaction_type"] | null
+          transaction_type?:
+            | Database["public"]["Enums"]["transaction_type"]
+            | null
           updated_at?: string
           user_confirmed_at?: string | null
           user_id?: string
@@ -2747,8 +2765,19 @@ export type Database = {
     }
     Enums: {
       account_type:
-        "corrente" | "poupanca" | "pj" | "investimento" | "cartao" | "carteira_digital" | "outro"
-      app_role: "proprietario" | "administrador" | "contador" | "colaborador" | "visualizador"
+        | "corrente"
+        | "poupanca"
+        | "pj"
+        | "investimento"
+        | "cartao"
+        | "carteira_digital"
+        | "outro"
+      app_role:
+        | "proprietario"
+        | "administrador"
+        | "contador"
+        | "colaborador"
+        | "visualizador"
       card_brand: "visa" | "mastercard" | "elo" | "amex" | "hipercard" | "outro"
       ocr_status: "queued" | "processing" | "done" | "failed"
       payment_method:
@@ -2761,9 +2790,21 @@ export type Database = {
         | "dinheiro"
         | "transferencia"
         | "outro"
-      profile_type: "pessoa_fisica" | "empresa" | "holding" | "imovel" | "projeto" | "outro"
+      profile_type:
+        | "pessoa_fisica"
+        | "empresa"
+        | "holding"
+        | "imovel"
+        | "projeto"
+        | "outro"
       property_purpose:
-        "moradia" | "aluguel" | "venda" | "investimento" | "uso_empresarial" | "rural" | "outro"
+        | "moradia"
+        | "aluguel"
+        | "venda"
+        | "investimento"
+        | "uso_empresarial"
+        | "rural"
+        | "outro"
       property_status:
         | "proprio"
         | "alugado"
@@ -2798,7 +2839,12 @@ export type Database = {
         | "not_found"
         | "duplicate_in_zip"
         | "error"
-      receipt_status: "pending" | "approved" | "rejected" | "duplicate" | "archived"
+      receipt_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "duplicate"
+        | "archived"
       transaction_type:
         | "despesa"
         | "investimento"
@@ -2822,12 +2868,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2837,8 +2883,10 @@ export type Tables<
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -2847,12 +2895,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2871,12 +2920,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2895,12 +2945,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2911,12 +2962,13 @@ export type Enums<
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2937,7 +2989,13 @@ export const Constants = {
         "carteira_digital",
         "outro",
       ],
-      app_role: ["proprietario", "administrador", "contador", "colaborador", "visualizador"],
+      app_role: [
+        "proprietario",
+        "administrador",
+        "contador",
+        "colaborador",
+        "visualizador",
+      ],
       card_brand: ["visa", "mastercard", "elo", "amex", "hipercard", "outro"],
       ocr_status: ["queued", "processing", "done", "failed"],
       payment_method: [
@@ -2951,7 +3009,14 @@ export const Constants = {
         "transferencia",
         "outro",
       ],
-      profile_type: ["pessoa_fisica", "empresa", "holding", "imovel", "projeto", "outro"],
+      profile_type: [
+        "pessoa_fisica",
+        "empresa",
+        "holding",
+        "imovel",
+        "projeto",
+        "outro",
+      ],
       property_purpose: [
         "moradia",
         "aluguel",
@@ -2998,7 +3063,13 @@ export const Constants = {
         "duplicate_in_zip",
         "error",
       ],
-      receipt_status: ["pending", "approved", "rejected", "duplicate", "archived"],
+      receipt_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "duplicate",
+        "archived",
+      ],
       transaction_type: [
         "despesa",
         "investimento",
