@@ -21,20 +21,30 @@ import {
   Scale,
   ScanSearch,
   KeyRound,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRoles, hasPermission, highestRole, ROLE_LABEL, type Permission } from "@/lib/permissions";
+import {
+  useRoles,
+  hasPermission,
+  highestRole,
+  ROLE_LABEL,
+  type Permission,
+} from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { seedDemoData, resetDemoData } from "@/lib/demo.functions";
 import { isDemoEmail } from "@/lib/demo";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Lazy loading do seletor de perfil para reduzir bundle inicial
-const ProfileSelector = lazy(() => import("@/components/profile-selector").then(m => ({ default: m.ProfileSelector })));
+const ProfileSelector = lazy(() =>
+  import("@/components/profile-selector").then((m) => ({ default: m.ProfileSelector })),
+);
 
+type NavItemData = { to: string; label: string; icon: typeof LayoutDashboard; perm?: Permission };
 
-const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Permission }[] = [
+const nav: NavItemData[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/profiles", label: "Perfis", icon: Users, perm: "manageEntities" },
   { to: "/app/properties", label: "Imóveis", icon: Home, perm: "manageEntities" },
@@ -48,9 +58,15 @@ const nav: { to: string; label: string; icon: typeof LayoutDashboard; perm?: Per
   { to: "/app/vault", label: "Cofre", icon: FolderLock },
   { to: "/app/analyze-receipts", label: "Analisar Comprovantes", icon: ScanSearch },
   { to: "/app/fixed-expenses", label: "Gastos Fixos", icon: ListTodo },
+  { to: "/app/forecast", label: "Previsibilidade", icon: TrendingUp },
   { to: "/app/categories", label: "Categorias", icon: Tags, perm: "manageEntities" },
   { to: "/app/receipts-no-receipt", label: "Lançamentos sem comprovante", icon: ListTodo },
-  { to: "/app/categories/pending", label: "Pendências de Categorização", icon: ShieldAlert, perm: "manageEntities" },
+  {
+    to: "/app/categories/pending",
+    label: "Pendências de Categorização",
+    icon: ShieldAlert,
+    perm: "manageEntities",
+  },
   { to: "/app/holding-advocacia", label: "Advocacia (Holding)", icon: Scale, perm: "editReceipts" },
   { to: "/app/reports", label: "Relatórios", icon: FileBarChart },
   { to: "/app/audit", label: "Auditoria", icon: ShieldAlert, perm: "viewAudit" },
@@ -86,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       setResetting(false);
     }
   };
-  
+
   const wipeDemo = async () => {
     if (!confirm("Isso apagará TODOS os dados da conta demo (zerado). Deseja continuar?")) return;
     setResetting(true);
@@ -128,10 +144,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-soft)]">
             <ShieldCheck className="h-4 w-4" />
           </div>
-          <span className="font-display font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Meu Cofre</span>
+          <span
+            className="font-display font-semibold tracking-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Meu Cofre
+          </span>
         </Link>
         <div className="flex items-center gap-2">
-          {isDemo && <Badge variant="outline" className="border-accent/60 text-[10px]">Modo teste</Badge>}
+          {isDemo && (
+            <Badge variant="outline" className="border-accent/60 text-[10px]">
+              Modo teste
+            </Badge>
+          )}
           <Button variant="ghost" size="icon" onClick={() => setOpen((v) => !v)} aria-label="Menu">
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -142,15 +167,25 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Sidebar */}
         <aside
           className={`${open ? "flex" : "hidden"} md:flex flex-col fixed inset-x-0 top-[57px] z-20 border-b border-sidebar-border bg-sidebar md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r md:border-sidebar-border/60`}
-          style={{ backgroundImage: "linear-gradient(180deg, var(--sidebar) 0%, color-mix(in oklab, var(--sidebar) 92%, black) 100%)" }}
+          style={{
+            backgroundImage:
+              "linear-gradient(180deg, var(--sidebar) 0%, color-mix(in oklab, var(--sidebar) 92%, black) 100%)",
+          }}
         >
           <div className="hidden items-center gap-3 border-b border-sidebar-border/60 px-6 py-5 md:flex">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-[image:var(--gradient-gold)] text-accent-foreground shadow-[var(--shadow-gold)]">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold tracking-tight text-sidebar-foreground" style={{ fontFamily: "var(--font-display)" }}>Meu Cofre</p>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-sidebar-foreground/50">Cofre Inteligente</p>
+              <p
+                className="text-sm font-semibold tracking-tight text-sidebar-foreground"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Meu Cofre
+              </p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-sidebar-foreground/50">
+                Cofre Inteligente
+              </p>
             </div>
           </div>
           {isDemo && (
@@ -189,7 +224,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mt-auto border-t border-sidebar-border/60 p-3">
             <div className="mb-2 flex items-center justify-between gap-2 px-3 py-2">
               <span className="truncate text-xs text-sidebar-foreground/55">{email}</span>
-              {top && <Badge variant="secondary" className="shrink-0 text-[10px]">{ROLE_LABEL[top]}</Badge>}
+              {top && (
+                <Badge variant="secondary" className="shrink-0 text-[10px]">
+                  {ROLE_LABEL[top]}
+                </Badge>
+              )}
             </div>
             <button
               onClick={signOut}
@@ -201,17 +240,22 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
 
         <main className="min-w-0 flex-1">
-          <div key={pathname} className="mx-auto max-w-7xl px-4 py-6 md:px-10 md:py-12 animate-rise">{children}</div>
+          <div
+            key={pathname}
+            className="mx-auto max-w-7xl px-4 py-6 md:px-10 md:py-12 animate-rise"
+          >
+            {children}
+          </div>
         </main>
       </div>
     </div>
   );
 }
 
-const NavItem = memo(({ item, pathname }: { item: any, pathname: string }) => {
+const NavItem = memo(({ item, pathname }: { item: NavItemData; pathname: string }) => {
   const { to, label, icon: Icon } = item;
   const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
-  
+
   return (
     <Link
       to={to}
@@ -224,7 +268,9 @@ const NavItem = memo(({ item, pathname }: { item: any, pathname: string }) => {
       {active && (
         <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-[image:var(--gradient-gold)]" />
       )}
-      <Icon className={`h-4 w-4 transition-colors ${active ? "text-accent" : "text-sidebar-foreground/60 group-hover:text-accent"}`} />
+      <Icon
+        className={`h-4 w-4 transition-colors ${active ? "text-accent" : "text-sidebar-foreground/60 group-hover:text-accent"}`}
+      />
       <span className="font-medium">{label}</span>
     </Link>
   );

@@ -9,46 +9,47 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
-import { Route as AcessoTemporarioCategoriasTokenRouteImport } from './routes/acesso-temporario.categorias.$token'
-import { Route as AuthenticatedAppVaultRouteImport } from './routes/_authenticated/app.vault'
-import { Route as AuthenticatedAppUploadRouteImport } from './routes/_authenticated/app.upload'
-import { Route as AuthenticatedAppTasksRouteImport } from './routes/_authenticated/app.tasks'
-import { Route as AuthenticatedAppReportsRouteImport } from './routes/_authenticated/app.reports'
-import { Route as AuthenticatedAppReceiptsNoReceiptRouteImport } from './routes/_authenticated/app.receipts-no-receipt'
-import { Route as AuthenticatedAppProfilesRouteImport } from './routes/_authenticated/app.profiles'
-import { Route as AuthenticatedAppPersonalObligationsRouteImport } from './routes/_authenticated/app.personal-obligations'
-import { Route as AuthenticatedAppImportRouteImport } from './routes/_authenticated/app.import'
-import { Route as AuthenticatedAppHoldingAdvocaciaRouteImport } from './routes/_authenticated/app.holding-advocacia'
-import { Route as AuthenticatedAppFixedExpensesRouteImport } from './routes/_authenticated/app.fixed-expenses'
-import { Route as AuthenticatedAppCategoriesRouteImport } from './routes/_authenticated/app.categories'
-import { Route as AuthenticatedAppCardsRouteImport } from './routes/_authenticated/app.cards'
-import { Route as AuthenticatedAppBanksRouteImport } from './routes/_authenticated/app.banks'
-import { Route as AuthenticatedAppAuditRouteImport } from './routes/_authenticated/app.audit'
-import { Route as AuthenticatedAppAnalyzeReceiptsRouteImport } from './routes/_authenticated/app.analyze-receipts'
 import { Route as AuthenticatedAppAccessesRouteImport } from './routes/_authenticated/app.accesses'
-import { Route as AuthenticatedAppPropertiesIndexRouteImport } from './routes/_authenticated/app.properties.index'
+import { Route as AuthenticatedAppAnalyzeReceiptsRouteImport } from './routes/_authenticated/app.analyze-receipts'
+import { Route as AuthenticatedAppAuditRouteImport } from './routes/_authenticated/app.audit'
+import { Route as AuthenticatedAppBanksRouteImport } from './routes/_authenticated/app.banks'
+import { Route as AuthenticatedAppCardsRouteImport } from './routes/_authenticated/app.cards'
+import { Route as AuthenticatedAppCategoriesRouteImport } from './routes/_authenticated/app.categories'
+import { Route as AuthenticatedAppFixedExpensesRouteImport } from './routes/_authenticated/app.fixed-expenses'
+import { Route as AuthenticatedAppForecastRouteImport } from './routes/_authenticated/app.forecast'
+import { Route as AuthenticatedAppHoldingAdvocaciaRouteImport } from './routes/_authenticated/app.holding-advocacia'
+import { Route as AuthenticatedAppImportRouteImport } from './routes/_authenticated/app.import'
+import { Route as AuthenticatedAppPersonalObligationsRouteImport } from './routes/_authenticated/app.personal-obligations'
+import { Route as AuthenticatedAppProfilesRouteImport } from './routes/_authenticated/app.profiles'
+import { Route as AuthenticatedAppReceiptsNoReceiptRouteImport } from './routes/_authenticated/app.receipts-no-receipt'
+import { Route as AuthenticatedAppReportsRouteImport } from './routes/_authenticated/app.reports'
+import { Route as AuthenticatedAppTasksRouteImport } from './routes/_authenticated/app.tasks'
+import { Route as AuthenticatedAppUploadRouteImport } from './routes/_authenticated/app.upload'
+import { Route as AuthenticatedAppVaultRouteImport } from './routes/_authenticated/app.vault'
+import { Route as AcessoTemporarioCategoriasTokenRouteImport } from './routes/acesso-temporario.categorias.$token'
 import { Route as AuthenticatedAppCardsIndexRouteImport } from './routes/_authenticated/app.cards.index'
-import { Route as AuthenticatedAppPropertiesIdRouteImport } from './routes/_authenticated/app.properties.$id'
-import { Route as AuthenticatedAppCategoriesPendingRouteImport } from './routes/_authenticated/app.categories.pending'
 import { Route as AuthenticatedAppCardsIdRouteImport } from './routes/_authenticated/app.cards.$id'
+import { Route as AuthenticatedAppCategoriesPendingRouteImport } from './routes/_authenticated/app.categories.pending'
+import { Route as AuthenticatedAppPropertiesIndexRouteImport } from './routes/_authenticated/app.properties.index'
+import { Route as AuthenticatedAppPropertiesIdRouteImport } from './routes/_authenticated/app.properties.$id'
 
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
@@ -61,59 +62,37 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AcessoTemporarioCategoriasTokenRoute =
-  AcessoTemporarioCategoriasTokenRouteImport.update({
-    id: '/acesso-temporario/categorias/$token',
-    path: '/acesso-temporario/categorias/$token',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AuthenticatedAppVaultRoute = AuthenticatedAppVaultRouteImport.update({
-  id: '/vault',
-  path: '/vault',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppUploadRoute = AuthenticatedAppUploadRouteImport.update({
-  id: '/upload',
-  path: '/upload',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppTasksRoute = AuthenticatedAppTasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppReportsRoute = AuthenticatedAppReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppReceiptsNoReceiptRoute =
-  AuthenticatedAppReceiptsNoReceiptRouteImport.update({
-    id: '/receipts-no-receipt',
-    path: '/receipts-no-receipt',
+const AuthenticatedAppAccessesRoute =
+  AuthenticatedAppAccessesRouteImport.update({
+    id: '/accesses',
+    path: '/accesses',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppProfilesRoute =
-  AuthenticatedAppProfilesRouteImport.update({
-    id: '/profiles',
-    path: '/profiles',
+const AuthenticatedAppAnalyzeReceiptsRoute =
+  AuthenticatedAppAnalyzeReceiptsRouteImport.update({
+    id: '/analyze-receipts',
+    path: '/analyze-receipts',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppPersonalObligationsRoute =
-  AuthenticatedAppPersonalObligationsRouteImport.update({
-    id: '/personal-obligations',
-    path: '/personal-obligations',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppImportRoute = AuthenticatedAppImportRouteImport.update({
-  id: '/import',
-  path: '/import',
+const AuthenticatedAppAuditRoute = AuthenticatedAppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppHoldingAdvocaciaRoute =
-  AuthenticatedAppHoldingAdvocaciaRouteImport.update({
-    id: '/holding-advocacia',
-    path: '/holding-advocacia',
+const AuthenticatedAppBanksRoute = AuthenticatedAppBanksRouteImport.update({
+  id: '/banks',
+  path: '/banks',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppCardsRoute = AuthenticatedAppCardsRouteImport.update({
+  id: '/cards',
+  path: '/cards',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppCategoriesRoute =
+  AuthenticatedAppCategoriesRouteImport.update({
+    id: '/categories',
+    path: '/categories',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppFixedExpensesRoute =
@@ -122,44 +101,66 @@ const AuthenticatedAppFixedExpensesRoute =
     path: '/fixed-expenses',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppCategoriesRoute =
-  AuthenticatedAppCategoriesRouteImport.update({
-    id: '/categories',
-    path: '/categories',
+const AuthenticatedAppForecastRoute =
+  AuthenticatedAppForecastRouteImport.update({
+    id: '/forecast',
+    path: '/forecast',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppCardsRoute = AuthenticatedAppCardsRouteImport.update({
-  id: '/cards',
-  path: '/cards',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppBanksRoute = AuthenticatedAppBanksRouteImport.update({
-  id: '/banks',
-  path: '/banks',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppAuditRoute = AuthenticatedAppAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppAnalyzeReceiptsRoute =
-  AuthenticatedAppAnalyzeReceiptsRouteImport.update({
-    id: '/analyze-receipts',
-    path: '/analyze-receipts',
+const AuthenticatedAppHoldingAdvocaciaRoute =
+  AuthenticatedAppHoldingAdvocaciaRouteImport.update({
+    id: '/holding-advocacia',
+    path: '/holding-advocacia',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppAccessesRoute =
-  AuthenticatedAppAccessesRouteImport.update({
-    id: '/accesses',
-    path: '/accesses',
+const AuthenticatedAppImportRoute = AuthenticatedAppImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppPersonalObligationsRoute =
+  AuthenticatedAppPersonalObligationsRouteImport.update({
+    id: '/personal-obligations',
+    path: '/personal-obligations',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppPropertiesIndexRoute =
-  AuthenticatedAppPropertiesIndexRouteImport.update({
-    id: '/properties/',
-    path: '/properties/',
+const AuthenticatedAppProfilesRoute =
+  AuthenticatedAppProfilesRouteImport.update({
+    id: '/profiles',
+    path: '/profiles',
     getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppReceiptsNoReceiptRoute =
+  AuthenticatedAppReceiptsNoReceiptRouteImport.update({
+    id: '/receipts-no-receipt',
+    path: '/receipts-no-receipt',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppReportsRoute = AuthenticatedAppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppTasksRoute = AuthenticatedAppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppUploadRoute = AuthenticatedAppUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppVaultRoute = AuthenticatedAppVaultRouteImport.update({
+  id: '/vault',
+  path: '/vault',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AcessoTemporarioCategoriasTokenRoute =
+  AcessoTemporarioCategoriasTokenRouteImport.update({
+    id: '/acesso-temporario/categorias/$token',
+    path: '/acesso-temporario/categorias/$token',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedAppCardsIndexRoute =
   AuthenticatedAppCardsIndexRouteImport.update({
@@ -167,23 +168,29 @@ const AuthenticatedAppCardsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAppCardsRoute,
   } as any)
-const AuthenticatedAppPropertiesIdRoute =
-  AuthenticatedAppPropertiesIdRouteImport.update({
-    id: '/properties/$id',
-    path: '/properties/$id',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
+const AuthenticatedAppCardsIdRoute = AuthenticatedAppCardsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AuthenticatedAppCardsRoute,
+} as any)
 const AuthenticatedAppCategoriesPendingRoute =
   AuthenticatedAppCategoriesPendingRouteImport.update({
     id: '/pending',
     path: '/pending',
     getParentRoute: () => AuthenticatedAppCategoriesRoute,
   } as any)
-const AuthenticatedAppCardsIdRoute = AuthenticatedAppCardsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedAppCardsRoute,
-} as any)
+const AuthenticatedAppPropertiesIndexRoute =
+  AuthenticatedAppPropertiesIndexRouteImport.update({
+    id: '/properties/',
+    path: '/properties/',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppPropertiesIdRoute =
+  AuthenticatedAppPropertiesIdRouteImport.update({
+    id: '/properties/$id',
+    path: '/properties/$id',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -196,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
   '/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
   '/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
+  '/app/forecast': typeof AuthenticatedAppForecastRoute
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
   '/app/personal-obligations': typeof AuthenticatedAppPersonalObligationsRoute
@@ -222,6 +230,7 @@ export interface FileRoutesByTo {
   '/app/banks': typeof AuthenticatedAppBanksRoute
   '/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
   '/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
+  '/app/forecast': typeof AuthenticatedAppForecastRoute
   '/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/app/import': typeof AuthenticatedAppImportRoute
   '/app/personal-obligations': typeof AuthenticatedAppPersonalObligationsRoute
@@ -252,6 +261,7 @@ export interface FileRoutesById {
   '/_authenticated/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
   '/_authenticated/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
   '/_authenticated/app/fixed-expenses': typeof AuthenticatedAppFixedExpensesRoute
+  '/_authenticated/app/forecast': typeof AuthenticatedAppForecastRoute
   '/_authenticated/app/holding-advocacia': typeof AuthenticatedAppHoldingAdvocaciaRoute
   '/_authenticated/app/import': typeof AuthenticatedAppImportRoute
   '/_authenticated/app/personal-obligations': typeof AuthenticatedAppPersonalObligationsRoute
@@ -282,6 +292,7 @@ export interface FileRouteTypes {
     | '/app/cards'
     | '/app/categories'
     | '/app/fixed-expenses'
+    | '/app/forecast'
     | '/app/holding-advocacia'
     | '/app/import'
     | '/app/personal-obligations'
@@ -308,6 +319,7 @@ export interface FileRouteTypes {
     | '/app/banks'
     | '/app/categories'
     | '/app/fixed-expenses'
+    | '/app/forecast'
     | '/app/holding-advocacia'
     | '/app/import'
     | '/app/personal-obligations'
@@ -337,6 +349,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/cards'
     | '/_authenticated/app/categories'
     | '/_authenticated/app/fixed-expenses'
+    | '/_authenticated/app/forecast'
     | '/_authenticated/app/holding-advocacia'
     | '/_authenticated/app/import'
     | '/_authenticated/app/personal-obligations'
@@ -364,11 +377,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -378,11 +391,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app': {
@@ -399,109 +412,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/acesso-temporario/categorias/$token': {
-      id: '/acesso-temporario/categorias/$token'
-      path: '/acesso-temporario/categorias/$token'
-      fullPath: '/acesso-temporario/categorias/$token'
-      preLoaderRoute: typeof AcessoTemporarioCategoriasTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/app/vault': {
-      id: '/_authenticated/app/vault'
-      path: '/vault'
-      fullPath: '/app/vault'
-      preLoaderRoute: typeof AuthenticatedAppVaultRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/upload': {
-      id: '/_authenticated/app/upload'
-      path: '/upload'
-      fullPath: '/app/upload'
-      preLoaderRoute: typeof AuthenticatedAppUploadRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/tasks': {
-      id: '/_authenticated/app/tasks'
-      path: '/tasks'
-      fullPath: '/app/tasks'
-      preLoaderRoute: typeof AuthenticatedAppTasksRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/reports': {
-      id: '/_authenticated/app/reports'
-      path: '/reports'
-      fullPath: '/app/reports'
-      preLoaderRoute: typeof AuthenticatedAppReportsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/receipts-no-receipt': {
-      id: '/_authenticated/app/receipts-no-receipt'
-      path: '/receipts-no-receipt'
-      fullPath: '/app/receipts-no-receipt'
-      preLoaderRoute: typeof AuthenticatedAppReceiptsNoReceiptRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/profiles': {
-      id: '/_authenticated/app/profiles'
-      path: '/profiles'
-      fullPath: '/app/profiles'
-      preLoaderRoute: typeof AuthenticatedAppProfilesRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/personal-obligations': {
-      id: '/_authenticated/app/personal-obligations'
-      path: '/personal-obligations'
-      fullPath: '/app/personal-obligations'
-      preLoaderRoute: typeof AuthenticatedAppPersonalObligationsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/import': {
-      id: '/_authenticated/app/import'
-      path: '/import'
-      fullPath: '/app/import'
-      preLoaderRoute: typeof AuthenticatedAppImportRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/holding-advocacia': {
-      id: '/_authenticated/app/holding-advocacia'
-      path: '/holding-advocacia'
-      fullPath: '/app/holding-advocacia'
-      preLoaderRoute: typeof AuthenticatedAppHoldingAdvocaciaRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/fixed-expenses': {
-      id: '/_authenticated/app/fixed-expenses'
-      path: '/fixed-expenses'
-      fullPath: '/app/fixed-expenses'
-      preLoaderRoute: typeof AuthenticatedAppFixedExpensesRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/categories': {
-      id: '/_authenticated/app/categories'
-      path: '/categories'
-      fullPath: '/app/categories'
-      preLoaderRoute: typeof AuthenticatedAppCategoriesRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/cards': {
-      id: '/_authenticated/app/cards'
-      path: '/cards'
-      fullPath: '/app/cards'
-      preLoaderRoute: typeof AuthenticatedAppCardsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/banks': {
-      id: '/_authenticated/app/banks'
-      path: '/banks'
-      fullPath: '/app/banks'
-      preLoaderRoute: typeof AuthenticatedAppBanksRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/audit': {
-      id: '/_authenticated/app/audit'
-      path: '/audit'
-      fullPath: '/app/audit'
-      preLoaderRoute: typeof AuthenticatedAppAuditRouteImport
+    '/_authenticated/app/accesses': {
+      id: '/_authenticated/app/accesses'
+      path: '/accesses'
+      fullPath: '/app/accesses'
+      preLoaderRoute: typeof AuthenticatedAppAccessesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/analyze-receipts': {
@@ -511,19 +426,117 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAnalyzeReceiptsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/accesses': {
-      id: '/_authenticated/app/accesses'
-      path: '/accesses'
-      fullPath: '/app/accesses'
-      preLoaderRoute: typeof AuthenticatedAppAccessesRouteImport
+    '/_authenticated/app/audit': {
+      id: '/_authenticated/app/audit'
+      path: '/audit'
+      fullPath: '/app/audit'
+      preLoaderRoute: typeof AuthenticatedAppAuditRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/properties/': {
-      id: '/_authenticated/app/properties/'
-      path: '/properties'
-      fullPath: '/app/properties/'
-      preLoaderRoute: typeof AuthenticatedAppPropertiesIndexRouteImport
+    '/_authenticated/app/banks': {
+      id: '/_authenticated/app/banks'
+      path: '/banks'
+      fullPath: '/app/banks'
+      preLoaderRoute: typeof AuthenticatedAppBanksRouteImport
       parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/cards': {
+      id: '/_authenticated/app/cards'
+      path: '/cards'
+      fullPath: '/app/cards'
+      preLoaderRoute: typeof AuthenticatedAppCardsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/categories': {
+      id: '/_authenticated/app/categories'
+      path: '/categories'
+      fullPath: '/app/categories'
+      preLoaderRoute: typeof AuthenticatedAppCategoriesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/fixed-expenses': {
+      id: '/_authenticated/app/fixed-expenses'
+      path: '/fixed-expenses'
+      fullPath: '/app/fixed-expenses'
+      preLoaderRoute: typeof AuthenticatedAppFixedExpensesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/forecast': {
+      id: '/_authenticated/app/forecast'
+      path: '/forecast'
+      fullPath: '/app/forecast'
+      preLoaderRoute: typeof AuthenticatedAppForecastRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/holding-advocacia': {
+      id: '/_authenticated/app/holding-advocacia'
+      path: '/holding-advocacia'
+      fullPath: '/app/holding-advocacia'
+      preLoaderRoute: typeof AuthenticatedAppHoldingAdvocaciaRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/import': {
+      id: '/_authenticated/app/import'
+      path: '/import'
+      fullPath: '/app/import'
+      preLoaderRoute: typeof AuthenticatedAppImportRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/personal-obligations': {
+      id: '/_authenticated/app/personal-obligations'
+      path: '/personal-obligations'
+      fullPath: '/app/personal-obligations'
+      preLoaderRoute: typeof AuthenticatedAppPersonalObligationsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/profiles': {
+      id: '/_authenticated/app/profiles'
+      path: '/profiles'
+      fullPath: '/app/profiles'
+      preLoaderRoute: typeof AuthenticatedAppProfilesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/receipts-no-receipt': {
+      id: '/_authenticated/app/receipts-no-receipt'
+      path: '/receipts-no-receipt'
+      fullPath: '/app/receipts-no-receipt'
+      preLoaderRoute: typeof AuthenticatedAppReceiptsNoReceiptRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/reports': {
+      id: '/_authenticated/app/reports'
+      path: '/reports'
+      fullPath: '/app/reports'
+      preLoaderRoute: typeof AuthenticatedAppReportsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/tasks': {
+      id: '/_authenticated/app/tasks'
+      path: '/tasks'
+      fullPath: '/app/tasks'
+      preLoaderRoute: typeof AuthenticatedAppTasksRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/upload': {
+      id: '/_authenticated/app/upload'
+      path: '/upload'
+      fullPath: '/app/upload'
+      preLoaderRoute: typeof AuthenticatedAppUploadRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/vault': {
+      id: '/_authenticated/app/vault'
+      path: '/vault'
+      fullPath: '/app/vault'
+      preLoaderRoute: typeof AuthenticatedAppVaultRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/acesso-temporario/categorias/$token': {
+      id: '/acesso-temporario/categorias/$token'
+      path: '/acesso-temporario/categorias/$token'
+      fullPath: '/acesso-temporario/categorias/$token'
+      preLoaderRoute: typeof AcessoTemporarioCategoriasTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app/cards/': {
       id: '/_authenticated/app/cards/'
@@ -532,12 +545,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCardsIndexRouteImport
       parentRoute: typeof AuthenticatedAppCardsRoute
     }
-    '/_authenticated/app/properties/$id': {
-      id: '/_authenticated/app/properties/$id'
-      path: '/properties/$id'
-      fullPath: '/app/properties/$id'
-      preLoaderRoute: typeof AuthenticatedAppPropertiesIdRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/app/cards/$id': {
+      id: '/_authenticated/app/cards/$id'
+      path: '/$id'
+      fullPath: '/app/cards/$id'
+      preLoaderRoute: typeof AuthenticatedAppCardsIdRouteImport
+      parentRoute: typeof AuthenticatedAppCardsRoute
     }
     '/_authenticated/app/categories/pending': {
       id: '/_authenticated/app/categories/pending'
@@ -546,12 +559,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCategoriesPendingRouteImport
       parentRoute: typeof AuthenticatedAppCategoriesRoute
     }
-    '/_authenticated/app/cards/$id': {
-      id: '/_authenticated/app/cards/$id'
-      path: '/$id'
-      fullPath: '/app/cards/$id'
-      preLoaderRoute: typeof AuthenticatedAppCardsIdRouteImport
-      parentRoute: typeof AuthenticatedAppCardsRoute
+    '/_authenticated/app/properties/': {
+      id: '/_authenticated/app/properties/'
+      path: '/properties'
+      fullPath: '/app/properties/'
+      preLoaderRoute: typeof AuthenticatedAppPropertiesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/properties/$id': {
+      id: '/_authenticated/app/properties/$id'
+      path: '/properties/$id'
+      fullPath: '/app/properties/$id'
+      preLoaderRoute: typeof AuthenticatedAppPropertiesIdRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
   }
 }
@@ -594,6 +614,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCardsRoute: typeof AuthenticatedAppCardsRouteWithChildren
   AuthenticatedAppCategoriesRoute: typeof AuthenticatedAppCategoriesRouteWithChildren
   AuthenticatedAppFixedExpensesRoute: typeof AuthenticatedAppFixedExpensesRoute
+  AuthenticatedAppForecastRoute: typeof AuthenticatedAppForecastRoute
   AuthenticatedAppHoldingAdvocaciaRoute: typeof AuthenticatedAppHoldingAdvocaciaRoute
   AuthenticatedAppImportRoute: typeof AuthenticatedAppImportRoute
   AuthenticatedAppPersonalObligationsRoute: typeof AuthenticatedAppPersonalObligationsRoute
@@ -616,6 +637,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCardsRoute: AuthenticatedAppCardsRouteWithChildren,
   AuthenticatedAppCategoriesRoute: AuthenticatedAppCategoriesRouteWithChildren,
   AuthenticatedAppFixedExpensesRoute: AuthenticatedAppFixedExpensesRoute,
+  AuthenticatedAppForecastRoute: AuthenticatedAppForecastRoute,
   AuthenticatedAppHoldingAdvocaciaRoute: AuthenticatedAppHoldingAdvocaciaRoute,
   AuthenticatedAppImportRoute: AuthenticatedAppImportRoute,
   AuthenticatedAppPersonalObligationsRoute:
