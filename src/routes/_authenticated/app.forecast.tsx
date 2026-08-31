@@ -167,9 +167,20 @@ function ForecastPage() {
     () => setFilters((f) => ({ ...f, profileId: activeProfileId || "all" })),
     [activeProfileId],
   );
-  const startDate = period === "custom" ? customStart : iso(startOfMonth(new Date()));
+  // Datas em edição podem ficar vazias/incompletas; sem sanitizar, a consulta quebra a tela.
+  const defaultStart = iso(startOfMonth(new Date()));
+  const isValidIsoDate = (value: string) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T12:00:00`).getTime());
+  const safeCustomStart = isValidIsoDate(customStart) ? customStart : defaultStart;
+  const safeCustomEnd =
+    isValidIsoDate(customEnd) && customEnd >= safeCustomStart
+      ? customEnd
+      : iso(endOfMonth(new Date(`${safeCustomStart}T12:00:00`)));
+  const startDate = period === "custom" ? safeCustomStart : defaultStart;
   const endDate =
-    period === "custom" ? customEnd : iso(endOfMonth(addMonths(new Date(), Number(period) - 1)));
+    period === "custom"
+      ? safeCustomEnd
+      : iso(endOfMonth(addMonths(new Date(), Number(period) - 1)));
 
   const source = useQuery({
     queryKey: ["financial-forecast-sources", startDate, endDate],
