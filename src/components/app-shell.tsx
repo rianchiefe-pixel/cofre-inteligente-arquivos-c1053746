@@ -62,13 +62,6 @@ const nav: NavItemData[] = [
   { to: "/app/forecast", label: "Previsibilidade", icon: TrendingUp },
   { to: "/app/categories", label: "Categorias", icon: Tags, perm: "manageEntities" },
   { to: "/app/receipts-no-receipt", label: "Lançamentos sem comprovante", icon: ListTodo },
-  {
-    to: "/app/categories/pending",
-    label: "Pendências de Categorização",
-    icon: ShieldAlert,
-    perm: "manageEntities",
-  },
-  { to: "/app/holding-advocacia", label: "Advocacia (Holding)", icon: Scale, perm: "editReceipts" },
   { to: "/app/reports", label: "Relatórios", icon: FileBarChart },
   { to: "/app/audit", label: "Auditoria", icon: ShieldAlert, perm: "viewAudit" },
 ];
