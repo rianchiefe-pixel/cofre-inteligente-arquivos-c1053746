@@ -430,8 +430,8 @@ export function getForecast(input: ForecastInput): ForecastResult {
   }
   for (const fixed of uniqueFixed.values()) {
     if (
-
       obligationNames.some(
+
         (n) => n && (n.includes(normalize(fixed.name)) || normalize(fixed.name).includes(n)),
       )
     )
