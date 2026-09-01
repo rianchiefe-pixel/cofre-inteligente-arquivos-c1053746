@@ -332,6 +332,15 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
                   <SelectContent>{Object.entries(obligationStatusLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Classificação na previsibilidade</Label>
+                <Select value={form.expense_behavior} onValueChange={(v) => setForm({ ...form, expense_behavior: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{Object.entries(obligationBehaviorLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Define onde a obrigação entra na Previsibilidade e evita duplicidade com estimativas do histórico.</p>
+              </div>
+
 
               {!form.id && (
                 <div className="sm:col-span-2 flex items-center space-x-2 py-2">
