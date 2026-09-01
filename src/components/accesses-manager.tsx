@@ -136,7 +136,7 @@ export function AccessesManager() {
     queryKey: ["all-properties-lookup"],
     staleTime: 1000 * 60 * 30,
     queryFn: async () => {
-      const { data } = await sb.from("properties").select("id, name");
+      const { data } = await sb.from("properties").select("id, name").neq("status", "vendido");
       return data || [];
     },
   });

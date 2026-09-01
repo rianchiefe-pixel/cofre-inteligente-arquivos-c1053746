@@ -444,7 +444,7 @@ function VaultPage() {
     queryKey: ["properties", "conference"],
     staleTime: 1000 * 60 * 30,
     queryFn: async () =>
-      (await supabase.from("properties").select("id, name, profile_id").order("name")).data ?? [],
+      (await supabase.from("properties").select("id, name, profile_id").neq("status", "vendido").order("name")).data ?? [],
   });
   const accounts = useQuery({
     queryKey: ["accounts", "conference"],

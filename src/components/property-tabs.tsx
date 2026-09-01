@@ -439,7 +439,7 @@ export function CredentialsTab({ propertyId }: { propertyId: string; userId?: st
   const allProperties = useQuery({
     queryKey: ["all-properties-lookup"],
     queryFn: async () => {
-      const { data } = await sb.from("properties").select("id, name, profile_id");
+      const { data } = await sb.from("properties").select("id, name, profile_id").neq("status", "vendido");
       return data || [];
     },
   });
