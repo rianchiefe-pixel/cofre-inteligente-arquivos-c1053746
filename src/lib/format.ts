@@ -299,3 +299,10 @@ export const periodicityLabel: Record<string, string> = {
   sem_recorrencia: "Sem recorrência definida",
   outro: "Outro",
 };
+
+export const obligationBehaviorLabel: Record<string, string> = {
+  undefined: "Não definido",
+  fixed: "Gasto fixo",
+  variable: "Gasto variável",
+  credit_card: "Cartão de crédito",
+};
