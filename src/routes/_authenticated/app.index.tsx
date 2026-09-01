@@ -27,7 +27,34 @@ export const Route = createFileRoute("/_authenticated/app/")({
   component: Dashboard,
 });
 
-const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+const CHART_COLORS = [
+  "oklch(0.42 0.11 162)",
+  "oklch(0.76 0.12 86)",
+  "oklch(0.58 0.14 190)",
+  "oklch(0.62 0.18 40)",
+  "oklch(0.55 0.14 310)",
+  "oklch(0.66 0.15 145)",
+  "oklch(0.6 0.16 20)",
+  "oklch(0.52 0.13 255)",
+];
+
+function ChartTooltip({ active, payload, total }: any) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0];
+  const value = Number(item.value ?? 0);
+  const share = total ? (value / total) * 100 : 0;
+  return (
+    <div className="rounded-xl border border-border/70 bg-popover/95 px-3 py-2 shadow-[var(--shadow-elegant)] backdrop-blur">
+      <p className="flex items-center gap-2 text-xs font-medium text-popover-foreground">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.payload?.fill ?? item.color }} />
+        {item.payload?.name}
+      </p>
+      <p className="mt-1 text-sm font-bold" style={{ fontFamily: "var(--font-display)" }}>{currencyBRL(value)}</p>
+      <p className="text-[11px] text-muted-foreground">{share.toFixed(1)}% do período</p>
+    </div>
+  );
+}
+
 
 function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: string; value: string; icon: any; tone?: "primary" | "gold" | "success" | "warn" }) {
   const tones: Record<string, string> = {
@@ -36,19 +63,33 @@ function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: strin
     success: "bg-success text-success-foreground",
     warn: "bg-destructive text-destructive-foreground",
   };
+  const glow: Record<string, string> = {
+    primary: "var(--gradient-primary)",
+    gold: "var(--gradient-gold)",
+    success: "linear-gradient(135deg, var(--success), var(--primary-glow))",
+    warn: "linear-gradient(135deg, var(--destructive), var(--accent))",
+  };
   return (
     <Card className="premium-card group relative overflow-hidden p-5">
-      <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[image:var(--gradient-primary)] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-10" />
+      <div
+        className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full opacity-[0.07] blur-3xl transition-opacity duration-500 group-hover:opacity-20"
+        style={{ backgroundImage: glow[tone] }}
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[3px] opacity-70 transition-opacity duration-500 group-hover:opacity-100"
+        style={{ backgroundImage: glow[tone] }}
+      />
       <div className="relative flex items-start justify-between">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
           <p className="mt-2 truncate text-2xl font-bold tracking-tight text-foreground" style={{ fontFamily: "var(--font-display)" }}>{value}</p>
         </div>
-        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl shadow-[var(--shadow-soft)] transition-transform duration-500 group-hover:scale-105 ${tones[tone]}`}>
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl shadow-[var(--shadow-soft)] transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3 ${tones[tone]}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
     </Card>
+
   );
 }
 
@@ -56,6 +97,9 @@ function Dashboard() {
   const [propertyId, setPropertyId] = useState<string>("all");
   const [profileId, setProfileId] = useState<string>("all");
   const [period, setPeriod] = useState<"current" | "3m" | "12m" | "all">("12m");
+  const [barIndex, setBarIndex] = useState<number | null>(null);
+  const [pieIndex, setPieIndex] = useState<number | null>(null);
+
   const periodLabel =
     period === "current" ? "mês atual" : period === "3m" ? "últimos 3 meses" : period === "12m" ? "últimos 12 meses" : "todo o período";
 
@@ -137,7 +181,11 @@ function Dashboard() {
       acc[name] = (acc[name] ?? 0) + Number(r.amount ?? 0);
       return acc;
     }, {}),
-  ).map(([name, value]) => ({ name, value })).slice(0, 6);
+  ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+
+  const categoryTotal = byCategory.reduce((s, c) => s + c.value, 0);
+  const bankTotal = byBank.reduce((s, b) => s + b.value, 0);
+
 
   return (
     <div className="space-y-6">
@@ -219,21 +267,50 @@ function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="premium-card p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <div className="mb-1 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-accent" />
             <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por categoria (período)</h2>
           </div>
+          <p className="mb-4 text-xs text-muted-foreground">Top {byCategory.length} categorias · {currencyBRL(categoryTotal)}</p>
           {byCategory.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste período ainda.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={byCategory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: number) => currencyBRL(v)} />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {byCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={byCategory} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} onMouseLeave={() => setBarIndex(null)}>
+                <defs>
+                  {byCategory.map((_, i) => (
+                    <linearGradient key={i} id={`barGrad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CHART_COLORS[i % CHART_COLORS.length]} stopOpacity={0.95} />
+                      <stop offset="100%" stopColor={CHART_COLORS[i % CHART_COLORS.length]} stopOpacity={0.42} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval={0} height={48} angle={-14} textAnchor="end" />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={62}
+                  tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
+                />
+                <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.5 }} content={<ChartTooltip total={categoryTotal} />} />
+                <Bar
+                  dataKey="value"
+                  radius={[10, 10, 4, 4]}
+                  maxBarSize={54}
+                  onMouseEnter={(_: unknown, i: number) => setBarIndex(i)}
+                  animationDuration={900}
+                >
+                  {byCategory.map((_, i) => (
+                    <Cell
+                      key={i}
+                      fill={`url(#barGrad-${i})`}
+                      stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                      strokeWidth={barIndex === i ? 2 : 0}
+                      opacity={barIndex === null || barIndex === i ? 1 : 0.45}
+                    />
+                  ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -241,24 +318,84 @@ function Dashboard() {
         </Card>
 
         <Card className="premium-card p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <div className="mb-1 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-accent" />
             <h2 className="text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Gastos por banco (período)</h2>
           </div>
+          <p className="mb-2 text-xs text-muted-foreground">Participação de cada instituição</p>
           {byBank.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">Sem dados neste período ainda.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={byBank} dataKey="value" nameKey="name" outerRadius={90} label={(d) => d.name}>
-                  {byBank.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v: number) => currencyBRL(v)} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,200px)_minmax(0,1fr)] sm:items-center">
+              <div className="relative h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={byBank}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={58}
+                      outerRadius={88}
+                      paddingAngle={2}
+                      stroke="var(--card)"
+                      strokeWidth={2}
+                      animationDuration={900}
+                      onMouseEnter={(_: unknown, i: number) => setPieIndex(i)}
+                      onMouseLeave={() => setPieIndex(null)}
+                    >
+                      {byBank.map((_, i) => (
+                        <Cell
+                          key={i}
+                          fill={CHART_COLORS[i % CHART_COLORS.length]}
+                          opacity={pieIndex === null || pieIndex === i ? 1 : 0.4}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip total={bankTotal} />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {pieIndex === null ? "Total" : byBank[pieIndex]?.name}
+                    </p>
+                    <p className="text-base font-bold" style={{ fontFamily: "var(--font-display)" }}>
+                      {currencyBRL(pieIndex === null ? bankTotal : Number(byBank[pieIndex]?.value ?? 0))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <ul className="space-y-2">
+                {byBank.map((b, i) => {
+                  const share = bankTotal ? (b.value / bankTotal) * 100 : 0;
+                  return (
+                    <li
+                      key={b.name}
+                      onMouseEnter={() => setPieIndex(i)}
+                      onMouseLeave={() => setPieIndex(null)}
+                      className={`cursor-default rounded-lg px-2 py-1.5 transition-colors ${pieIndex === i ? "bg-muted/70" : ""}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium">{b.name}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground">{share.toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${share}%`, background: CHART_COLORS[i % CHART_COLORS.length] }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
         </Card>
       </div>
+
 
       <Card className="premium-card p-5">
         <h2 className="mb-4 text-sm font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>Últimos comprovantes</h2>
