@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { currencyBRL, parseBrlAmount, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
+import { currencyBRL, parseBrlAmount, dateBR, obligationKindLabel, obligationStatusLabel, periodicityLabel, obligationBehaviorLabel, taskPriorityLabel, taskStatusLabel } from "@/lib/format";
 import { revealPropertyCredential, savePropertyCredential } from "@/lib/credentials.functions";
 import { Pencil, Plus, Trash2, Eye, EyeOff, ExternalLink, Copy, Check, AlertTriangle, Clock, Search, Globe, Mail, User, Lock, Info, Landmark, KeyRound, Repeat } from "lucide-react";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
@@ -132,14 +132,14 @@ type ObligationForm = {
   due_date: string; amount: string; status: string; document_url: string; notes: string;
   installation_number: string; consumer_unit: string; registration_number: string;
   client_number: string; contract_number: string; real_estate_tax_id: string;
-  credential_id: string; create_task: boolean;
+  credential_id: string; create_task: boolean; expense_behavior: string;
 };
 const emptyOblig: ObligationForm = {
   kind: "iptu", label: "", supplier: "", periodicity: "mensal",
   due_date: "", amount: "", status: "em_dia", document_url: "", notes: "",
   installation_number: "", consumer_unit: "", registration_number: "",
   client_number: "", contract_number: "", real_estate_tax_id: "",
-  credential_id: "none", create_task: false,
+  credential_id: "none", create_task: false, expense_behavior: "undefined",
 };
 
 export function ObligationsTab({ propertyId, userId }: { propertyId: string; userId: string }) {
@@ -180,6 +180,7 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
         contract_number: form.contract_number || null,
         real_estate_tax_id: form.real_estate_tax_id || null,
         credential_id: form.credential_id === "none" ? null : form.credential_id,
+        expense_behavior: form.expense_behavior || "undefined",
       };
       
       let obligationId = form.id;
@@ -239,6 +240,7 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
       real_estate_tax_id: o.real_estate_tax_id ?? "",
       credential_id: o.credential_id ?? "none",
       create_task: false,
+      expense_behavior: o.expense_behavior ?? "undefined",
     });
     setOpen(true);
   };
