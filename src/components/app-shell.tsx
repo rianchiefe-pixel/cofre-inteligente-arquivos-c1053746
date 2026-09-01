@@ -18,7 +18,6 @@ import {
   Home,
   ShieldAlert,
   ListTodo,
-  Scale,
   ScanSearch,
   KeyRound,
   TrendingUp,
