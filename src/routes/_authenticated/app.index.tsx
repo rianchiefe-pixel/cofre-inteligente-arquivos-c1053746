@@ -83,6 +83,9 @@ function Dashboard() {
   const [propertyId, setPropertyId] = useState<string>("all");
   const [profileId, setProfileId] = useState<string>("all");
   const [period, setPeriod] = useState<"current" | "3m" | "12m" | "all">("12m");
+  const [barIndex, setBarIndex] = useState<number | null>(null);
+  const [pieIndex, setPieIndex] = useState<number | null>(null);
+
   const periodLabel =
     period === "current" ? "mês atual" : period === "3m" ? "últimos 3 meses" : period === "12m" ? "últimos 12 meses" : "todo o período";
 
