@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { centsToNumber, currencyBRL, parseBrlAmountToCents, propertyPurposeLabel, propertyStatusLabel, propertyTypeLabel } from "@/lib/format";
@@ -90,6 +91,12 @@ function PropertiesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
     return (localStorage.getItem("properties-view-mode") as "grid" | "list") || "grid";
   });
+  const [showSold, setShowSold] = useState<boolean>(() => localStorage.getItem("properties-show-sold") === "1");
+
+  const toggleShowSold = (v: boolean) => {
+    setShowSold(v);
+    localStorage.setItem("properties-show-sold", v ? "1" : "0");
+  };
 
   const toggleViewMode = (mode: "grid" | "list") => {
     setViewMode(mode);
@@ -214,6 +221,7 @@ function PropertiesPage() {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (list.data ?? []).filter((p: any) => {
+      if (!showSold && fStatus !== "vendido" && p.status === "vendido") return false;
       if (fProfile !== "all" && p.profile_id !== fProfile) return false;
       if (fStatus !== "all" && p.status !== fStatus) return false;
       if (fType !== "all" && p.type !== fType) return false;
@@ -221,7 +229,7 @@ function PropertiesPage() {
       if (!term) return true;
       return [p.name, p.address, p.city, p.registration, p.owner_name].filter(Boolean).some((v: string) => String(v).toLowerCase().includes(term));
     });
-  }, [list.data, q, fProfile, fStatus, fType, fCity]);
+  }, [list.data, q, fProfile, fStatus, fType, fCity, showSold]);
 
   return (
     <div className="space-y-6">
@@ -388,7 +396,12 @@ function PropertiesPage() {
               </SelectContent>
             </Select>
           )}
+          <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
+            <Switch id="show-sold" checked={showSold} onCheckedChange={toggleShowSold} />
+            <Label htmlFor="show-sold" className="cursor-pointer text-xs">Mostrar imóveis vendidos</Label>
+          </div>
           <div className="flex items-center gap-1 rounded-lg border bg-background p-1 md:col-start-5">
+
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
               size="sm"

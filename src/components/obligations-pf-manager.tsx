@@ -227,7 +227,7 @@ export function ObligationsPage() {
     queryKey: ["all-properties-lookup"],
     staleTime: 1000 * 60 * 30,
     queryFn: async () => {
-      const { data } = await sb.from("properties").select("id, name").order("name");
+      const { data } = await sb.from("properties").select("id, name").neq("status", "vendido").order("name");
       return data ?? [];
     },
   });

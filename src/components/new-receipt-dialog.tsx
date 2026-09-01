@@ -75,6 +75,7 @@ export function NewReceiptDialog({ isOpen, onClose }: { isOpen: boolean; onClose
         .from("properties")
         .select("id, name, profile_id")
         .eq("profile_id", formData.profile_id)
+        .neq("status", "vendido")
         .order("name");
       if (error) throw error;
       return data || [];

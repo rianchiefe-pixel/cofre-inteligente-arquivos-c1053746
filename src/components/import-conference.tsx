@@ -266,7 +266,7 @@ export function ImportConference({
     enabled: !!batchQ.data,
     queryFn: async () => {
       const isGeneral = batchQ.data?.scope_kind === "general" || !batchQ.data?.profile_id;
-      let q = supabase.from("properties").select("id, name, profile_id").order("name");
+      let q = supabase.from("properties").select("id, name, profile_id").neq("status", "vendido").order("name");
       if (!isGeneral) q = q.eq("profile_id", batchQ.data!.profile_id!);
       const { data } = await q;
       return data ?? [];
