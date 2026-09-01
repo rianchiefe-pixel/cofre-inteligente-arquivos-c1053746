@@ -585,7 +585,9 @@ export function getForecast(input: ForecastInput): ForecastResult {
   // o histórico/estimativa daquela categoria não pode gerar gasto variável duplicado.
   const obligationProfileById = new Map<string, string | null>();
   for (const o of input.obligations ?? []) {
-    if (!activeStatus(o.status)) continue;
+    // "Pago" só encerra a parcela atual: a obrigação continua sendo a dona da categoria.
+    const status = String(o.status ?? "").toLowerCase();
+    if (["cancelado", "cancelled", "encerrado", "closed", "rejected"].includes(status)) continue;
     const property = o.properties ?? o.property;
     obligationProfileById.set(
       o.id,
@@ -595,6 +597,7 @@ export function getForecast(input: ForecastInput): ForecastResult {
         null,
     );
   }
+
   const categoriesOwnedByObligation = new Set<string>();
   for (const link of input.obligationCategories ?? []) {
     if (!obligationProfileById.has(link.obligation_id) || !link.category_id) continue;
