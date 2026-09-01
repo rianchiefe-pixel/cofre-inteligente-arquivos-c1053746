@@ -175,7 +175,13 @@ export function getForecast(input: ForecastInput): ForecastResult {
   };
 
   for (const o of input.obligations ?? []) {
-    if (!o.due_date || !activeStatus(o.status) || cents(o.amount) <= 0) continue;
+    if (!o.due_date || cents(o.amount) <= 0) continue;
+    const status = String(o.status ?? "").toLowerCase();
+    const cancelled = ["cancelado", "cancelled", "encerrado", "closed", "rejected"].includes(status);
+    const paid = ["pago", "paid"].includes(status);
+    const recurringInterval = intervalFor(o.periodicity);
+    // "Pago" numa obrigação recorrente refere-se apenas à parcela atual: as próximas continuam previstas.
+    if (cancelled || (paid && recurringInterval === 0)) continue;
     const property = o.properties ?? o.property;
     const profileId =
       property?.profile_id ??
@@ -184,6 +190,8 @@ export function getForecast(input: ForecastInput): ForecastResult {
       null;
     const category = categoryByObligation.get(o.id);
     for (const date of occurrenceDates(o.due_date, o.periodicity, startDate, endDate)) {
+      if (paid && date <= o.due_date.slice(0, 10)) continue;
+
       push({
         id: `obligation:${o.id}:${monthKey(date)}`,
         sourceType: "obligation",
