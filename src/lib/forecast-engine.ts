@@ -413,7 +413,23 @@ export function getForecast(input: ForecastInput): ForecastResult {
   const obligationNames = (input.obligations ?? [])
     .filter((o) => activeStatus(o.status))
     .map((o) => normalize(`${o.label} ${o.supplier}`));
+  // Cadastros repetidos do mesmo gasto fixo não podem multiplicar a previsão.
+  const uniqueFixed = new Map<string, any>();
   for (const fixed of input.recurringFixedExpenses ?? []) {
+    if (!fixed.active) continue;
+    const key = [
+      fixed.profile_id ?? "",
+      fixed.property_id ?? "",
+      fixed.category_id ?? "",
+      normalize(fixed.merchant_pattern || fixed.name),
+      normalize(fixed.recurrence || "monthly"),
+    ].join("|");
+    const previous = uniqueFixed.get(key);
+    if (!previous || String(fixed.created_at || "") < String(previous.created_at || ""))
+      uniqueFixed.set(key, fixed);
+  }
+  for (const fixed of uniqueFixed.values()) {
+
     if (
       !fixed.active ||
       obligationNames.some(
