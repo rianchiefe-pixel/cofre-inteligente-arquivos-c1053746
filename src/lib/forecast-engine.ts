@@ -491,6 +491,88 @@ export function getForecast(input: ForecastInput): ForecastResult {
     }
   }
 
+  // Gastos variáveis: média mensal por categoria com base no histórico real,
+  // ignorando o que já é projetado como gasto fixo.
+  const isFixedHistory = (r: any) =>
+    [...uniqueFixed.values()].some(
+      (f) =>
+        f.profile_id === r.profile_id &&
+        (!f.property_id || f.property_id === r.property_id) &&
+        (!f.category_id || f.category_id === r.category_id) &&
+        (!f.merchant_pattern ||
+          normalize(`${r.recipient_name} ${r.description}`).includes(
+            normalize(f.merchant_pattern),
+          )),
+    );
+  const variableGroups = new Map<
+    string,
+    {
+      profileId: string | null;
+      propertyId: string | null;
+      categoryId: string | null;
+      categoryName: string | null;
+      months: Map<string, number>;
+    }
+  >();
+  for (const r of input.historicalReceipts ?? []) {
+    if (!r.payment_date || r.duplicate_of || r.status !== "approved" || cents(r.amount) <= 0)
+      continue;
+    const behavior =
+      r.expense_behavior ??
+      (r.transaction_type === "gasto_variavel"
+        ? "variable"
+        : r.transaction_type === "gasto_fixo"
+          ? "fixed"
+          : null);
+    if (behavior !== "variable") continue;
+    if (isFixedHistory(r)) continue;
+    const key = `${r.profile_id ?? ""}:${r.category_id ?? "none"}`;
+    const group = variableGroups.get(key) ?? {
+      profileId: r.profile_id ?? null,
+      propertyId: null,
+      categoryId: r.category_id ?? null,
+      categoryName: r.category?.name ?? null,
+      months: new Map<string, number>(),
+    };
+    group.months.set(
+      monthKey(r.payment_date),
+      (group.months.get(monthKey(r.payment_date)) || 0) + cents(r.amount),
+    );
+    variableGroups.set(key, group);
+  }
+  for (const [key, group] of variableGroups) {
+    const values = [...group.months.values()].slice(-6).sort((a, b) => a - b);
+    if (!values.length) continue;
+    const trimmed = values.length >= 5 ? values.slice(1, -1) : values;
+    const average = Math.round(trimmed.reduce((a, b) => a + b, 0) / trimmed.length);
+    if (average <= 0) continue;
+    for (const date of occurrenceDates(`${monthKey(startDate)}-15`, "mensal", startDate, endDate)) {
+      push({
+        id: `variable:${key}:${monthKey(date)}`,
+        sourceType: "history_estimate",
+        sourceId: `variable:${key}`,
+        sourceOccurrenceId: monthKey(date),
+        date,
+        month: monthKey(date),
+        description: group.categoryName
+          ? `Gastos variáveis — ${group.categoryName}`
+          : "Gastos variáveis",
+        kind: "variable",
+        status: "estimated",
+        amountCents: average,
+        profileId: group.profileId,
+        propertyId: group.propertyId,
+        categoryId: group.categoryId,
+        categoryName: group.categoryName,
+        originLabel: "Histórico / estimativa",
+        originalPath: "/app/vault",
+        recurrence: "mensal",
+      });
+    }
+  }
+
+
+
   for (const m of input.manualForecasts ?? []) {
     if (!activeStatus(m.status) || !m.start_date || cents(m.amount) <= 0) continue;
     for (const date of occurrenceDates(
