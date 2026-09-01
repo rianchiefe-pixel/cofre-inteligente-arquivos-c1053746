@@ -431,7 +431,12 @@ export function getForecast(input: ForecastInput): ForecastResult {
       .split(/[^a-z0-9]+/)
       .filter((t) => t.length >= 4);
   const obligationSignatures = (input.obligations ?? [])
-    .filter((o) => activeStatus(o.status))
+    .filter((o) =>
+      !["cancelado", "cancelled", "encerrado", "closed", "rejected"].includes(
+        String(o.status ?? "").toLowerCase(),
+      ),
+    )
+
     .map((o) => {
       const property = o.properties ?? o.property;
       return {
