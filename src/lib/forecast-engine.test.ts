@@ -5,7 +5,7 @@ import { filterForecast, getForecast } from "./forecast-engine";
 const range = { startDate: "2026-09-01", endDate: "2027-08-31" };
 
 describe("forecast engine", () => {
-  test("monthly obligation creates future occurrences and paid/cancelled do not", () => {
+  test("monthly obligation creates future occurrences; paid keeps only the next ones and cancelled none", () => {
     const result = getForecast({
       ...range,
       obligations: [
@@ -16,7 +16,14 @@ describe("forecast engine", () => {
           periodicity: "mensal",
           status: "pendente",
         },
-        { id: "paid", due_date: "2026-09-10", amount: 9000, periodicity: "mensal", status: "pago" },
+        { id: "paid", due_date: "2026-09-10", amount: 1000, periodicity: "mensal", status: "pago" },
+        {
+          id: "paid-once",
+          due_date: "2026-09-10",
+          amount: 9000,
+          periodicity: "unica",
+          status: "pago",
+        },
         {
           id: "cancelled",
           due_date: "2026-09-10",
@@ -26,9 +33,13 @@ describe("forecast engine", () => {
         },
       ],
     });
-    assert.equal(result.items.length, 12);
-    assert.equal(result.totals.total, 2_400_000);
+    assert.equal(result.items.filter((x) => x.sourceId === "active").length, 12);
+    assert.equal(result.items.filter((x) => x.sourceId === "paid").length, 11);
+    assert.equal(result.items.filter((x) => x.sourceId === "paid-once").length, 0);
+    assert.equal(result.items.filter((x) => x.sourceId === "cancelled").length, 0);
+    assert.equal(result.totals.total, 2_400_000 + 11 * 100_000);
   });
+
 
   test("10x card purchase only creates pending installments and never adds its statement", () => {
     const result = getForecast({
