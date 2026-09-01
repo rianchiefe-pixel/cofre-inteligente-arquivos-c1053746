@@ -63,19 +63,33 @@ function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: strin
     success: "bg-success text-success-foreground",
     warn: "bg-destructive text-destructive-foreground",
   };
+  const glow: Record<string, string> = {
+    primary: "var(--gradient-primary)",
+    gold: "var(--gradient-gold)",
+    success: "linear-gradient(135deg, var(--success), var(--primary-glow))",
+    warn: "linear-gradient(135deg, var(--destructive), var(--accent))",
+  };
   return (
     <Card className="premium-card group relative overflow-hidden p-5">
-      <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[image:var(--gradient-primary)] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-10" />
+      <div
+        className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full opacity-[0.07] blur-3xl transition-opacity duration-500 group-hover:opacity-20"
+        style={{ backgroundImage: glow[tone] }}
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[3px] opacity-70 transition-opacity duration-500 group-hover:opacity-100"
+        style={{ backgroundImage: glow[tone] }}
+      />
       <div className="relative flex items-start justify-between">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
           <p className="mt-2 truncate text-2xl font-bold tracking-tight text-foreground" style={{ fontFamily: "var(--font-display)" }}>{value}</p>
         </div>
-        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl shadow-[var(--shadow-soft)] transition-transform duration-500 group-hover:scale-105 ${tones[tone]}`}>
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl shadow-[var(--shadow-soft)] transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3 ${tones[tone]}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
     </Card>
+
   );
 }
 
