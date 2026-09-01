@@ -27,7 +27,34 @@ export const Route = createFileRoute("/_authenticated/app/")({
   component: Dashboard,
 });
 
-const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+const CHART_COLORS = [
+  "oklch(0.42 0.11 162)",
+  "oklch(0.76 0.12 86)",
+  "oklch(0.58 0.14 190)",
+  "oklch(0.62 0.18 40)",
+  "oklch(0.55 0.14 310)",
+  "oklch(0.66 0.15 145)",
+  "oklch(0.6 0.16 20)",
+  "oklch(0.52 0.13 255)",
+];
+
+function ChartTooltip({ active, payload, total }: any) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0];
+  const value = Number(item.value ?? 0);
+  const share = total ? (value / total) * 100 : 0;
+  return (
+    <div className="rounded-xl border border-border/70 bg-popover/95 px-3 py-2 shadow-[var(--shadow-elegant)] backdrop-blur">
+      <p className="flex items-center gap-2 text-xs font-medium text-popover-foreground">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.payload?.fill ?? item.color }} />
+        {item.payload?.name}
+      </p>
+      <p className="mt-1 text-sm font-bold" style={{ fontFamily: "var(--font-display)" }}>{currencyBRL(value)}</p>
+      <p className="text-[11px] text-muted-foreground">{share.toFixed(1)}% do período</p>
+    </div>
+  );
+}
+
 
 function StatCard({ label, value, icon: Icon, tone = "primary" }: { label: string; value: string; icon: any; tone?: "primary" | "gold" | "success" | "warn" }) {
   const tones: Record<string, string> = {
