@@ -24,6 +24,7 @@ import { getCategoryStats, mergeCategories, bulkUpdateCategories } from "@/lib/c
 import { DeduplicationReview } from "./deduplication-review";
 import { transactionTypeLabel } from "@/lib/format";
 import { LoadingState } from "@/components/query-states";
+import { CategoryConsumption } from "./category-consumption";
 
 interface CategoryOrganizationContentProps {
   profileId?: string;
@@ -72,7 +73,9 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
       result = result.filter((c: any) => c.archived);
     }
 
-    return result;
+    return [...result].sort(
+      (a: any, b: any) => Number(b.total_amount || 0) - Number(a.total_amount || 0),
+    );
   }, [categories, search, filter]);
 
   const bulkUpdateMutation = useMutation({
@@ -186,6 +189,8 @@ export function CategoryOrganizationContent({ profileId, token, readOnly = false
           <StatCard label="Duplicatas" value={stats?.duplicates} color="text-destructive" />
         </div>
       )}
+
+      {!onlyDuplicates && <CategoryConsumption categories={categories as any[]} />}
 
       <Card className="p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
