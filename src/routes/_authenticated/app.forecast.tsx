@@ -235,7 +235,7 @@ function ForecastPage() {
         sb
           .from("receipts")
           .select(
-            "id,profile_id,property_id,category_id,recipient_name,description,payment_date,amount,status,duplicate_of",
+            "id,profile_id,property_id,category_id,recipient_name,description,payment_date,amount,status,duplicate_of,expense_behavior,transaction_type, category:categories!receipts_category_id_fkey(name)",
           )
           .eq("status", "approved")
           .gte("payment_date", historyStart)
