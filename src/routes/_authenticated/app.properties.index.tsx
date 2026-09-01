@@ -220,6 +220,7 @@ function PropertiesPage() {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (list.data ?? []).filter((p: any) => {
+      if (!showSold && fStatus !== "vendido" && p.status === "vendido") return false;
       if (fProfile !== "all" && p.profile_id !== fProfile) return false;
       if (fStatus !== "all" && p.status !== fStatus) return false;
       if (fType !== "all" && p.type !== fType) return false;
@@ -227,7 +228,7 @@ function PropertiesPage() {
       if (!term) return true;
       return [p.name, p.address, p.city, p.registration, p.owner_name].filter(Boolean).some((v: string) => String(v).toLowerCase().includes(term));
     });
-  }, [list.data, q, fProfile, fStatus, fType, fCity]);
+  }, [list.data, q, fProfile, fStatus, fType, fCity, showSold]);
 
   return (
     <div className="space-y-6">
