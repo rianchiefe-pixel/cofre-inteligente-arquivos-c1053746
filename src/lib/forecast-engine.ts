@@ -189,6 +189,9 @@ export function getForecast(input: ForecastInput): ForecastResult {
       (o.is_personal ? input.personalProfileId : null) ??
       null;
     const category = categoryByObligation.get(o.id);
+    const behavior = String(o.expense_behavior ?? "undefined");
+    const obligationKind: ForecastKind =
+      behavior === "variable" ? "variable" : behavior === "credit_card" ? "expected" : "fixed";
     for (const date of occurrenceDates(o.due_date, o.periodicity, startDate, endDate)) {
       if (paid && date <= o.due_date.slice(0, 10)) continue;
 
@@ -200,7 +203,7 @@ export function getForecast(input: ForecastInput): ForecastResult {
         date,
         month: monthKey(date),
         description: o.label || o.kind || "Obrigação",
-        kind: "fixed",
+        kind: obligationKind,
         status: "confirmed",
         amountCents: cents(o.amount),
         profileId,
@@ -578,7 +581,28 @@ export function getForecast(input: ForecastInput): ForecastResult {
     );
     variableGroups.set(key, group);
   }
+  // Categoria já vinculada a uma obrigação ativa tem lugar definido pela obrigação:
+  // o histórico/estimativa daquela categoria não pode gerar gasto variável duplicado.
+  const obligationProfileById = new Map<string, string | null>();
+  for (const o of input.obligations ?? []) {
+    if (!activeStatus(o.status)) continue;
+    const property = o.properties ?? o.property;
+    obligationProfileById.set(
+      o.id,
+      property?.profile_id ??
+        o.profile_id ??
+        (o.is_personal ? input.personalProfileId : null) ??
+        null,
+    );
+  }
+  const categoriesOwnedByObligation = new Set<string>();
+  for (const link of input.obligationCategories ?? []) {
+    if (!obligationProfileById.has(link.obligation_id) || !link.category_id) continue;
+    categoriesOwnedByObligation.add(link.category_id);
+  }
+
   for (const [key, group] of variableGroups) {
+    if (group.categoryId && categoriesOwnedByObligation.has(group.categoryId)) continue;
     const values = [...group.months.values()].slice(-6).sort((a, b) => a - b);
     if (!values.length) continue;
     const trimmed = values.length >= 5 ? values.slice(1, -1) : values;
