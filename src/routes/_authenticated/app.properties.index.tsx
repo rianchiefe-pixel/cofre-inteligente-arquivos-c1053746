@@ -90,6 +90,12 @@ function PropertiesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
     return (localStorage.getItem("properties-view-mode") as "grid" | "list") || "grid";
   });
+  const [showSold, setShowSold] = useState<boolean>(() => localStorage.getItem("properties-show-sold") === "1");
+
+  const toggleShowSold = (v: boolean) => {
+    setShowSold(v);
+    localStorage.setItem("properties-show-sold", v ? "1" : "0");
+  };
 
   const toggleViewMode = (mode: "grid" | "list") => {
     setViewMode(mode);
