@@ -418,9 +418,44 @@ export function getForecast(input: ForecastInput): ForecastResult {
     });
   }
 
-  const obligationNames = (input.obligations ?? [])
+  // A obrigação cadastrada é a fonte mais segura: qualquer estimativa de gasto fixo
+  // que se refira ao mesmo compromisso (nome/fornecedor ou mesma categoria) é descartada.
+  const significantTokens = (value: unknown) =>
+    String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 4);
+  const obligationSignatures = (input.obligations ?? [])
     .filter((o) => activeStatus(o.status))
-    .map((o) => normalize(`${o.label} ${o.supplier}`));
+    .map((o) => {
+      const property = o.properties ?? o.property;
+      return {
+        text: normalize(`${o.label} ${o.supplier}`),
+        tokens: new Set(significantTokens(`${o.label} ${o.supplier}`)),
+        categoryId: categoryByObligation.get(o.id)?.category_id ?? null,
+        profileId:
+          property?.profile_id ??
+          o.profile_id ??
+          (o.is_personal ? input.personalProfileId : null) ??
+          null,
+        propertyId: o.property_id ?? null,
+      };
+    });
+  const coveredByObligation = (fixed: any) => {
+    const name = normalize(`${fixed.name} ${fixed.merchant_pattern ?? ""}`);
+    const tokens = significantTokens(`${fixed.name} ${fixed.merchant_pattern ?? ""}`);
+    return obligationSignatures.some((sig) => {
+      if (sig.text && name && (sig.text.includes(name) || name.includes(sig.text))) return true;
+      if (tokens.some((t) => sig.tokens.has(t))) return true;
+      return Boolean(
+        fixed.category_id &&
+          sig.categoryId === fixed.category_id &&
+          (!fixed.profile_id || !sig.profileId || sig.profileId === fixed.profile_id),
+      );
+    });
+  };
   // Cadastros repetidos do mesmo gasto fixo não podem multiplicar a previsão.
   const uniqueFixed = new Map<string, any>();
   for (const fixed of input.recurringFixedExpenses ?? []) {
@@ -437,13 +472,8 @@ export function getForecast(input: ForecastInput): ForecastResult {
       uniqueFixed.set(key, fixed);
   }
   for (const fixed of uniqueFixed.values()) {
-    if (
-      obligationNames.some(
+    if (coveredByObligation(fixed)) continue;
 
-        (n) => n && (n.includes(normalize(fixed.name)) || normalize(fixed.name).includes(n)),
-      )
-    )
-      continue;
     const history = (input.historicalReceipts ?? []).filter(
       (r) =>
         r.amount > 0 &&
