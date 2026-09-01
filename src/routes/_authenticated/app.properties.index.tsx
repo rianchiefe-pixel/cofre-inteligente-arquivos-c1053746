@@ -395,7 +395,12 @@ function PropertiesPage() {
               </SelectContent>
             </Select>
           )}
+          <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
+            <Switch id="show-sold" checked={showSold} onCheckedChange={toggleShowSold} />
+            <Label htmlFor="show-sold" className="cursor-pointer text-xs">Mostrar imóveis vendidos</Label>
+          </div>
           <div className="flex items-center gap-1 rounded-lg border bg-background p-1 md:col-start-5">
+
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
               size="sm"
