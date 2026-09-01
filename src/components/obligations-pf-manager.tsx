@@ -47,6 +47,7 @@ import {
   currencyBRL,
   obligationKindLabel,
   obligationStatusLabel,
+  obligationBehaviorLabel,
   periodicityLabel,
 } from "@/lib/format";
 
@@ -79,6 +80,7 @@ type PfForm = {
   notes: string;
   property_id: string;
   category_ids: string[];
+  expense_behavior: string;
   create_task: boolean;
   credential_id: string | null;
   // Credential sub-form
@@ -103,6 +105,7 @@ const emptyForm: PfForm = {
   notes: "",
   property_id: "none",
   category_ids: [],
+  expense_behavior: "undefined",
   create_task: false,
   credential_id: null,
   access_mode: "none",
@@ -286,6 +289,7 @@ export function ObligationsPage() {
         document_url: form.document_url || null,
         notes: form.notes || null,
         credential_id: finalCredentialId,
+        expense_behavior: form.expense_behavior || "undefined",
       };
 
       let obligationId = form.id;
@@ -368,6 +372,7 @@ export function ObligationsPage() {
       notes: o.notes ?? "",
       property_id: o.property_id ?? "none",
       category_ids: (o.categories ?? []).map((c: any) => c.category_id),
+      expense_behavior: o.expense_behavior ?? "undefined",
       create_task: false,
       credential_id: o.credential_id || null,
       access_mode: o.credential_id ? "existing" : "none",
@@ -575,6 +580,28 @@ export function ObligationsPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Classificação na previsibilidade</Label>
+                  <Select
+                    value={form.expense_behavior}
+                    onValueChange={(v) => setForm({ ...form, expense_behavior: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(obligationBehaviorLabel).map(([v, l]) => (
+                        <SelectItem key={v} value={v}>
+                          {l}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Define onde a obrigação entra na Previsibilidade e evita duplicidade com
+                    estimativas do histórico.
+                  </p>
                 </div>
 
                 <div className="space-y-3 rounded-lg border bg-muted/20 p-4 sm:col-span-2">
