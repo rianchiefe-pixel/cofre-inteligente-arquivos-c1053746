@@ -164,7 +164,11 @@ function Dashboard() {
       acc[name] = (acc[name] ?? 0) + Number(r.amount ?? 0);
       return acc;
     }, {}),
-  ).map(([name, value]) => ({ name, value })).slice(0, 6);
+  ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+
+  const categoryTotal = byCategory.reduce((s, c) => s + c.value, 0);
+  const bankTotal = byBank.reduce((s, b) => s + b.value, 0);
+
 
   return (
     <div className="space-y-6">
