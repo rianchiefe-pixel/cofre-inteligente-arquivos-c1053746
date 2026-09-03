@@ -1259,14 +1259,6 @@ function ManualForecastDialog({
       const amount = Number(form.amount.replace(",", "."));
       if (!form.description.trim() || !amount || !form.start_date)
         throw new Error("Informe descrição, valor e data prevista.");
-      const payload = {
-        user_id: auth.user.id,
-        description: form.description.trim(),
-        amount,
-        start_date: form.start_date,
-        end_date: form.end_date || null,
-        kind: form.kind,
-        recurrence: form.recurrence,
       const isInstallment = form.payment_method === "credito_parcelado";
       const parcels = isInstallment
         ? installmentCount(form.start_date, form.last_installment_date)
