@@ -289,6 +289,9 @@ export const obligationStatusLabel: Record<string, string> = {
 };
 
 export const periodicityLabel: Record<string, string> = {
+  diaria: "Diária",
+  semanal: "Semanal",
+  quinzenal: "Quinzenal",
   mensal: "Mensal",
   bimestral: "Bimestral",
   trimestral: "Trimestral",

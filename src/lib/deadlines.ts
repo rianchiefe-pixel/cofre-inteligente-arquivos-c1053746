@@ -134,19 +134,21 @@ export function relevantOccurrence(
   periodicity: string | null | undefined,
   status: string | null | undefined,
   todayISO = todayLocalISO(),
+  endDate?: string | null,
 ): { date: string | null; rolled: boolean; resolved: boolean } {
   const resolved = isResolvedStatus(status);
-  if (!dueDate) return { date: null, rolled: false, resolved };
-  const step = periodicity ? MONTH_STEP[periodicity] : undefined;
-  if (!step) return { date: dueDate, rolled: false, resolved };
+  if (!dueDate || (endDate && dueDate > endDate)) return { date: null, rolled: false, resolved };
+  if (!isRecurring(periodicity)) return { date: dueDate, rolled: false, resolved };
 
   let k = resolved ? 1 : 0;
-  let date = k === 0 ? dueDate : addMonthsClamped(dueDate, step);
-  // Avança enquanto a próxima ocorrência ainda estiver no passado/hoje já vencida.
+  let date = occurrenceAt(dueDate, periodicity, k);
+  if (!date || (endDate && date > endDate)) return { date: null, rolled: k > 0, resolved: false };
+  // Avança até a ocorrência atual/próxima, sem ultrapassar a data final.
   for (let guard = 0; guard < 2000; guard++) {
-    const next = addMonthsClamped(dueDate, step * (k + 1));
-    const nextDiff = daysFromToday(next, todayISO);
+    const next = occurrenceAt(dueDate, periodicity, k + 1);
+    const nextDiff = next ? daysFromToday(next, todayISO) : null;
     const currentDiff = daysFromToday(date, todayISO);
+    if (!next || (endDate && next > endDate)) break;
     if (currentDiff != null && currentDiff < 0 && nextDiff != null && nextDiff <= 0) {
       k += 1;
       date = next;
@@ -242,7 +244,7 @@ export function agendaFromObligation(
   propertyName?: string | null,
   todayISO = todayLocalISO(),
 ): AgendaItem {
-  const occ = relevantOccurrence(o.due_date ?? null, o.periodicity, o.status, todayISO);
+  const occ = relevantOccurrence(o.due_date ?? null, o.periodicity, o.status, todayISO, o.end_date ?? null);
   const daysLeft = daysFromToday(occ.date, todayISO);
   const personal = Boolean(o.is_personal);
   return {
