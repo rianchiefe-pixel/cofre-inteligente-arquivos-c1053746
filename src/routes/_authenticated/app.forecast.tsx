@@ -1217,8 +1217,20 @@ const blankForm = {
   payment_method: "none",
   account_id: "none",
   card_id: "none",
+  last_installment_date: "",
   notes: "",
 };
+
+/** Nº de parcelas entre duas datas (inclusivo, base mensal). */
+function installmentCount(start: string, last: string) {
+  if (!start || !last) return null;
+  const [ys, ms] = start.split("-").map(Number);
+  const [yl, ml] = last.split("-").map(Number);
+  if (!ys || !ms || !yl || !ml) return null;
+  const diff = (yl - ys) * 12 + (ml - ms) + 1;
+  return diff > 0 ? diff : null;
+}
+
 function ManualForecastDialog({
   open,
   onOpenChange,
