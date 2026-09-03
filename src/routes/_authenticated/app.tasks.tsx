@@ -328,7 +328,7 @@ function AgendaRow({
             </>
           ) : done ? (
             <Button size="sm" variant="ghost" disabled={busy} onClick={onReopenObligation}>Reabrir</Button>
-          ) : (
+          ) : item.rolled ? null : (
             <Button size="sm" variant="ghost" title="Marcar como paga" disabled={busy} onClick={onPayObligation}>
               <Check className="h-4 w-4 text-success" />
             </Button>

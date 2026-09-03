@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { obligationKindLabel } from "@/lib/format";
 import {
-  agendaFromObligation,
+  agendaItemsFromObligation,
   agendaFromTask,
   sortAgenda,
   todayLocalISO,
@@ -49,7 +49,7 @@ export function useDeadlines() {
     const list: AgendaItem[] = [];
     for (const t of tasks.data ?? []) list.push(agendaFromTask(t, today));
     for (const o of obligations.data ?? [])
-      list.push(agendaFromObligation(o, obligationTitle, o.properties?.name ?? null, today));
+      list.push(...agendaItemsFromObligation(o, obligationTitle, o.properties?.name ?? null, today));
     // Deduplicação defensiva: uma ocorrência por registro/ciclo.
     const seen = new Set<string>();
     const unique = list.filter((i) => (seen.has(i.key) ? false : (seen.add(i.key), true)));
