@@ -1441,6 +1441,25 @@ function ManualForecastDialog({
               ]}
             />
           </Field>
+          {form.payment_method === "credito_parcelado" && (
+            <>
+              <Field label="Data da última parcela a ser contabilizada">
+                <Input
+                  type="date"
+                  min={form.start_date}
+                  value={form.last_installment_date}
+                  onChange={(e) => set("last_installment_date", e.target.value)}
+                />
+              </Field>
+              <div className="flex items-end">
+                <p className="text-xs text-muted-foreground">
+                  {installmentCount(form.start_date, form.last_installment_date)
+                    ? `${installmentCount(form.start_date, form.last_installment_date)} parcelas mensais serão previstas, encerrando nesta data.`
+                    : "Informe a data inicial e a data da última parcela para calcular o número de parcelas."}
+                </p>
+              </div>
+            </>
+          )}
           <div className="sm:col-span-2">
             <Field label="Observação">
               <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} />
