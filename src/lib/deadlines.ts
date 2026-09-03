@@ -42,6 +42,14 @@ const MONTH_STEP: Record<string, number> = {
   anual: 12,
 };
 
+/** Recorrências em dias (diária, semanal, quinzenal). */
+const DAY_STEP: Record<string, number> = {
+  diaria: 1,
+  diario: 1,
+  semanal: 7,
+  quinzenal: 14,
+};
+
 export function todayLocalISO(now: Date = new Date()): string {
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
