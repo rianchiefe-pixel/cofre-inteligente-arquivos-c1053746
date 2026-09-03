@@ -5,6 +5,7 @@ import { obligationKindLabel } from "@/lib/format";
 import {
   agendaItemsFromObligation,
   agendaFromTask,
+  isCancelledStatus,
   sortAgenda,
   todayLocalISO,
   type AgendaItem,
