@@ -74,6 +74,7 @@ type PfForm = {
   supplier: string;
   periodicity: string;
   due_date: string;
+  end_date: string;
   amount: string;
   status: string;
   document_url: string;
@@ -99,6 +100,7 @@ const emptyForm: PfForm = {
   supplier: "",
   periodicity: "anual",
   due_date: "",
+  end_date: "",
   amount: "",
   status: "em_dia",
   document_url: "",
@@ -284,6 +286,7 @@ export function ObligationsPage() {
         supplier: form.supplier || null,
         periodicity: form.periodicity || null,
         due_date: form.due_date || null,
+        end_date: form.end_date || null,
         amount: form.amount ? Number(form.amount.replace(/\./g, "").replace(",", ".")) : null,
         status: form.status,
         document_url: form.document_url || null,
@@ -366,6 +369,7 @@ export function ObligationsPage() {
       supplier: o.supplier ?? "",
       periodicity: o.periodicity ?? "anual",
       due_date: o.due_date ?? "",
+      end_date: o.end_date ?? "",
       amount: o.amount != null ? String(o.amount).replace(".", ",") : "",
       status: o.status ?? "em_dia",
       document_url: o.document_url ?? "",
@@ -550,13 +554,24 @@ export function ObligationsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Vencimento</Label>
+                  <Label>Primeiro vencimento</Label>
                   <Input
                     type="date"
                     value={form.due_date}
                     onChange={(e) => setForm({ ...form, due_date: e.target.value })}
                   />
                 </div>
+                {form.periodicity !== "unica" && form.periodicity !== "sem_recorrencia" && (
+                  <div className="space-y-2">
+                    <Label>Último pagamento (opcional)</Label>
+                    <Input
+                      type="date"
+                      min={form.due_date || undefined}
+                      value={form.end_date}
+                      onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Valor estimado (R$)</Label>
                   <Input

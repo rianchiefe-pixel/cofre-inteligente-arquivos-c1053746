@@ -42,6 +42,14 @@ const MONTH_STEP: Record<string, number> = {
   anual: 12,
 };
 
+/** Recorrências em dias (diária, semanal, quinzenal). */
+const DAY_STEP: Record<string, number> = {
+  diaria: 1,
+  diario: 1,
+  semanal: 7,
+  quinzenal: 14,
+};
+
 export function todayLocalISO(now: Date = new Date()): string {
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
@@ -70,8 +78,25 @@ export function addMonthsClamped(baseISO: string, months: number): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+/** Soma `days` a uma data ISO (sem hora, horário local). */
+export function addDaysISO(baseISO: string, days: number): string {
+  const base = parseISO(baseISO);
+  if (!base) return baseISO;
+  const d = new Date(base.y, base.m - 1, base.d + days);
+  return todayLocalISO(d);
+}
+
+/** Ocorrência número `k` (0 = vencimento cadastrado) para a periodicidade informada. */
+function occurrenceAt(baseISO: string, periodicity: string | null | undefined, k: number): string | null {
+  if (k === 0) return baseISO;
+  const key = periodicity ?? "";
+  if (DAY_STEP[key]) return addDaysISO(baseISO, DAY_STEP[key] * k);
+  if (MONTH_STEP[key]) return addMonthsClamped(baseISO, MONTH_STEP[key] * k);
+  return null;
+}
+
 export function isRecurring(periodicity?: string | null) {
-  return Boolean(periodicity && MONTH_STEP[periodicity]);
+  return Boolean(periodicity && (MONTH_STEP[periodicity] || DAY_STEP[periodicity]));
 }
 
 /** Diferença em dias (local) entre uma data ISO e hoje. */
@@ -109,19 +134,21 @@ export function relevantOccurrence(
   periodicity: string | null | undefined,
   status: string | null | undefined,
   todayISO = todayLocalISO(),
+  endDate?: string | null,
 ): { date: string | null; rolled: boolean; resolved: boolean } {
   const resolved = isResolvedStatus(status);
-  if (!dueDate) return { date: null, rolled: false, resolved };
-  const step = periodicity ? MONTH_STEP[periodicity] : undefined;
-  if (!step) return { date: dueDate, rolled: false, resolved };
+  if (!dueDate || (endDate && dueDate > endDate)) return { date: null, rolled: false, resolved };
+  if (!isRecurring(periodicity)) return { date: dueDate, rolled: false, resolved };
 
   let k = resolved ? 1 : 0;
-  let date = k === 0 ? dueDate : addMonthsClamped(dueDate, step);
-  // Avança enquanto a próxima ocorrência ainda estiver no passado/hoje já vencida.
+  let date = occurrenceAt(dueDate, periodicity, k);
+  if (!date || (endDate && date > endDate)) return { date: null, rolled: k > 0, resolved: false };
+  // Avança até a ocorrência atual/próxima, sem ultrapassar a data final.
   for (let guard = 0; guard < 2000; guard++) {
-    const next = addMonthsClamped(dueDate, step * (k + 1));
-    const nextDiff = daysFromToday(next, todayISO);
+    const next = occurrenceAt(dueDate, periodicity, k + 1);
+    const nextDiff = next ? daysFromToday(next, todayISO) : null;
     const currentDiff = daysFromToday(date, todayISO);
+    if (!next || (endDate && next > endDate)) break;
     if (currentDiff != null && currentDiff < 0 && nextDiff != null && nextDiff <= 0) {
       k += 1;
       date = next;
@@ -217,7 +244,7 @@ export function agendaFromObligation(
   propertyName?: string | null,
   todayISO = todayLocalISO(),
 ): AgendaItem {
-  const occ = relevantOccurrence(o.due_date ?? null, o.periodicity, o.status, todayISO);
+  const occ = relevantOccurrence(o.due_date ?? null, o.periodicity, o.status, todayISO, o.end_date ?? null);
   const daysLeft = daysFromToday(occ.date, todayISO);
   const personal = Boolean(o.is_personal);
   return {

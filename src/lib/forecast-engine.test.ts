@@ -405,6 +405,37 @@ describe("forecast engine", () => {
     assert.equal(result.items.length, 0);
   });
 
+  test("daily and weekly obligations stop at their configured end date", () => {
+    const result = getForecast({
+      startDate: "2026-09-01",
+      endDate: "2026-09-30",
+      obligations: [
+        {
+          id: "daily",
+          description: "Cobrança diária",
+          due_date: "2026-09-01",
+          end_date: "2026-09-03",
+          amount: 10,
+          periodicity: "diaria",
+          status: "pendente",
+        },
+        {
+          id: "weekly",
+          description: "Cobrança semanal",
+          due_date: "2026-09-02",
+          end_date: "2026-09-16",
+          amount: 20,
+          periodicity: "semanal",
+          status: "pendente",
+        },
+      ],
+    });
+    assert.deepEqual(
+      result.items.map((item) => item.date).sort(),
+      ["2026-09-01", "2026-09-02", "2026-09-02", "2026-09-03", "2026-09-09", "2026-09-16"],
+    );
+  });
+
   test("period total equals the sum of all visible months", () => {
     const result = getForecast({
       ...range,
