@@ -1815,6 +1815,7 @@ export type Database = {
           credential_id: string | null
           document_url: string | null
           due_date: string | null
+          end_date: string | null
           expense_behavior: string
           id: string
           installation_number: string | null
@@ -1840,6 +1841,7 @@ export type Database = {
           credential_id?: string | null
           document_url?: string | null
           due_date?: string | null
+          end_date?: string | null
           expense_behavior?: string
           id?: string
           installation_number?: string | null
@@ -1865,6 +1867,7 @@ export type Database = {
           credential_id?: string | null
           document_url?: string | null
           due_date?: string | null
+          end_date?: string | null
           expense_behavior?: string
           id?: string
           installation_number?: string | null
