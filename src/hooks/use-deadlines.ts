@@ -5,6 +5,7 @@ import { obligationKindLabel } from "@/lib/format";
 import {
   agendaItemsFromObligation,
   agendaFromTask,
+  isCancelledStatus,
   sortAgenda,
   todayLocalISO,
   type AgendaItem,
@@ -47,9 +48,14 @@ export function useDeadlines() {
   const items = useMemo<AgendaItem[]>(() => {
     const today = todayLocalISO();
     const list: AgendaItem[] = [];
-    for (const t of tasks.data ?? []) list.push(agendaFromTask(t, today));
-    for (const o of obligations.data ?? [])
+    for (const t of tasks.data ?? []) {
+      if (isCancelledStatus(t.status)) continue;
+      list.push(agendaFromTask(t, today));
+    }
+    for (const o of obligations.data ?? []) {
+      if (isCancelledStatus(o.status)) continue;
       list.push(...agendaItemsFromObligation(o, obligationTitle, o.properties?.name ?? null, today));
+    }
     // Deduplicação defensiva: uma ocorrência por registro/ciclo.
     const seen = new Set<string>();
     const unique = list.filter((i) => (seen.has(i.key) ? false : (seen.add(i.key), true)));
