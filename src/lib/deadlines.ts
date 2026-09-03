@@ -108,6 +108,14 @@ export function relevantOccurrence(
   const step = periodicity ? MONTH_STEP[periodicity] : undefined;
   if (!step) return { date: dueDate, rolled: false, resolved };
 
+  // Se está quitada mas o vencimento cadastrado ainda não passou, a ocorrência
+  // relevante continua sendo a própria data cadastrada — não pula para o mês
+  // seguinte antes da hora.
+  const baseDiff = daysFromToday(dueDate, todayISO);
+  if (resolved && baseDiff != null && baseDiff >= 0) {
+    return { date: dueDate, rolled: false, resolved: true };
+  }
+
   let k = resolved ? 1 : 0;
   let date = k === 0 ? dueDate : addMonthsClamped(dueDate, step);
   // Avança enquanto a próxima ocorrência ainda estiver no passado/hoje já vencida.
