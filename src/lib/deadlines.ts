@@ -78,8 +78,25 @@ export function addMonthsClamped(baseISO: string, months: number): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+/** Soma `days` a uma data ISO (sem hora, horário local). */
+export function addDaysISO(baseISO: string, days: number): string {
+  const base = parseISO(baseISO);
+  if (!base) return baseISO;
+  const d = new Date(base.y, base.m - 1, base.d + days);
+  return todayLocalISO(d);
+}
+
+/** Ocorrência número `k` (0 = vencimento cadastrado) para a periodicidade informada. */
+function occurrenceAt(baseISO: string, periodicity: string | null | undefined, k: number): string | null {
+  if (k === 0) return baseISO;
+  const key = periodicity ?? "";
+  if (DAY_STEP[key]) return addDaysISO(baseISO, DAY_STEP[key] * k);
+  if (MONTH_STEP[key]) return addMonthsClamped(baseISO, MONTH_STEP[key] * k);
+  return null;
+}
+
 export function isRecurring(periodicity?: string | null) {
-  return Boolean(periodicity && MONTH_STEP[periodicity]);
+  return Boolean(periodicity && (MONTH_STEP[periodicity] || DAY_STEP[periodicity]));
 }
 
 /** Diferença em dias (local) entre uma data ISO e hoje. */
