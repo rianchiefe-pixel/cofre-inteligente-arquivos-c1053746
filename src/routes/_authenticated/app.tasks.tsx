@@ -179,11 +179,15 @@ function TasksPage() {
       if (filter === "imoveis" && i.source !== "imovel") return false;
       if (filter === "manual" && i.source !== "manual") return false;
       if (fProperty !== "all" && i.propertyId !== fProperty) return false;
+      if (fMonth !== "all" && i.dueDate) {
+        const month = i.dueDate.slice(0, 7);
+        if (month !== fMonth) return false;
+      }
       if (term && ![i.title, i.sourceLabel, i.notes].some((v) => String(v ?? "").toLowerCase().includes(term)))
         return false;
       return true;
     });
-  }, [deadlines.items, q, filter, fProperty]);
+  }, [deadlines.items, q, filter, fProperty, fMonth]);
 
   const counts = deadlines.counts;
 
