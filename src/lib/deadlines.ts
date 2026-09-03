@@ -87,6 +87,13 @@ export function daysFromToday(iso: string | null, todayISO = todayLocalISO()): n
 
 const RESOLVED_STATUS = new Set(["pago", "cancelado", "concluida", "cancelada", "quitado", "resolvido"]);
 
+const CANCELLED_STATUS = new Set(["cancelado", "cancelada", "cancelled", "encerrado", "closed", "rejected"]);
+
+/** Cancelados saem da agenda: não geram cobrança nem próxima ocorrência. */
+export function isCancelledStatus(status?: string | null) {
+  return Boolean(status && CANCELLED_STATUS.has(String(status).toLowerCase()));
+}
+
 export function isResolvedStatus(status?: string | null) {
   return Boolean(status && RESOLVED_STATUS.has(status));
 }
