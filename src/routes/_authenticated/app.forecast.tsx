@@ -1217,8 +1217,20 @@ const blankForm = {
   payment_method: "none",
   account_id: "none",
   card_id: "none",
+  last_installment_date: "",
   notes: "",
 };
+
+/** Nº de parcelas entre duas datas (inclusivo, base mensal). */
+function installmentCount(start: string, last: string) {
+  if (!start || !last) return null;
+  const [ys, ms] = start.split("-").map(Number);
+  const [yl, ml] = last.split("-").map(Number);
+  if (!ys || !ms || !yl || !ml) return null;
+  const diff = (yl - ys) * 12 + (ml - ms) + 1;
+  return diff > 0 ? diff : null;
+}
+
 function ManualForecastDialog({
   open,
   onOpenChange,
@@ -1247,15 +1259,25 @@ function ManualForecastDialog({
       const amount = Number(form.amount.replace(",", "."));
       if (!form.description.trim() || !amount || !form.start_date)
         throw new Error("Informe descrição, valor e data prevista.");
+      const isInstallment = form.payment_method === "credito_parcelado";
+      const parcels = isInstallment
+        ? installmentCount(form.start_date, form.last_installment_date)
+        : null;
+      if (isInstallment && form.last_installment_date && !parcels)
+        throw new Error("A data da última parcela deve ser igual ou posterior à data inicial.");
       const payload = {
         user_id: auth.user.id,
         description: form.description.trim(),
         amount,
         start_date: form.start_date,
-        end_date: form.end_date || null,
+        end_date: (isInstallment ? form.last_installment_date : form.end_date) || null,
         kind: form.kind,
-        recurrence: form.recurrence,
-        occurrence_count: form.occurrence_count ? Number(form.occurrence_count) : null,
+        recurrence: isInstallment && parcels ? "mensal" : form.recurrence,
+        occurrence_count: isInstallment
+          ? (parcels ?? null)
+          : form.occurrence_count
+            ? Number(form.occurrence_count)
+            : null,
         profile_id: form.profile_id === "none" ? null : form.profile_id,
         property_id: form.property_id === "none" ? null : form.property_id,
         category_id: form.category_id === "none" ? null : form.category_id,
@@ -1266,6 +1288,7 @@ function ManualForecastDialog({
         notes: form.notes || null,
         status: "active",
       };
+
       const { error } = await sb.from("financial_forecasts").insert(payload);
       if (error) throw error;
     },
@@ -1418,6 +1441,25 @@ function ManualForecastDialog({
               ]}
             />
           </Field>
+          {form.payment_method === "credito_parcelado" && (
+            <>
+              <Field label="Data da última parcela a ser contabilizada">
+                <Input
+                  type="date"
+                  min={form.start_date}
+                  value={form.last_installment_date}
+                  onChange={(e) => set("last_installment_date", e.target.value)}
+                />
+              </Field>
+              <div className="flex items-end">
+                <p className="text-xs text-muted-foreground">
+                  {installmentCount(form.start_date, form.last_installment_date)
+                    ? `${installmentCount(form.start_date, form.last_installment_date)} parcelas mensais serão previstas, encerrando nesta data.`
+                    : "Informe a data inicial e a data da última parcela para calcular o número de parcelas."}
+                </p>
+              </div>
+            </>
+          )}
           <div className="sm:col-span-2">
             <Field label="Observação">
               <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} />
