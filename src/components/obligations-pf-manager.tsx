@@ -74,6 +74,7 @@ type PfForm = {
   supplier: string;
   periodicity: string;
   due_date: string;
+  end_date: string;
   amount: string;
   status: string;
   document_url: string;
@@ -99,6 +100,7 @@ const emptyForm: PfForm = {
   supplier: "",
   periodicity: "anual",
   due_date: "",
+  end_date: "",
   amount: "",
   status: "em_dia",
   document_url: "",
@@ -284,6 +286,7 @@ export function ObligationsPage() {
         supplier: form.supplier || null,
         periodicity: form.periodicity || null,
         due_date: form.due_date || null,
+        end_date: form.end_date || null,
         amount: form.amount ? Number(form.amount.replace(/\./g, "").replace(",", ".")) : null,
         status: form.status,
         document_url: form.document_url || null,
@@ -366,6 +369,7 @@ export function ObligationsPage() {
       supplier: o.supplier ?? "",
       periodicity: o.periodicity ?? "anual",
       due_date: o.due_date ?? "",
+      end_date: o.end_date ?? "",
       amount: o.amount != null ? String(o.amount).replace(".", ",") : "",
       status: o.status ?? "em_dia",
       document_url: o.document_url ?? "",

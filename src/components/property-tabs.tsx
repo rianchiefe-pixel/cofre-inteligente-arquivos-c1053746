@@ -129,14 +129,14 @@ export function LeaseTab({ propertyId, userId }: { propertyId: string; userId: s
 
 type ObligationForm = {
   id?: string; kind: string; label: string; supplier: string; periodicity: string;
-  due_date: string; amount: string; status: string; document_url: string; notes: string;
+  due_date: string; end_date: string; amount: string; status: string; document_url: string; notes: string;
   installation_number: string; consumer_unit: string; registration_number: string;
   client_number: string; contract_number: string; real_estate_tax_id: string;
   credential_id: string; create_task: boolean; expense_behavior: string;
 };
 const emptyOblig: ObligationForm = {
   kind: "iptu", label: "", supplier: "", periodicity: "mensal",
-  due_date: "", amount: "", status: "em_dia", document_url: "", notes: "",
+  due_date: "", end_date: "", amount: "", status: "em_dia", document_url: "", notes: "",
   installation_number: "", consumer_unit: "", registration_number: "",
   client_number: "", contract_number: "", real_estate_tax_id: "",
   credential_id: "none", create_task: false, expense_behavior: "undefined",
@@ -171,6 +171,7 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
         kind: form.kind, label: form.label || null, supplier: form.supplier || null,
         periodicity: form.periodicity || null,
         due_date: form.due_date || null,
+        end_date: form.end_date || null,
         amount: form.amount ? Number(form.amount.replace(",", ".")) : null,
         status: form.status, document_url: form.document_url || null, notes: form.notes || null,
         installation_number: form.installation_number || null,
@@ -229,7 +230,7 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
   const openEdit = (o: any) => {
     setForm({
       id: o.id, kind: o.kind, label: o.label ?? "", supplier: o.supplier ?? "",
-      periodicity: o.periodicity ?? "mensal", due_date: o.due_date ?? "",
+      periodicity: o.periodicity ?? "mensal", due_date: o.due_date ?? "", end_date: o.end_date ?? "",
       amount: o.amount != null ? String(o.amount) : "", status: o.status ?? "em_dia",
       document_url: o.document_url ?? "", notes: o.notes ?? "",
       installation_number: o.installation_number ?? "",
@@ -313,16 +314,22 @@ export function ObligationsTab({ propertyId, userId }: { propertyId: string; use
               )}
 
               <div className="space-y-2">
-                <Label>Periodicidade</Label>
+                <Label>Recorrência</Label>
                 <Select value={form.periodicity} onValueChange={(v) => setForm({ ...form, periodicity: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{Object.entries(periodicityLabel).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Vencimento</Label>
+                <Label>Primeiro vencimento</Label>
                 <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
               </div>
+              {form.periodicity !== "unica" && form.periodicity !== "sem_recorrencia" && (
+                <div className="space-y-2">
+                  <Label>Último pagamento (opcional)</Label>
+                  <Input type="date" min={form.due_date || undefined} value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Valor estimado (R$)</Label>
                 <Input inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0,00" />
