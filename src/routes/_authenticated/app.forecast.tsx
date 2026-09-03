@@ -1267,7 +1267,25 @@ function ManualForecastDialog({
         end_date: form.end_date || null,
         kind: form.kind,
         recurrence: form.recurrence,
-        occurrence_count: form.occurrence_count ? Number(form.occurrence_count) : null,
+      const isInstallment = form.payment_method === "credito_parcelado";
+      const parcels = isInstallment
+        ? installmentCount(form.start_date, form.last_installment_date)
+        : null;
+      if (isInstallment && form.last_installment_date && !parcels)
+        throw new Error("A data da última parcela deve ser igual ou posterior à data inicial.");
+      const payload = {
+        user_id: auth.user.id,
+        description: form.description.trim(),
+        amount,
+        start_date: form.start_date,
+        end_date: (isInstallment ? form.last_installment_date : form.end_date) || null,
+        kind: form.kind,
+        recurrence: isInstallment && parcels ? "mensal" : form.recurrence,
+        occurrence_count: isInstallment
+          ? (parcels ?? null)
+          : form.occurrence_count
+            ? Number(form.occurrence_count)
+            : null,
         profile_id: form.profile_id === "none" ? null : form.profile_id,
         property_id: form.property_id === "none" ? null : form.property_id,
         category_id: form.category_id === "none" ? null : form.category_id,
@@ -1278,6 +1296,7 @@ function ManualForecastDialog({
         notes: form.notes || null,
         status: "active",
       };
+
       const { error } = await sb.from("financial_forecasts").insert(payload);
       if (error) throw error;
     },
