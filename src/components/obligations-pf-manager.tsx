@@ -554,13 +554,24 @@ export function ObligationsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Vencimento</Label>
+                  <Label>Primeiro vencimento</Label>
                   <Input
                     type="date"
                     value={form.due_date}
                     onChange={(e) => setForm({ ...form, due_date: e.target.value })}
                   />
                 </div>
+                {form.periodicity !== "unica" && form.periodicity !== "sem_recorrencia" && (
+                  <div className="space-y-2">
+                    <Label>Último pagamento (opcional)</Label>
+                    <Input
+                      type="date"
+                      min={form.due_date || undefined}
+                      value={form.end_date}
+                      onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Valor estimado (R$)</Label>
                   <Input

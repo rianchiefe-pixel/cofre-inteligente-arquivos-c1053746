@@ -100,22 +100,21 @@ const addMonthsSafe = (value: string, months: number, preferredDay?: number | nu
   target.setDate(Math.min(day, new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()));
   return dateOnly(target);
 };
-const intervalFor = (value: unknown) =>
-  ({ mensal: 1, monthly: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12, yearly: 12 })[
-    String(value)
-  ] ?? 0;
+const recurrenceSpec = (value: unknown): { unit: "day" | "month"; step: number } | null => {
+  const key = String(value ?? "").toLowerCase();
+  if (["diaria", "diario", "daily"].includes(key)) return { unit: "day", step: 1 };
+  if (["semanal", "weekly"].includes(key)) return { unit: "day", step: 7 };
+  if (["quinzenal", "biweekly"].includes(key)) return { unit: "day", step: 14 };
+  const months: Record<string, number> = {
+    mensal: 1, monthly: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12, yearly: 12,
+  };
+  return months[key] ? { unit: "month", step: months[key] } : null;
+};
+const intervalFor = (value: unknown) => recurrenceSpec(value)?.step ?? 0;
 const inRange = (date: string, start: string, end: string) => date >= start && date <= end;
 const activeStatus = (status: unknown) =>
-  ![
-    "pago",
-    "paid",
-    "cancelado",
-    "cancelled",
-    "encerrado",
-    "closed",
-    "rejected",
-    "duplicate",
-  ].includes(String(status ?? "").toLowerCase());
+  !["pago", "paid", "cancelado", "cancelled", "encerrado", "closed", "rejected", "duplicate"]
+    .includes(String(status ?? "").toLowerCase());
 
 function occurrenceDates(
   startValue: string,
@@ -125,12 +124,21 @@ function occurrenceDates(
   endValue?: string | null,
   maxOccurrences?: number | null,
 ) {
-  const interval = intervalFor(recurrence);
+  const spec = recurrenceSpec(recurrence);
   const result: string[] = [];
   let cursor = startValue.slice(0, 10);
   let occurrence = 0;
-  while (cursor < rangeStart && interval > 0) {
-    cursor = addMonthsSafe(cursor, interval, parseDate(startValue).getDate());
+  const nextDate = (value: string) => {
+    if (!spec) return value;
+    if (spec.unit === "day") {
+      const next = parseDate(value);
+      next.setDate(next.getDate() + spec.step);
+      return dateOnly(next);
+    }
+    return addMonthsSafe(value, spec.step, parseDate(startValue).getDate());
+  };
+  while (cursor < rangeStart && spec) {
+    cursor = nextDate(cursor);
     occurrence++;
     if (occurrence > 1200) return result;
   }
@@ -140,8 +148,8 @@ function occurrenceDates(
     (!maxOccurrences || occurrence < maxOccurrences)
   ) {
     if (cursor >= rangeStart) result.push(cursor);
-    if (!interval) break;
-    cursor = addMonthsSafe(cursor, interval, parseDate(startValue).getDate());
+    if (!spec) break;
+    cursor = nextDate(cursor);
     occurrence++;
     if (occurrence > 1200) break;
   }
@@ -177,7 +185,7 @@ export function getForecast(input: ForecastInput): ForecastResult {
   for (const o of input.obligations ?? []) {
     if (!o.due_date || cents(o.amount) <= 0) continue;
     const status = String(o.status ?? "").toLowerCase();
-    const cancelled = ["cancelado", "cancelled", "encerrado", "closed", "rejected"].includes(status);
+    const cancelled = ["cancelado", "cancelada", "cancelled", "encerrado", "closed", "rejected"].includes(status);
     const paid = ["pago", "paid"].includes(status);
     const recurringInterval = intervalFor(o.periodicity);
     // "Pago" numa obrigação recorrente refere-se apenas à parcela atual: as próximas continuam previstas.
@@ -192,7 +200,7 @@ export function getForecast(input: ForecastInput): ForecastResult {
     const behavior = String(o.expense_behavior ?? "undefined");
     const obligationKind: ForecastKind =
       behavior === "variable" ? "variable" : behavior === "credit_card" ? "expected" : "fixed";
-    for (const date of occurrenceDates(o.due_date, o.periodicity, startDate, endDate)) {
+    for (const date of occurrenceDates(o.due_date, o.periodicity, startDate, endDate, o.end_date)) {
       if (paid && date <= o.due_date.slice(0, 10)) continue;
 
       push({
