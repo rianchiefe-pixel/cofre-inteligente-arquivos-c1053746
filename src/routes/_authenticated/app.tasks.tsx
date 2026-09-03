@@ -52,8 +52,24 @@ function TasksPage() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [fProperty, setFProperty] = useState("all");
+  const [fMonth, setFMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<TaskForm>(emptyTask);
+
+  const monthOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [{ value: "all", label: "Todos os meses" }];
+    const now = new Date();
+    for (let i = -2; i <= 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      opts.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    }
+    return opts;
+  }, []);
 
   const deadlines = useDeadlines();
 
