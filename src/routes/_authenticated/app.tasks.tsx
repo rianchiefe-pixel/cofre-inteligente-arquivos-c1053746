@@ -119,8 +119,9 @@ function TasksPage() {
   // Marca a ocorrência atual da obrigação como paga. O vencimento cadastrado
   // permanece intacto: a próxima ocorrência é apenas calculada em memória.
   const payObligation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await sb.from("property_obligations").update({ status: "pago" }).eq("id", id).select("id");
+    mutationFn: async ({ id, dueDate }: { id: string; dueDate: string | null }) => {
+      const patch = dueDate ? { status: "pago", due_date: dueDate } : { status: "pago" };
+      const { data, error } = await sb.from("property_obligations").update(patch).eq("id", id).select("id");
       if (error) throw new Error(error.message);
       if (!data || data.length === 0) throw new Error("A obrigação não foi atualizada.");
     },
@@ -245,7 +246,7 @@ function TasksPage() {
               onEditTask={() => openEdit(item.raw)}
               onCompleteTask={() => { if (!busy) quickStatus.mutate({ id: item.recordId, status: "concluida" }); }}
               onRemoveTask={() => { if (!busy) remove.mutate(item.recordId); }}
-              onPayObligation={() => { if (!busy) payObligation.mutate(item.recordId); }}
+              onPayObligation={() => { if (!busy) payObligation.mutate({ id: item.recordId, dueDate: item.dueDate }); }}
               onReopenObligation={() => { if (!busy) reopenObligation.mutate(item.recordId); }}
             />
           ))}
@@ -328,7 +329,7 @@ function AgendaRow({
             </>
           ) : done ? (
             <Button size="sm" variant="ghost" disabled={busy} onClick={onReopenObligation}>Reabrir</Button>
-          ) : item.rolled ? null : (
+          ) : (
             <Button size="sm" variant="ghost" title="Marcar como paga" disabled={busy} onClick={onPayObligation}>
               <Check className="h-4 w-4 text-success" />
             </Button>
