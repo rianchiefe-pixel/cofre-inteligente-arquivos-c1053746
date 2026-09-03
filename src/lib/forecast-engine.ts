@@ -204,10 +204,10 @@ export function getForecast(input: ForecastInput): ForecastResult {
       if (paid && date <= o.due_date.slice(0, 10)) continue;
 
       push({
-        id: `obligation:${o.id}:${monthKey(date)}`,
+        id: `obligation:${o.id}:${date}`,
         sourceType: "obligation",
         sourceId: o.id,
-        sourceOccurrenceId: monthKey(date),
+        sourceOccurrenceId: date,
         date,
         month: monthKey(date),
         description: o.label || o.kind || "Obrigação",
