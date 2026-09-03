@@ -52,8 +52,21 @@ function TasksPage() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [fProperty, setFProperty] = useState("all");
+  const [fMonth, setFMonth] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<TaskForm>(emptyTask);
+
+  const monthOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [{ value: "all", label: "Todos os meses" }];
+    const now = new Date();
+    for (let i = -2; i <= 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      opts.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    }
+    return opts;
+  }, []);
 
   const deadlines = useDeadlines();
 
@@ -163,11 +176,15 @@ function TasksPage() {
       if (filter === "imoveis" && i.source !== "imovel") return false;
       if (filter === "manual" && i.source !== "manual") return false;
       if (fProperty !== "all" && i.propertyId !== fProperty) return false;
+      if (fMonth !== "all" && i.dueDate) {
+        const month = i.dueDate.slice(0, 7);
+        if (month !== fMonth) return false;
+      }
       if (term && ![i.title, i.sourceLabel, i.notes].some((v) => String(v ?? "").toLowerCase().includes(term)))
         return false;
       return true;
     });
-  }, [deadlines.items, q, filter, fProperty]);
+  }, [deadlines.items, q, filter, fProperty, fMonth]);
 
   const counts = deadlines.counts;
 
@@ -191,7 +208,7 @@ function TasksPage() {
       </div>
 
       <Card className="p-4">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título, origem ou observação…" className="pl-9" />
@@ -215,6 +232,14 @@ function TasksPage() {
             <SelectContent>
               <SelectItem value="all">Todos os imóveis</SelectItem>
               {(properties.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={fMonth} onValueChange={setFMonth}>
+            <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
