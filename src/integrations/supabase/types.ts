@@ -2004,57 +2004,99 @@ export type Database = {
       }
       receipt_analysis_files: {
         Row: {
+          ai_extracted_data: Json | null
+          amount: number | null
           analysis_reason: string | null
           analysis_status:
             | Database["public"]["Enums"]["receipt_analysis_status"]
             | null
+          auth_code: string | null
+          bank_name: string | null
           batch_id: string
           candidate_receipt_id: string | null
           content_hash: string
           created_at: string | null
+          different_fields: Json | null
+          extension: string | null
+          extracted_text: string | null
           file_name: string
           id: string
           matched_fields: Json | null
+          mime_type: string | null
+          ocr_data: Json | null
           original_path: string
+          payment_date: string | null
+          payment_method: string | null
+          recipient_name: string | null
+          recipient_tax_id: string | null
           similarity_score: number | null
           size_bytes: number | null
           storage_path: string | null
+          transaction_id: string | null
           user_id: string
         }
         Insert: {
+          ai_extracted_data?: Json | null
+          amount?: number | null
           analysis_reason?: string | null
           analysis_status?:
             | Database["public"]["Enums"]["receipt_analysis_status"]
             | null
+          auth_code?: string | null
+          bank_name?: string | null
           batch_id: string
           candidate_receipt_id?: string | null
           content_hash: string
           created_at?: string | null
+          different_fields?: Json | null
+          extension?: string | null
+          extracted_text?: string | null
           file_name: string
           id?: string
           matched_fields?: Json | null
+          mime_type?: string | null
+          ocr_data?: Json | null
           original_path: string
+          payment_date?: string | null
+          payment_method?: string | null
+          recipient_name?: string | null
+          recipient_tax_id?: string | null
           similarity_score?: number | null
           size_bytes?: number | null
           storage_path?: string | null
+          transaction_id?: string | null
           user_id: string
         }
         Update: {
+          ai_extracted_data?: Json | null
+          amount?: number | null
           analysis_reason?: string | null
           analysis_status?:
             | Database["public"]["Enums"]["receipt_analysis_status"]
             | null
+          auth_code?: string | null
+          bank_name?: string | null
           batch_id?: string
           candidate_receipt_id?: string | null
           content_hash?: string
           created_at?: string | null
+          different_fields?: Json | null
+          extension?: string | null
+          extracted_text?: string | null
           file_name?: string
           id?: string
           matched_fields?: Json | null
+          mime_type?: string | null
+          ocr_data?: Json | null
           original_path?: string
+          payment_date?: string | null
+          payment_method?: string | null
+          recipient_name?: string | null
+          recipient_tax_id?: string | null
           similarity_score?: number | null
           size_bytes?: number | null
           storage_path?: string | null
+          transaction_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -2842,6 +2884,7 @@ export type Database = {
         | "not_found"
         | "duplicate_in_zip"
         | "error"
+        | "unreadable"
       receipt_status:
         | "pending"
         | "approved"
@@ -3065,6 +3108,7 @@ export const Constants = {
         "not_found",
         "duplicate_in_zip",
         "error",
+        "unreadable",
       ],
       receipt_status: [
         "pending",
