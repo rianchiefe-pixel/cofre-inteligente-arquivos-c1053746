@@ -52,10 +52,7 @@ function TasksPage() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [fProperty, setFProperty] = useState("all");
-  const [fMonth, setFMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [fMonth, setFMonth] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<TaskForm>(emptyTask);
 
