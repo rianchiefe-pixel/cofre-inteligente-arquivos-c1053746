@@ -236,3 +236,34 @@ export function agendaFromObligation(
     raw: o,
   };
 }
+
+/**
+ * Itens da agenda para uma obrigação.
+ *  - Quitada e recorrente: gera o item PAGO do ciclo atual (visível no filtro
+ *    "Concluídos / pagos") + o item da próxima ocorrência.
+ *  - Quitada e não recorrente: apenas o item pago.
+ *  - Pendente: apenas a ocorrência relevante.
+ */
+export function agendaItemsFromObligation(
+  o: any,
+  labelFor: (o: any) => string,
+  propertyName?: string | null,
+  todayISO = todayLocalISO(),
+): AgendaItem[] {
+  const base = agendaFromObligation(o, labelFor, propertyName, todayISO);
+  if (!isResolvedStatus(o.status)) return [base];
+
+  const paidDate = o.due_date ?? null;
+  const paidDaysLeft = daysFromToday(paidDate, todayISO);
+  const paid: AgendaItem = {
+    ...base,
+    key: `obl:${o.id}:pago:${paidDate ?? "sem-data"}`,
+    dueDate: paidDate,
+    urgency: "concluido",
+    daysLeft: paidDaysLeft,
+    rolled: false,
+  };
+
+  if (!isRecurring(o.periodicity) || !base.dueDate || base.dueDate === paidDate) return [paid];
+  return [paid, { ...base, rolled: true }];
+}
