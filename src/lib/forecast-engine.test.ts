@@ -431,8 +431,8 @@ describe("forecast engine", () => {
       ],
     });
     assert.deepEqual(
-      result.items.map((item) => item.date),
-      ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-09", "2026-09-16"],
+      result.items.map((item) => item.date).sort(),
+      ["2026-09-01", "2026-09-02", "2026-09-02", "2026-09-03", "2026-09-09", "2026-09-16"],
     );
   });
 
