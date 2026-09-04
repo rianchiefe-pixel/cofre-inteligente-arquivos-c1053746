@@ -133,15 +133,19 @@ const CARD_INCLUDE_OR = [
   "notes.ilike.%cartão crédito%",
 ].join(",");
 
-/** Aplica a exclusão dos lançamentos de cartão (cada .or() é combinado com AND). */
+/** Aplica a exclusão dos lançamentos de cartão em UM único filtro combinado. */
 function excludeCards(qb: any) {
-  return qb
-    .is("card_id", null)
-    .or("payment_method.is.null,payment_method.not.in.(credito_vista,credito_parcelado)")
-    .or(
-      "notes.is.null,and(notes.not.ilike.%cartão de crédito%,notes.not.ilike.%cartão crédito%)",
-    );
+  return qb.is("card_id", null).or(
+    [
+      "and(",
+      "or(payment_method.is.null,payment_method.not.in.(credito_vista,credito_parcelado))",
+      ",",
+      "or(notes.is.null,and(notes.not.ilike.%cartão de crédito%,notes.not.ilike.%cartão crédito%))",
+      ")",
+    ].join(""),
+  );
 }
+
 
 
 type PreviewState = {
@@ -659,7 +663,8 @@ function VaultPage() {
   useEffect(() => {
     setSelectedIds(new Set());
     setPage(0);
-  }, [quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, showCardsInApproved, cardMonth]);
+  }, [quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, showCardsInApproved, cardMonth, search.from, search.to, search.expenseBehavior, search.transactionType]);
+
 
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   const filtered = receipts.data?.rows ?? [];
