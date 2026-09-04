@@ -659,7 +659,8 @@ function VaultPage() {
   useEffect(() => {
     setSelectedIds(new Set());
     setPage(0);
-  }, [quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, showCardsInApproved, cardMonth]);
+  }, [quick, profileId, bankId, propertyId, selectedCategoryIds, debouncedQ, incompleteOnly, showCardsInApproved, cardMonth, search.from, search.to, search.expenseBehavior, search.transactionType]);
+
 
   const profileIdToName = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.name]));
   const filtered = receipts.data?.rows ?? [];
