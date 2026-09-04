@@ -133,15 +133,19 @@ const CARD_INCLUDE_OR = [
   "notes.ilike.%cartão crédito%",
 ].join(",");
 
-/** Aplica a exclusão dos lançamentos de cartão (cada .or() é combinado com AND). */
+/** Aplica a exclusão dos lançamentos de cartão em UM único filtro combinado. */
 function excludeCards(qb: any) {
-  return qb
-    .is("card_id", null)
-    .or("payment_method.is.null,payment_method.not.in.(credito_vista,credito_parcelado)")
-    .or(
-      "notes.is.null,and(notes.not.ilike.%cartão de crédito%,notes.not.ilike.%cartão crédito%)",
-    );
+  return qb.is("card_id", null).or(
+    [
+      "and(",
+      "or(payment_method.is.null,payment_method.not.in.(credito_vista,credito_parcelado))",
+      ",",
+      "or(notes.is.null,and(notes.not.ilike.%cartão de crédito%,notes.not.ilike.%cartão crédito%))",
+      ")",
+    ].join(""),
+  );
 }
+
 
 
 type PreviewState = {
