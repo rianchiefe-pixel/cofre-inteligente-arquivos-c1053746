@@ -154,18 +154,30 @@ function ReportsPage() {
         // Vou seguir a instrução 7: "Todos os perfis seja permitido para o resumo geral".
       }
 
-      const { data, error } = await supabase
-        .from("receipts")
-        .select("*, category:categories!receipts_category_id_fkey(name), properties(name)")
-        .eq("status", "approved")
-        .gte("payment_date", from || "1970-01-01")
-        .lte("payment_date", to || "2100-12-31")
-        .order("payment_date", { ascending: false })
-        .order("id", { ascending: true });
-      
-      if (error) throw error;
-      
-      let all = data ?? [];
+      // Paginação obrigatória: sem ela o backend devolve no máximo 1000 linhas
+      // e os meses mais antigos do período desapareciam do relatório.
+      const PAGE = 1000;
+      const fetched: any[] = [];
+      for (let offset = 0; offset < 200000; offset += PAGE) {
+        let q = supabase
+          .from("receipts")
+          .select("*, category:categories!receipts_category_id_fkey(name), properties(name)")
+          .eq("status", "approved")
+          .gte("payment_date", from || "1970-01-01")
+          .lte("payment_date", to || "2100-12-31")
+          .order("payment_date", { ascending: false })
+          .order("id", { ascending: true })
+          .range(offset, offset + PAGE - 1);
+        if (normalizedProfileId) q = q.eq("profile_id", normalizedProfileId);
+        const { data: page, error } = await q;
+        if (error) throw error;
+        const list = page ?? [];
+        fetched.push(...list);
+        if (list.length < PAGE) break;
+      }
+
+      let all = fetched;
+
       
       // Filtragem em memória para performance (evita OR complexo do PostgREST que pode ser lento)
       if (normalizedProfileId) {
