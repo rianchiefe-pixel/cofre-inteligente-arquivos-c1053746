@@ -303,6 +303,10 @@ function CardsIndexPage() {
         />
       )}
 
+      {!cardsQuery.isLoading && !cardsQuery.isError && cards.length > 0 && (
+        <CardUsageChart data={cardsQuery.data?.monthlyUsage || []} />
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c: any) => (
           <Card key={c.id} className="overflow-hidden flex flex-col group/card relative">
