@@ -37,24 +37,25 @@ export const getCardsStats = createServerFn({ method: "GET" })
       .eq("user_id", userId);
 
     if (cardsError) throw cardsError;
-    if (!cards || cards.length === 0) return { cards: [], monthlyUsage: [] };
 
-    const cardIds = cards.map(c => c.id);
+    const cardList = cards || [];
+    const cardIds = cardList.map(c => c.id);
 
     // Get holders
-    const { data: holders, error: holdersError } = await supabase
-      .from("card_holders")
-      .select("*")
-      .in("card_id", cardIds);
+    const { data: holders, error: holdersError } = cardIds.length
+      ? await supabase.from("card_holders").select("*").in("card_id", cardIds)
+      : { data: [], error: null };
 
     if (holdersError) throw holdersError;
 
-    // Get stats from receipts (the financial truth)
+    // Get stats from receipts (the financial truth).
+    // Includes every credit-card entry in the system, not only entries tied to a registered card.
     const { data: receipts, error: recError } = await supabase
       .from("receipts")
-      .select("card_id, amount, status, payment_date")
+      .select("card_id, amount, status, payment_date, payment_method, expense_behavior")
       .eq("profile_id", targetProfileId)
-      .in("card_id", cardIds);
+      .eq("user_id", userId)
+      .or("card_id.not.is.null,payment_method.in.(credito_vista,credito_parcelado),expense_behavior.eq.credit_card");
 
     if (recError) throw recError;
 
@@ -79,17 +80,20 @@ export const getCardsStats = createServerFn({ method: "GET" })
     const monthlyMap = new Map<string, { total: number; byCard: Map<string, number> }>();
     months.forEach(m => monthlyMap.set(m, { total: 0, byCard: new Map() }));
 
+    const UNLINKED = "unlinked";
+
     receipts?.forEach(r => {
-      if (!r.card_id || !r.payment_date) return;
+      if (!r.payment_date) return;
+      const key = r.card_id || UNLINKED;
       const m = r.payment_date.slice(0, 7);
       const bucket = monthlyMap.get(m);
       if (!bucket) return;
       const amount = Number(r.amount || 0);
       bucket.total += amount;
-      bucket.byCard.set(r.card_id, (bucket.byCard.get(r.card_id) || 0) + amount);
+      bucket.byCard.set(key, (bucket.byCard.get(key) || 0) + amount);
     });
 
-    const cardNameMap = new Map(cards.map(c => [c.id, c.name]));
+    const cardNameMap = new Map(cardList.map(c => [c.id, c.name]));
 
     const monthlyUsage = months.map(m => {
       const bucket = monthlyMap.get(m)!;
@@ -98,13 +102,17 @@ export const getCardsStats = createServerFn({ method: "GET" })
         label: monthLabel(m),
         total: bucket.total,
         cards: Array.from(bucket.byCard.entries())
-          .map(([id, total]) => ({ id, name: cardNameMap.get(id) || "Cartão", total }))
+          .map(([id, total]) => ({
+            id,
+            name: id === UNLINKED ? "Sem cartão vinculado" : cardNameMap.get(id) || "Cartão",
+            total,
+          }))
           .sort((a, b) => b.total - a.total),
       };
     });
 
     return {
-      cards: cards.map(c => ({
+      cards: cardList.map(c => ({
         ...c,
         holders: (holders || []).filter(h => h.card_id === c.id),
         stats: statsMap.get(c.id) || { total: 0, count: 0, pendingCount: 0 }
