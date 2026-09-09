@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useActiveProfile } from "@/hooks/use-active-profile";
 import { getCardsStats } from "@/lib/cards.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, CreditCard, ArrowRight } from "lucide-react";
+import { Plus, CreditCard, ArrowRight, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { currencyBRL, parseBrlAmount } from "@/lib/format";
 import { LoadingState, ErrorState, EmptyState } from "@/components/query-states";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from "recharts";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/cards/")({
   head: () => ({
@@ -31,6 +33,119 @@ export const Route = createFileRoute("/_authenticated/app/cards/")({
   }),
   component: CardsIndexPage,
 });
+
+type MonthlyPoint = {
+  month: string;
+  label: string;
+  total: number;
+  cards: { id: string; name: string; total: number }[];
+};
+
+const PALETTE = [
+  "oklch(0.42 0.11 162)",
+  "oklch(0.76 0.12 86)",
+  "oklch(0.58 0.14 190)",
+  "oklch(0.62 0.18 40)",
+  "oklch(0.55 0.14 310)",
+  "oklch(0.5 0.12 145)",
+];
+
+function CardUsageChart({ data }: { data: MonthlyPoint[] }) {
+  const [months, setMonths] = useState(6);
+  const visible = useMemo(() => data.slice(-months), [data, months]);
+  const total = useMemo(() => visible.reduce((s, m) => s + m.total, 0), [visible]);
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="flex items-center gap-2 font-semibold text-foreground">
+              <BarChart3 className="h-4 w-4 text-accent" /> Gastos nos cartões
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Total no período: <span className="font-medium text-foreground">{currencyBRL(total)}</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+            {[3, 6, 12].map((n) => (
+              <button
+                key={n}
+                onClick={() => setMonths(n)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                  months === n
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                )}
+              >
+                {n}M
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="h-64 w-full px-2 pb-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={visible} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+            <defs>
+              <linearGradient id="cardUsageGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="oklch(0.52 0.11 165)" />
+                <stop offset="100%" stopColor="oklch(0.35 0.09 162)" />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v) => (v >= 1000 ? `R$${Math.round(v / 1000)}k` : `R$${v}`)}
+              width={50}
+            />
+            <Tooltip
+              cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+              content={({ active, payload }) => {
+                if (!active || !payload || !payload.length) return null;
+                const point = payload[0].payload as MonthlyPoint;
+                return (
+                  <div className="rounded-xl border bg-card p-3 shadow-lg">
+                    <p className="mb-1 text-xs font-medium text-muted-foreground">{point.label}</p>
+                    <p className="text-base font-bold text-foreground">{currencyBRL(point.total)}</p>
+                    {point.cards.length > 0 && (
+                      <div className="mt-2 space-y-1 border-t pt-2">
+                        {point.cards.slice(0, 5).map((c, i) => (
+                          <div key={c.id} className="flex items-center gap-2 text-xs">
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: PALETTE[i % PALETTE.length] }}
+                            />
+                            <span className="flex-1 truncate text-muted-foreground">{c.name}</span>
+                            <span className="font-medium text-foreground">{currencyBRL(c.total)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }}
+            />
+            <Bar dataKey="total" radius={[6, 6, 0, 0]} maxBarSize={56}>
+              {visible.map((_, i) => (
+                <Cell key={i} fill="url(#cardUsageGradient)" />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+}
 
 const BRANDS = ["visa", "mastercard", "elo", "amex", "hipercard", "outro"];
 
