@@ -49,13 +49,25 @@ export const getCardsStats = createServerFn({ method: "GET" })
     if (holdersError) throw holdersError;
 
     // Get stats from receipts (the financial truth).
-    // Includes every credit-card entry in the system, not only entries tied to a registered card.
+    // Mesma regra do Cofre → aba "Cartão de crédito":
+    //   1) card_id preenchido; 2) payment_method de crédito;
+    //   3) expense_behavior = credit_card; 4) fallback histórico em notes.
     const { data: receipts, error: recError } = await supabase
       .from("receipts")
       .select("card_id, amount, status, payment_date, payment_method, expense_behavior")
       .eq("profile_id", targetProfileId)
       .eq("user_id", userId)
-      .or("card_id.not.is.null,payment_method.in.(credito_vista,credito_parcelado),expense_behavior.eq.credit_card");
+      .or(
+        [
+          "card_id.not.is.null",
+          "payment_method.in.(credito_vista,credito_parcelado)",
+          "expense_behavior.eq.credit_card",
+          "notes.ilike.%cartão de crédito%",
+          "notes.ilike.%cartão crédito%",
+        ].join(","),
+      )
+      .limit(20000);
+
 
     if (recError) throw recError;
 
