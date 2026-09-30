@@ -79,6 +79,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { ForecastItemActions } from "@/components/forecast/forecast-item-actions";
 
 export const Route = createFileRoute("/_authenticated/app/forecast")({
   head: () => ({
@@ -202,6 +203,7 @@ function ForecastPage() {
         fixed,
         history,
         manual,
+        overrides,
       ] = await Promise.all([
         sb.from("financial_profiles").select("id,name,type").eq("archived", false).order("name"),
         sb.from("properties").select("id,name,profile_id").order("name"),
@@ -246,6 +248,7 @@ function ForecastPage() {
           .select("*")
           .lte("start_date", endDate)
           .neq("status", "cancelled"),
+        sb.from("forecast_overrides").select("*"),
       ]);
       const responses = [
         profiles,
@@ -261,6 +264,7 @@ function ForecastPage() {
         fixed,
         history,
         manual,
+        overrides,
       ];
       const failure = responses.find((x) => x.error);
       if (failure?.error) throw failure.error;
@@ -290,6 +294,7 @@ function ForecastPage() {
         recurringFixedExpenses: fixed.data ?? [],
         historicalReceipts: history.data ?? [],
         manualForecasts: manual.data ?? [],
+        overrides: overrides.data ?? [],
         personalProfileId:
           (profiles.data ?? []).find((profile: any) => profile.type === "pessoa_fisica")?.id ??
           null,
@@ -374,6 +379,14 @@ function ForecastPage() {
   const visibleItems = sortedItems.slice((page - 1) * pageSize, page * pageSize);
   useEffect(() => setPage(1), [filters, startDate, endDate, sort]);
 
+  // A lista detalhada é recalculada a partir do resultado atual: após editar/excluir,
+  // o item e os totais refletem a mudança sem precisar sair da página.
+  const drillKey = (x: ForecastItem) => `${x.sourceType}|${x.sourceId}|${x.occurrenceDate ?? x.date}`;
+  const liveDrill = useMemo(() => {
+    if (!drill || !result) return drill;
+    const keys = new Set(drill.items.map(drillKey));
+    return { title: drill.title, items: result.items.filter((x) => keys.has(drillKey(x))) };
+  }, [drill, result]);
   const openKind = (kind: ForecastKind, title = KIND_LABEL[kind]) =>
     result && setDrill({ title, items: result.items.filter((x) => x.kind === kind) });
   const generateReport = async () => {
@@ -991,7 +1004,13 @@ function ForecastPage() {
         initialProfileId={filters.profileId}
         onSaved={() => qc.invalidateQueries({ queryKey: ["financial-forecast-sources"] })}
       />
-      <Drilldown drill={drill} onOpenChange={(open) => !open && setDrill(null)} labels={labels} />
+      <Drilldown
+        drill={liveDrill}
+        onOpenChange={(open) => !open && setDrill(null)}
+        labels={labels}
+        data={source.data}
+        onChanged={() => qc.invalidateQueries({ queryKey: ["financial-forecast-sources"] })}
+      />
     </div>
   );
 }
@@ -1127,10 +1146,14 @@ function Drilldown({
   drill,
   onOpenChange,
   labels,
+  data,
+  onChanged,
 }: {
   drill: { title: string; items: ForecastItem[] } | null;
   onOpenChange: (open: boolean) => void;
   labels: any;
+  data: any;
+  onChanged: () => void;
 }) {
   return (
     <Sheet open={!!drill} onOpenChange={onOpenChange}>
@@ -1152,8 +1175,14 @@ function Drilldown({
                     {KIND_LABEL[x.kind]} · {dateBR(x.date)}
                   </p>
                 </div>
-                <strong>{money(x.amountCents)}</strong>
+                <div className="flex items-center gap-1">
+                  <strong className="whitespace-nowrap">{money(x.amountCents)}</strong>
+                  <ForecastItemActions item={x} data={data} onChanged={onChanged} />
+                </div>
               </div>
+              {x.overridden && (
+                <Badge variant="outline" className="mt-2">Ajustado somente neste mês</Badge>
+              )}
               <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                 <Info label="Status">
                   <StatusBadge status={x.status} />
