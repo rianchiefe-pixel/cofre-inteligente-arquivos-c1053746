@@ -739,6 +739,7 @@ export type Database = {
         Row: {
           account_id: string | null
           amount: number
+          bank_id: string | null
           card_id: string | null
           category_id: string | null
           created_at: string
@@ -748,6 +749,7 @@ export type Database = {
           kind: string
           notes: string | null
           occurrence_count: number | null
+          origin: string
           payment_method: string | null
           profile_id: string | null
           property_id: string | null
@@ -762,6 +764,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           amount: number
+          bank_id?: string | null
           card_id?: string | null
           category_id?: string | null
           created_at?: string
@@ -771,6 +774,7 @@ export type Database = {
           kind: string
           notes?: string | null
           occurrence_count?: number | null
+          origin?: string
           payment_method?: string | null
           profile_id?: string | null
           property_id?: string | null
@@ -785,6 +789,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           amount?: number
+          bank_id?: string | null
           card_id?: string | null
           category_id?: string | null
           created_at?: string
@@ -794,6 +799,7 @@ export type Database = {
           kind?: string
           notes?: string | null
           occurrence_count?: number | null
+          origin?: string
           payment_method?: string | null
           profile_id?: string | null
           property_id?: string | null
@@ -811,6 +817,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_forecasts_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
             referencedColumns: ["id"]
           },
           {
@@ -849,6 +862,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      financial_forecasts_backup_20260930: {
+        Row: {
+          account_id: string | null
+          amount: number | null
+          card_id: string | null
+          category_id: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string | null
+          kind: string | null
+          notes: string | null
+          occurrence_count: number | null
+          payment_method: string | null
+          profile_id: string | null
+          property_id: string | null
+          realized_receipt_id: string | null
+          recipient_name: string | null
+          recurrence: string | null
+          start_date: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount?: number | null
+          card_id?: string | null
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string | null
+          kind?: string | null
+          notes?: string | null
+          occurrence_count?: number | null
+          payment_method?: string | null
+          profile_id?: string | null
+          property_id?: string | null
+          realized_receipt_id?: string | null
+          recipient_name?: string | null
+          recurrence?: string | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number | null
+          card_id?: string | null
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string | null
+          kind?: string | null
+          notes?: string | null
+          occurrence_count?: number | null
+          payment_method?: string | null
+          profile_id?: string | null
+          property_id?: string | null
+          realized_receipt_id?: string | null
+          recipient_name?: string | null
+          recurrence?: string | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       financial_profiles: {
         Row: {
@@ -914,6 +999,66 @@ export type Database = {
           secondary_color?: string | null
           tax_id?: string | null
           type?: Database["public"]["Enums"]["profile_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      forecast_overrides: {
+        Row: {
+          account_id: string | null
+          action: string
+          amount: number | null
+          bank_id: string | null
+          card_id: string | null
+          category_id: string | null
+          created_at: string
+          date: string | null
+          description: string | null
+          id: string
+          kind: string | null
+          occurrence_date: string
+          payment_method: string | null
+          source_id: string
+          source_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          action?: string
+          amount?: number | null
+          bank_id?: string | null
+          card_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          id?: string
+          kind?: string | null
+          occurrence_date: string
+          payment_method?: string | null
+          source_id: string
+          source_type: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          account_id?: string | null
+          action?: string
+          amount?: number | null
+          bank_id?: string | null
+          card_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          id?: string
+          kind?: string | null
+          occurrence_date?: string
+          payment_method?: string | null
+          source_id?: string
+          source_type?: string
           updated_at?: string
           user_id?: string
         }
@@ -1807,7 +1952,9 @@ export type Database = {
       }
       property_obligations: {
         Row: {
+          account_id: string | null
           amount: number | null
+          bank_id: string | null
           client_number: string | null
           consumer_unit: string | null
           contract_number: string | null
@@ -1833,7 +1980,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           amount?: number | null
+          bank_id?: string | null
           client_number?: string | null
           consumer_unit?: string | null
           contract_number?: string | null
@@ -1859,7 +2008,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_id?: string | null
           amount?: number | null
+          bank_id?: string | null
           client_number?: string | null
           consumer_unit?: string | null
           contract_number?: string | null
@@ -1885,6 +2036,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "property_obligations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_obligations_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "property_obligations_credential_id_fkey"
             columns: ["credential_id"]
