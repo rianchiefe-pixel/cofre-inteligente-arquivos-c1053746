@@ -123,7 +123,7 @@ const activeStatus = (status: unknown) =>
   !["pago", "paid", "cancelado", "cancelled", "encerrado", "closed", "rejected", "duplicate"]
     .includes(String(status ?? "").toLowerCase());
 
-function occurrenceDates(
+export function occurrenceDates(
   startValue: string,
   recurrence: unknown,
   rangeStart: string,
