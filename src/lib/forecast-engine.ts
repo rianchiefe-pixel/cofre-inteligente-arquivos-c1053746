@@ -703,14 +703,13 @@ export function getForecast(input: ForecastInput): ForecastResult {
       m.origin === "credit_card" ||
       (!m.origin && m.card_id && String(m.payment_method ?? "").startsWith("credito"));
     const allDates = occurrenceDates(
-      m.start_date,
-      m.recurrence,
-      m.start_date,
-      endDate > (m.end_date ?? endDate) ? endDate : (m.end_date ?? endDate),
-      m.end_date,
-      m.occurrence_count,
+      m.start_date, m.recurrence, m.start_date, endDate, m.end_date, m.occurrence_count,
     );
-    const total = m.occurrence_count || (m.end_date ? allDates.length : null);
+    const total =
+      m.occurrence_count ||
+      (m.end_date
+        ? occurrenceDates(m.start_date, m.recurrence, m.start_date, m.end_date, m.end_date).length
+        : null);
     allDates.forEach((date, index) => {
       if (!inRange(date, startDate, endDate)) return;
       const card = isCard ? cards.get(m.card_id) : null;
