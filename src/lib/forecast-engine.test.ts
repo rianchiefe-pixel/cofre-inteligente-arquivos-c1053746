@@ -457,4 +457,68 @@ describe("forecast engine", () => {
       result.months.reduce((sum, month) => sum + month.totalCents, 0),
     );
   });
+
+  const monthly = (extra: any = {}) => ({
+    id: "net", description: "Internet", amount: 100, start_date: "2026-11-10",
+    recurrence: "mensal", kind: "fixed", status: "active", ...extra,
+  });
+
+  test("override only this month changes value; other months keep original", () => {
+    const r = getForecast({ ...range, manualForecasts: [monthly()],
+      overrides: [{ source_type: "manual", source_id: "net", occurrence_date: "2026-12-10", action: "override", amount: 130 }] });
+    const byMonth = Object.fromEntries(r.items.map((x) => [x.month, x.amountCents]));
+    assert.equal(byMonth["2026-11"], 10_000);
+    assert.equal(byMonth["2026-12"], 13_000);
+    assert.equal(byMonth["2027-01"], 10_000);
+  });
+
+  test("skip only one month excludes it (December→January boundary preserved)", () => {
+    const r = getForecast({ ...range, manualForecasts: [monthly()],
+      overrides: [{ source_type: "manual", source_id: "net", occurrence_date: "2026-12-10", action: "skip" }] });
+    const months = r.items.map((x) => x.month);
+    assert.ok(!months.includes("2026-12"));
+    assert.ok(months.includes("2026-11") && months.includes("2027-01"));
+  });
+
+  test("override changes kind fixed→variable and bank", () => {
+    const r = getForecast({ ...range, manualForecasts: [monthly()],
+      overrides: [{ source_type: "manual", source_id: "net", occurrence_date: "2026-11-10", action: "override", kind: "variable", bank_id: "bb" }] });
+    assert.equal(r.months.find((m) => m.month === "2026-11")?.byKind.variable, 10_000);
+    assert.equal(r.items.filter((x) => x.bankId === "bb").length, 1);
+    assert.equal(r.items.length, 10);
+  });
+
+  test("ending recurrence (end_date) stops future months", () => {
+    const r = getForecast({ ...range, manualForecasts: [monthly({ end_date: "2027-01-09" })] });
+    assert.deepEqual(r.items.map((x) => x.month), ["2026-11", "2026-12"]);
+  });
+
+  test("quarterly and semiannual obligations respect frequency", () => {
+    const r = getForecast({ ...range, obligations: [
+      { id: "q", due_date: "2026-09-05", amount: 10, periodicity: "trimestral", status: "pendente" },
+      { id: "s", due_date: "2026-09-05", amount: 10, periodicity: "semestral", status: "pendente" },
+    ] });
+    assert.equal(r.items.filter((x) => x.sourceId === "q").length, 4);
+    assert.equal(r.items.filter((x) => x.sourceId === "s").length, 2);
+  });
+
+  test("manual card installment counts as credit card, not manual", () => {
+    const r = getForecast({ ...range, cards: [{ id: "nu", name: "Nubank" }], manualForecasts: [{
+      id: "nb", description: "Notebook", amount: 500, start_date: "2026-08-10", recurrence: "mensal",
+      occurrence_count: 6, kind: "expected", status: "active", card_id: "nu", payment_method: "credito_parcelado", origin: "credit_card",
+    }] });
+    assert.equal(r.totals.manual, 0);
+    assert.equal(r.totals.cards, 5 * 50_000);
+    assert.deepEqual(r.items.map((x) => x.installmentCurrent), [2, 3, 4, 5, 6]);
+  });
+
+  test("manual card installment is not duplicated with imported statement", () => {
+    const r = getForecast({ ...range, cards: [{ id: "nu", due_day: 10 }],
+      statements: [{ id: "s", card_id: "nu", due_date: "2026-09-10", status: "approved" }],
+      cardTransactions: [{ id: "t", statement_id: "s", card_id: "nu", description: "Notebook", amount: 500, installment_current: 2, installment_total: 6, status: "approved" }],
+      manualForecasts: [{ id: "nb", description: "Notebook", amount: 500, start_date: "2026-08-10", recurrence: "mensal",
+        occurrence_count: 6, kind: "expected", status: "active", card_id: "nu", payment_method: "credito_parcelado", origin: "credit_card" }] });
+    assert.equal(r.totals.cards, 5 * 50_000);
+  });
 });
+
