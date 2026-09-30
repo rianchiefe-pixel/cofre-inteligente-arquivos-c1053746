@@ -37,6 +37,11 @@ export type ForecastItem = {
   originalPath?: string | null;
   createdAt?: string | null;
   recurrence?: string | null;
+  /** Tabela que pode ser editada a partir da Previsibilidade. */
+  editSource?: "obligation" | "manual" | "receipt" | "fixed" | null;
+  /** Data original da ocorrência (chave das exceções), antes de qualquer ajuste. */
+  occurrenceDate?: string;
+  overridden?: boolean;
 };
 
 export type ForecastMonth = {
@@ -71,6 +76,8 @@ export type ForecastInput = {
   recurringFixedExpenses?: any[];
   historicalReceipts?: any[];
   manualForecasts?: any[];
+  /** Exceções por ocorrência (pular ou alterar somente um mês). */
+  overrides?: any[];
 };
 
 const EMPTY_KINDS = (): Record<ForecastKind, number> => ({
@@ -116,7 +123,7 @@ const activeStatus = (status: unknown) =>
   !["pago", "paid", "cancelado", "cancelled", "encerrado", "closed", "rejected", "duplicate"]
     .includes(String(status ?? "").toLowerCase());
 
-function occurrenceDates(
+export function occurrenceDates(
   startValue: string,
   recurrence: unknown,
   rangeStart: string,
@@ -175,7 +182,34 @@ export function getForecast(input: ForecastInput): ForecastResult {
   for (const link of input.obligationCategories ?? [])
     if (!categoryByObligation.has(link.obligation_id))
       categoryByObligation.set(link.obligation_id, link);
-  const push = (item: ForecastItem) => {
+  const overrides = new Map<string, any>();
+  for (const o of input.overrides ?? [])
+    overrides.set(`${o.source_type}|${o.source_id}|${String(o.occurrence_date).slice(0, 10)}`, o);
+  const push = (original: ForecastItem) => {
+    const occurrenceDate = original.occurrenceDate ?? original.date;
+    const ov = overrides.get(
+      `${original.editSource ?? original.sourceType}|${original.sourceId}|${occurrenceDate}`,
+    );
+    if (ov?.action === "skip") return;
+    let item: ForecastItem = { ...original, occurrenceDate };
+    if (ov) {
+      const date = ov.date ? String(ov.date).slice(0, 10) : item.date;
+      item = {
+        ...item,
+        overridden: true,
+        date,
+        month: monthKey(date),
+        amountCents: ov.amount != null ? cents(ov.amount) : item.amountCents,
+        description: ov.description || item.description,
+        categoryId: ov.category_id ?? item.categoryId,
+        categoryName: ov.category_id ? null : item.categoryName,
+        accountId: ov.account_id ?? item.accountId,
+        bankId: ov.bank_id ?? item.bankId,
+        cardId: ov.card_id ?? item.cardId,
+        kind: (ov.kind as ForecastKind) || item.kind,
+        paymentMethod: ov.payment_method ?? item.paymentMethod,
+      };
+    }
     const key = `${item.sourceType}:${item.sourceId}:${item.sourceOccurrenceId}`;
     if (seen.has(key) || !item.amountCents || !inRange(item.date, startDate, endDate)) return;
     seen.add(key);
@@ -219,6 +253,9 @@ export function getForecast(input: ForecastInput): ForecastResult {
         categoryId: category?.category_id ?? null,
         categoryName: category?.categories?.name ?? null,
         recipient: o.supplier ?? null,
+        accountId: o.account_id ?? null,
+        bankId: o.bank_id ?? null,
+        editSource: "obligation",
         originLabel: "Obrigação",
         originalPath: o.is_personal
           ? "/app/personal-obligations"
@@ -423,6 +460,7 @@ export function getForecast(input: ForecastInput): ForecastResult {
       accountId: r.account_id ?? null,
       cardId: r.card_id ?? null,
       bankId: r.bank_id ?? null,
+      editSource: "receipt",
       originLabel: "Lançamento futuro",
       originalPath: "/app/vault",
       createdAt: r.created_at,
@@ -537,6 +575,7 @@ export function getForecast(input: ForecastInput): ForecastResult {
         propertyId: fixed.property_id ?? null,
         categoryId: fixed.category_id ?? null,
         recipient: fixed.merchant_pattern ?? null,
+        editSource: "fixed",
         originLabel: "Histórico / estimativa",
         originalPath: "/app/fixed-expenses",
         createdAt: fixed.created_at,
@@ -651,39 +690,64 @@ export function getForecast(input: ForecastInput): ForecastResult {
 
 
 
+  // Assinaturas das parcelas de cartão já importadas: uma previsão manual da
+  // mesma compra (mesmo cartão, descrição, valor e parcela) não é somada de novo.
+  const importedCardSignatures = new Set(
+    items
+      .filter((x) => x.sourceType === "credit_card_installment")
+      .map((x) => `${x.cardId ?? ""}|${normalize(x.description)}|${x.amountCents}|${x.date.slice(0, 7)}`),
+  );
   for (const m of input.manualForecasts ?? []) {
     if (!activeStatus(m.status) || !m.start_date || cents(m.amount) <= 0) continue;
-    for (const date of occurrenceDates(
-      m.start_date,
-      m.recurrence,
-      startDate,
-      endDate,
-      m.end_date,
-      m.occurrence_count,
-    )) {
+    const isCard =
+      m.origin === "credit_card" ||
+      (!m.origin && m.card_id && String(m.payment_method ?? "").startsWith("credito"));
+    const allDates = occurrenceDates(
+      m.start_date, m.recurrence, m.start_date, endDate, m.end_date, m.occurrence_count,
+    );
+    const total =
+      m.occurrence_count ||
+      (m.end_date
+        ? occurrenceDates(m.start_date, m.recurrence, m.start_date, m.end_date, m.end_date).length
+        : null);
+    allDates.forEach((date, index) => {
+      if (!inRange(date, startDate, endDate)) return;
+      const card = isCard ? cards.get(m.card_id) : null;
+      if (
+        isCard &&
+        importedCardSignatures.has(
+          `${m.card_id ?? ""}|${normalize(m.description)}|${cents(m.amount)}|${date.slice(0, 7)}`,
+        )
+      )
+        return;
       push({
         id: `manual:${m.id}:${date}`,
-        sourceType: "manual",
+        sourceType: isCard ? "credit_card_installment" : "manual",
         sourceId: m.id,
         sourceOccurrenceId: date,
         date,
         month: monthKey(date),
         description: m.description,
         kind: m.kind,
-        status: "manual",
+        status: isCard ? "confirmed" : "manual",
         amountCents: cents(m.amount),
-        profileId: m.profile_id ?? null,
+        profileId: m.profile_id ?? card?.profile_id ?? null,
         propertyId: m.property_id ?? null,
         categoryId: m.category_id ?? null,
         recipient: m.recipient_name ?? null,
         paymentMethod: m.payment_method ?? null,
         accountId: m.account_id ?? null,
         cardId: m.card_id ?? null,
-        originLabel: "Previsão manual",
+        cardName: card?.name ?? null,
+        bankId: m.bank_id ?? card?.bank_id ?? null,
+        installmentCurrent: isCard && total && total > 1 ? index + 1 : null,
+        installmentTotal: isCard && total && total > 1 ? total : null,
+        editSource: "manual",
+        originLabel: isCard ? "Cartão de crédito (cadastro manual)" : "Previsão manual",
         createdAt: m.created_at,
         recurrence: m.recurrence,
       });
-    }
+    });
   }
 
   items.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
