@@ -65,6 +65,7 @@ export interface ParsedNotes {
   bank?: string;
   card?: string;
   holder?: string;
+  counterparty?: string;
   original_date?: string;
   file_name?: string;
   folder_path?: string;
@@ -204,7 +205,10 @@ const FIELD_ALIASES: Record<CanonicalField, string[]> = {
     "beneficiario",
     "beneficiário",
     "favorecido",
-    "pagador",
+    "destinatario",
+    "destinatário",
+    "recebedor",
+    "estabelecimento",
     "cliente",
     "fornecedor",
     "contraparte",
@@ -364,6 +368,7 @@ export function parseBRDate(raw: unknown): string | null {
 // ---------------------------------------------------------------------------
 
 const NOTE_KEY_MAP: Array<{ keys: string[]; field: keyof ParsedNotes }> = [
+  { keys: ["favorecido", "destinatario", "beneficiario", "recebedor", "estabelecimento"], field: "counterparty" },
   { keys: ["forma de pagamento", "pagamento", "pgto", "método", "metodo"], field: "payment_method" },
   { keys: ["banco", "instituicao", "instituição"], field: "bank" },
   { keys: ["cartao", "cartão", "card"], field: "card" },
@@ -456,9 +461,13 @@ function relocateMisplacedFields(row: NormalizedRow) {
   if (!row.normalized.description) {
     row.normalized.description =
       row.normalized.counterparty ??
-      row.parsed_notes.holder ??
+      row.parsed_notes.counterparty ??
       row.parsed_notes.file_name ??
       undefined;
+  }
+  // Favorecido never falls back to the card holder (titular).
+  if (!row.normalized.counterparty && row.parsed_notes.counterparty) {
+    row.normalized.counterparty = row.parsed_notes.counterparty;
   }
   // If category is empty, try original_category from notes.
   if (!row.normalized.category && row.parsed_notes.original_category) {
