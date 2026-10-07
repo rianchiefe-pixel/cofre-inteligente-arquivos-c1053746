@@ -1,0 +1,1 @@
+ALTER TABLE public.import_batches ADD COLUMN IF NOT EXISTS hidden_at timestamptz, ADD COLUMN IF NOT EXISTS display_name text;

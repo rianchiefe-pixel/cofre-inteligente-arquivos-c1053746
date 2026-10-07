@@ -1069,6 +1069,7 @@ export type Database = {
           column_mapping: Json | null
           created_at: string
           created_by: string | null
+          display_name: string | null
           duplicate_count: number
           error_count: number
           file_mime: string | null
@@ -1080,6 +1081,7 @@ export type Database = {
           finished_at: string | null
           header_columns: Json | null
           header_row: number | null
+          hidden_at: string | null
           id: string
           imported_count: number
           normalized_rows: number
@@ -1104,6 +1106,7 @@ export type Database = {
           column_mapping?: Json | null
           created_at?: string
           created_by?: string | null
+          display_name?: string | null
           duplicate_count?: number
           error_count?: number
           file_mime?: string | null
@@ -1115,6 +1118,7 @@ export type Database = {
           finished_at?: string | null
           header_columns?: Json | null
           header_row?: number | null
+          hidden_at?: string | null
           id?: string
           imported_count?: number
           normalized_rows?: number
@@ -1139,6 +1143,7 @@ export type Database = {
           column_mapping?: Json | null
           created_at?: string
           created_by?: string | null
+          display_name?: string | null
           duplicate_count?: number
           error_count?: number
           file_mime?: string | null
@@ -1150,6 +1155,7 @@ export type Database = {
           finished_at?: string | null
           header_columns?: Json | null
           header_row?: number | null
+          hidden_at?: string | null
           id?: string
           imported_count?: number
           normalized_rows?: number
