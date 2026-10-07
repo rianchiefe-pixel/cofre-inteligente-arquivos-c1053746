@@ -20,6 +20,8 @@ import {
   History,
   Building2,
   Beaker,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -151,7 +153,8 @@ function ImportPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("import_batches")
-        .select("id, file_name, total_rows, saved_rows, phase, status, created_at, header_row, separator")
+        .select("id, file_name, display_name, total_rows, saved_rows, phase, status, created_at, header_row, separator")
+        .is("hidden_at", null)
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw new Error(error.message);
@@ -571,7 +574,7 @@ function ImportPage() {
             {(history.data ?? []).map((b) => (
               <div
                 key={b.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-3"
+                className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] items-center gap-3 py-3"
               >
                 <button
                   type="button"
@@ -579,7 +582,7 @@ function ImportPage() {
                   className="min-w-0 text-left"
                 >
                   <p className="truncate text-sm font-medium text-foreground">
-                    {b.file_name ?? "planilha"}
+                    {b.display_name || b.file_name || "planilha"}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {dateBR(b.created_at)} · {b.saved_rows ?? 0}/{b.total_rows ?? 0} linhas
@@ -613,6 +616,38 @@ function ImportPage() {
                 >
                   {b.status ?? "—"}
                 </Badge>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  title="Renomear"
+                  onClick={async () => {
+                    const name = window.prompt("Novo nome desta importação:", b.display_name || b.file_name || "");
+                    if (name === null) return;
+                    const { error } = await supabase.from("import_batches").update({ display_name: name.trim() || null }).eq("id", b.id);
+                    if (error) return toast.error("Não foi possível renomear");
+                    toast.success("Importação renomeada");
+                    qc.invalidateQueries({ queryKey: ["import-batches"] });
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-destructive"
+                  title="Remover do histórico"
+                  onClick={async () => {
+                    if (!window.confirm("Remover esta importação do histórico? Os lançamentos já salvos no sistema continuam intactos.")) return;
+                    const { error } = await supabase.from("import_batches").update({ hidden_at: new Date().toISOString() }).eq("id", b.id);
+                    if (error) return toast.error("Não foi possível remover");
+                    if (reviewBatchId === b.id) setReviewBatchId(null);
+                    toast.success("Removida do histórico. Nada foi apagado do sistema.");
+                    qc.invalidateQueries({ queryKey: ["import-batches"] });
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
