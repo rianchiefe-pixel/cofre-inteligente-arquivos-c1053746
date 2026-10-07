@@ -52,28 +52,60 @@ export const getCardsStats = createServerFn({ method: "GET" })
     // Mesma regra do Cofre → aba "Cartão de crédito":
     //   1) card_id preenchido; 2) payment_method de crédito;
     //   3) expense_behavior = credit_card; 4) fallback histórico em notes.
-    const { data: receipts, error: recError } = await supabase
-      .from("receipts")
-      .select("card_id, amount, status, payment_date, payment_method, expense_behavior")
-      .eq("profile_id", targetProfileId)
-      .eq("user_id", userId)
-      .or(
-        [
-          "card_id.not.is.null",
-          "payment_method.in.(credito_vista,credito_parcelado)",
-          "expense_behavior.eq.credit_card",
-          "notes.ilike.%cartão de crédito%",
-          "notes.ilike.%cartão crédito%",
-        ].join(","),
-      )
-      .limit(20000);
+    const CREDIT_FILTER = [
+      "card_id.not.is.null",
+      "payment_method.in.(credito_vista,credito_parcelado)",
+      "expense_behavior.eq.credit_card",
+      "notes.ilike.%cartão de crédito%",
+      "notes.ilike.%cartão crédito%",
+    ].join(",");
+    const SELECT = "id, card_id, amount, status, payment_date, payment_method, expense_behavior, notes";
 
+    // O servidor devolve no máximo 1.000 linhas por consulta: lê em lotes para não
+    // perder meses inteiros (antes, os lançamentos excedentes eram descartados).
+    const fetchAll = async (scope: (q: any) => any) => {
+      const rows: any[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await scope(
+          supabase.from("receipts").select(SELECT).eq("user_id", userId).or(CREDIT_FILTER),
+        )
+          .order("id")
+          .range(from, from + 999);
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return rows;
+    };
 
-    if (recError) throw recError;
+    const normalize = (v: unknown) =>
+      String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const cardNames = cardList
+      .map((c) => ({ id: c.id, name: normalize(c.name).trim() }))
+      .filter((c) => c.name.length >= 3)
+      .sort((a, b) => b.name.length - a.name.length);
+    const cardFromNotes = (notes: unknown) => {
+      const n = normalize(notes);
+      return cardNames.find((c) => n.includes(c.name))?.id ?? null;
+    };
+
+    const profileReceipts = await fetchAll((q) => q.eq("profile_id", targetProfileId));
+    // Lançamentos de fatura importados sem perfil, mas que citam na observação um
+    // cartão deste perfil (ex.: "Banco/cartão: Safra Visa Infinite"), pertencem a ele.
+    // Nada é alterado no banco: apenas entram na soma do gráfico.
+    const unassigned = cardNames.length
+      ? (await fetchAll((q) => q.is("profile_id", null)))
+          .map((r) => ({ ...r, card_id: r.card_id ?? cardFromNotes(r.notes) }))
+          .filter((r) => r.card_id && cardList.some((c) => c.id === r.card_id))
+      : [];
+    const receipts = [
+      ...profileReceipts.map((r) => ({ ...r, card_id: r.card_id ?? cardFromNotes(r.notes) })),
+      ...unassigned,
+    ];
 
     const statsMap = new Map<string, { total: number, count: number, pendingCount: number }>();
     
-    receipts?.forEach(r => {
+    receipts.forEach(r => {
         if (!r.card_id) return;
         const s = statsMap.get(r.card_id) || { total: 0, count: 0, pendingCount: 0 };
         s.total += Number(r.amount || 0);
@@ -94,7 +126,7 @@ export const getCardsStats = createServerFn({ method: "GET" })
 
     const UNLINKED = "unlinked";
 
-    receipts?.forEach(r => {
+    receipts.forEach(r => {
       if (!r.payment_date) return;
       const key = r.card_id || UNLINKED;
       const m = r.payment_date.slice(0, 7);
