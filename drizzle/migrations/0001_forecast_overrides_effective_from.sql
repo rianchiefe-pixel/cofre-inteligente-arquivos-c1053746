@@ -1,0 +1,2 @@
+ALTER TABLE public.forecast_overrides ADD COLUMN IF NOT EXISTS effective_from date;
+COMMENT ON COLUMN public.forecast_overrides.effective_from IS 'Quando definido, a exceção vale desta data em diante (edição aplicada a este mês e próximos)';

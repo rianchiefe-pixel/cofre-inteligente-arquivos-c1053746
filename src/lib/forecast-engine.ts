@@ -183,13 +183,32 @@ export function getForecast(input: ForecastInput): ForecastResult {
     if (!categoryByObligation.has(link.obligation_id))
       categoryByObligation.set(link.obligation_id, link);
   const overrides = new Map<string, any>();
-  for (const o of input.overrides ?? [])
+  // Exceções com effective_from valem "desta data em diante": são usadas quando
+  // não existe exceção exata para a ocorrência (edição "este mês e próximos").
+  const rangeOverrides: any[] = [];
+  for (const o of input.overrides ?? []) {
+    if (o.effective_from) {
+      rangeOverrides.push(o);
+      continue;
+    }
     overrides.set(`${o.source_type}|${o.source_id}|${String(o.occurrence_date).slice(0, 10)}`, o);
+  }
+  const rangeOverrideFor = (sourceTypeKey: string, sourceId: string, occurrenceDate: string) => {
+    let best: any = null;
+    for (const o of rangeOverrides) {
+      if (o.source_type !== sourceTypeKey || String(o.source_id) !== String(sourceId)) continue;
+      const from = String(o.effective_from).slice(0, 10);
+      if (from > occurrenceDate) continue;
+      if (!best || from > String(best.effective_from).slice(0, 10)) best = o;
+    }
+    return best;
+  };
   const push = (original: ForecastItem) => {
     const occurrenceDate = original.occurrenceDate ?? original.date;
-    const ov = overrides.get(
-      `${original.editSource ?? original.sourceType}|${original.sourceId}|${occurrenceDate}`,
-    );
+    const sourceTypeKey = original.editSource ?? original.sourceType;
+    const ov =
+      overrides.get(`${sourceTypeKey}|${original.sourceId}|${occurrenceDate}`) ??
+      rangeOverrideFor(sourceTypeKey, original.sourceId, occurrenceDate);
     if (ov?.action === "skip") return;
     let item: ForecastItem = { ...original, occurrenceDate };
     if (ov) {
