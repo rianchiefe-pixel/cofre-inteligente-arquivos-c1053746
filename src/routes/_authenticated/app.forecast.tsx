@@ -26,7 +26,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileDown,
-  Info,
+  Info as InfoIcon,
   FilterX,
   Loader2,
   Plus,
@@ -718,7 +718,7 @@ function ForecastPage() {
       </div>
 
       <div role="note" className="flex items-start gap-2 text-sm text-muted-foreground">
-        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <p>
           O <strong className="text-foreground">Total previsto</strong> já inclui os gastos fixos,
           variáveis, cartões e previsões manuais. <strong className="text-foreground">Obrigações</strong>{" "}
