@@ -8,6 +8,7 @@ import { ptBR } from "date-fns/locale";
 import type { ForecastItem, ForecastKind } from "@/lib/forecast-engine";
 import {
   deleteForecastItem,
+  deleteForecastItemMonths,
   editForecastItem,
   isRecurring,
   isSeriesEditable,
@@ -123,6 +124,16 @@ export function ForecastItemActions({
       onChanged();
     },
     onError: (e: any) => toast.error(e.message || "Erro ao salvar"),
+  });
+  const [skipMonths, setSkipMonths] = useState("3");
+  const delMonths = useMutation({
+    mutationFn: (n: number) => deleteForecastItemMonths(item, n),
+    onSuccess: () => {
+      toast.success("Previsão atualizada.");
+      setDeleteOpen(false);
+      onChanged();
+    },
+    onError: (e: any) => toast.error(e.message || "Erro ao excluir"),
   });
   const del = useMutation({
     mutationFn: (scope: EditScope) => deleteForecastItem(item, scope),
@@ -278,6 +289,28 @@ export function ForecastItemActions({
             <Button variant="outline" disabled={del.isPending} onClick={() => del.mutate("this")}>
               Somente {month}
             </Button>
+            <div className="flex items-center gap-2 rounded-md border p-2">
+              <span className="text-sm">Excluir {month} e os próximos</span>
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                className="h-8 w-20"
+                value={skipMonths}
+                onChange={(e) => setSkipMonths(e.target.value)}
+              />
+              <span className="text-sm">meses</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+                disabled={delMonths.isPending || !(Number(skipMonths) >= 1)}
+                onClick={() => delMonths.mutate(Number(skipMonths))}
+              >
+                Excluir
+              </Button>
+            </div>
+            <p className="-mt-1 text-xs text-muted-foreground">O mês atual conta como 1. Ex.: 3 = este mês e os 2 seguintes.</p>
             {recurring && (
               <>
                 <Button variant="outline" disabled={del.isPending} onClick={() => del.mutate("future")}>

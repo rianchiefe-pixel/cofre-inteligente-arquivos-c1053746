@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { addMonthsClamped } from "./deadlines";
 import { supabase } from "@/integrations/supabase/client";
 import { occurrenceDates, type ForecastItem, type ForecastKind } from "./forecast-engine";
 
@@ -239,4 +240,16 @@ export async function deleteForecastItem(item: ForecastItem, scope: EditScope) {
   const { error: e } = await sb.from(table).update(patch).eq("id", original.id);
   if (e) throw e;
   await audit(uid, `forecast_delete_${scope}`, item, original, patch);
+}
+
+/** Exclui a ocorrência deste mês e dos próximos (n-1) meses, sem apagar o registro original. */
+export async function deleteForecastItemMonths(item: ForecastItem, months: number) {
+  const uid = await userId();
+  const base = item.occurrenceDate ?? item.date;
+  const n = Math.max(1, Math.min(120, Math.floor(months)));
+  for (let i = 0; i < n; i++) {
+    const occurrence_date = i === 0 ? base : addMonthsClamped(base, i);
+    await upsertOverride(uid, { ...item, occurrenceDate: occurrence_date }, { action: "skip" });
+  }
+  await audit(uid, "forecast_skip_months", item, { amountCents: item.amountCents }, { months: n });
 }
