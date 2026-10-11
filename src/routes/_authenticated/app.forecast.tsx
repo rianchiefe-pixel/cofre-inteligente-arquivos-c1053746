@@ -2,7 +2,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { addMonths, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
+import { addDays, addMonths, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Area,
@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileDown,
+  Info,
   FilterX,
   Loader2,
   Plus,
@@ -89,6 +90,10 @@ export const Route = createFileRoute("/_authenticated/app/forecast")({
         name: "description",
         content: "Projeção consolidada dos próximos compromissos financeiros.",
       },
+      { property: "og:title", content: "Previsibilidade Financeira — Meu Cofre" },
+      { property: "og:description", content: "Projeção consolidada dos próximos compromissos financeiros." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ForecastPage,
@@ -155,6 +160,8 @@ function ForecastPage() {
   const qc = useQueryClient();
   const { activeProfileId } = useActiveProfile();
   const [period, setPeriod] = useState("12");
+  const [periodMonth, setPeriodMonth] = useState(format(new Date(), "MM"));
+  const [periodYear, setPeriodYear] = useState(String(new Date().getFullYear()));
   const [customStart, setCustomStart] = useState(iso(startOfMonth(new Date())));
   const [customEnd, setCustomEnd] = useState(iso(endOfMonth(addMonths(new Date(), 11))));
   const [filters, setFilters] = useState<Filters>(() => emptyFilters(activeProfileId));
@@ -177,10 +184,18 @@ function ForecastPage() {
     isValidIsoDate(customEnd) && customEnd >= safeCustomStart
       ? customEnd
       : iso(endOfMonth(new Date(`${safeCustomStart}T12:00:00`)));
-  const startDate = period === "custom" ? safeCustomStart : defaultStart;
+  const safePeriodYear = /^\d{4}$/.test(periodYear) && Number(periodYear) >= 1900
+    ? periodYear
+    : String(new Date().getFullYear());
+  const namedMonthStart = `${safePeriodYear}-${periodMonth}-01`;
+  const startDate = period === "custom" ? safeCustomStart
+    : period === "30days" ? iso(new Date())
+    : period === "month" ? namedMonthStart : defaultStart;
   const endDate =
     period === "custom"
       ? safeCustomEnd
+      : period === "30days" ? iso(addDays(new Date(), 29))
+      : period === "month" ? iso(endOfMonth(new Date(`${namedMonthStart}T12:00:00`)))
       : iso(endOfMonth(addMonths(new Date(), Number(period) - 1)));
 
   const source = useQuery({
@@ -483,12 +498,40 @@ function ForecastPage() {
             value={period}
             onChange={setPeriod}
             options={[
+              ["30days", "Próximos 30 dias"],
               ["3", "Próximos 3 meses"],
               ["6", "Próximos 6 meses"],
               ["12", "Próximos 12 meses"],
+              ["month", "Escolher mês"],
               ["custom", "Personalizado"],
             ]}
           />
+          {period === "month" && (
+            <>
+              <FilterSelect
+                label="Mês"
+                value={periodMonth}
+                onChange={setPeriodMonth}
+                options={Array.from({ length: 12 }, (_, index) => {
+                  const month = String(index + 1).padStart(2, "0");
+                  const name = format(new Date(2026, index, 1), "MMMM", { locale: ptBR });
+                  return [month, name.replace(/^./, (c) => c.toUpperCase())];
+                })}
+              />
+              <div>
+                <Label htmlFor="forecast-period-year">Ano</Label>
+                <Input
+                  id="forecast-period-year"
+                  className="mt-1"
+                  type="number"
+                  min="1900"
+                  max="9999"
+                  value={periodYear}
+                  onChange={(e) => setPeriodYear(e.target.value)}
+                />
+              </div>
+            </>
+          )}
           {period === "custom" && (
             <>
               <div>
@@ -672,6 +715,16 @@ function ForecastPage() {
           }
           color="text-emerald-600"
         />
+      </div>
+
+      <div role="note" className="flex items-start gap-2 text-sm text-muted-foreground">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <p>
+          O <strong className="text-foreground">Total previsto</strong> já inclui os gastos fixos,
+          variáveis, cartões e previsões manuais. <strong className="text-foreground">Obrigações</strong>{" "}
+          é apenas um demonstrativo da origem dos dados: esse valor já está incluído no total
+          e não deve ser somado novamente.
+        </p>
       </div>
 
       {!result.items.length ? (
