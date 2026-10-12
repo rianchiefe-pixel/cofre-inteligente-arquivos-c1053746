@@ -10,6 +10,7 @@ import {
   deleteForecastItem,
   deleteForecastItemMonths,
   editForecastItem,
+  editForecastItemFuture,
   isRecurring,
   isSeriesEditable,
   type EditScope,
