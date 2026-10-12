@@ -202,7 +202,9 @@ export function ForecastItemActions({
             <DialogTitle>Editar lançamento previsto</DialogTitle>
             <DialogDescription>
               {readOnlySeries
-                ? `Este item vem de ${item.originLabel.toLowerCase()}. A alteração vale somente para ${month} e não muda o registro original.`
+                ? futureEditable
+                  ? `Este item vem de ${item.originLabel.toLowerCase()}. Ao salvar, você escolhe se a alteração vale somente para ${month} ou também para os próximos meses.`
+                  : `Este item vem de ${item.originLabel.toLowerCase()}. A alteração vale somente para ${month} e não muda o registro original.`
                 : item.originLabel}
             </DialogDescription>
           </DialogHeader>
