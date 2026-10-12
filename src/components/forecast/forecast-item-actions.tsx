@@ -94,6 +94,11 @@ export function ForecastItemActions({
   const [pendingEdit, setPendingEdit] = useState<ForecastEdit | null>(null);
   const recurring = isRecurring(item);
   const series = isSeriesEditable(item);
+  const installmentFuture =
+    item.sourceType === "credit_card_installment" &&
+    (item.installmentTotal ?? 1) > (item.installmentCurrent ?? 1);
+  const futureEditable =
+    !series && item.editSource !== "receipt" && (item.sourceType === "history_estimate" || installmentFuture);
   const editable = series || item.editSource === "receipt" || item.sourceType === "history_estimate" || item.sourceType === "credit_card_installment" || item.sourceType === "card_statement";
 
   const [form, setForm] = useState<any>(null);
