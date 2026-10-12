@@ -114,29 +114,6 @@ export async function editForecastItem(item: ForecastItem, edit: ForecastEdit, s
     await audit(uid, "forecast_edit_occurrence", item, { amountCents: item.amountCents }, edit);
     return;
   }
-}
-
-/** Aplica a edição nesta ocorrência e em todas as futuras do mesmo item
- * (histórico/estimativa e parcelas de cartão), sem alterar meses anteriores. */
-export async function editForecastItemFuture(item: ForecastItem, edit: ForecastEdit) {
-  const uid = await userId();
-  await upsertOverride(uid, item, {
-    action: "override",
-    amount: edit.amount,
-    description: edit.description,
-    date: edit.date,
-    kind: edit.kind,
-    category_id: edit.categoryId,
-    account_id: edit.accountId,
-    bank_id: edit.bankId,
-    card_id: edit.cardId,
-    payment_method: edit.paymentMethod,
-    effective_from: item.occurrenceDate ?? item.date,
-  });
-  await audit(uid, "forecast_edit_future", item, { amountCents: item.amountCents }, edit);
-}
-
-export async function editForecastItem(item: ForecastItem, edit: ForecastEdit, scope: EditScope) {
 
   if (item.editSource === "obligation") {
     const { data: original, error } = await sb
@@ -230,6 +207,26 @@ export async function editForecastItem(item: ForecastItem, edit: ForecastEdit, s
     if (e) throw e;
   }
   await audit(uid, `forecast_edit_${scope}`, item, original, edit);
+}
+
+/** Aplica a edição nesta ocorrência e em todas as futuras do mesmo item
+ * (histórico/estimativa e parcelas de cartão), sem alterar meses anteriores. */
+export async function editForecastItemFuture(item: ForecastItem, edit: ForecastEdit) {
+  const uid = await userId();
+  await upsertOverride(uid, item, {
+    action: "override",
+    amount: edit.amount,
+    description: edit.description,
+    date: edit.date,
+    kind: edit.kind,
+    category_id: edit.categoryId,
+    account_id: edit.accountId,
+    bank_id: edit.bankId,
+    card_id: edit.cardId,
+    payment_method: edit.paymentMethod,
+    effective_from: item.occurrenceDate ?? item.date,
+  });
+  await audit(uid, "forecast_edit_future", item, { amountCents: item.amountCents }, edit);
 }
 
 export async function deleteForecastItem(item: ForecastItem, scope: EditScope) {

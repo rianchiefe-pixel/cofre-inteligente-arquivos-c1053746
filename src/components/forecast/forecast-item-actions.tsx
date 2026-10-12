@@ -10,6 +10,7 @@ import {
   deleteForecastItem,
   deleteForecastItemMonths,
   editForecastItem,
+  editForecastItemFuture,
   isRecurring,
   isSeriesEditable,
   type EditScope,
@@ -93,6 +94,11 @@ export function ForecastItemActions({
   const [pendingEdit, setPendingEdit] = useState<ForecastEdit | null>(null);
   const recurring = isRecurring(item);
   const series = isSeriesEditable(item);
+  const installmentFuture =
+    item.sourceType === "credit_card_installment" &&
+    (item.installmentTotal ?? 1) > (item.installmentCurrent ?? 1);
+  const futureEditable =
+    !series && item.editSource !== "receipt" && (item.sourceType === "history_estimate" || installmentFuture);
   const editable = series || item.editSource === "receipt" || item.sourceType === "history_estimate" || item.sourceType === "credit_card_installment" || item.sourceType === "card_statement";
 
   const [form, setForm] = useState<any>(null);
@@ -116,7 +122,8 @@ export function ForecastItemActions({
   }, [editOpen, item]);
 
   const edit = useMutation({
-    mutationFn: ({ e, scope }: { e: ForecastEdit; scope: EditScope }) => editForecastItem(item, e, scope),
+    mutationFn: ({ e, scope }: { e: ForecastEdit; scope: EditScope | "future_only" }) =>
+      scope === "future_only" ? editForecastItemFuture(item, e) : editForecastItem(item, e, scope),
     onSuccess: () => {
       toast.success("Lançamento atualizado. Totais recalculados.");
       setPendingEdit(null);
@@ -161,7 +168,7 @@ export function ForecastItemActions({
       paymentMethod: form.paymentMethod === "none" ? null : form.paymentMethod,
       recurrence: form.recurrence,
     };
-    if (recurring) setPendingEdit(e);
+    if (recurring || futureEditable) setPendingEdit(e);
     else edit.mutate({ e, scope: series ? "all" : "this" });
   };
 
@@ -195,7 +202,9 @@ export function ForecastItemActions({
             <DialogTitle>Editar lançamento previsto</DialogTitle>
             <DialogDescription>
               {readOnlySeries
-                ? `Este item vem de ${item.originLabel.toLowerCase()}. A alteração vale somente para ${month} e não muda o registro original.`
+                ? futureEditable
+                  ? `Este item vem de ${item.originLabel.toLowerCase()}. Ao salvar, você escolhe se a alteração vale somente para ${month} ou também para os próximos meses.`
+                  : `Este item vem de ${item.originLabel.toLowerCase()}. A alteração vale somente para ${month} e não muda o registro original.`
                 : item.originLabel}
             </DialogDescription>
           </DialogHeader>
@@ -255,21 +264,29 @@ export function ForecastItemActions({
       <Dialog open={!!pendingEdit} onOpenChange={(o) => !o && setPendingEdit(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar valor</DialogTitle>
+            <DialogTitle>Onde aplicar a alteração?</DialogTitle>
             <DialogDescription>
-              Você está alterando um lançamento recorrente. Onde deseja aplicar a alteração?
+              {recurring
+                ? "Você está alterando um lançamento recorrente. Onde deseja aplicar a alteração?"
+                : `Escolha se a alteração vale somente para ${month} ou também para os próximos meses.`}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
             <Button variant="outline" disabled={edit.isPending} onClick={() => edit.mutate({ e: pendingEdit!, scope: "this" })}>
               Somente {month}
             </Button>
-            <Button variant="outline" disabled={edit.isPending} onClick={() => edit.mutate({ e: pendingEdit!, scope: "future" })}>
-              {month[0].toUpperCase() + month.slice(1)} e próximos meses
+            <Button
+              variant="outline"
+              disabled={edit.isPending}
+              onClick={() => edit.mutate({ e: pendingEdit!, scope: recurring ? "future" : "future_only" })}
+            >
+              {month[0].toUpperCase() + month.slice(1)} e os próximos meses
             </Button>
-            <Button variant="outline" disabled={edit.isPending} onClick={() => edit.mutate({ e: pendingEdit!, scope: "all" })}>
-              Toda a recorrência
-            </Button>
+            {recurring && (
+              <Button variant="outline" disabled={edit.isPending} onClick={() => edit.mutate({ e: pendingEdit!, scope: "all" })}>
+                Toda a recorrência
+              </Button>
+            )}
             <Button variant="ghost" onClick={() => setPendingEdit(null)}>Cancelar</Button>
           </div>
         </DialogContent>
