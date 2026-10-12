@@ -122,7 +122,8 @@ export function ForecastItemActions({
   }, [editOpen, item]);
 
   const edit = useMutation({
-    mutationFn: ({ e, scope }: { e: ForecastEdit; scope: EditScope }) => editForecastItem(item, e, scope),
+    mutationFn: ({ e, scope }: { e: ForecastEdit; scope: EditScope | "future_only" }) =>
+      scope === "future_only" ? editForecastItemFuture(item, e) : editForecastItem(item, e, scope),
     onSuccess: () => {
       toast.success("Lançamento atualizado. Totais recalculados.");
       setPendingEdit(null);
@@ -167,7 +168,7 @@ export function ForecastItemActions({
       paymentMethod: form.paymentMethod === "none" ? null : form.paymentMethod,
       recurrence: form.recurrence,
     };
-    if (recurring) setPendingEdit(e);
+    if (recurring || futureEditable) setPendingEdit(e);
     else edit.mutate({ e, scope: series ? "all" : "this" });
   };
 
