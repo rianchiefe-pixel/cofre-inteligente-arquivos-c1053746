@@ -77,6 +77,91 @@ export type Database = {
           },
         ]
       }
+      annotation_attachments: {
+        Row: {
+          annotation_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          mime_type: string
+          size_bytes: number
+          user_id: string
+        }
+        Insert: {
+          annotation_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number
+          user_id: string
+        }
+        Update: {
+          annotation_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annotation_attachments_annotation_id_fkey"
+            columns: ["annotation_id"]
+            isOneToOne: false
+            referencedRelation: "annotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      annotations: {
+        Row: {
+          body: string
+          created_at: string
+          description: string
+          id: string
+          note_date: string | null
+          property_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          description?: string
+          id?: string
+          note_date?: string | null
+          property_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          description?: string
+          id?: string
+          note_date?: string | null
+          property_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annotations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -2922,6 +3007,10 @@ export type Database = {
       role_permissions: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: string[]
+      }
+      save_annotation_rpc: {
+        Args: { p_files: Json; p_note: Json }
+        Returns: string
       }
       set_import_row_review_rpc: {
         Args: { p_reason?: string; p_row_id: string; p_status: string }

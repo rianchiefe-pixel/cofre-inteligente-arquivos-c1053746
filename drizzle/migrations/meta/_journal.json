@@ -15,6 +15,13 @@
       "when": 1791751827306,
       "tag": "0001_forecast_overrides_effective_from",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792361730430,
+      "tag": "0002_create_private_annotations",
+      "breakpoints": true
     }
   ]
 }

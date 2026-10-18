@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Annotations use dedicated user-owned tables and a private storage bucket, with authenticated functions and an atomic save RPC; this isolates freeform information from existing financial modules.
