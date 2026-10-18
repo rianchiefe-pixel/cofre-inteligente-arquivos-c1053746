@@ -21,6 +21,7 @@ import {
   ScanSearch,
   KeyRound,
   TrendingUp,
+  StickyNote,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,6 +51,7 @@ const nav: NavItemData[] = [
   { to: "/app/properties", label: "Imóveis", icon: Home, perm: "manageEntities" },
   { to: "/app/personal-obligations", label: "Obrigações PF", icon: KeyRound },
   { to: "/app/accesses", label: "Acessos", icon: KeyRound },
+  { to: "/app/annotations", label: "Anotações", icon: StickyNote },
   { to: "/app/tasks", label: "Tarefas", icon: ListTodo },
   { to: "/app/banks", label: "Bancos e contas", icon: Landmark, perm: "manageEntities" },
   { to: "/app/cards", label: "Cartões", icon: CreditCard, perm: "manageEntities" },
