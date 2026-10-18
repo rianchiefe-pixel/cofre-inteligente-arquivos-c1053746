@@ -16,6 +16,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppAccessesRouteImport } from './routes/_authenticated/app.accesses'
 import { Route as AuthenticatedAppAnalyzeReceiptsRouteImport } from './routes/_authenticated/app.analyze-receipts'
+import { Route as AuthenticatedAppAnnotationsRouteImport } from './routes/_authenticated/app.annotations'
 import { Route as AuthenticatedAppAuditRouteImport } from './routes/_authenticated/app.audit'
 import { Route as AuthenticatedAppBanksRouteImport } from './routes/_authenticated/app.banks'
 import { Route as AuthenticatedAppCardsRouteImport } from './routes/_authenticated/app.cards'
@@ -72,6 +73,12 @@ const AuthenticatedAppAnalyzeReceiptsRoute =
   AuthenticatedAppAnalyzeReceiptsRouteImport.update({
     id: '/analyze-receipts',
     path: '/analyze-receipts',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppAnnotationsRoute =
+  AuthenticatedAppAnnotationsRouteImport.update({
+    id: '/annotations',
+    path: '/annotations',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppAuditRoute = AuthenticatedAppAuditRouteImport.update({
@@ -198,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/accesses': typeof AuthenticatedAppAccessesRoute
   '/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
+  '/app/annotations': typeof AuthenticatedAppAnnotationsRoute
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
   '/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/app/accesses': typeof AuthenticatedAppAccessesRoute
   '/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
+  '/app/annotations': typeof AuthenticatedAppAnnotationsRoute
   '/app/audit': typeof AuthenticatedAppAuditRoute
   '/app/banks': typeof AuthenticatedAppBanksRoute
   '/app/categories': typeof AuthenticatedAppCategoriesRouteWithChildren
@@ -256,6 +265,7 @@ export interface FileRoutesById {
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/accesses': typeof AuthenticatedAppAccessesRoute
   '/_authenticated/app/analyze-receipts': typeof AuthenticatedAppAnalyzeReceiptsRoute
+  '/_authenticated/app/annotations': typeof AuthenticatedAppAnnotationsRoute
   '/_authenticated/app/audit': typeof AuthenticatedAppAuditRoute
   '/_authenticated/app/banks': typeof AuthenticatedAppBanksRoute
   '/_authenticated/app/cards': typeof AuthenticatedAppCardsRouteWithChildren
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/accesses'
     | '/app/analyze-receipts'
+    | '/app/annotations'
     | '/app/audit'
     | '/app/banks'
     | '/app/cards'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/accesses'
     | '/app/analyze-receipts'
+    | '/app/annotations'
     | '/app/audit'
     | '/app/banks'
     | '/app/categories'
@@ -344,6 +356,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app'
     | '/_authenticated/app/accesses'
     | '/_authenticated/app/analyze-receipts'
+    | '/_authenticated/app/annotations'
     | '/_authenticated/app/audit'
     | '/_authenticated/app/banks'
     | '/_authenticated/app/cards'
@@ -424,6 +437,13 @@ declare module '@tanstack/react-router' {
       path: '/analyze-receipts'
       fullPath: '/app/analyze-receipts'
       preLoaderRoute: typeof AuthenticatedAppAnalyzeReceiptsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/annotations': {
+      id: '/_authenticated/app/annotations'
+      path: '/annotations'
+      fullPath: '/app/annotations'
+      preLoaderRoute: typeof AuthenticatedAppAnnotationsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/audit': {
@@ -609,6 +629,7 @@ const AuthenticatedAppCategoriesRouteWithChildren =
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAccessesRoute: typeof AuthenticatedAppAccessesRoute
   AuthenticatedAppAnalyzeReceiptsRoute: typeof AuthenticatedAppAnalyzeReceiptsRoute
+  AuthenticatedAppAnnotationsRoute: typeof AuthenticatedAppAnnotationsRoute
   AuthenticatedAppAuditRoute: typeof AuthenticatedAppAuditRoute
   AuthenticatedAppBanksRoute: typeof AuthenticatedAppBanksRoute
   AuthenticatedAppCardsRoute: typeof AuthenticatedAppCardsRouteWithChildren
@@ -632,6 +653,7 @@ interface AuthenticatedAppRouteChildren {
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppAccessesRoute: AuthenticatedAppAccessesRoute,
   AuthenticatedAppAnalyzeReceiptsRoute: AuthenticatedAppAnalyzeReceiptsRoute,
+  AuthenticatedAppAnnotationsRoute: AuthenticatedAppAnnotationsRoute,
   AuthenticatedAppAuditRoute: AuthenticatedAppAuditRoute,
   AuthenticatedAppBanksRoute: AuthenticatedAppBanksRoute,
   AuthenticatedAppCardsRoute: AuthenticatedAppCardsRouteWithChildren,
