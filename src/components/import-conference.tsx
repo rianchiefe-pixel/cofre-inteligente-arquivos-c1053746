@@ -71,6 +71,7 @@ import {
   Lightbulb,
   Filter,
   Check,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -1024,6 +1025,42 @@ function RowEditor({
     values.property_id ??
     (row.property_id ? row.property_id : row.general_account ? "__general__" : "__none__");
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const categoryQc = useQueryClient();
+  const trimmedCategorySearch = categorySearch.trim();
+  const categoryExists = categories.some(
+    (c) => c.name.localeCompare(trimmedCategorySearch, "pt-BR", { sensitivity: "base" }) === 0,
+  );
+  const createCategory = async () => {
+    const name = trimmedCategorySearch;
+    if (!name || creatingCategory) return;
+    setCreatingCategory(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (!userId) {
+        toast.error("Sessão expirada");
+        return;
+      }
+      const { data, error } = await supabase
+        .from("categories")
+        .insert({ user_id: userId, name, default_type: "gasto_variavel" as any })
+        .select("id, name")
+        .single();
+      if (error || !data) {
+        toast.error(error?.message ?? "Não foi possível criar a categoria");
+        return;
+      }
+      await categoryQc.invalidateQueries({ queryKey: ["categories"] });
+      setValues((state) => ({ ...state, category: data.name, category_id: data.id }));
+      setCategorySearch("");
+      setCategoryOpen(false);
+      toast.success(`Categoria "${data.name}" criada. Salve o lançamento para confirmar.`);
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
 
   const selectCategoryName = (name: string | null) => {
     const category = categories.find((item) => item.name.localeCompare(name ?? "", "pt-BR", { sensitivity: "base" }) === 0);
@@ -1084,7 +1121,7 @@ function RowEditor({
             </PopoverTrigger>
             <PopoverContent className="w-[320px] p-0" align="start">
               <Command>
-                <CommandInput placeholder="Pesquisar categoria..." />
+                <CommandInput placeholder="Pesquisar ou criar categoria..." value={categorySearch} onValueChange={setCategorySearch} />
                 <CommandList>
                   <CommandEmpty>
                     {categoriesLoading ? "Carregando categorias..." : categoriesError ? `Falha ao carregar categorias: ${categoriesError}` : "Nenhuma categoria encontrada."}
@@ -1100,6 +1137,14 @@ function RowEditor({
                       </CommandItem>
                     ))}
                   </CommandGroup>
+                  {trimmedCategorySearch && !categoryExists && (
+                    <CommandGroup>
+                      <CommandItem value={`__create__${trimmedCategorySearch}`} onSelect={createCategory} disabled={creatingCategory}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        {creatingCategory ? "Criando..." : `Criar categoria "${trimmedCategorySearch}"`}
+                      </CommandItem>
+                    </CommandGroup>
+                  )}
                 </CommandList>
               </Command>
             </PopoverContent>
