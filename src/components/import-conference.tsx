@@ -231,11 +231,16 @@ export function ImportConference({
   });
 
   const categoriesQ = useQuery({
-    queryKey: ["categories", "active"],
+    queryKey: ["categories", "import-selectable"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("categories").select("id, name").eq("archived", false).order("name");
+      const { data, error } = await supabase.from("categories").select("id, name, archived").order("name");
       if (error) throw error;
-      return data ?? [];
+      // Inclui categorias arquivadas que ainda existem (ex.: UBER), sem as mescladas e sem duplicar nomes ativos.
+      const list = (data ?? []).filter((c) => !c.name.startsWith("[MERGED]"));
+      const activeNames = new Set(list.filter((c) => !c.archived).map((c) => c.name.trim().toLocaleLowerCase("pt-BR")));
+      return list
+        .filter((c) => !c.archived || !activeNames.has(c.name.trim().toLocaleLowerCase("pt-BR")))
+        .map(({ id, name }) => ({ id, name }));
     },
   });
   const categoryIdByName = useMemo(() => {
