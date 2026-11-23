@@ -28,7 +28,7 @@ function NotFoundComponent() {
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Ir para a página inicial
           </Link>
         </div>
       </div>
@@ -36,37 +36,46 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
+function ErrorComponent({ error }: { error: unknown; reset: () => void }) {
   console.error(error);
-  const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    // Após uma nova publicação, abas antigas tentam carregar arquivos que não existem mais.
+    // Nesse caso, recarrega a página uma única vez para buscar a versão atual.
+    const msg = String((error as { message?: string })?.message ?? error);
+    if (/dynamically imported module|Importing a module script failed|Failed to fetch|error loading dynamically|ChunkLoadError|Unable to preload CSS/i.test(msg)) {
+      const key = "chunk-reload-at";
+      const last = Number(sessionStorage.getItem(key) ?? 0);
+      if (Date.now() - last > 30000) {
+        sessionStorage.setItem(key, String(Date.now()));
+        window.location.reload();
+      }
+    }
   }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          Esta página não carregou
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Ocorreu um problema ao abrir esta página. Tente atualizar ou volte para a página inicial.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
-              router.invalidate();
-              reset();
+              window.location.reload();
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Tentar novamente
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Ir para a página inicial
           </a>
         </div>
       </div>
