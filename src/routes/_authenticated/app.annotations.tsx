@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { isStaleBuildError, reloadOnceForStaleBuild } from "@/lib/stale-build";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { annotationsQuery } from "@/lib/annotations.functions";
 import { AnnotationsManager } from "@/components/annotations-manager";
@@ -29,7 +31,8 @@ function AnnotationsPage() {
   const navigate = Route.useNavigate();
   return <AnnotationsManager filters={filters} onFilters={(next) => { void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true }); }} />;
 }
-function AnnotationsError() {
+function AnnotationsError({ error }: { error: unknown }) {
   const router = useRouter();
+  useEffect(() => { if (isStaleBuildError(error)) reloadOnceForStaleBuild(); }, [error]);
   return <div role="alert" className="space-y-4"><h1 className="text-3xl font-bold">Anotações</h1><p>Não foi possível carregar suas anotações.</p><Button onClick={() => router.invalidate()}>Tentar novamente</Button></div>;
 }

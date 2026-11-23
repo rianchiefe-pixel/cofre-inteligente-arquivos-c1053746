@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { isStaleBuildError, reloadOnceForStaleBuild } from "@/lib/stale-build";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -40,17 +41,7 @@ function ErrorComponent({ error }: { error: unknown; reset: () => void }) {
   console.error(error);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-    // Após uma nova publicação, abas antigas tentam carregar arquivos que não existem mais.
-    // Nesse caso, recarrega a página uma única vez para buscar a versão atual.
-    const msg = String((error as { message?: string })?.message ?? error);
-    if (/dynamically imported module|Importing a module script failed|Failed to fetch|error loading dynamically|ChunkLoadError|Unable to preload CSS/i.test(msg)) {
-      const key = "chunk-reload-at";
-      const last = Number(sessionStorage.getItem(key) ?? 0);
-      if (Date.now() - last > 30000) {
-        sessionStorage.setItem(key, String(Date.now()));
-        window.location.reload();
-      }
-    }
+    if (isStaleBuildError(error)) reloadOnceForStaleBuild();
   }, [error]);
 
   return (
@@ -133,6 +124,15 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+
+  useEffect(() => {
+    const onPreloadError = (e: Event) => {
+      e.preventDefault();
+      reloadOnceForStaleBuild();
+    };
+    window.addEventListener("vite:preloadError", onPreloadError);
+    return () => window.removeEventListener("vite:preloadError", onPreloadError);
+  }, []);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
